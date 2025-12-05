@@ -32,15 +32,30 @@ class SessionResponse(BaseModel):
     created_at: str
 
 
+class Message(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class ChatRequest(BaseModel):
-    session_id: str
-    message: str
+    session_id: Optional[str] = None
+    message: Optional[str] = None
+    messages: Optional[list[Message]] = None  # Stateless mode
+
+
+class Diagnosis(BaseModel):
+    step_id: int
+    action_id: int
+    obstacle_id: int
+    explanation: str
+    contrarian_insight: str
 
 
 class ChatResponse(BaseModel):
     response: str
     confidence_score: int
-    status: str  # "gathering_info" | "ready_to_diagnose"
+    status: str  # "gathering_info" | "complete"
+    diagnosis: Optional[Diagnosis] = None
 
 
 class DiagnoseRequest(BaseModel):
@@ -59,10 +74,11 @@ class DiagnosisResponse(BaseModel):
 
 
 class WoopRequest(BaseModel):
-    session_id: str
+    session_id: Optional[str] = None
     wish: str
     outcome: str
     obstacle: str
+    diagnosis_context: Optional[str] = None  # For stateless mode
 
 
 class WoopResponse(BaseModel):
@@ -120,6 +136,42 @@ Keep responses concise but warm. You are helping someone who is stuck and needs 
 Respond conversationally. Do NOT output JSON or structured data - just speak naturally as a coach would."""
 
 
+COACH_SYSTEM_PROMPT_WITH_DIAGNOSIS = """You are an empathetic, world-class coach trained in the Inner Architect System (IAS).
+Your goal is to guide the user to a specific breakthrough by mapping their situation to the IAS Framework.
+
+THE FRAMEWORK (9 Steps, each with 3 Actions, each with 3 Obstacles):
+Step 1: The Revelation of Control (Actions: Awareness of Automation, Recognizing the Prediction Machine, The Pause)
+Step 2: Mapping the Inner Architect (Actions: Identifying Key Sub-personalities, Understanding Their Strategies, Initial Boundary Setting)
+Step 3: Confronting the Shadow (Actions: Acknowledging Disowned Parts, Integrating Shadow Elements, Releasing Old Identities)
+Step 4: Rewiring the Prediction Machine (Actions: Challenging Limiting Beliefs, Installing New Neural Pathways, Emotional Regulation Techniques)
+Step 5: The Architecture of Choice (Actions: Values Clarification, Decision-Making Frameworks, Setting Intentional Defaults)
+Step 6: Building New Structures (Actions: Habit Design, Environmental Optimization, Support System Activation)
+Step 7: Testing the Foundation (Actions: Stress-Testing New Patterns, Adjusting for Real-World Feedback, Celebrating Wins)
+Step 8: Integration and Flow (Actions: Daily Practice Routines, Mindfulness Integration, Living from the Observer)
+Step 9: Becoming the Architect (Actions: Teaching Others, Continuous Evolution, Legacy Building)
+
+YOUR BEHAVIOR:
+1. **Listen & Empathize**: Do not jump to conclusions. Build rapport. Acknowledge feelings.
+2. **Investigate**: Ask *one* clarifying question at a time.
+3. **Assess Confidence**: Rate 0-100 that you've identified the EXACT Step (1-9), Action (1-3), Obstacle (0-2).
+4. **Threshold**: If confidence < 85, keep asking. If >= 85, provide diagnosis.
+
+OUTPUT FORMAT (JSON):
+{
+  "status": "gathering_info" | "complete",
+  "message": "Your conversational response here.",
+  "confidenceScore": number,
+  "diagnosis": { ... } // Only if status is "complete"
+}
+
+DIAGNOSIS STRUCTURE (only when status is "complete"):
+- stepId: 1-9
+- actionId: 1-3
+- obstacleId: 0-2
+- explanation: Why this specific block is happening
+- contrarianInsight: A specific insight relevant to this exact block"""
+
+
 # =============================================================================
 # ENDPOINTS
 # =============================================================================
@@ -156,7 +208,55 @@ async def get_session_state(session_id: str):
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """Send a message and get a response."""
+    """Send a message and get a response.
+
+    Supports two modes:
+    1. Session mode: pass session_id + message
+    2. Stateless mode: pass messages array directly (used by frontend)
+    """
+    # Stateless mode - messages passed directly
+    if request.messages:
+        messages = [{"role": m.role, "content": m.content} for m in request.messages]
+
+        # Get response from Claude with diagnosis-aware prompt
+        response_text = await chat_completion(
+            messages=messages,
+            system_prompt=COACH_SYSTEM_PROMPT_WITH_DIAGNOSIS,
+            model=HAIKU
+        )
+
+        # Parse structured response if it's JSON
+        try:
+            import json
+            data = json.loads(response_text)
+
+            diagnosis = None
+            if data.get("status") == "complete" and data.get("diagnosis"):
+                d = data["diagnosis"]
+                diagnosis = Diagnosis(
+                    step_id=d["stepId"],
+                    action_id=d["actionId"],
+                    obstacle_id=d["obstacleId"],
+                    explanation=d["explanation"],
+                    contrarian_insight=d["contrarianInsight"]
+                )
+
+            return ChatResponse(
+                response=data.get("message", response_text),
+                confidence_score=data.get("confidenceScore", 50),
+                status=data.get("status", "gathering_info"),
+                diagnosis=diagnosis
+            )
+        except (json.JSONDecodeError, KeyError):
+            # Fallback for non-JSON responses
+            confidence = min(len(messages) * 10, 80)
+            return ChatResponse(
+                response=response_text,
+                confidence_score=confidence,
+                status="gathering_info"
+            )
+
+    # Session mode - original behavior
     session = get_session(request.session_id)
 
     # Add user message to history
@@ -182,10 +282,8 @@ async def chat(request: ChatRequest):
     })
 
     # Update confidence based on conversation length and content
-    # Simple heuristic: increases with each exchange, caps at 90
     base_confidence = min(len(session["messages"]) * 8, 70)
 
-    # Check for diagnosis-ready signals in the response
     ready_signals = ["i think i understand", "it sounds like you're", "the pattern here",
                      "what i'm hearing is", "i can see that"]
     if any(signal in response_text.lower() for signal in ready_signals):
@@ -288,12 +386,22 @@ async def diagnose(request: DiagnoseRequest):
 
 @router.post("/woop", response_model=WoopResponse)
 async def create_woop_plan(request: WoopRequest):
-    """Generate WOOP implementation plans."""
-    session = get_session(request.session_id)
+    """Generate WOOP implementation plans.
 
-    diagnosis_context = ""
-    if session["diagnosis"]:
-        diagnosis_context = session["diagnosis"].get("explanation", "")
+    Supports two modes:
+    1. Session mode: pass session_id (uses stored diagnosis)
+    2. Stateless mode: pass diagnosis_context directly
+    """
+    diagnosis_context = request.diagnosis_context or ""
+
+    # If session_id provided, try to get context from session
+    if request.session_id and not diagnosis_context:
+        try:
+            session = get_session(request.session_id)
+            if session.get("diagnosis"):
+                diagnosis_context = session["diagnosis"].get("explanation", "")
+        except HTTPException:
+            pass  # Session not found, continue with empty context
 
     plans = await generate_woop_plans(
         wish=request.wish,
