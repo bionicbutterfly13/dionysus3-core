@@ -10,6 +10,7 @@ psycopg2-binary>=2.9.9
 
 # AI/ML
 openai>=1.3.0
+anthropic>=0.39.0
 numpy>=1.24.0
 tiktoken>=0.5.1
 
@@ -20,6 +21,9 @@ pgvector>=0.2.0
 pytest>=7.4.3
 pytest-asyncio>=0.21.1
 httpx>=0.25.0
+
+# Rate limiting
+slowapi>=0.1.9
 
 # Development
 python-dotenv>=1.0.0

@@ -1,6 +1,12 @@
 -- ============================================================================
--- AGI MEMORY SYSTEM - FINAL SCHEMA
+-- SUPABASE-COMPATIBLE SCHEMA (NO AGE)
 -- ============================================================================
+-- This schema works on Supabase, Neon, and other managed PostgreSQL services
+-- that support pgvector but not Apache AGE.
+--
+-- Graph relationships use junction tables instead of AGE cypher queries.
+-- ============================================================================
+
 -- Architecture:
 --   - Relational: Core storage, clusters, acceleration, identity
 --   - Graph (AGE): Reasoning layer (memories + concepts only)
@@ -12,23 +18,16 @@
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS age;
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS http;
 
-LOAD 'age';
-SET search_path = ag_catalog, "$user", public;
 
 -- ============================================================================
 -- GRAPH INITIALIZATION
 -- ============================================================================
 
-SELECT create_graph('memory_graph');
-SELECT create_vlabel('memory_graph', 'MemoryNode');
-SELECT create_vlabel('memory_graph', 'ConceptNode');
 
-SET search_path = public, ag_catalog, "$user";
 
 -- ============================================================================
 -- ENUMS
@@ -754,16 +753,7 @@ BEGIN
     VALUES (p_type, p_content, embedding_vec, p_importance)
     RETURNING id INTO new_memory_id;
     
-    -- Create graph node
-    EXECUTE format(
-        'SELECT * FROM cypher(''memory_graph'', $q$
-            CREATE (n:MemoryNode {memory_id: %L, type: %L, created_at: %L})
-            RETURN n
-        $q$) as (result agtype)',
-        new_memory_id,
-        p_type,
-        CURRENT_TIMESTAMP
-    );
+    -- Graph node creation disabled (no AGE)
     
     RETURN new_memory_id;
 END;
@@ -965,22 +955,7 @@ CREATE OR REPLACE FUNCTION create_memory_relationship(
     p_properties JSONB DEFAULT '{}'
 ) RETURNS VOID AS $$
 BEGIN
-    EXECUTE format(
-        'SELECT * FROM cypher(''memory_graph'', $q$
-            MATCH (a:MemoryNode {memory_id: %L}), (b:MemoryNode {memory_id: %L})
-            CREATE (a)-[r:%s %s]->(b)
-            RETURN r
-        $q$) as (result agtype)',
-        p_from_id,
-        p_to_id,
-        p_relationship_type,
-        CASE WHEN p_properties = '{}'::jsonb 
-             THEN '' 
-             ELSE format('{%s}', 
-                  (SELECT string_agg(format('%I: %s', key, value), ', ')
-                   FROM jsonb_each(p_properties)))
-        END
-    );
+    -- Graph operation disabled (no AGE)
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1005,17 +980,7 @@ BEGIN
     ON CONFLICT DO NOTHING;
     
     -- Create graph edge
-    EXECUTE format(
-        'SELECT * FROM cypher(''memory_graph'', $q$
-            MATCH (m:MemoryNode {memory_id: %L})
-            MERGE (c:ConceptNode {name: %L})
-            CREATE (m)-[:INSTANCE_OF {strength: %s}]->(c)
-            RETURN c
-        $q$) as (result agtype)',
-        p_memory_id,
-        p_concept_name,
-        p_strength
-    );
+    -- Graph operation disabled (no AGE)
     
     RETURN concept_id;
 END;
