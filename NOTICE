@@ -1,0 +1,57 @@
+Dionysus-Core
+Copyright 2025 Mani Saint Victor
+
+This product includes software developed from:
+
+1. agi-memory (cognitivecomputations/agi-memory)
+   https://github.com/cognitivecomputations/agi-memory
+   - PostgreSQL schema design
+   - Memory type taxonomy (episodic, semantic, procedural, strategic)
+   - Decay/consolidation patterns
+   - Worldview and identity systems
+
+2. Dionysus-2.0 Consciousness System (Apache 2.0)
+   - AttractorBasin classes with neural field integration
+   - Active Inference implementation (prediction error, free energy)
+   - IWMT coherence framework (spatial, temporal, causal)
+   - CLAUSE multi-agent scoring (5-signal architecture)
+   - ThoughtSeed hierarchy (5-layer cognitive processing)
+
+3. Context-Engineering (MIT License)
+   Copyright (c) 2025 davidkimai
+   https://github.com/davidkimai/Context-Engineering
+   - Cognitive Tools Framework
+   - Attractor basin dynamics
+   - Neural field integration
+   - River metaphor framework
+   - Consciousness detection patterns
+
+4. Research Implementations:
+
+   IBM Zurich Cognitive Tools (2025)
+   Brown, E., Bartezzaghi, A., & Rigotti, M.
+   "Eliciting Reasoning in Language Models with Cognitive Tools."
+   IBM Research Zurich. ArXiv:2506.12115
+
+   Singapore-MIT Alliance MEM1 (2025)
+   Li, X., et al.
+   "MEM1: Learning to Synergize Memory and Reasoning for
+   Efficient Long-Horizon Agents."
+   ArXiv:2506.15841
+
+   Princeton ICML (2025)
+   Yang, et al.
+   "Emergent Symbolic Mechanisms Support Abstract Reasoning
+   in Large Language Models."
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

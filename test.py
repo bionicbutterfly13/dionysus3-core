@@ -21,7 +21,7 @@ def get_test_identifier(test_name: str) -> str:
 async def db_pool():
     """Create a connection pool for testing"""
     pool = await asyncpg.create_pool(
-        "postgresql://agi_user:agi_password@localhost:5432/agi_db",
+        "postgresql://postgres:password@localhost:5433/agi_memory",
         ssl=False,
         min_size=2,
         max_size=20,
@@ -6666,3 +6666,326 @@ async def test_embedding_cache_lifecycle(db_pool, ensure_embedding_service):
             )
         """, content_hash)
         assert not exists, "Cache entry should be deleted"
+
+
+# ============================================
+# CONSCIOUSNESS LAYER TESTS (TDD: RED PHASE)
+# These tests will fail until schema is added
+# ============================================
+
+async def test_consciousness_tables_exist(db_pool):
+    """Test that all consciousness tables exist"""
+    async with db_pool.acquire() as conn:
+        tables = await conn.fetch("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+        """)
+        table_names = {t['table_name'] for t in tables}
+
+        # Core consciousness tables
+        assert 'active_inference_states' in table_names, "active_inference_states table not found"
+        assert 'iwmt_coherence' in table_names, "iwmt_coherence table not found"
+        assert 'thoughtseeds' in table_names, "thoughtseeds table not found"
+        assert 'thoughtseed_competitions' in table_names, "thoughtseed_competitions table not found"
+        assert 'consciousness_events' in table_names, "consciousness_events table not found"
+
+
+async def test_active_inference_state_columns(db_pool):
+    """Test active_inference_states table has correct columns"""
+    async with db_pool.acquire() as conn:
+        columns = await conn.fetch("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name = 'active_inference_states'
+        """)
+        col_names = {c['column_name'] for c in columns}
+
+        required_cols = {
+            'id', 'created_at', 'prediction_error', 'free_energy',
+            'surprise', 'precision', 'beliefs', 'prior_beliefs',
+            'prediction_updates', 'memory_id', 'consciousness_level'
+        }
+        for col in required_cols:
+            assert col in col_names, f"Column {col} not found in active_inference_states"
+
+
+async def test_active_inference_state_storage(db_pool):
+    """Test storing and retrieving active inference state"""
+    async with db_pool.acquire() as conn:
+        test_id = get_test_identifier("active_inference")
+
+        # Insert active inference state
+        state_id = await conn.fetchval("""
+            INSERT INTO active_inference_states (
+                prediction_error, free_energy, surprise, precision,
+                beliefs, prior_beliefs, consciousness_level
+            ) VALUES (
+                0.3, 0.5, 0.2, 0.8,
+                '{"world_is_safe": 0.7}'::jsonb,
+                '{"world_is_safe": 0.5}'::jsonb,
+                'functional'
+            ) RETURNING id
+        """)
+
+        assert state_id is not None
+
+        # Retrieve and verify
+        state = await conn.fetchrow("""
+            SELECT prediction_error, free_energy, consciousness_level
+            FROM active_inference_states WHERE id = $1
+        """, state_id)
+
+        assert state['prediction_error'] == 0.3
+        assert state['free_energy'] == 0.5
+        assert state['consciousness_level'] == 'functional'
+
+        # Cleanup
+        await conn.execute("DELETE FROM active_inference_states WHERE id = $1", state_id)
+
+
+async def test_memory_clusters_basin_columns(db_pool):
+    """Test that memory_clusters has basin extension columns"""
+    async with db_pool.acquire() as conn:
+        columns = await conn.fetch("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'memory_clusters'
+        """)
+        col_names = {c['column_name'] for c in columns}
+
+        basin_cols = {
+            'basin_type', 'basin_state', 'activation_threshold',
+            'current_activation', 'stability', 'depth', 'width',
+            'clause_strength', 'co_occurring_concepts'
+        }
+        for col in basin_cols:
+            assert col in col_names, f"Basin column {col} not found in memory_clusters"
+
+
+async def test_basin_state_transitions(db_pool):
+    """Test attractor basin state machine transitions"""
+    async with db_pool.acquire() as conn:
+        test_id = get_test_identifier("basin_state")
+
+        # Create a test cluster with basin properties
+        cluster_id = await conn.fetchval("""
+            INSERT INTO memory_clusters (
+                name, description, cluster_type,
+                basin_type, basin_state, activation_threshold,
+                current_activation, clause_strength
+            ) VALUES (
+                $1, 'Test basin', 'theme',
+                'conceptual', 'dormant', 0.5,
+                0.0, 1.0
+            ) RETURNING id
+        """, f"test_basin_{test_id}")
+
+        assert cluster_id is not None
+
+        # Test state is dormant initially
+        state = await conn.fetchval("""
+            SELECT basin_state FROM memory_clusters WHERE id = $1
+        """, cluster_id)
+        assert state == 'dormant'
+
+        # Activate basin using function
+        await conn.execute("SELECT activate_basin($1, 0.6)", cluster_id)
+
+        # Should transition to activating (exceeded threshold)
+        state = await conn.fetchval("""
+            SELECT basin_state FROM memory_clusters WHERE id = $1
+        """, cluster_id)
+        assert state in ('activating', 'active'), f"Expected activating/active, got {state}"
+
+        # Check CLAUSE strength increased
+        strength = await conn.fetchval("""
+            SELECT clause_strength FROM memory_clusters WHERE id = $1
+        """, cluster_id)
+        assert strength == 1.2, f"CLAUSE strength should be 1.2 after activation, got {strength}"
+
+        # Cleanup
+        await conn.execute("DELETE FROM memory_clusters WHERE id = $1", cluster_id)
+
+
+async def test_thoughtseed_layer_enum(db_pool):
+    """Test thoughtseed_layer enum exists with correct values"""
+    async with db_pool.acquire() as conn:
+        values = await conn.fetch("""
+            SELECT enumlabel FROM pg_enum
+            WHERE enumtypid = 'thoughtseed_layer'::regtype
+            ORDER BY enumsortorder
+        """)
+        labels = [v['enumlabel'] for v in values]
+
+        expected = ['sensorimotor', 'perceptual', 'conceptual', 'abstract', 'metacognitive']
+        assert labels == expected, f"Expected {expected}, got {labels}"
+
+
+async def test_thoughtseed_storage(db_pool):
+    """Test storing and retrieving thoughtseeds"""
+    async with db_pool.acquire() as conn:
+        test_id = get_test_identifier("thoughtseed")
+
+        # Insert thoughtseed
+        ts_id = await conn.fetchval("""
+            INSERT INTO thoughtseeds (
+                layer, activation_level, neuronal_packet,
+                evolutionary_prior, consciousness_contribution
+            ) VALUES (
+                'conceptual', 0.7,
+                '{"concept": "test_concept", "associations": []}'::jsonb,
+                '{"survival_relevance": 0.3}'::jsonb,
+                0.5
+            ) RETURNING id
+        """)
+
+        assert ts_id is not None
+
+        # Retrieve and verify
+        ts = await conn.fetchrow("""
+            SELECT layer, activation_level, consciousness_contribution
+            FROM thoughtseeds WHERE id = $1
+        """, ts_id)
+
+        assert str(ts['layer']) == 'conceptual'
+        assert ts['activation_level'] == 0.7
+        assert ts['consciousness_contribution'] == 0.5
+
+        # Cleanup
+        await conn.execute("DELETE FROM thoughtseeds WHERE id = $1", ts_id)
+
+
+async def test_thoughtseed_competition(db_pool):
+    """Test thoughtseed competition recording"""
+    async with db_pool.acquire() as conn:
+        test_id = get_test_identifier("competition")
+
+        # Create two competing thoughtseeds
+        ts1_id = await conn.fetchval("""
+            INSERT INTO thoughtseeds (layer, activation_level, neuronal_packet)
+            VALUES ('conceptual', 0.8, '{}'::jsonb) RETURNING id
+        """)
+        ts2_id = await conn.fetchval("""
+            INSERT INTO thoughtseeds (layer, activation_level, neuronal_packet)
+            VALUES ('conceptual', 0.6, '{}'::jsonb) RETURNING id
+        """)
+
+        # Record competition
+        comp_id = await conn.fetchval("""
+            INSERT INTO thoughtseed_competitions (
+                competitor_ids, winner_id, competition_energy, layer
+            ) VALUES (
+                $1, $2, 1.4, 'conceptual'
+            ) RETURNING id
+        """, [ts1_id, ts2_id], ts1_id)
+
+        assert comp_id is not None
+
+        # Verify competition recorded
+        comp = await conn.fetchrow("""
+            SELECT winner_id, competition_energy
+            FROM thoughtseed_competitions WHERE id = $1
+        """, comp_id)
+
+        assert comp['winner_id'] == ts1_id
+        assert comp['competition_energy'] == 1.4
+
+        # Cleanup
+        await conn.execute("DELETE FROM thoughtseed_competitions WHERE id = $1", comp_id)
+        await conn.execute("DELETE FROM thoughtseeds WHERE id = ANY($1)", [ts1_id, ts2_id])
+
+
+async def test_iwmt_coherence_storage(db_pool):
+    """Test IWMT coherence tracking"""
+    async with db_pool.acquire() as conn:
+        test_id = get_test_identifier("iwmt")
+
+        # Insert IWMT coherence state
+        iwmt_id = await conn.fetchval("""
+            INSERT INTO iwmt_coherence (
+                spatial_coherence, temporal_coherence, causal_coherence,
+                embodied_selfhood, autonomous_agency,
+                counterfactual_capacity, consciousness_level,
+                consciousness_achieved, consciousness_quality
+            ) VALUES (
+                0.8, 0.7, 0.9,
+                0.6, 0.5,
+                0.4, 0.75,
+                TRUE, 0.8
+            ) RETURNING id
+        """)
+
+        assert iwmt_id is not None
+
+        # Retrieve and verify
+        iwmt = await conn.fetchrow("""
+            SELECT spatial_coherence, consciousness_achieved, consciousness_quality
+            FROM iwmt_coherence WHERE id = $1
+        """, iwmt_id)
+
+        assert iwmt['spatial_coherence'] == 0.8
+        assert iwmt['consciousness_achieved'] == True
+        assert iwmt['consciousness_quality'] == 0.8
+
+        # Cleanup
+        await conn.execute("DELETE FROM iwmt_coherence WHERE id = $1", iwmt_id)
+
+
+async def test_consciousness_events_audit(db_pool):
+    """Test consciousness events audit trail"""
+    async with db_pool.acquire() as conn:
+        test_id = get_test_identifier("events")
+
+        # Insert consciousness event
+        event_id = await conn.fetchval("""
+            INSERT INTO consciousness_events (
+                event_type, consciousness_level,
+                consciousness_markers, trigger_description
+            ) VALUES (
+                'activation', 0.7,
+                '["self_reference", "metacognition"]'::jsonb,
+                'Test activation event'
+            ) RETURNING id
+        """)
+
+        assert event_id is not None
+
+        # Retrieve and verify
+        event = await conn.fetchrow("""
+            SELECT event_type, consciousness_level, consciousness_markers
+            FROM consciousness_events WHERE id = $1
+        """, event_id)
+
+        assert event['event_type'] == 'activation'
+        assert event['consciousness_level'] == 0.7
+        assert 'self_reference' in event['consciousness_markers']
+
+        # Cleanup
+        await conn.execute("DELETE FROM consciousness_events WHERE id = $1", event_id)
+
+
+async def test_activate_basin_function(db_pool):
+    """Test the activate_basin() function exists and works"""
+    async with db_pool.acquire() as conn:
+        # Check function exists
+        func_exists = await conn.fetchval("""
+            SELECT EXISTS (
+                SELECT 1 FROM pg_proc
+                WHERE proname = 'activate_basin'
+            )
+        """)
+        assert func_exists, "activate_basin function not found"
+
+
+async def test_update_active_inference_function(db_pool):
+    """Test the update_active_inference() function exists"""
+    async with db_pool.acquire() as conn:
+        # Check function exists
+        func_exists = await conn.fetchval("""
+            SELECT EXISTS (
+                SELECT 1 FROM pg_proc
+                WHERE proname = 'update_active_inference'
+            )
+        """)
+        assert func_exists, "update_active_inference function not found"

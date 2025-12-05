@@ -1,0 +1,86 @@
+"""
+Dionysus-Core API Server
+
+FastAPI HTTP layer for web/mobile clients.
+"""
+
+import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+from api.routers import ias
+
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan events."""
+    # Startup
+    print("Starting Dionysus API server...")
+    yield
+    # Shutdown
+    print("Shutting down Dionysus API server...")
+
+
+# Create FastAPI app
+app = FastAPI(
+    title="Dionysus Core API",
+    description="AI consciousness and memory system with IAS coaching",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Add rate limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS - configure for your frontend domain in production
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://*.vercel.app",
+        # Add your production domain here
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Health check
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "dionysus-core"}
+
+
+# Include routers
+app.include_router(ias.router)
+
+
+# Global error handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "type": type(exc).__name__}
+    )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "api.main:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", 8000)),
+        reload=True
+    )
