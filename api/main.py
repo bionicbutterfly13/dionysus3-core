@@ -15,6 +15,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from api.routers import ias
+from api.services.database import init_db, close_db
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -25,8 +26,10 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     print("Starting Dionysus API server...")
+    init_db()
     yield
     # Shutdown
+    close_db()
     print("Shutting down Dionysus API server...")
 
 

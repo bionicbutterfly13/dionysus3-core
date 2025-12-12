@@ -19,19 +19,57 @@ Lightweight consciousness system exposing:
 import asyncio
 import json
 import os
+from pathlib import Path
 from typing import Any, Optional
 from contextlib import asynccontextmanager
 
 import asyncpg
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+import httpx
+from openai import AsyncOpenAI
+
+
+def _import_mcp_module(module_name: str):
+    """Import MCP SDK modules without shadowing by this package."""
+    import importlib
+    import sys
+
+    pkg_root = str(Path(__file__).resolve().parent.parent)
+    removed = False
+    if pkg_root in sys.path:
+        sys.path.remove(pkg_root)
+        removed = True
+    try:
+        return importlib.import_module(module_name)
+    finally:
+        if removed:
+            sys.path.insert(0, pkg_root)
+
+
+# Load real MCP SDK components
+_mcp_server = _import_mcp_module("mcp.server")
+_mcp_stdio = _import_mcp_module("mcp.server.stdio")
+_mcp_types = _import_mcp_module("mcp.types")
+
+Server = getattr(_mcp_server, "Server")
+stdio_server = getattr(_mcp_stdio, "stdio_server")
+Tool = getattr(_mcp_types, "Tool")
+TextContent = getattr(_mcp_types, "TextContent")
 
 # Database configuration
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://postgres:password@localhost:5433/agi_memory"
 )
+EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "768"))
+AGE_ENABLED = os.getenv("AGE_AVAILABLE", "true").lower() == "true"
+
+EMBEDDINGS_PROVIDER = os.getenv("EMBEDDINGS_PROVIDER", "ollama").lower()
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+EMBEDDINGS_HTTP_URL = os.getenv("EMBEDDINGS_HTTP_URL", "http://localhost:8080/embed")
+OPENAI_EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
+
+_openai_client: Optional[AsyncOpenAI] = None
 
 # Global connection pool
 _pool: Optional[asyncpg.Pool] = None
@@ -62,6 +100,71 @@ async def close_pool():
 app = Server("dionysus-core")
 
 
+def _require_age():
+    if not AGE_ENABLED:
+        raise RuntimeError("AGE/graph features are disabled in this environment")
+
+
+async def _openai_client_lazy() -> AsyncOpenAI:
+    global _openai_client
+    if _openai_client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY not set for OpenAI embeddings")
+        _openai_client = AsyncOpenAI(api_key=api_key)
+    return _openai_client
+
+
+async def generate_embedding(text: str) -> list[float]:
+    """Generate embeddings via configured provider, defaulting to Ollama."""
+    provider = EMBEDDINGS_PROVIDER
+    try:
+        if provider == "ollama":
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                resp = await client.post(
+                    f"{OLLAMA_BASE_URL}/api/embeddings",
+                    json={"model": OLLAMA_EMBED_MODEL, "input": text},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                if "embedding" in data:
+                    return _normalize_embedding(data["embedding"])
+                if "data" in data and data["data"]:
+                    return _normalize_embedding(data["data"][0].get("embedding", []))
+
+        if provider == "http":
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                resp = await client.post(EMBEDDINGS_HTTP_URL, json={"inputs": [text]})
+                resp.raise_for_status()
+                data = resp.json()
+                if isinstance(data, dict) and "embeddings" in data:
+                    return _normalize_embedding(data["embeddings"][0])
+
+        if provider == "openai":
+            client = await _openai_client_lazy()
+            resp = await client.embeddings.create(
+                model=OPENAI_EMBED_MODEL,
+                input=text,
+                dimensions=EMBEDDING_DIM,
+            )
+            return _normalize_embedding(resp.data[0].embedding)
+    except Exception as exc:  # pragma: no cover - network failures should degrade gracefully
+        print(f"Embedding generation failed ({provider}): {exc}")
+
+    # Fallback: zero vector to keep flow alive (matches schema dimension 768)
+    return [0.0] * EMBEDDING_DIM
+
+
+def _normalize_embedding(vec: list[float]) -> list[float]:
+    """Ensure embedding length matches schema dimension."""
+    if len(vec) == EMBEDDING_DIM:
+        return vec
+    if len(vec) > EMBEDDING_DIM:
+        return vec[:EMBEDDING_DIM]
+    # Pad with zeros if shorter
+    return vec + [0.0] * (EMBEDDING_DIM - len(vec))
+
+
 # =============================================================================
 # MEMORY TOOLS
 # =============================================================================
@@ -87,9 +190,7 @@ async def create_memory(
     """
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # Generate placeholder embedding (768 dimensions)
-        # In production, call embedding service
-        embedding = [0.0] * 768
+        embedding = await generate_embedding(content)
 
         row = await conn.fetchrow(
             """
@@ -129,8 +230,7 @@ async def search_memories(
     """
     pool = await get_pool()
     async with pool.acquire() as conn:
-        # Generate query embedding (placeholder)
-        query_embedding = [0.0] * 768
+        query_embedding = await generate_embedding(query)
 
         type_filter = ""
         if memory_type:
@@ -217,6 +317,7 @@ async def get_consciousness_state() -> dict:
     Returns:
         Current consciousness state with basins, inference state, and IWMT coherence
     """
+    _require_age()
     pool = await get_pool()
     async with pool.acquire() as conn:
         # Get latest active inference state
@@ -300,6 +401,7 @@ async def update_belief(
     Returns:
         Updated active inference state
     """
+    _require_age()
     pool = await get_pool()
     async with pool.acquire() as conn:
         # Create new active inference state with updated belief
@@ -333,6 +435,7 @@ async def assess_coherence() -> dict:
     Returns:
         Coherence assessment with consciousness level calculation
     """
+    _require_age()
     pool = await get_pool()
     async with pool.acquire() as conn:
         # Calculate coherence from active state
@@ -392,6 +495,7 @@ async def activate_basin(basin_id: str, strength: float = 0.5) -> dict:
     Returns:
         Updated basin state
     """
+    _require_age()
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -508,6 +612,7 @@ async def create_thoughtseed(
     Returns:
         Created thoughtseed record
     """
+    _require_age()
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -538,6 +643,7 @@ async def run_thoughtseed_competition(layer: str) -> dict:
     Returns:
         Competition result with winner
     """
+    _require_age()
     pool = await get_pool()
     async with pool.acquire() as conn:
         # Get competing thoughtseeds

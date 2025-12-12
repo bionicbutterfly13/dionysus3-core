@@ -19,6 +19,12 @@ from api.services.claude import (
     HAIKU
 )
 from api.framework import IAS_FRAMEWORK, get_step, get_obstacle
+from api.services.database import (
+    save_session,
+    load_session,
+    search_memories_text,
+    search_memories_similar,
+)
 
 router = APIRouter(prefix="/ias", tags=["IAS"])
 
@@ -102,16 +108,34 @@ class RecallResponse(BaseModel):
 
 
 # =============================================================================
-# SESSION STORAGE (In-memory for MVP, move to dionysus memory later)
+# SESSION STORAGE (PostgreSQL via Supabase)
 # =============================================================================
 
-sessions: dict[str, dict] = {}
+# In-memory cache for active sessions (reduces DB hits during conversation)
+_session_cache: dict[str, dict] = {}
 
 
-def get_session(session_id: str) -> dict:
-    if session_id not in sessions:
+async def get_session(session_id: str) -> dict:
+    """Load session from cache or database."""
+    # Check cache first
+    if session_id in _session_cache:
+        return _session_cache[session_id]
+
+    # Load from database
+    session = await load_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    return sessions[session_id]
+
+    # Cache it
+    _session_cache[session_id] = session
+    return session
+
+
+async def persist_session(session: dict) -> None:
+    """Save session to database and update cache."""
+    session_id = session["id"]
+    _session_cache[session_id] = session
+    await save_session(session_id, session)
 
 
 # =============================================================================
@@ -180,23 +204,24 @@ DIAGNOSIS STRUCTURE (only when status is "complete"):
 async def create_session():
     """Create a new coaching session."""
     session_id = str(uuid.uuid4())
-    sessions[session_id] = {
+    session = {
         "id": session_id,
         "created_at": datetime.utcnow().isoformat(),
         "messages": [],
         "confidence_score": 0,
         "diagnosis": None
     }
+    await persist_session(session)
     return SessionResponse(
         session_id=session_id,
-        created_at=sessions[session_id]["created_at"]
+        created_at=session["created_at"]
     )
 
 
 @router.get("/session/{session_id}")
 async def get_session_state(session_id: str):
     """Get current session state."""
-    session = get_session(session_id)
+    session = await get_session(session_id)
     return {
         "session_id": session["id"],
         "message_count": len(session["messages"]),
@@ -257,7 +282,7 @@ async def chat(request: ChatRequest):
             )
 
     # Session mode - original behavior
-    session = get_session(request.session_id)
+    session = await get_session(request.session_id)
 
     # Add user message to history
     session["messages"].append({
@@ -291,6 +316,9 @@ async def chat(request: ChatRequest):
 
     session["confidence_score"] = min(base_confidence, 95)
 
+    # Persist session to database
+    await persist_session(session)
+
     status = "ready_to_diagnose" if session["confidence_score"] >= 85 else "gathering_info"
 
     return ChatResponse(
@@ -303,7 +331,7 @@ async def chat(request: ChatRequest):
 @router.post("/chat/stream")
 async def chat_stream_endpoint(request: ChatRequest):
     """Send a message and stream the response."""
-    session = get_session(request.session_id)
+    session = await get_session(request.session_id)
 
     # Add user message
     session["messages"].append({
@@ -330,6 +358,9 @@ async def chat_stream_endpoint(request: ChatRequest):
         # Update confidence
         session["confidence_score"] = min(len(session["messages"]) * 8 + 20, 95)
 
+        # Persist to database
+        await persist_session(session)
+
         # Send final event with metadata
         yield f"data: {json.dumps({'done': True, 'confidence_score': session['confidence_score']})}\n\n"
 
@@ -342,7 +373,7 @@ async def chat_stream_endpoint(request: ChatRequest):
 @router.post("/diagnose", response_model=DiagnosisResponse)
 async def diagnose(request: DiagnoseRequest):
     """Analyze conversation and produce diagnosis."""
-    session = get_session(request.session_id)
+    session = await get_session(request.session_id)
 
     if session["confidence_score"] < 50:
         raise HTTPException(
@@ -371,6 +402,7 @@ async def diagnose(request: DiagnoseRequest):
                 break
 
     session["diagnosis"] = diagnosis
+    await persist_session(session)
 
     return DiagnosisResponse(
         step_id=diagnosis["step_id"],
@@ -397,7 +429,7 @@ async def create_woop_plan(request: WoopRequest):
     # If session_id provided, try to get context from session
     if request.session_id and not diagnosis_context:
         try:
-            session = get_session(request.session_id)
+            session = await get_session(request.session_id)
             if session.get("diagnosis"):
                 diagnosis_context = session["diagnosis"].get("explanation", "")
         except HTTPException:
@@ -421,6 +453,38 @@ async def get_framework():
 
 @router.get("/recall")
 async def recall_memories(query: str, limit: int = 10):
-    """Search past session memories (placeholder for dionysus integration)."""
-    # TODO: Integrate with dionysus fast_recall()
-    return RecallResponse(memories=[])
+    """Recall memories via DB vector search; fallback to FTS if unavailable."""
+    memories: list[MemoryResult] = []
+
+    # Try vector similarity search first
+    try:
+        sim_results = await search_memories_similar(query=query, limit=limit)
+        memories = [
+            MemoryResult(
+                type=item["type"],
+                content=item["content"],
+                relevance=item.get("similarity", 0.0),
+                created_at="",
+            )
+            for item in sim_results
+        ]
+    except Exception:
+        memories = []
+
+    # Fallback to text search if vector path failed or returned nothing
+    if not memories:
+        try:
+            text_results = await search_memories_text(query=query, limit=limit)
+            memories = [
+                MemoryResult(
+                    type=item["type"],
+                    content=item["content"],
+                    relevance=item["relevance"],
+                    created_at=item["created_at"] or "",
+                )
+                for item in text_results
+            ]
+        except Exception as exc:  # pragma: no cover - DB/FTS failure
+            raise HTTPException(status_code=500, detail=str(exc))
+
+    return RecallResponse(memories=memories)

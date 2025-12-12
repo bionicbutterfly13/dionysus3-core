@@ -30,8 +30,8 @@
 - (none currently)
 
 ### 🟡 IN PROGRESS
-- [ ] **Full MCP integration for recall** - Codex - FTS fallback done, MCP wiring next
-- [ ] **MCP import shadow fix** - Codex
+- [ ] **Full MCP integration for recall** - Codex - FTS/vector fallback done, MCP wiring next
+- [x] **MCP import shadow fix** - Codex - ✅ DONE 2025-12-09
 - [ ] **Compose/profile split** - Codex - AGE vs no-AGE profiles
 - [ ] **Production deployment** - Claude - Render env vars for serverless
 - [ ] **Frontend flow planning** - Agent - docs/FRONTEND_FLOW.md
@@ -78,31 +78,39 @@
 
 ### .env (production - Claude manages)
 ```
-DATABASE_URL=postgresql://postgres.kxjcgioamvfcavtgstur:89p7%21j0keR13@aws-1-us-east-1.pooler.supabase.com:6543/postgres
-ANTHROPIC_API_KEY=sk-ant-...
-# MISSING: LLM_PROVIDER, OPENAI_API_KEY, EMBEDDINGS vars
+DATABASE_URL=<supabase>
+LLM_PROVIDER=openai
+OPENAI_API_KEY=<prod key>
+OPENAI_MODEL=gpt-5-mini
+EMBEDDINGS_PROVIDER=openai
+OPENAI_EMBED_MODEL=text-embedding-3-small
+EMBEDDING_DIM=768
+AGE_AVAILABLE=false
 ```
 
 ### .env.local (local dev - Codex manages)
 ```
-DATABASE_URL=postgresql://agi_user:agi_password@localhost:5433/agi_memory  # WRONG for Supabase
+DATABASE_URL=postgresql://agi_user:agi_password@localhost:5433/agi_memory
 LLM_PROVIDER=openai
-OPENAI_API_KEY=your_openai_key  # PLACEHOLDER
-OPENAI_MODEL=gpt-4.1-mini
+OPENAI_API_KEY=your_openai_key  # placeholder
+OPENAI_MODEL=gpt-5-mini
 EMBEDDINGS_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_EMBED_MODEL=nomic-embed-text
+EMBEDDING_DIM=768
+AGE_AVAILABLE=true
 ```
 
 ### MERGED CONFIG NEEDED:
 ```
 DATABASE_URL=<from .env>
 LLM_PROVIDER=openai
-OPENAI_API_KEY=<real key from Dr. Mani>
-OPENAI_MODEL=gpt-4.1-mini
-EMBEDDINGS_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_EMBED_MODEL=nomic-embed-text
+OPENAI_API_KEY=<real key>
+OPENAI_MODEL=gpt-5-mini
+EMBEDDINGS_PROVIDER=openai
+OPENAI_EMBED_MODEL=text-embedding-3-small
+EMBEDDING_DIM=768
+AGE_AVAILABLE=false (Supabase/Render)
 ```
 
 ---
@@ -119,7 +127,7 @@ OLLAMA_EMBED_MODEL=nomic-embed-text
 Users won't have local databases or Ollama. Production must use:
 - **Database**: Supabase PostgreSQL (serverless)
 - **LLM**: OpenAI gpt-5-mini (cloud)
-- **Embeddings**: OpenAI text-embedding-3-small (cloud) - NOT Ollama
+- **Embeddings**: OpenAI text-embedding-3-small (cloud) with dimensions=768
 - **AGE**: Disabled (AGE_AVAILABLE=false)
 
 Render env vars needed:
@@ -130,7 +138,7 @@ OPENAI_API_KEY=<key>
 OPENAI_MODEL=gpt-5-mini
 EMBEDDINGS_PROVIDER=openai
 OPENAI_EMBED_MODEL=text-embedding-3-small
-EMBEDDING_DIM=1536
+EMBEDDING_DIM=768
 AGE_AVAILABLE=false
 ```
 
