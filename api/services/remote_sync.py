@@ -612,7 +612,7 @@ class RemoteSyncService:
         return health
 
     # =========================================================================
-    # Sync Hook (T027)
+    # Sync Hook (T027) - All sync goes through n8n webhook, NOT direct Neo4j
     # =========================================================================
 
     async def sync_memory_on_create(
@@ -623,8 +623,8 @@ class RemoteSyncService:
         """
         Hook to sync memory when created locally.
 
-        This method should be called after creating a memory in PostgreSQL.
-        It will attempt immediate sync, or queue for later if unavailable.
+        IMPORTANT: All sync operations go through n8n webhook.
+        Neo4j is NOT directly accessible - this protects against LLM data destruction.
 
         Args:
             memory_data: Full memory data including id, content, etc.
@@ -641,39 +641,31 @@ class RemoteSyncService:
             "error": None,
         }
 
+        # Build webhook payload
+        payload = {
+            "memory_id": memory_id,
+            "content": memory_data.get("content", ""),
+            "memory_type": memory_data.get("memory_type", "episodic"),
+            "importance": memory_data.get("importance", 0.5),
+            "session_id": str(memory_data.get("session_id", "")),
+            "project_id": memory_data.get("source_project", "default"),
+            "tags": memory_data.get("tags", []),
+            "sync_version": memory_data.get("sync_version", 1),
+            "created_at": memory_data.get("created_at", datetime.utcnow().isoformat()),
+            "updated_at": memory_data.get("updated_at"),
+            "operation": "create",
+        }
+
         try:
-            # Try immediate sync via webhook
-            payload = {
-                "memory_id": memory_id,
-                "content": memory_data.get("content", ""),
-                "memory_type": memory_data.get("memory_type", "episodic"),
-                "importance": memory_data.get("importance", 0.5),
-                "session_id": str(memory_data.get("session_id", "")),
-                "project_id": memory_data.get("source_project", "default"),
-                "tags": memory_data.get("tags", []),
-                "sync_version": memory_data.get("sync_version", 1),
-                "created_at": memory_data.get("created_at", datetime.utcnow().isoformat()),
-                "updated_at": memory_data.get("updated_at"),
-            }
+            # Send to n8n webhook - n8n handles Neo4j operations
+            webhook_result = await self._send_to_webhook(payload)
 
-            # Create memory in Neo4j directly
-            neo4j_result = await self.neo4j.create_memory(memory_data)
-
-            if neo4j_result:
-                # Create relationships
-                await self.create_session_relationship(
-                    memory_id=memory_id,
-                    session_id=str(memory_data.get("session_id", "")),
-                    project_id=memory_data.get("source_project", "default"),
-                )
-                await self.create_project_relationship(
-                    memory_id=memory_id,
-                    project_id=memory_data.get("source_project", "default"),
-                )
-
+            if webhook_result.get("success"):
                 result["synced"] = True
                 self._last_sync = datetime.utcnow()
-                logger.info(f"Synced memory {memory_id} to Neo4j")
+                logger.info(f"Synced memory {memory_id} via n8n webhook")
+            else:
+                raise Exception(webhook_result.get("error", "Webhook returned failure"))
 
         except Exception as e:
             error_msg = str(e)
@@ -681,11 +673,10 @@ class RemoteSyncService:
             logger.warning(f"Failed to sync memory {memory_id}: {error_msg}")
 
             if queue_if_unavailable:
-                # Queue for later retry
                 self.queue_memory(
                     memory_id=memory_id,
                     operation="create",
-                    payload=memory_data,
+                    payload=payload,
                 )
                 result["queued"] = True
                 logger.info(f"Queued memory {memory_id} for retry")
@@ -700,6 +691,8 @@ class RemoteSyncService:
     ) -> dict[str, Any]:
         """
         Hook to sync memory when updated locally.
+
+        All sync goes through n8n webhook - no direct Neo4j access.
 
         Args:
             memory_id: UUID of the memory
@@ -716,14 +709,21 @@ class RemoteSyncService:
             "error": None,
         }
 
-        try:
-            # Update in Neo4j
-            neo4j_result = await self.neo4j.update_memory(memory_id, update_data)
+        payload = {
+            "memory_id": memory_id,
+            "operation": "update",
+            **update_data,
+        }
 
-            if neo4j_result:
+        try:
+            webhook_result = await self._send_to_webhook(payload)
+
+            if webhook_result.get("success"):
                 result["synced"] = True
                 self._last_sync = datetime.utcnow()
-                logger.info(f"Synced update for memory {memory_id}")
+                logger.info(f"Synced update for memory {memory_id} via n8n")
+            else:
+                raise Exception(webhook_result.get("error", "Webhook returned failure"))
 
         except Exception as e:
             error_msg = str(e)
@@ -734,7 +734,7 @@ class RemoteSyncService:
                 self.queue_memory(
                     memory_id=memory_id,
                     operation="update",
-                    payload=update_data,
+                    payload=payload,
                 )
                 result["queued"] = True
 
@@ -746,7 +746,9 @@ class RemoteSyncService:
         queue_if_unavailable: bool = True,
     ) -> dict[str, Any]:
         """
-        Hook to sync memory when deleted locally.
+        Hook to sync memory deletion.
+
+        All sync goes through n8n webhook - no direct Neo4j access.
 
         Args:
             memory_id: UUID of the memory
@@ -762,12 +764,20 @@ class RemoteSyncService:
             "error": None,
         }
 
+        payload = {
+            "memory_id": memory_id,
+            "operation": "delete",
+        }
+
         try:
-            deleted = await self.neo4j.delete_memory(memory_id)
-            result["synced"] = deleted
-            if deleted:
+            webhook_result = await self._send_to_webhook(payload)
+
+            if webhook_result.get("success"):
+                result["synced"] = True
                 self._last_sync = datetime.utcnow()
-                logger.info(f"Synced delete for memory {memory_id}")
+                logger.info(f"Synced delete for memory {memory_id} via n8n")
+            else:
+                raise Exception(webhook_result.get("error", "Webhook returned failure"))
 
         except Exception as e:
             error_msg = str(e)
@@ -778,11 +788,46 @@ class RemoteSyncService:
                 self.queue_memory(
                     memory_id=memory_id,
                     operation="delete",
-                    payload={"id": memory_id},
+                    payload=payload,
                 )
                 result["queued"] = True
 
         return result
+
+    async def _send_to_webhook(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """
+        Send payload to n8n webhook.
+
+        This is the ONLY way to sync data - no direct Neo4j access allowed.
+
+        Args:
+            payload: Data to send to webhook
+
+        Returns:
+            Webhook response
+        """
+        payload_bytes = json.dumps(payload, default=str).encode("utf-8")
+        signature = self._generate_signature(payload_bytes)
+
+        async with httpx.AsyncClient(
+            timeout=self.config.request_timeout_seconds
+        ) as client:
+            response = await client.post(
+                self.config.webhook_url,
+                content=payload_bytes,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Webhook-Signature": signature,
+                },
+            )
+
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {
+                    "success": False,
+                    "error": f"Webhook returned {response.status_code}: {response.text}",
+                }
 
     # =========================================================================
     # Conflict Resolution (T028)
