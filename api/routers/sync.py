@@ -212,12 +212,13 @@ async def sync_memory(
             content={"error": "Invalid payload", "message": str(e)},
         )
 
-    # Get sync service and create memory
+    # Forward to n8n webhook for processing
+    # This endpoint receives validated payloads and forwards to n8n
+    # n8n handles all Neo4j operations - no direct Neo4j access from here
     try:
         sync_service = await get_sync_service()
-        neo4j = sync_service.neo4j
 
-        # Create memory in Neo4j
+        # Build memory data for sync
         memory_data = {
             "id": payload.memory_id,
             "content": payload.content,
@@ -231,31 +232,33 @@ async def sync_memory(
             "updated_at": payload.updated_at,
         }
 
-        result = await neo4j.create_memory(memory_data)
+        # Sync via n8n webhook (not direct Neo4j)
+        result = await sync_service.sync_memory_on_create(memory_data)
 
-        # Create session and project relationships
-        await sync_service.create_session_relationship(
-            memory_id=payload.memory_id,
-            session_id=payload.session_id,
-            project_id=payload.project_id,
-        )
-        await sync_service.create_project_relationship(
-            memory_id=payload.memory_id,
-            project_id=payload.project_id,
-        )
+        if result.get("synced"):
+            return SyncResponse(
+                success=True,
+                memory_id=payload.memory_id,
+                synced_at=datetime.utcnow().isoformat(),
+                embedding_generated=payload.embedding is None,
+            )
+        elif result.get("queued"):
+            return SyncResponse(
+                success=True,
+                memory_id=payload.memory_id,
+                synced_at=datetime.utcnow().isoformat(),
+                embedding_generated=False,
+            )
+        else:
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={"error": "Sync failed", "message": result.get("error")},
+            )
 
-        return SyncResponse(
-            success=True,
-            memory_id=payload.memory_id,
-            remote_id=result.get("id") if result else None,
-            synced_at=datetime.utcnow().isoformat(),
-            embedding_generated=payload.embedding is None,  # Generated if not provided
-        )
-
-    except Neo4jConnectionError as e:
-        raise HTTPException(
+    except Exception as e:
+        return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"error": "Neo4j unavailable", "message": str(e)},
+            content={"error": "Sync service unavailable", "message": str(e)},
         )
 
 
