@@ -23,9 +23,7 @@ from typing import Any, Optional
 from contextlib import asynccontextmanager
 
 import asyncpg
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.server.fastmcp import FastMCP
 
 # Database configuration
 DATABASE_URL = os.getenv(
@@ -58,8 +56,8 @@ async def close_pool():
         _pool = None
 
 
-# Create MCP server
-app = Server("dionysus-core")
+# Create MCP server using FastMCP (provides @app.tool() decorator)
+app = FastMCP("dionysus-core")
 
 
 # =============================================================================
@@ -598,21 +596,241 @@ async def run_thoughtseed_competition(layer: str) -> dict:
 
 
 # =============================================================================
+# JOURNEY TOOLS (001-session-continuity)
+# =============================================================================
+
+from dionysus_mcp.tools.journey import (
+    get_or_create_journey_tool,
+    query_journey_history_tool,
+    add_document_to_journey_tool,
+)
+
+
+@app.tool()
+async def get_or_create_journey(device_id: str) -> dict:
+    """
+    Get existing journey for device or create new one.
+
+    A journey tracks all conversations for a device across sessions.
+    Use this to maintain continuity when starting new conversations.
+
+    Args:
+        device_id: Device identifier (UUID) from ~/.dionysus/device_id
+
+    Returns:
+        Journey with session_count and is_new flag
+    """
+    return await get_or_create_journey_tool(device_id)
+
+
+@app.tool()
+async def query_journey_history(
+    journey_id: str,
+    query: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    limit: int = 10,
+    include_documents: bool = False
+) -> dict:
+    """
+    Search journey sessions by keyword, time range, or metadata.
+
+    Use to answer questions like "What did we discuss?" or
+    "Remember when we talked about X?"
+
+    Args:
+        journey_id: Journey to search within
+        query: Optional keyword search on session summaries
+        from_date: Optional start of time range (ISO format)
+        to_date: Optional end of time range (ISO format)
+        limit: Maximum results (1-100)
+        include_documents: Whether to include linked documents
+
+    Returns:
+        Matching sessions and optionally documents
+    """
+    return await query_journey_history_tool(
+        journey_id, query, from_date, to_date, limit, include_documents
+    )
+
+
+@app.tool()
+async def add_document_to_journey(
+    journey_id: str,
+    document_type: str,
+    title: Optional[str] = None,
+    content: Optional[str] = None,
+    metadata: Optional[dict] = None
+) -> dict:
+    """
+    Link a document or artifact to a journey.
+
+    Use for WOOP plans, file uploads, generated artifacts, and notes.
+    Documents appear in the journey timeline alongside sessions.
+
+    Args:
+        journey_id: Journey to link document to
+        document_type: Type (woop_plan, file_upload, artifact, note)
+        title: Optional document title
+        content: Optional document content or file path
+        metadata: Optional additional metadata
+
+    Returns:
+        Created document record
+    """
+    return await add_document_to_journey_tool(
+        journey_id, document_type, title, content, metadata
+    )
+
+
+# =============================================================================
+# SYNC TOOLS (002-remote-persistence-safety)
+# =============================================================================
+
+from dionysus_mcp.tools.sync import (
+    sync_now_tool,
+    get_sync_status_tool,
+    pause_sync_tool,
+    resume_sync_tool,
+    check_destruction_tool,
+    acknowledge_destruction_alert_tool,
+    bootstrap_recovery_tool,
+)
+
+
+@app.tool()
+async def sync_now(force: bool = False, batch_size: Optional[int] = None) -> dict:
+    """
+    Immediately process pending memory sync queue.
+
+    Use this to ensure memories are synchronized to remote Neo4j.
+    Check sync_status first to see if there are pending items.
+
+    Args:
+        force: Override pause status (use with caution)
+        batch_size: Maximum items to process
+
+    Returns:
+        Sync results with success/failure counts
+    """
+    return await sync_now_tool(force=force, batch_size=batch_size)
+
+
+@app.tool()
+async def get_sync_status() -> dict:
+    """
+    Get current status of memory sync system.
+
+    Shows queue size, last sync time, pause status, and destruction detection.
+    Call this to monitor sync health before/after operations.
+
+    Returns:
+        Comprehensive sync status information
+    """
+    return await get_sync_status_tool()
+
+
+@app.tool()
+async def pause_sync(reason: Optional[str] = None) -> dict:
+    """
+    Pause sync operations.
+
+    New operations will be queued instead of sent to remote.
+    Use when investigating issues or during maintenance.
+
+    Args:
+        reason: Why sync is being paused
+
+    Returns:
+        Confirmation of pause status
+    """
+    return await pause_sync_tool(reason=reason)
+
+
+@app.tool()
+async def resume_sync(process_queue: bool = True) -> dict:
+    """
+    Resume sync operations after pause.
+
+    Args:
+        process_queue: Process pending queue immediately
+
+    Returns:
+        Resume status with optional queue processing results
+    """
+    return await resume_sync_tool(process_queue=process_queue)
+
+
+@app.tool()
+async def check_destruction() -> dict:
+    """
+    Check for destruction patterns (rapid memory deletion).
+
+    Detects if unusual deletion activity might indicate memory wipeout.
+    Call this proactively to monitor for safety issues.
+
+    Returns:
+        Destruction detection status and recent activity
+    """
+    return await check_destruction_tool()
+
+
+@app.tool()
+async def acknowledge_destruction_alert() -> dict:
+    """
+    Acknowledge a destruction detection alert.
+
+    Call after investigating and confirming deletions were intentional.
+
+    Returns:
+        Acknowledgment status
+    """
+    return await acknowledge_destruction_alert_tool()
+
+
+@app.tool()
+async def bootstrap_recovery(
+    project_id: Optional[str] = None,
+    since: Optional[str] = None,
+    dry_run: bool = True
+) -> dict:
+    """
+    Recover memories from remote Neo4j.
+
+    Use after database loss or on new machine to restore local memory.
+    Start with dry_run=True to preview what will be recovered.
+
+    Args:
+        project_id: Filter to specific project
+        since: Only recover after this ISO datetime
+        dry_run: Preview without writing (recommended first)
+
+    Returns:
+        Recovery results including count and duration
+    """
+    return await bootstrap_recovery_tool(
+        project_id=project_id, since=since, dry_run=dry_run
+    )
+
+
+# =============================================================================
 # SERVER LIFECYCLE
 # =============================================================================
 
-async def main():
-    """Run the MCP server."""
-    try:
-        async with stdio_server() as (read_stream, write_stream):
-            await app.run(
-                read_stream,
-                write_stream,
-                app.create_initialization_options()
-            )
-    finally:
-        await close_pool()
+def main():
+    """Run the MCP server using FastMCP's built-in stdio transport."""
+    import atexit
+
+    # Register cleanup for connection pool
+    def cleanup():
+        if _pool:
+            asyncio.get_event_loop().run_until_complete(close_pool())
+
+    atexit.register(cleanup)
+
+    # FastMCP handles stdio transport internally
+    app.run()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

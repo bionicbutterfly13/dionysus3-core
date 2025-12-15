@@ -1,0 +1,164 @@
+{
+  "name": "Session Summary Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "session/summary",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { session_id, memories } = $input.first().json;\n\nif (!session_id || !memories || memories.length === 0) {\n  return { json: { error: 'Missing session_id or memories' } };\n}\n\n// Extract key topics from memories\nconst contents = memories.map(m => m.content).join(' ');\n\nreturn {\n  json: {\n    session_id,\n    contents,\n    memory_count: memories.length\n  }\n};"
+      },
+      "id": "prepare-for-summary",
+      "name": "Prepare for Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{\"Summarize this coding session in 2-3 sentences. Focus on key topics and accomplishments:\\n\\n\" + $json.contents}}"
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "id": "generate-summary",
+      "name": "Generate Summary (Ollama)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Prepare for Summary').first().json;\nconst ollamaResponse = $input.first().json;\n\nreturn {\n  json: {\n    session_id: input.session_id,\n    summary: ollamaResponse.response,\n    memory_count: input.memory_count,\n    generated_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "extract-summary",
+      "name": "Extract Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "statements",
+              "value": "={{ [{\"statement\": \"MERGE (s:Session {id: $session_id}) SET s.summary = $summary, s.memory_count = $memory_count, s.updated_at = datetime()\", \"parameters\": {\"session_id\": $json.session_id, \"summary\": $json.summary, \"memory_count\": $json.memory_count}}] }}"
+            }
+          ]
+        }
+      },
+      "id": "store-in-neo4j",
+      "name": "Store Summary in Neo4j",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 300],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "neo4j-auth",
+          "name": "Neo4j Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"session_id\": $json.session_id, \"summary\": $json.summary } }}"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for Summary": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary (Ollama)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Summary (Ollama)": {
+      "main": [
+        [
+          {
+            "node": "Extract Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Summary": {
+      "main": [
+        [
+          {
+            "node": "Store Summary in Neo4j",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Summary in Neo4j": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

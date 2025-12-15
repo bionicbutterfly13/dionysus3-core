@@ -1,6 +1,6 @@
 # Quickstart: Session Continuity
 
-**Date**: 2025-12-13
+**Date**: 2025-12-15
 **Prerequisites**: Docker, Python 3.11+, running PostgreSQL instance
 
 ## Setup
@@ -9,10 +9,10 @@
 
 ```bash
 # Connect to database
-docker exec -it dionysus3-db psql -U agi_user -d agi_db
+docker exec -i dionysus-postgres psql -U dionysus -d dionysus
 
-# Run migration (or use db-manage.sh)
-\i /path/to/migration-001-session-continuity.sql
+# Run migration
+docker exec -i dionysus-postgres psql -U dionysus -d dionysus < migrations/001_session_continuity.sql
 ```
 
 ### 2. Verify Tables Created
@@ -79,13 +79,23 @@ result = await mcp_client.call_tool(
 ### API: Session with Journey Integration
 
 ```bash
-# Create session (automatically links to journey)
+# Create session with device_id header (automatically links to journey)
 curl -X POST http://localhost:8000/ias/session \
-  -H "Content-Type: application/json" \
-  -d '{"device_id": "550e8400-e29b-41d4-a716-446655440000"}'
+  -H "X-Device-Id: 550e8400-e29b-41d4-a716-446655440000"
 
-# Response includes journey_id
-# {"session_id": "...", "journey_id": "...", "created_at": "..."}
+# Response includes journey_id and is_new_journey flag
+# {"session_id": "...", "journey_id": "...", "created_at": "...", "is_new_journey": true}
+
+# Query journey history via /recall endpoint
+curl -G http://localhost:8000/ias/recall \
+  -H "X-Device-Id: 550e8400-e29b-41d4-a716-446655440000" \
+  --data-urlencode "query=goals"
+
+# Generate WOOP plan (auto-saved to journey)
+curl -X POST http://localhost:8000/ias/woop \
+  -H "X-Device-Id: 550e8400-e29b-41d4-a716-446655440000" \
+  -H "Content-Type: application/json" \
+  -d '{"wish": "Exercise daily", "outcome": "Better health", "obstacle": "Tired after work"}'
 ```
 
 ## Validation Checklist

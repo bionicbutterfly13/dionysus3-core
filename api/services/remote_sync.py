@@ -101,8 +101,27 @@ class RemoteSyncService:
         self.config = config or SyncConfig()
         self._queue: deque[QueueItem] = deque()
         self._processing = False
+        self._paused = False
         self._last_sync: Optional[datetime] = None
         self._last_error: Optional[str] = None
+
+    # =========================================================================
+    # Sync Control
+    # =========================================================================
+
+    def pause_sync(self) -> None:
+        """Pause sync operations (items will be queued instead of sent)."""
+        self._paused = True
+        logger.warning("Sync operations PAUSED")
+
+    def resume_sync(self) -> None:
+        """Resume sync operations."""
+        self._paused = False
+        logger.info("Sync operations RESUMED")
+
+    def is_paused(self) -> bool:
+        """Check if sync is currently paused."""
+        return self._paused
 
     # =========================================================================
     # Queue Management (T020)
@@ -638,3 +657,617 @@ class RemoteSyncService:
             "project_id": project_id,
             "memories": memories if dry_run else None,
         }
+
+    # =========================================================================
+    # Session Tagging & Query (T033-T036 - 002-remote-persistence-safety Phase 4)
+    # =========================================================================
+
+    async def tag_with_session(
+        self,
+        memory_data: dict[str, Any],
+        session_id: str,
+    ) -> dict[str, Any]:
+        """
+        Tag memory data with session_id for tracking.
+
+        Args:
+            memory_data: Memory data dictionary
+            session_id: Session UUID string
+
+        Returns:
+            Memory data with session_id added
+        """
+        tagged = memory_data.copy()
+        tagged["session_id"] = session_id
+        return tagged
+
+    async def query_by_session(
+        self,
+        session_id: str,
+        query: Optional[str] = None,
+        include_session_metadata: bool = False,
+    ) -> list[dict[str, Any]]:
+        """
+        Query memories by session_id.
+
+        Args:
+            session_id: Session UUID to filter by
+            query: Optional keyword search within session
+            include_session_metadata: Include session start/end times
+
+        Returns:
+            List of memories from the session
+        """
+        payload = {
+            "operation": "query",
+            "filters": {
+                "session_id": session_id,
+            },
+        }
+
+        if query:
+            payload["query"] = query
+
+        if include_session_metadata:
+            payload["include_session_metadata"] = True
+
+        try:
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    self.config.recall_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("memories", [])
+                else:
+                    logger.error(f"Session query failed: {response.status_code}")
+                    return []
+
+        except Exception as e:
+            logger.error(f"Session query error: {e}")
+            return []
+
+    async def query_by_date_range(
+        self,
+        from_date: datetime,
+        to_date: datetime,
+        session_id: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Query memories by date range.
+
+        Args:
+            from_date: Start of date range
+            to_date: End of date range
+            session_id: Optional session filter
+
+        Returns:
+            List of memories within date range
+        """
+        payload = {
+            "operation": "query",
+            "filters": {
+                "from_date": from_date.isoformat(),
+                "to_date": to_date.isoformat(),
+            },
+        }
+
+        if session_id:
+            payload["filters"]["session_id"] = session_id
+
+        try:
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    self.config.recall_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("memories", [])
+                else:
+                    logger.error(f"Date range query failed: {response.status_code}")
+                    return []
+
+        except Exception as e:
+            logger.error(f"Date range query error: {e}")
+            return []
+
+    async def search_memories(
+        self,
+        query: str,
+        include_session_attribution: bool = False,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """
+        Search memories with optional session attribution.
+
+        Args:
+            query: Search query string
+            include_session_attribution: Include session_id in results
+            limit: Maximum results to return
+
+        Returns:
+            List of matching memories
+        """
+        payload = {
+            "operation": "search",
+            "query": query,
+            "limit": limit,
+            "include_session_attribution": include_session_attribution,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    self.config.recall_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("memories", [])
+                else:
+                    logger.error(f"Memory search failed: {response.status_code}")
+                    return []
+
+        except Exception as e:
+            logger.error(f"Memory search error: {e}")
+            return []
+
+    async def sync_memory(self, memory_data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Sync a single memory to remote Neo4j.
+
+        Args:
+            memory_data: Memory data including id, content, type, etc.
+
+        Returns:
+            Sync result with success status
+        """
+        return await self.sync_memory_on_create(memory_data)
+
+    async def get_memory_from_neo4j(self, memory_id: str) -> Optional[dict[str, Any]]:
+        """
+        Get a specific memory from Neo4j by ID.
+
+        Args:
+            memory_id: Memory UUID string
+
+        Returns:
+            Memory data or None if not found
+        """
+        payload = {
+            "operation": "get",
+            "memory_id": memory_id,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    self.config.recall_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("memory")
+                else:
+                    return None
+
+        except Exception as e:
+            logger.error(f"Get memory error: {e}")
+            return None
+
+    # =========================================================================
+    # Project Tagging & Query (T038-T041 - 002-remote-persistence-safety Phase 5)
+    # =========================================================================
+
+    async def tag_with_project(
+        self,
+        memory_data: dict[str, Any],
+        project_path: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """
+        Tag memory data with project_id from current working directory.
+
+        Args:
+            memory_data: Memory data dictionary
+            project_path: Optional project path (defaults to cwd)
+
+        Returns:
+            Memory data with project_id and project_name added
+        """
+        import os
+        import hashlib
+
+        if project_path is None:
+            project_path = os.getcwd()
+
+        project_name = os.path.basename(project_path)
+        # Generate deterministic project_id from path
+        project_id = hashlib.sha256(project_path.encode()).hexdigest()[:32]
+
+        tagged = memory_data.copy()
+        tagged["project_id"] = project_id
+        tagged["project_name"] = project_name
+        tagged["project_path"] = project_path
+
+        return tagged
+
+    async def query_by_project(
+        self,
+        project_id: str,
+        query: Optional[str] = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """
+        Query memories by project_id.
+
+        Args:
+            project_id: Project UUID to filter by
+            query: Optional keyword search within project
+            limit: Maximum results
+
+        Returns:
+            List of memories from the project
+        """
+        payload = {
+            "operation": "query",
+            "filters": {
+                "project_id": project_id,
+            },
+            "limit": limit,
+        }
+
+        if query:
+            payload["query"] = query
+
+        try:
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    self.config.recall_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("memories", [])
+                else:
+                    logger.error(f"Project query failed: {response.status_code}")
+                    return []
+
+        except Exception as e:
+            logger.error(f"Project query error: {e}")
+            return []
+
+    async def query_all_projects(self) -> dict[str, list[dict[str, Any]]]:
+        """
+        Query memories from all known projects.
+
+        Returns:
+            Dictionary mapping project_name to list of memories
+        """
+        payload = {
+            "operation": "query_all_projects",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    self.config.recall_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("projects", {})
+                else:
+                    logger.error(f"All projects query failed: {response.status_code}")
+                    return {}
+
+        except Exception as e:
+            logger.error(f"All projects query error: {e}")
+            return {}
+
+    async def get_project_from_neo4j(self, project_id: str) -> Optional[dict[str, Any]]:
+        """
+        Get a Project node from Neo4j by ID.
+
+        Args:
+            project_id: Project ID
+
+        Returns:
+            Project data or None
+        """
+        payload = {
+            "operation": "get_project",
+            "project_id": project_id,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    self.config.recall_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("project")
+                else:
+                    return None
+
+        except Exception as e:
+            logger.error(f"Get project error: {e}")
+            return None
+
+    async def get_project_by_name(self, project_name: str) -> Optional[dict[str, Any]]:
+        """
+        Get a Project node from Neo4j by name.
+
+        Args:
+            project_name: Project name
+
+        Returns:
+            Project data or None
+        """
+        payload = {
+            "operation": "get_project_by_name",
+            "project_name": project_name,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    self.config.recall_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("project")
+                else:
+                    return None
+
+        except Exception as e:
+            logger.error(f"Get project by name error: {e}")
+            return None
+
+    async def ensure_known_projects(self, project_names: list[str]) -> None:
+        """
+        Ensure known projects are registered in Neo4j.
+
+        Args:
+            project_names: List of project names to register
+        """
+        payload = {
+            "operation": "ensure_projects",
+            "projects": project_names,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    self.config.webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    logger.info(f"Registered {len(project_names)} known projects")
+                else:
+                    logger.error(f"Failed to register projects: {response.status_code}")
+
+        except Exception as e:
+            logger.error(f"Ensure projects error: {e}")
+
+    # =========================================================================
+    # Session Summary (T047-T048 - 002-remote-persistence-safety Phase 6)
+    # =========================================================================
+
+    async def store_session_summary(
+        self,
+        session_id: str,
+        summary: str,
+        started_at: datetime,
+        ended_at: datetime,
+        memory_count: int,
+        project_id: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """
+        Store session summary in Neo4j Session node.
+
+        Args:
+            session_id: Session UUID
+            summary: Generated summary text
+            started_at: Session start time
+            ended_at: Session end time
+            memory_count: Number of memories in session
+            project_id: Optional project association
+
+        Returns:
+            Result with success status
+        """
+        payload = {
+            "session_id": session_id,
+            "summary": summary,
+            "started_at": started_at.isoformat(),
+            "ended_at": ended_at.isoformat(),
+            "memory_count": memory_count,
+        }
+
+        if project_id:
+            payload["project_id"] = project_id
+
+        try:
+            # Use session summary webhook endpoint
+            summary_webhook_url = self.config.webhook_url.replace(
+                "/memory/v1/ingest/message", "/session/summary"
+            )
+
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    summary_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json() if response.text else {"success": True}
+                    logger.info(f"Stored session summary for {session_id}")
+                    return result
+                else:
+                    logger.error(f"Failed to store session summary: {response.status_code}")
+                    return {
+                        "success": False,
+                        "error": f"Webhook returned {response.status_code}",
+                    }
+
+        except Exception as e:
+            logger.error(f"Store session summary error: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_session_summary(self, session_id: str) -> Optional[dict[str, Any]]:
+        """
+        Get session summary from Neo4j.
+
+        Args:
+            session_id: Session UUID
+
+        Returns:
+            Session data including summary, or None if not found
+        """
+        payload = {
+            "operation": "get_session",
+            "session_id": session_id,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=self.config.request_timeout_seconds) as client:
+                signature = self._generate_signature(json.dumps(payload).encode())
+                response = await client.post(
+                    self.config.recall_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("session")
+                else:
+                    return None
+
+        except Exception as e:
+            logger.error(f"Get session summary error: {e}")
+            return None
+
+    async def trigger_session_summary(
+        self,
+        session_id: str,
+        memories: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """
+        Trigger n8n workflow to generate session summary via Ollama.
+
+        This calls the session/summary n8n workflow which:
+        1. Takes session memories
+        2. Generates summary via Ollama
+        3. Stores summary in Neo4j Session node
+
+        Args:
+            session_id: Session UUID
+            memories: List of memory objects from the session
+
+        Returns:
+            Result with generated summary
+        """
+        payload = {
+            "session_id": session_id,
+            "memories": memories,
+        }
+
+        try:
+            # Use session summary webhook endpoint
+            summary_webhook_url = self.config.webhook_url.replace(
+                "/memory/v1/ingest/message", "/session/summary"
+            )
+
+            async with httpx.AsyncClient(timeout=60.0) as client:  # Longer timeout for LLM
+                signature = self._generate_signature(json.dumps(payload, default=str).encode())
+                response = await client.post(
+                    summary_webhook_url,
+                    json=payload,
+                    headers={
+                        "X-Webhook-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json() if response.text else {"success": True}
+                    logger.info(f"Triggered session summary for {session_id}")
+                    return result
+                else:
+                    logger.error(f"Failed to trigger session summary: {response.status_code}")
+                    return {
+                        "success": False,
+                        "error": f"Webhook returned {response.status_code}: {response.text}",
+                    }
+
+        except Exception as e:
+            logger.error(f"Trigger session summary error: {e}")
+            return {"success": False, "error": str(e)}
