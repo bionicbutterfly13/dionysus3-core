@@ -40,7 +40,7 @@ Expected output:
 # Via MCP client
 result = await mcp_client.call_tool(
     "get_or_create_journey",
-    {"user_id": "550e8400-e29b-41d4-a716-446655440000"}
+    {"device_id": "550e8400-e29b-41d4-a716-446655440000"}
 )
 # Returns: {"journey_id": "...", "is_new": true, "session_count": 0}
 ```
@@ -82,7 +82,7 @@ result = await mcp_client.call_tool(
 # Create session (automatically links to journey)
 curl -X POST http://localhost:8000/ias/session \
   -H "Content-Type: application/json" \
-  -d '{"user_id": "550e8400-e29b-41d4-a716-446655440000"}'
+  -d '{"device_id": "550e8400-e29b-41d4-a716-446655440000"}'
 
 # Response includes journey_id
 # {"session_id": "...", "journey_id": "...", "created_at": "..."}
@@ -92,8 +92,8 @@ curl -X POST http://localhost:8000/ias/session \
 
 After implementation, verify:
 
-- [ ] `get_or_create_journey` returns existing journey for same user_id
-- [ ] `get_or_create_journey` creates new journey for new user_id
+- [ ] `get_or_create_journey` returns existing journey for same device_id
+- [ ] `get_or_create_journey` creates new journey for new device_id
 - [ ] `query_journey_history` returns sessions matching keyword
 - [ ] `query_journey_history` filters by date range
 - [ ] `add_document_to_journey` creates document linked to journey

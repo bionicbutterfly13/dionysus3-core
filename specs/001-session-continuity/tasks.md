@@ -60,8 +60,8 @@
 > **TDD: Write these tests FIRST, ensure they FAIL before implementation**
 
 - [ ] T011 [P] [US1] Contract test for get_or_create_journey MCP tool in tests/contract/test_journey_mcp.py
-- [ ] T012 [P] [US1] Integration test: new user creates journey on first session in tests/integration/test_session_continuity.py
-- [ ] T013 [P] [US1] Integration test: existing user links session to existing journey in tests/integration/test_session_continuity.py
+- [ ] T012 [P] [US1] Integration test: new device creates journey on first session in tests/integration/test_session_continuity.py
+- [ ] T013 [P] [US1] Integration test: existing device links session to existing journey in tests/integration/test_session_continuity.py
 - [ ] T014 [P] [US1] Integration test: journey timeline returns sessions in chronological order in tests/integration/test_session_continuity.py
 
 ### Implementation for User Story 1

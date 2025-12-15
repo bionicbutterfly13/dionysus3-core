@@ -5,6 +5,8 @@ Auto-generated from all feature plans. Last updated: 2025-12-13
 ## Active Technologies
 - Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, neo4j-driver, httpx (webhooks), pydantic (002-remote-persistence-safety)
 - PostgreSQL (local, existing) + Neo4j 5 (remote VPS 72.61.78.89:7687) (002-remote-persistence-safety)
+- Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, pydantic (matches 002-remote-persistence-safety) (001-session-continuity)
+- PostgreSQL (local, via DATABASE_URL) (001-session-continuity)
 
 - Python 3.11+ + FastAPI, asyncpg, pydantic (001-session-continuity)
 
@@ -25,6 +27,7 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+: Follow standard conventions
 
 ## Recent Changes
+- 001-session-continuity: Added Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, pydantic (matches 002-remote-persistence-safety)
 - 002-remote-persistence-safety: Added Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, neo4j-driver, httpx (webhooks), pydantic
 
 - 001-session-continuity: Added Python 3.11+ + FastAPI, asyncpg, pydantic
