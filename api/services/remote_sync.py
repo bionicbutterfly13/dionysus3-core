@@ -90,15 +90,18 @@ class RemoteSyncService:
 
     def __init__(
         self,
-        neo4j_client: Neo4jClient,
+        neo4j_client: Optional[Neo4jClient] = None,
         config: Optional[SyncConfig] = None,
     ):
         """
         Initialize sync service.
 
         Args:
-            neo4j_client: Connected Neo4j client
+            neo4j_client: Optional Neo4j client (only needed for recovery operations)
             config: Sync configuration (uses defaults if not provided)
+
+        Note: Neo4j is only accessible through n8n. Normal sync operations use
+        the webhook and don't require direct Neo4j access.
         """
         self.neo4j = neo4j_client
         self.config = config or SyncConfig()
@@ -589,13 +592,17 @@ class RemoteSyncService:
             "errors": [],
         }
 
-        # Check Neo4j
-        try:
-            await self.neo4j.get_server_info()
-            health["neo4j_connected"] = True
-        except Exception as e:
-            health["errors"].append(f"Neo4j: {e}")
-            health["healthy"] = False
+        # Check Neo4j (only if client is configured)
+        if self.neo4j is not None:
+            try:
+                await self.neo4j.get_server_info()
+                health["neo4j_connected"] = True
+            except Exception as e:
+                health["errors"].append(f"Neo4j: {e}")
+                # Neo4j not required for sync (goes through n8n)
+        else:
+            # Neo4j accessed through n8n, not directly
+            health["neo4j_connected"] = None  # Unknown - accessed via n8n
 
         # Check n8n webhook (just connectivity)
         try:

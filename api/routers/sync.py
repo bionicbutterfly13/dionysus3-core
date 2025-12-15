@@ -48,17 +48,13 @@ async def get_sync_service() -> RemoteSyncService:
     if _sync_service is None:
         config = SyncConfig(
             webhook_url=os.getenv(
-                "N8N_WEBHOOK_URL", "http://localhost:5678/webhook/memory-sync"
+                "N8N_WEBHOOK_URL", "http://localhost:5678/webhook/memory/v1/ingest/message"
             ),
             webhook_token=get_webhook_token(),
         )
-        neo4j = Neo4jClient(
-            uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
-            user=os.getenv("NEO4J_USER", "neo4j"),
-            password=os.getenv("NEO4J_PASSWORD", ""),
-        )
-        await neo4j.connect()
-        _sync_service = RemoteSyncService(neo4j, config)
+        # Neo4j is only accessible through n8n - no direct connection needed for sync
+        # Neo4j client is optional, only used for recovery operations
+        _sync_service = RemoteSyncService(neo4j_client=None, config=config)
     return _sync_service
 
 
