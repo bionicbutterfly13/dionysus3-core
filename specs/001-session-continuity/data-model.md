@@ -14,25 +14,26 @@ Journey (1) ──┬── (*) Session
 
 ## Journey
 
-Represents a user's complete interaction history across multiple sessions.
+Represents a device's complete interaction history across multiple sessions.
 
 ### Fields
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | id | UUID | Yes | gen_random_uuid() | Primary key |
-| user_id | UUID | No | NULL | User identifier (NULL = anonymous) |
+| device_id | UUID | Yes | - | Device identifier (always present, stored in ~/.dionysus/device_id) |
 | created_at | TIMESTAMPTZ | Yes | CURRENT_TIMESTAMP | Journey creation time |
 | updated_at | TIMESTAMPTZ | Yes | CURRENT_TIMESTAMP | Last modification |
-| thoughtseed_trajectory | JSONB | No | [] | Array of thoughtseed states over time |
-| attractor_dynamics_history | JSONB | No | [] | Array of attractor basin activations |
 | metadata | JSONB | No | {} | Extensible metadata |
+
+*Deferred fields (post-MVP):*
+- `thoughtseed_trajectory` JSONB - Array of thoughtseed states over time
+- `attractor_dynamics_history` JSONB - Array of attractor basin activations
 
 ### Validation Rules
 
-- `user_id` uniqueness enforced for non-NULL values (one journey per user)
-- `thoughtseed_trajectory` entries must have `timestamp` and `layer` fields
-- `attractor_dynamics_history` entries must have `timestamp` and `basin_id` fields
+- `device_id` uniqueness enforced (one journey per device)
+- `device_id` must be valid UUID v4
 
 ### Pydantic Model
 
@@ -44,15 +45,13 @@ from uuid import UUID
 
 class Journey(BaseModel):
     id: UUID
-    user_id: Optional[UUID] = None
+    device_id: UUID  # Always required
     created_at: datetime
     updated_at: datetime
-    thoughtseed_trajectory: list[dict[str, Any]] = []
-    attractor_dynamics_history: list[dict[str, Any]] = []
     metadata: dict[str, Any] = {}
 
 class JourneyCreate(BaseModel):
-    user_id: Optional[UUID] = None
+    device_id: UUID  # Required - from ~/.dionysus/device_id
     metadata: dict[str, Any] = {}
 ```
 
@@ -189,7 +188,7 @@ class JourneyDocumentCreate(BaseModel):
 
 ```sql
 -- Journey lookups
-CREATE INDEX idx_journeys_user ON journeys(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX idx_journeys_device ON journeys(device_id);
 
 -- Session lookups
 CREATE INDEX idx_sessions_journey ON sessions(journey_id);

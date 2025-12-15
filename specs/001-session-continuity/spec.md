@@ -57,9 +57,9 @@ The AGI MUST be able to link uploaded documents, generated artifacts, and extern
 
 ### Edge Cases
 
-- What happens when a user creates a session without being authenticated (anonymous journey)?
-- How does the system handle journey retrieval when database is temporarily unavailable?
-- What happens if two sessions are created simultaneously for the same user?
+- ~~What happens when a user creates a session without being authenticated (anonymous journey)?~~ **Resolved**: Device_id always exists; no anonymous state possible.
+- How does the system handle journey retrieval when database is temporarily unavailable? *(Deferred to planning phase)*
+- ~~What happens if two sessions are created simultaneously for the same device?~~ **Resolved**: Multiple concurrent sessions allowed per journey.
 
 ## Requirements *(mandatory)*
 
@@ -69,14 +69,29 @@ The AGI MUST be able to link uploaded documents, generated artifacts, and extern
 - **FR-002**: System MUST link subsequent sessions to existing journey (not create duplicates)
 - **FR-003**: System MUST store session summaries for efficient journey queries
 - **FR-004**: System MUST support querying journey history by keyword, time range, and metadata
-- **FR-005**: System MUST track thoughtseed_trajectory and attractor_dynamics_history per journey
+- **FR-005**: *(Deferred - Post-MVP)* System MAY track thoughtseed_trajectory and attractor_dynamics_history per journey (Dionysus IWMT consciousness concepts)
 - **FR-006**: System MUST expose journey operations via MCP tools for AGI self-reference
 
 ### Key Entities
 
-- **Journey**: Represents a user's complete interaction history; has many Sessions and Documents
-- **Session**: A single conversation with messages, timestamps, optional diagnosis
+- **Journey**: Represents a device's complete interaction history; identified by device_id (persistent local identifier); has many Sessions and Documents
+- **Session**: A single conversation with messages, timestamps, optional diagnosis; linked to exactly one Journey
 - **JourneyDocument**: A document/artifact linked to a journey with type and metadata
+
+### Integration Dependencies
+
+- **PostgreSQL**: Primary storage for journeys, sessions, and documents (local database via DATABASE_URL)
+- **002-remote-persistence-safety**: Optional sync to Neo4j for backup/recovery (future integration)
+
+## Clarifications
+
+### Session 2025-12-15
+
+- Q: How is a user identified to link sessions into a journey? → A: Device/installation ID (persistent local identifier)
+- Q: Where is journey/session data persisted? → A: PostgreSQL (local, same as 002 memories)
+- Q: How are anonymous sessions handled? → A: Not applicable - device_id always exists, no anonymous state
+- Q: What are thoughtseed_trajectory and attractor_dynamics_history (FR-005)? → A: Dionysus IWMT consciousness concepts; deferred from MVP
+- Q: What happens if two sessions are created simultaneously for the same device? → A: Allow multiple concurrent sessions per journey
 
 ## Success Criteria *(mandatory)*
 

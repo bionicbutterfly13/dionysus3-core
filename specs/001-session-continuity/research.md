@@ -28,12 +28,13 @@ All NEEDS CLARIFICATION items resolved. Feature can proceed to design.
 
 ## Decision 2: Journey-Session Linking Pattern
 
-**Decision**: Use `journey_id` FK on sessions table with `user_id` as journey grouping key.
+**Decision**: Use `journey_id` FK on sessions table with `device_id` as journey grouping key.
 
 **Rationale**:
 - Schema pattern follows existing FK relationships (e.g., `episodic_memories.memory_id → memories.id`)
-- `user_id` can be NULL for anonymous journeys (matches edge case in spec)
-- Journey is created lazily on first session for a user_id
+- `device_id` is always present (no anonymous state per clarification 2025-12-15)
+- Journey is created lazily on first session for a device_id
+- Device ID stored in `~/.dionysus/device_id` (UUID v4)
 
 **Alternatives Considered**:
 1. **Session has many journeys** - Rejected: Inverts natural relationship
@@ -59,19 +60,20 @@ All NEEDS CLARIFICATION items resolved. Feature can proceed to design.
 
 ---
 
-## Decision 4: Thoughtseed Trajectory Tracking
+## Decision 4: Thoughtseed Trajectory Tracking (DEFERRED)
 
-**Decision**: Store `thoughtseed_trajectory` and `attractor_dynamics_history` as JSONB columns on journey.
+**Decision**: Defer `thoughtseed_trajectory` and `attractor_dynamics_history` to post-MVP.
 
 **Rationale**:
-- Archon task FR-005 requires tracking these per journey
-- JSONB allows flexible schema evolution
-- Existing schema uses JSONB for similar dynamic data (e.g., `episodic_memories.context`)
+- FR-005 marked as deferred in spec clarification (2025-12-15)
+- These are Dionysus IWMT consciousness concepts requiring separate design
+- MVP focuses on core journey/session tracking
+- Schema can add JSONB columns later without breaking changes
 
-**Alternatives Considered**:
-1. **Separate tables** - Rejected: Over-normalized for append-only trajectory data
-2. **Store in related memory clusters** - Rejected: Journey is the natural aggregate
-3. **TEXT column with JSON string** - Rejected: Loses query capabilities
+**Future Implementation** (when ready):
+- Store as JSONB columns on journey table
+- JSONB allows flexible schema evolution
+- Append-only trajectory pattern
 
 ---
 
@@ -108,26 +110,27 @@ All NEEDS CLARIFICATION items resolved. Feature can proceed to design.
 ## Schema Extension Preview
 
 ```sql
--- New tables for session continuity
+-- New tables for session continuity (MVP)
 CREATE TABLE journeys (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID,  -- NULL for anonymous
+    device_id UUID NOT NULL,  -- Always present per clarification
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    thoughtseed_trajectory JSONB DEFAULT '[]',
-    attractor_dynamics_history JSONB DEFAULT '[]',
     metadata JSONB DEFAULT '{}'
+    -- thoughtseed_trajectory JSONB - DEFERRED post-MVP
+    -- attractor_dynamics_history JSONB - DEFERRED post-MVP
 );
 
 CREATE TABLE sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     journey_id UUID REFERENCES journeys(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMPTZ,  -- NULL if session still active
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     summary TEXT,
     messages JSONB DEFAULT '[]',
     diagnosis JSONB,
-    confidence_score INTEGER DEFAULT 0
+    metadata JSONB DEFAULT '{}'
 );
 
 CREATE TABLE journey_documents (
@@ -141,8 +144,9 @@ CREATE TABLE journey_documents (
 );
 
 -- Indexes
+CREATE INDEX idx_journeys_device ON journeys(device_id);
 CREATE INDEX idx_sessions_journey ON sessions(journey_id);
+CREATE INDEX idx_sessions_created ON sessions(journey_id, created_at);
 CREATE INDEX idx_sessions_summary_gin ON sessions USING GIN (to_tsvector('english', summary));
-CREATE INDEX idx_journeys_user ON journeys(user_id);
 CREATE INDEX idx_journey_docs_journey ON journey_documents(journey_id);
 ```

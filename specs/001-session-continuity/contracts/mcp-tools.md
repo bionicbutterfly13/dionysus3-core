@@ -11,7 +11,7 @@ Three new MCP tools for journey management. All tools follow existing patterns f
 
 ## Tool: get_or_create_journey
 
-**Purpose**: Get existing journey for user or create new one.
+**Purpose**: Get existing journey for device or create new one.
 
 ### Input Schema
 
@@ -19,13 +19,13 @@ Three new MCP tools for journey management. All tools follow existing patterns f
 {
   "type": "object",
   "properties": {
-    "user_id": {
+    "device_id": {
       "type": "string",
       "format": "uuid",
-      "description": "User identifier. NULL/omitted for anonymous journey."
+      "description": "Device identifier from ~/.dionysus/device_id (always required)"
     }
   },
-  "required": []
+  "required": ["device_id"]
 }
 ```
 
@@ -39,8 +39,8 @@ Three new MCP tools for journey management. All tools follow existing patterns f
       "type": "string",
       "format": "uuid"
     },
-    "user_id": {
-      "type": ["string", "null"],
+    "device_id": {
+      "type": "string",
       "format": "uuid"
     },
     "created_at": {
@@ -61,9 +61,8 @@ Three new MCP tools for journey management. All tools follow existing patterns f
 
 ### Behavior
 
-1. If `user_id` provided and journey exists: Return existing journey
-2. If `user_id` provided and no journey: Create new journey, return it
-3. If `user_id` omitted: Create anonymous journey, return it
+1. If journey exists for `device_id`: Return existing journey
+2. If no journey for `device_id`: Create new journey, return it
 
 ### Error Cases
 
