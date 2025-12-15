@@ -35,7 +35,7 @@ class SyncConfig(BaseModel):
     """Configuration for remote sync service."""
 
     webhook_url: str = Field(
-        default="http://localhost:5678/webhook/memory-sync",
+        default="http://localhost:5678/webhook/memory/v1/ingest/message",
         description="n8n webhook URL for memory sync",
     )
     webhook_token: str = Field(
