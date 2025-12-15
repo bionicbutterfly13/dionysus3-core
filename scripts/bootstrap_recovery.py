@@ -4,8 +4,11 @@ Bootstrap Recovery Script
 Feature: 002-remote-persistence-safety
 Task: T025
 
-Standalone script to restore local PostgreSQL database from remote Neo4j backup.
+Standalone script to restore local PostgreSQL database from remote Neo4j via n8n webhook.
 This is the critical recovery mechanism when LLM causes local data loss.
+
+IMPORTANT: This script does NOT connect to Neo4j directly.
+All Neo4j access goes through n8n webhooks for safety.
 
 Usage:
     # Dry run (preview what would be recovered)
@@ -21,9 +24,8 @@ Usage:
     python scripts/bootstrap_recovery.py --since 2025-01-01T00:00:00
 
 Environment Variables Required:
-    NEO4J_URI - Neo4j bolt URI (default: bolt://localhost:7687)
-    NEO4J_USER - Neo4j username (default: neo4j)
-    NEO4J_PASSWORD - Neo4j password (required)
+    N8N_RECALL_URL - n8n recall webhook URL (default: http://localhost:5678/webhook/memory/v1/recall)
+    MEMORY_WEBHOOK_TOKEN - HMAC token for webhook authentication
     DATABASE_URL - PostgreSQL connection string (required for actual recovery)
 """
 
@@ -37,6 +39,7 @@ import time
 from datetime import datetime
 from typing import Any, Optional
 
+import httpx
 from dotenv import load_dotenv
 
 # Add project root to path
@@ -51,44 +54,55 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def connect_neo4j():
-    """Connect to Neo4j."""
-    from api.services.neo4j_client import Neo4jClient
-
-    client = Neo4jClient(
-        uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
-        user=os.getenv("NEO4J_USER", "neo4j"),
-        password=os.getenv("NEO4J_PASSWORD", ""),
-    )
-    await client.connect()
-    return client
-
-
-async def fetch_memories_from_neo4j(
-    neo4j_client,
+async def fetch_memories_from_n8n(
     project_id: Optional[str] = None,
     since: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     """
-    Fetch all memories from Neo4j.
+    Fetch memories from Neo4j via n8n recall webhook.
 
     Args:
-        neo4j_client: Connected Neo4j client
         project_id: Optional project filter
         since: Optional datetime ISO string filter
 
     Returns:
         List of memory dictionaries
     """
-    from api.services.remote_sync import RemoteSyncService
+    from api.services.hmac_utils import generate_signature
 
-    sync_service = RemoteSyncService(neo4j_client)
-    memories = await sync_service.bootstrap_recovery(
-        project_id=project_id,
-        since=since,
-        dry_run=True,  # Just fetch, don't write yet
+    recall_url = os.getenv(
+        "N8N_RECALL_URL", "http://localhost:5678/webhook/memory/v1/recall"
     )
-    return memories
+    webhook_token = os.getenv("MEMORY_WEBHOOK_TOKEN", "")
+
+    # Build recall payload
+    payload = {
+        "action": "recall",
+        "filters": {},
+    }
+    if project_id:
+        payload["filters"]["project_id"] = project_id
+    if since:
+        payload["filters"]["since"] = since
+
+    payload_bytes = json.dumps(payload).encode("utf-8")
+    signature = generate_signature(payload_bytes, webhook_token)
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-Webhook-Signature": signature,
+    }
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.post(recall_url, content=payload_bytes, headers=headers)
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"n8n recall webhook failed: {response.status_code} - {response.text}"
+            )
+
+        result = response.json()
+        return result.get("memories", [])
 
 
 async def insert_memories_to_postgres(
@@ -99,7 +113,7 @@ async def insert_memories_to_postgres(
     Insert recovered memories into local PostgreSQL.
 
     Args:
-        memories: List of memory dictionaries from Neo4j
+        memories: List of memory dictionaries from n8n
         dry_run: If True, only report what would be inserted
 
     Returns:
@@ -202,7 +216,7 @@ async def run_recovery(
     output_file: Optional[str] = None,
 ) -> dict[str, Any]:
     """
-    Run the complete recovery process.
+    Run the complete recovery process via n8n webhook.
 
     Args:
         project_id: Optional project filter
@@ -215,61 +229,47 @@ async def run_recovery(
     """
     start_time = time.time()
 
-    # Connect to Neo4j
-    logger.info("Connecting to Neo4j...")
-    neo4j = await connect_neo4j()
+    # Fetch memories via n8n webhook
+    logger.info("Fetching memories via n8n recall webhook...")
+    filters = []
+    if project_id:
+        filters.append(f"project={project_id}")
+    if since:
+        filters.append(f"since={since}")
+    filter_str = f" ({', '.join(filters)})" if filters else ""
+    logger.info(f"Filters:{filter_str}")
 
-    try:
-        # Get server info
-        info = await neo4j.get_server_info()
-        logger.info(f"Connected to Neo4j {info.get('version', 'unknown')}")
+    memories = await fetch_memories_from_n8n(
+        project_id=project_id,
+        since=since,
+    )
+    logger.info(f"Found {len(memories)} memories via n8n")
 
-        # Fetch memories
-        logger.info("Fetching memories from Neo4j...")
-        filters = []
-        if project_id:
-            filters.append(f"project={project_id}")
-        if since:
-            filters.append(f"since={since}")
-        filter_str = f" ({', '.join(filters)})" if filters else ""
-        logger.info(f"Filters:{filter_str}")
+    # Optionally write to file
+    if output_file:
+        with open(output_file, "w") as f:
+            json.dump(memories, f, indent=2, default=str)
+        logger.info(f"Wrote {len(memories)} memories to {output_file}")
 
-        memories = await fetch_memories_from_neo4j(
-            neo4j,
-            project_id=project_id,
-            since=since,
-        )
-        logger.info(f"Found {len(memories)} memories in Neo4j")
+    # Insert to PostgreSQL (if not dry run)
+    if dry_run:
+        logger.info("DRY RUN - No changes will be made to local database")
+        result = {"would_recover": len(memories), "dry_run": True}
+    else:
+        logger.info("Inserting memories to local PostgreSQL...")
+        result = await insert_memories_to_postgres(memories, dry_run=dry_run)
 
-        # Optionally write to file
-        if output_file:
-            with open(output_file, "w") as f:
-                json.dump(memories, f, indent=2, default=str)
-            logger.info(f"Wrote {len(memories)} memories to {output_file}")
+    duration_ms = int((time.time() - start_time) * 1000)
+    result["duration_ms"] = duration_ms
+    result["n8n_count"] = len(memories)
 
-        # Insert to PostgreSQL (if not dry run)
-        if dry_run:
-            logger.info("DRY RUN - No changes will be made to local database")
-            result = {"would_recover": len(memories), "dry_run": True}
-        else:
-            logger.info("Inserting memories to local PostgreSQL...")
-            result = await insert_memories_to_postgres(memories, dry_run=dry_run)
-
-        duration_ms = int((time.time() - start_time) * 1000)
-        result["duration_ms"] = duration_ms
-        result["neo4j_count"] = len(memories)
-
-        return result
-
-    finally:
-        await neo4j.close()
-        logger.info("Disconnected from Neo4j")
+    return result
 
 
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Bootstrap recovery from Neo4j to local PostgreSQL",
+        description="Bootstrap recovery from Neo4j (via n8n) to local PostgreSQL",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -307,9 +307,8 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     # Check required environment variables
-    if not os.getenv("NEO4J_PASSWORD"):
-        logger.error("NEO4J_PASSWORD environment variable not set")
-        sys.exit(1)
+    if not os.getenv("MEMORY_WEBHOOK_TOKEN"):
+        logger.warning("MEMORY_WEBHOOK_TOKEN not set - webhook auth may fail")
 
     if not args.dry_run and not os.getenv("DATABASE_URL"):
         logger.error("DATABASE_URL environment variable required for actual recovery")
@@ -334,11 +333,11 @@ def main():
 
         if args.dry_run:
             print(f"Status: DRY RUN (no changes made)")
-            print(f"Memories in Neo4j: {result.get('neo4j_count', 0)}")
+            print(f"Memories from n8n: {result.get('n8n_count', 0)}")
             print(f"Would recover: {result.get('would_recover', 0)}")
         else:
             print(f"Status: COMPLETED")
-            print(f"Memories in Neo4j: {result.get('neo4j_count', 0)}")
+            print(f"Memories from n8n: {result.get('n8n_count', 0)}")
             print(f"Inserted: {result.get('inserted', 0)}")
             print(f"Skipped (already existed): {result.get('skipped', 0)}")
             if result.get("errors"):
