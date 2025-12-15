@@ -1,0 +1,334 @@
+openapi: 3.1.0
+info:
+  title: Remote Persistence Sync API
+  description: Webhook endpoints for memory synchronization with remote Neo4j
+  version: 1.0.0
+  contact:
+    name: dionysus3-core
+
+servers:
+  - url: http://localhost:8000/api
+    description: Local development
+  - url: http://72.61.78.89:5678
+    description: Remote n8n webhook server
+
+paths:
+  /sync/memory:
+    post:
+      operationId: syncMemory
+      summary: Sync a memory to remote Neo4j
+      description: |
+        Webhook endpoint called by n8n to sync a memory record.
+        Requires HMAC-SHA256 signature for authentication.
+      tags:
+        - sync
+      security:
+        - hmacSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemorySyncPayload'
+            example:
+              memory_id: "550e8400-e29b-41d4-a716-446655440000"
+              content: "Learned that FastAPI dependency injection works with Annotated types"
+              memory_type: "procedural"
+              importance: 0.8
+              session_id: "660e8400-e29b-41d4-a716-446655440001"
+              project_id: "dionysus-core"
+              tags: ["fastapi", "python", "dependency-injection"]
+              sync_version: 1
+              created_at: "2025-12-14T10:30:00Z"
+              updated_at: "2025-12-14T10:30:00Z"
+      responses:
+        '200':
+          description: Memory synced successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid or missing signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Sync conflict detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictResponse'
+        '503':
+          description: Remote services unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sync/trigger:
+    post:
+      operationId: triggerSync
+      summary: Manually trigger sync of pending memories
+      description: Forces immediate sync of all pending memories
+      tags:
+        - sync
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                memory_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: Specific memories to sync. If empty, syncs all pending.
+      responses:
+        '202':
+          description: Sync triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncTriggerResponse'
+        '503':
+          description: Remote services unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sync/status:
+    get:
+      operationId: getSyncStatus
+      summary: Get sync health status
+      description: Returns current sync state, queue size, and service health
+      tags:
+        - sync
+      responses:
+        '200':
+          description: Sync status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncStatusResponse'
+
+  /recovery/bootstrap:
+    post:
+      operationId: bootstrapRecovery
+      summary: Trigger bootstrap recovery from Neo4j
+      description: |
+        Restores local database from remote Neo4j backup.
+        WARNING: This will merge remote data into local database.
+      tags:
+        - recovery
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                project_id:
+                  type: string
+                  description: Recover only specific project. If empty, recovers all.
+                since:
+                  type: string
+                  format: date-time
+                  description: Only recover memories created after this time
+                dry_run:
+                  type: boolean
+                  default: false
+                  description: Preview what would be recovered without writing
+      responses:
+        '200':
+          description: Recovery complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryResponse'
+        '503':
+          description: Remote Neo4j unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    hmacSignature:
+      type: apiKey
+      in: header
+      name: X-Webhook-Signature
+      description: HMAC-SHA256 signature of request body using MEMORY_WEBHOOK_TOKEN
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    MemorySyncPayload:
+      type: object
+      required:
+        - memory_id
+        - content
+        - memory_type
+        - session_id
+        - project_id
+        - sync_version
+      properties:
+        memory_id:
+          type: string
+          format: uuid
+        content:
+          type: string
+          minLength: 1
+          maxLength: 50000
+        memory_type:
+          type: string
+          enum: [episodic, semantic, procedural, strategic]
+        importance:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.5
+        embedding:
+          type: array
+          items:
+            type: number
+          minItems: 768
+          maxItems: 768
+          description: Pre-computed embedding. If missing, n8n generates via Ollama.
+        session_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          minLength: 1
+        tags:
+          type: array
+          items:
+            type: string
+          default: []
+        sync_version:
+          type: integer
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SyncResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        memory_id:
+          type: string
+          format: uuid
+        remote_id:
+          type: string
+          description: Neo4j node ID
+        synced_at:
+          type: string
+          format: date-time
+        embedding_generated:
+          type: boolean
+          description: True if embedding was generated during sync
+
+    SyncTriggerResponse:
+      type: object
+      properties:
+        triggered:
+          type: boolean
+        queue_size:
+          type: integer
+        estimated_duration_seconds:
+          type: integer
+
+    SyncStatusResponse:
+      type: object
+      properties:
+        healthy:
+          type: boolean
+        neo4j_connected:
+          type: boolean
+        n8n_connected:
+          type: boolean
+        ollama_connected:
+          type: boolean
+        queue_size:
+          type: integer
+        pending_count:
+          type: integer
+        failed_count:
+          type: integer
+        last_sync:
+          type: string
+          format: date-time
+        last_error:
+          type: string
+
+    RecoveryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        recovered_count:
+          type: integer
+        skipped_count:
+          type: integer
+          description: Already existed locally
+        conflict_count:
+          type: integer
+        duration_ms:
+          type: integer
+        dry_run:
+          type: boolean
+
+    ConflictResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          const: "conflict"
+        memory_id:
+          type: string
+          format: uuid
+        local_version:
+          type: integer
+        remote_version:
+          type: integer
+        resolution:
+          type: string
+          enum: [local_wins, remote_wins, manual_required]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+tags:
+  - name: sync
+    description: Memory synchronization operations
+  - name: recovery
+    description: Disaster recovery operations
