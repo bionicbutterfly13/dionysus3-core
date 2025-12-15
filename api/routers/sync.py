@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field, field_validator
 
 from api.models.sync import MemoryType
 from api.services.hmac_utils import validate_signature
-from api.services.neo4j_client import Neo4jClient, Neo4jConnectionError
 from api.services.remote_sync import RemoteSyncService, SyncConfig
 
 router = APIRouter(tags=["sync"])
@@ -50,11 +49,12 @@ async def get_sync_service() -> RemoteSyncService:
             webhook_url=os.getenv(
                 "N8N_WEBHOOK_URL", "http://localhost:5678/webhook/memory/v1/ingest/message"
             ),
+            recall_webhook_url=os.getenv(
+                "N8N_RECALL_URL", "http://localhost:5678/webhook/memory/v1/recall"
+            ),
             webhook_token=get_webhook_token(),
         )
-        # Neo4j is only accessible through n8n - no direct connection needed for sync
-        # Neo4j client is optional, only used for recovery operations
-        _sync_service = RemoteSyncService(neo4j_client=None, config=config)
+        _sync_service = RemoteSyncService(config=config)
     return _sync_service
 
 
@@ -352,7 +352,7 @@ async def get_sync_status() -> SyncStatusResponse:
     "/recovery/bootstrap",
     response_model=RecoveryResponse,
     responses={
-        503: {"model": ErrorResponse, "description": "Neo4j unavailable"},
+        503: {"model": ErrorResponse, "description": "n8n unavailable"},
     },
 )
 async def bootstrap_recovery(
@@ -360,9 +360,9 @@ async def bootstrap_recovery(
     authorization: Optional[str] = Header(None),
 ) -> RecoveryResponse:
     """
-    Trigger bootstrap recovery from Neo4j.
+    Trigger bootstrap recovery via n8n recall webhook.
 
-    Restores local database from remote Neo4j backup.
+    Restores local database from remote Neo4j backup via n8n.
     WARNING: This will merge remote data into local database.
     """
     try:
@@ -377,19 +377,14 @@ async def bootstrap_recovery(
         return RecoveryResponse(
             success=True,
             recovered_count=result.get("recovered_count", 0),
-            skipped_count=0,  # TODO: Track skipped in T027
-            conflict_count=0,  # TODO: Track conflicts in T028
+            skipped_count=0,
+            conflict_count=0,
             duration_ms=result.get("duration_ms", 0),
             dry_run=request.dry_run,
         )
 
-    except Neo4jConnectionError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"error": "Neo4j unavailable", "message": str(e)},
-        )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"error": "Recovery failed", "message": str(e)},
         )
