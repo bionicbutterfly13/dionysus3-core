@@ -814,6 +814,55 @@ async def bootstrap_recovery(
 
 
 # =============================================================================
+# SEMANTIC RECALL TOOLS (Feature 003)
+# =============================================================================
+
+from dionysus_mcp.tools.recall import semantic_recall_tool as _semantic_recall_impl
+
+
+@app.tool()
+async def semantic_recall(
+    query: str,
+    top_k: int = 5,
+    threshold: float = 0.7,
+    project_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    memory_types: Optional[list[str]] = None,
+    weight_by_importance: bool = True
+) -> str:
+    """
+    Recall semantically relevant memories for context injection.
+
+    Use this when you need to find relevant past context, recall how something
+    was done before, or get background information from previous sessions.
+
+    The tool searches using vector similarity, finding memories with similar
+    meaning even if the exact words don't match.
+
+    Args:
+        query: Natural language query (e.g., "How did we implement rate limiting?")
+        top_k: Maximum memories to return (default: 5)
+        threshold: Minimum similarity score 0.0-1.0 (default: 0.7)
+        project_id: Filter to specific project
+        session_id: Filter to specific session
+        memory_types: Filter by types: episodic, semantic, procedural, strategic
+        weight_by_importance: Boost results by importance score (default: True)
+
+    Returns:
+        Formatted context with relevant memories for injection
+    """
+    return await _semantic_recall_impl(
+        query=query,
+        top_k=top_k,
+        threshold=threshold,
+        project_id=project_id,
+        session_id=session_id,
+        memory_types=memory_types,
+        weight_by_importance=weight_by_importance,
+    )
+
+
+# =============================================================================
 # SERVER LIFECYCLE
 # =============================================================================
 
