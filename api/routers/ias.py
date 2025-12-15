@@ -7,10 +7,11 @@ import uuid
 from typing import Optional
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from api.services.session_manager import SessionManager
 from api.services.claude import (
     chat_completion,
     chat_stream,
@@ -24,12 +25,29 @@ router = APIRouter(prefix="/ias", tags=["IAS"])
 
 
 # =============================================================================
+# SESSION MANAGER INSTANCE
+# =============================================================================
+
+_session_manager: Optional[SessionManager] = None
+
+
+def get_session_manager() -> SessionManager:
+    """Get or create session manager instance."""
+    global _session_manager
+    if _session_manager is None:
+        _session_manager = SessionManager()
+    return _session_manager
+
+
+# =============================================================================
 # MODELS
 # =============================================================================
 
 class SessionResponse(BaseModel):
     session_id: str
+    journey_id: Optional[str] = None
     created_at: str
+    is_new_journey: bool = False
 
 
 class Message(BaseModel):
@@ -177,19 +195,60 @@ DIAGNOSIS STRUCTURE (only when status is "complete"):
 # =============================================================================
 
 @router.post("/session", response_model=SessionResponse)
-async def create_session():
-    """Create a new coaching session."""
+async def create_session(
+    x_device_id: Optional[str] = Header(None, alias="X-Device-Id")
+):
+    """Create a new coaching session.
+
+    If X-Device-Id header is provided, the session is linked to a journey
+    for that device. This enables session continuity across conversations.
+
+    Args:
+        x_device_id: Optional device UUID from ~/.dionysus/device_id header
+
+    Returns:
+        SessionResponse with session_id and optionally journey_id
+    """
     session_id = str(uuid.uuid4())
+    created_at = datetime.utcnow().isoformat()
+    journey_id = None
+    is_new_journey = False
+
+    # If device_id provided, link to journey for session continuity
+    if x_device_id:
+        try:
+            manager = get_session_manager()
+            journey = await manager.get_or_create_journey(uuid.UUID(x_device_id))
+            journey_id = str(journey.id)
+            is_new_journey = journey.is_new
+
+            # Create persistent session linked to journey
+            db_session = await manager.create_session(journey.id)
+            session_id = str(db_session.id)
+            created_at = db_session.created_at.isoformat()
+        except ValueError:
+            # Invalid UUID format, continue without journey
+            pass
+        except Exception as e:
+            # Database error, fall back to in-memory session
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to create journey session: {e}")
+
+    # Store in-memory session state (still needed for chat context)
     sessions[session_id] = {
         "id": session_id,
-        "created_at": datetime.utcnow().isoformat(),
+        "journey_id": journey_id,
+        "created_at": created_at,
         "messages": [],
         "confidence_score": 0,
         "diagnosis": None
     }
+
     return SessionResponse(
         session_id=session_id,
-        created_at=sessions[session_id]["created_at"]
+        journey_id=journey_id,
+        created_at=created_at,
+        is_new_journey=is_new_journey
     )
 
 
@@ -385,13 +444,25 @@ async def diagnose(request: DiagnoseRequest):
 
 
 @router.post("/woop", response_model=WoopResponse)
-async def create_woop_plan(request: WoopRequest):
+async def create_woop_plan(
+    request: WoopRequest,
+    x_device_id: Optional[str] = Header(None, alias="X-Device-Id")
+):
     """Generate WOOP implementation plans.
 
     Supports two modes:
     1. Session mode: pass session_id (uses stored diagnosis)
     2. Stateless mode: pass diagnosis_context directly
+
+    If X-Device-Id header is provided, the generated plans are
+    automatically saved as a document to the user's journey.
+
+    Args:
+        request: WOOP parameters (wish, outcome, obstacle)
+        x_device_id: Optional device UUID to link plans to journey
     """
+    from api.models.journey import JourneyDocumentCreate
+
     diagnosis_context = request.diagnosis_context or ""
 
     # If session_id provided, try to get context from session
@@ -410,6 +481,45 @@ async def create_woop_plan(request: WoopRequest):
         diagnosis_context=diagnosis_context
     )
 
+    # If device_id provided, save plans as journey document
+    if x_device_id and plans:
+        try:
+            manager = get_session_manager()
+            journey = await manager.get_or_create_journey(uuid.UUID(x_device_id))
+
+            # Create document with WOOP plan content
+            woop_content = f"""# WOOP Plan
+
+## Wish
+{request.wish}
+
+## Outcome
+{request.outcome}
+
+## Obstacle
+{request.obstacle}
+
+## Implementation Plans
+{chr(10).join(f'- {plan}' for plan in plans)}
+"""
+            await manager.add_document_to_journey(
+                JourneyDocumentCreate(
+                    journey_id=journey.id,
+                    document_type="woop_plan",
+                    title=f"WOOP: {request.wish[:50]}",
+                    content=woop_content,
+                    metadata={
+                        "wish": request.wish,
+                        "outcome": request.outcome,
+                        "obstacle": request.obstacle,
+                        "plan_count": len(plans)
+                    }
+                )
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to save WOOP plan to journey: {e}")
+
     return WoopResponse(plans=plans)
 
 
@@ -420,7 +530,65 @@ async def get_framework():
 
 
 @router.get("/recall")
-async def recall_memories(query: str, limit: int = 10):
-    """Search past session memories (placeholder for dionysus integration)."""
-    # TODO: Integrate with dionysus fast_recall()
-    return RecallResponse(memories=[])
+async def recall_memories(
+    query: str,
+    limit: int = 10,
+    journey_id: Optional[str] = None,
+    x_device_id: Optional[str] = Header(None, alias="X-Device-Id")
+):
+    """Search past session memories using journey history.
+
+    Searches session summaries for matching keywords within a journey.
+    Requires either journey_id parameter or X-Device-Id header.
+
+    Args:
+        query: Keyword search on session summaries
+        limit: Maximum results (1-100, default 10)
+        journey_id: Journey UUID to search within (optional if X-Device-Id provided)
+        x_device_id: Device UUID header to look up journey
+
+    Returns:
+        RecallResponse with matching session memories
+    """
+    from api.models.journey import JourneyHistoryQuery
+
+    # Resolve journey_id from device_id if not provided directly
+    resolved_journey_id = journey_id
+    if not resolved_journey_id and x_device_id:
+        try:
+            manager = get_session_manager()
+            journey = await manager.get_or_create_journey(uuid.UUID(x_device_id))
+            resolved_journey_id = str(journey.id)
+        except (ValueError, Exception):
+            pass
+
+    # If no journey context, return empty
+    if not resolved_journey_id:
+        return RecallResponse(memories=[])
+
+    try:
+        manager = get_session_manager()
+        history_query = JourneyHistoryQuery(
+            journey_id=uuid.UUID(resolved_journey_id),
+            query=query,
+            limit=min(max(1, limit), 100)
+        )
+        result = await manager.query_journey_history(history_query)
+
+        # Convert sessions to MemoryResult format
+        memories = [
+            MemoryResult(
+                type="session",
+                content=session.summary or "No summary available",
+                relevance=session.relevance_score or 0.0,
+                created_at=session.created_at.isoformat()
+            )
+            for session in result.sessions
+        ]
+
+        return RecallResponse(memories=memories)
+
+    except (ValueError, Exception) as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to recall memories: {e}")
+        return RecallResponse(memories=[])

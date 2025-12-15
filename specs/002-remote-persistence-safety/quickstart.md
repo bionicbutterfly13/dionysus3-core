@@ -61,7 +61,7 @@ NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=DionysusMem2025!
 
-N8N_WEBHOOK_URL=http://localhost:5678/webhook/memory-sync
+N8N_WEBHOOK_URL=http://localhost:5678/webhook/memory/v1/ingest/message
 MEMORY_WEBHOOK_TOKEN=09b845160bc4b24b78c103bf40dd5ac3c56229ed41e23a50e548ea01254483bc
 
 OLLAMA_URL=http://localhost:11434
@@ -143,7 +143,7 @@ export TOKEN="09b845160bc4b24b78c103bf40dd5ac3c56229ed41e23a50e548ea01254483bc"
 export SIGNATURE="sha256=$(echo -n $PAYLOAD | openssl dgst -sha256 -hmac $TOKEN | cut -d' ' -f2)"
 
 # Send test webhook
-curl -X POST http://localhost:5678/webhook/memory-sync \
+curl -X POST http://localhost:5678/webhook/memory/v1/ingest/message \
   -H "Content-Type: application/json" \
   -H "X-Webhook-Signature: $SIGNATURE" \
   -d "$PAYLOAD"

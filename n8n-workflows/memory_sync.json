@@ -1,0 +1,264 @@
+{
+  "name": "Memory Sync Workflow",
+  "description": "Receives memory sync webhook, generates embedding via Ollama, persists to Neo4j",
+  "version": "1.0.0",
+  "feature": "002-remote-persistence-safety",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [100, 300],
+      "parameters": {
+        "path": "memory-sync",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "webhookId": "memory-sync-webhook"
+    },
+    {
+      "id": "validate-signature",
+      "name": "Validate HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "position": [300, 300],
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst payload = $input.first().binary?.data?.toString() || JSON.stringify($input.first().json);\nconst signature = $input.first().headers['x-webhook-signature'];\nconst secret = $env.MEMORY_WEBHOOK_TOKEN;\n\nif (!signature) {\n  throw new Error('Missing X-Webhook-Signature header');\n}\n\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');\nconst valid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));\n\nif (!valid) {\n  throw new Error('Invalid signature');\n}\n\nreturn $input.first();"
+      }
+    },
+    {
+      "id": "validate-payload",
+      "name": "Validate Payload Schema",
+      "type": "n8n-nodes-base.code",
+      "position": [500, 300],
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Required fields\nconst required = ['memory_id', 'content', 'memory_type', 'session_id', 'project_id', 'sync_version'];\nfor (const field of required) {\n  if (!data[field]) {\n    throw new Error(`Missing required field: ${field}`);\n  }\n}\n\n// Validate memory_type enum\nconst validTypes = ['episodic', 'semantic', 'procedural', 'strategic'];\nif (!validTypes.includes(data.memory_type)) {\n  throw new Error(`Invalid memory_type: ${data.memory_type}`);\n}\n\n// Validate importance range\nif (data.importance !== undefined && (data.importance < 0 || data.importance > 1)) {\n  throw new Error(`Importance must be between 0 and 1: ${data.importance}`);\n}\n\n// Validate sync_version\nif (data.sync_version < 1) {\n  throw new Error(`sync_version must be >= 1: ${data.sync_version}`);\n}\n\nreturn { json: { ...data, validated: true } };"
+      }
+    },
+    {
+      "id": "check-embedding",
+      "name": "Check If Embedding Needed",
+      "type": "n8n-nodes-base.if",
+      "position": [700, 300],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !$json.embedding || $json.embedding.length !== 768 }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "generate-embedding",
+      "name": "Generate Embedding (Ollama)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 200],
+      "parameters": {
+        "url": "http://ollama:11434/api/embeddings",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.content }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "merge-embedding",
+      "name": "Merge Embedding into Payload",
+      "type": "n8n-nodes-base.code",
+      "position": [1100, 200],
+      "parameters": {
+        "jsCode": "const original = $('validate-payload').first().json;\nconst ollamaResponse = $input.first().json;\n\nreturn {\n  json: {\n    ...original,\n    embedding: ollamaResponse.embedding,\n    embedding_generated: true\n  }\n};"
+      }
+    },
+    {
+      "id": "skip-embedding",
+      "name": "Pass Through (Has Embedding)",
+      "type": "n8n-nodes-base.code",
+      "position": [900, 400],
+      "parameters": {
+        "jsCode": "return {\n  json: {\n    ...$input.first().json,\n    embedding_generated: false\n  }\n};"
+      }
+    },
+    {
+      "id": "merge-paths",
+      "name": "Merge Paths",
+      "type": "n8n-nodes-base.merge",
+      "position": [1300, 300],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition"
+      }
+    },
+    {
+      "id": "persist-neo4j",
+      "name": "Persist to Neo4j",
+      "type": "n8n-nodes-base.neo4j",
+      "position": [1500, 300],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "MERGE (m:Memory {id: $memory_id})\nON CREATE SET\n    m.content = $content,\n    m.memory_type = $memory_type,\n    m.importance = coalesce($importance, 0.5),\n    m.embedding = $embedding,\n    m.source_project = $project_id,\n    m.session_id = $session_id,\n    m.tags = coalesce($tags, []),\n    m.sync_version = $sync_version,\n    m.created_at = datetime(coalesce($created_at, datetime())),\n    m.updated_at = datetime(coalesce($updated_at, datetime()))\nON MATCH SET\n    m.content = CASE WHEN $sync_version > m.sync_version THEN $content ELSE m.content END,\n    m.memory_type = CASE WHEN $sync_version > m.sync_version THEN $memory_type ELSE m.memory_type END,\n    m.importance = CASE WHEN $sync_version > m.sync_version THEN coalesce($importance, m.importance) ELSE m.importance END,\n    m.embedding = CASE WHEN $sync_version > m.sync_version THEN $embedding ELSE m.embedding END,\n    m.tags = CASE WHEN $sync_version > m.sync_version THEN coalesce($tags, m.tags) ELSE m.tags END,\n    m.sync_version = CASE WHEN $sync_version > m.sync_version THEN $sync_version ELSE m.sync_version END,\n    m.updated_at = CASE WHEN $sync_version > m.sync_version THEN datetime(coalesce($updated_at, datetime())) ELSE m.updated_at END\nRETURN m.id as id, m.sync_version as version",
+        "parameters": "={{ JSON.stringify($json) }}"
+      },
+      "credentials": {
+        "neo4j": {
+          "id": "neo4j-dionysus",
+          "name": "Neo4j Dionysus"
+        }
+      }
+    },
+    {
+      "id": "create-session-rel",
+      "name": "Create Session Relationship",
+      "type": "n8n-nodes-base.neo4j",
+      "position": [1700, 300],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "MATCH (m:Memory {id: $memory_id})\nMERGE (s:Session {id: $session_id})\nON CREATE SET\n    s.project_id = $project_id,\n    s.started_at = datetime(),\n    s.memory_count = 1\nON MATCH SET\n    s.memory_count = s.memory_count + 1\nMERGE (m)-[:BELONGS_TO]->(s)\nRETURN s.id as session_id",
+        "parameters": "={{ JSON.stringify({ memory_id: $json.memory_id, session_id: $json.session_id, project_id: $json.project_id }) }}"
+      },
+      "credentials": {
+        "neo4j": {
+          "id": "neo4j-dionysus",
+          "name": "Neo4j Dionysus"
+        }
+      }
+    },
+    {
+      "id": "create-project-rel",
+      "name": "Create Project Relationship",
+      "type": "n8n-nodes-base.neo4j",
+      "position": [1900, 300],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "MATCH (m:Memory {id: $memory_id})\nMATCH (p:Project {id: $project_id})\nMERGE (m)-[:TAGGED_WITH]->(p)\nRETURN p.id as project_id",
+        "parameters": "={{ JSON.stringify({ memory_id: $json.memory_id, project_id: $json.project_id }) }}"
+      },
+      "credentials": {
+        "neo4j": {
+          "id": "neo4j-dionysus",
+          "name": "Neo4j Dionysus"
+        }
+      }
+    },
+    {
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [2100, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, memory_id: $('persist-neo4j').first().json.id, synced_at: new Date().toISOString(), embedding_generated: $json.embedding_generated } }}"
+      }
+    },
+    {
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1500, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "={{ { success: false, error: $json.message || 'Unknown error' } }}"
+      }
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [{ "node": "validate-signature", "type": "main", "index": 0 }]
+      ]
+    },
+    "validate-signature": {
+      "main": [
+        [{ "node": "validate-payload", "type": "main", "index": 0 }]
+      ]
+    },
+    "validate-payload": {
+      "main": [
+        [{ "node": "check-embedding", "type": "main", "index": 0 }]
+      ]
+    },
+    "check-embedding": {
+      "main": [
+        [{ "node": "generate-embedding", "type": "main", "index": 0 }],
+        [{ "node": "skip-embedding", "type": "main", "index": 0 }]
+      ]
+    },
+    "generate-embedding": {
+      "main": [
+        [{ "node": "merge-embedding", "type": "main", "index": 0 }]
+      ]
+    },
+    "merge-embedding": {
+      "main": [
+        [{ "node": "merge-paths", "type": "main", "index": 0 }]
+      ]
+    },
+    "skip-embedding": {
+      "main": [
+        [{ "node": "merge-paths", "type": "main", "index": 1 }]
+      ]
+    },
+    "merge-paths": {
+      "main": [
+        [{ "node": "persist-neo4j", "type": "main", "index": 0 }]
+      ]
+    },
+    "persist-neo4j": {
+      "main": [
+        [{ "node": "create-session-rel", "type": "main", "index": 0 }]
+      ]
+    },
+    "create-session-rel": {
+      "main": [
+        [{ "node": "create-project-rel", "type": "main", "index": 0 }]
+      ]
+    },
+    "create-project-rel": {
+      "main": [
+        [{ "node": "success-response", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "any"
+  },
+  "staticData": null,
+  "tags": ["dionysus", "memory", "sync"],
+  "meta": {
+    "credentials": {
+      "neo4j-dionysus": {
+        "host": "neo4j",
+        "port": 7687,
+        "database": "neo4j",
+        "authType": "basic",
+        "user": "neo4j",
+        "password": "{{$env.NEO4J_AUTH.split('/')[1]}}"
+      }
+    },
+    "environment_variables": [
+      "MEMORY_WEBHOOK_TOKEN",
+      "NEO4J_AUTH"
+    ]
+  }
+}
