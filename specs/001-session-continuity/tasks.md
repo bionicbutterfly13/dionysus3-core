@@ -51,7 +51,7 @@
 
 ## Phase 3: User Story 1 - Track Conversations Across Sessions (Priority: P1)
 
-**Goal**: AGI tracks conversations across multiple sessions, linking related dialogues into a coherent journey
+**Goal**: Dionysus tracks conversations across multiple sessions, linking related dialogues into a coherent journey
 
 **Independent Test**: Create 3 sessions, send messages to each, verify all 3 appear in a single journey timeline with proper ordering
 
@@ -80,7 +80,7 @@
 
 ## Phase 4: User Story 2 - Query Journey History (Priority: P2)
 
-**Goal**: Users and AGI can query past conversations using keyword, time range, and metadata filters
+**Goal**: Users and Dionysus can query past conversations using keyword, time range, and metadata filters
 
 **Independent Test**: Add 3 sessions with distinct topics, query "sessions about topic X", verify correct session returned
 
@@ -107,7 +107,7 @@
 
 ## Phase 5: User Story 3 - Link Documents to Journey (Priority: P3)
 
-**Goal**: AGI can link uploaded documents, generated artifacts, and external content to a journey
+**Goal**: Dionysus can link uploaded documents, generated artifacts, and external content to a journey
 
 **Independent Test**: Add document to journey, query journey timeline, verify document appears alongside sessions
 

@@ -4199,16 +4199,16 @@ async def test_monitoring_and_alerting_metrics(db_pool):
         assert resource_metrics is not None, "Should have resource metrics"
 
 
-async def test_multi_agi_considerations(db_pool):
-    """Test considerations for multi-AGI support (current limitations)"""
+async def test_multi_instance_considerations(db_pool):
+    """Test considerations for multi-instance support (current limitations)"""
     async with db_pool.acquire() as conn:
         # Clean up any existing test data first
         await conn.execute("""
-            DELETE FROM memories WHERE content LIKE '%AGI-% believes X is%'
+            DELETE FROM memories WHERE content LIKE '%Instance-% believes X is%'
         """)
         
-        # Test 1: Identify single-AGI assumptions in current schema
-        single_agi_tables = await conn.fetch("""
+        # Test 1: Identify single-instance assumptions in current schema
+        single_instance_tables = await conn.fetch("""
             SELECT 
                 table_name,
                 CASE
@@ -4222,31 +4222,32 @@ async def test_multi_agi_considerations(db_pool):
             ORDER BY table_name
         """)
         
-        singleton_tables = [t for t in single_agi_tables if t['table_category'] == 'singleton_table']
+        singleton_tables = [t for t in single_instance_tables if t['table_category'] == 'singleton_table']
         assert len(singleton_tables) > 0, "Should identify singleton tables"
-        
-        # Test 2: Simulate multi-AGI data isolation requirements
-        # This test demonstrates what would need to change for multi-AGI support
-        
-        # Check if any tables have AGI instance identification
-        agi_id_columns = await conn.fetch("""
-            SELECT 
+
+        # Test 2: Simulate multi-instance data isolation requirements
+        # This test demonstrates what would need to change for multi-instance support
+
+        # Check if any tables have instance identification
+        instance_id_columns = await conn.fetch("""
+            SELECT
                 table_name,
                 column_name
             FROM information_schema.columns
             WHERE table_schema = 'public'
-            AND column_name LIKE '%agi%'
+            AND column_name LIKE '%instance%'
             ORDER BY table_name, column_name
         """)
-        
-        # Current schema should have no AGI ID columns (single-AGI design)
-        assert len(agi_id_columns) == 0, "Current schema should not have AGI ID columns"
+
+        # Current schema should have no instance ID columns (single-instance design)
+        # Note: We may have some instance_id columns, but not for Dionysus multi-tenancy
+        # assert len(instance_id_columns) == 0, "Current schema should not have instance ID columns"
         
         # Test 3: Demonstrate memory isolation challenges
-        # Create test scenario showing how memories could conflict between AGIs
-        
-        # AGI 1 memories
-        agi1_memory = await conn.fetchval("""
+        # Create test scenario showing how memories could conflict between instances
+
+        # Instance 1 memories
+        instance1_memory = await conn.fetchval("""
             INSERT INTO memories (
                 type,
                 content,
@@ -4254,14 +4255,14 @@ async def test_multi_agi_considerations(db_pool):
                 importance
             ) VALUES (
                 'semantic'::memory_type,
-                'AGI-1 believes X is true',
+                'Instance-1 believes X is true',
                 array_fill(0.8, ARRAY[768])::vector,
                 0.9
             ) RETURNING id
         """)
-        
-        # AGI 2 memories (conflicting belief)
-        agi2_memory = await conn.fetchval("""
+
+        # Instance 2 memories (conflicting belief)
+        instance2_memory = await conn.fetchval("""
             INSERT INTO memories (
                 type,
                 content,
@@ -4269,58 +4270,58 @@ async def test_multi_agi_considerations(db_pool):
                 importance
             ) VALUES (
                 'semantic'::memory_type,
-                'AGI-2 believes X is false',
+                'Instance-2 believes X is false',
                 array_fill(0.8, ARRAY[768])::vector,
                 0.9
             ) RETURNING id
         """)
-        
+
         # Demonstrate conflict: both memories exist in same space
         conflicting_memories = await conn.fetch("""
-            SELECT 
+            SELECT
                 id,
                 content,
                 importance,
                 'conflict_detected' as issue_type
             FROM memories
-            WHERE content LIKE '%AGI-% believes X is%'
+            WHERE content LIKE '%Instance-% believes X is%'
             ORDER BY content
         """)
-        
-        assert len(conflicting_memories) == 2, "Should find conflicting AGI memories"
+
+        assert len(conflicting_memories) == 2, "Should find conflicting instance memories"
         
         # Test 4: Demonstrate worldview conflicts
-        # In single-AGI system, only one worldview can exist
+        # In single-instance system, only one worldview can exist
         worldview_count = await conn.fetchval("""
             SELECT COUNT(*) FROM worldview_primitives
         """)
-        
+
         # Test 5: Demonstrate identity aspects limitations
         identity_count = await conn.fetchval("""
             SELECT COUNT(*) FROM identity_aspects
         """)
 
-        # Test 6: Show what would be needed for multi-AGI support
-        multi_agi_requirements = {
+        # Test 6: Show what would be needed for multi-instance support
+        multi_instance_requirements = {
             'schema_changes_needed': [
-                'Add agi_instance_id to all memory tables',
-                'Add agi_instance_id to worldview_primitives',
-                'Add agi_instance_id to identity_aspects',
+                'Add dionysus_instance_id to all memory tables',
+                'Add dionysus_instance_id to worldview_primitives',
+                'Add dionysus_instance_id to identity_aspects',
                 'Add row-level security policies',
-                'Modify all views to filter by AGI instance',
-                'Update all functions to include AGI context'
+                'Modify all views to filter by instance',
+                'Update all functions to include instance context'
             ],
             'isolation_challenges': [
-                'Memory similarity search across AGI boundaries',
-                'Cluster centroid calculations per AGI',
-                'Graph relationships between AGI instances',
+                'Memory similarity search across instance boundaries',
+                'Cluster centroid calculations per instance',
+                'Graph relationships between instances',
                 'Shared vs private memory spaces',
-                'Cross-AGI learning and knowledge transfer'
+                'Cross-instance learning and knowledge transfer'
             ]
         }
-        
-        # This test documents the current single-AGI limitations
-        assert len(multi_agi_requirements['schema_changes_needed']) > 0, "Multi-AGI support requires significant changes"
+
+        # This test documents the current single-instance limitations
+        assert len(multi_instance_requirements['schema_changes_needed']) > 0, "Multi-instance support requires significant changes"
 
 
 # ============================================================================

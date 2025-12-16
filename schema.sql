@@ -1,5 +1,5 @@
 -- ============================================================================
--- AGI MEMORY SYSTEM - FINAL SCHEMA
+-- DIONYSUS MEMORY SYSTEM - FINAL SCHEMA
 -- ============================================================================
 -- Architecture:
 --   - Relational: Core storage, clusters, acceleration, identity

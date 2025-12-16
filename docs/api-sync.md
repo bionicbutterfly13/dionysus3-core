@@ -204,7 +204,7 @@ Recover memories from remote Neo4j.
 
 ## MCP Tools
 
-Available via the Dionysus MCP server for AGI self-management.
+Available via the Dionysus MCP server for Dionysus self-management.
 
 ### sync_now
 

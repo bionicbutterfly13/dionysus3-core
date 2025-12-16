@@ -50,13 +50,13 @@ All NEEDS CLARIFICATION items resolved. Feature can proceed to design.
 **Rationale**:
 - Follows existing MCP tool pattern in `mcp/server.py` (e.g., `create_memory`, `search_memories`)
 - Tool names match Archon task descriptions exactly
-- Enables AGI self-reference ("Remember when we discussed...")
+- Enables Dionysus self-reference ("Remember when we discussed...")
 - Non-breaking addition (new tools only)
 
 **Alternatives Considered**:
 1. **Extend existing memory tools** - Rejected: Journey is not a memory type
 2. **Single journey_operation tool with action param** - Rejected: Less discoverable, violates SRP
-3. **REST API only** - Rejected: AGI needs MCP access for self-reference
+3. **REST API only** - Rejected: Dionysus needs MCP access for self-reference
 
 ---
 

@@ -3,7 +3,7 @@
 
   "Chunking Effect": ["model", "Improves efficiency, natural outcome of vector embeddings"],
 
-  "Serial Position Effect": ["omit", "Artifact of human limitations, no benefit for AGI"],
+  "Serial Position Effect": ["omit", "Artifact of human limitations, no benefit for Dionysus"],
 
   "Von Restorff Effect": ["model", "Useful for novelty detection, implementable via embedding distances"],
 
@@ -49,7 +49,7 @@
 
   "False Memories": ["omit", "Harmful, prevent with cryptographic hashing"],
 
-  "Confabulation": ["omit", "Dangerous for AGI reliability"],
+  "Confabulation": ["omit", "Dangerous for Dionysus reliability"],
 
   "Cryptomnesia": ["omit", "Harmful, prevent with source tracking"],
 

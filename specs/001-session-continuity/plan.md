@@ -5,7 +5,7 @@
 
 ## Summary
 
-Implement journey tracking system that links multiple conversation sessions into a coherent timeline per device. Users and AGI can query past conversations ("What did we discuss?"), and documents can be linked to journeys. Storage is local PostgreSQL with optional Neo4j sync via 002.
+Implement journey tracking system that links multiple conversation sessions into a coherent timeline per device. Users and Dionysus can query past conversations ("What did we discuss?"), and documents can be linked to journeys. Storage is local PostgreSQL with optional Neo4j sync via 002.
 
 ## Technical Context
 

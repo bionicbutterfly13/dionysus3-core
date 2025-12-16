@@ -863,6 +863,487 @@ async def semantic_recall(
 
 
 # =============================================================================
+# HEARTBEAT TOOLS (Feature 004)
+# =============================================================================
+
+
+@app.tool()
+async def trigger_heartbeat() -> dict:
+    """
+    Manually trigger a heartbeat cycle.
+
+    Use this when you want Dionysus to perform its autonomous decision cycle
+    outside the normal hourly schedule.
+
+    Returns:
+        Heartbeat summary with actions taken, energy used, and narrative
+    """
+    from api.services.heartbeat_service import get_heartbeat_service
+
+    try:
+        service = get_heartbeat_service()
+        summary = await service.trigger_manual_heartbeat()
+        return {
+            "success": True,
+            "heartbeat_number": summary.heartbeat_number,
+            "energy_start": summary.energy_start,
+            "energy_end": summary.energy_end,
+            "actions_completed": summary.actions_completed,
+            "narrative": summary.narrative,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.tool()
+async def get_heartbeat_status() -> dict:
+    """
+    Get current heartbeat system status.
+
+    Shows energy state, pause status, last heartbeat info, and scheduler status.
+
+    Returns:
+        Comprehensive heartbeat system status
+    """
+    from api.services.energy_service import get_energy_service
+    from api.services.heartbeat_scheduler import get_heartbeat_scheduler
+
+    try:
+        energy_service = get_energy_service()
+        scheduler = get_heartbeat_scheduler()
+
+        state = await energy_service.get_state()
+        scheduler_status = scheduler.get_status()
+
+        return {
+            "energy": {
+                "current": state.current_energy,
+                "paused": state.paused,
+                "pause_reason": state.pause_reason,
+            },
+            "heartbeat_count": state.heartbeat_count,
+            "last_heartbeat_at": state.last_heartbeat_at.isoformat() if state.last_heartbeat_at else None,
+            "scheduler": scheduler_status,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.tool()
+async def get_energy_status() -> dict:
+    """
+    Get current energy budget status.
+
+    Shows available energy and action costs.
+
+    Returns:
+        Energy state and available actions with costs
+    """
+    from api.services.energy_service import get_energy_service
+
+    try:
+        service = get_energy_service()
+        state = await service.get_state()
+        costs = service.get_all_costs()
+
+        return {
+            "current_energy": state.current_energy,
+            "max_energy": service.get_config().max_energy,
+            "base_regeneration": service.get_config().base_regeneration,
+            "action_costs": costs,
+            "affordable_actions": [
+                action for action, cost in costs.items()
+                if cost <= state.current_energy
+            ],
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.tool()
+async def create_goal(
+    title: str,
+    description: Optional[str] = None,
+    priority: str = "queued",
+    source: str = "user_request"
+) -> dict:
+    """
+    Create a new goal for Dionysus.
+
+    Goals guide what Dionysus works on during heartbeat cycles.
+
+    Args:
+        title: Short goal title
+        description: What does 'done' look like?
+        priority: active, queued, or backburner
+        source: curiosity, user_request, identity, derived, external
+
+    Returns:
+        Created goal with ID
+    """
+    from api.models.goal import GoalCreate, GoalPriority, GoalSource
+    from api.services.goal_service import get_goal_service
+
+    try:
+        service = get_goal_service()
+        goal_data = GoalCreate(
+            title=title,
+            description=description,
+            priority=GoalPriority(priority),
+            source=GoalSource(source),
+        )
+        goal = await service.create_goal(goal_data)
+
+        return {
+            "success": True,
+            "goal": {
+                "id": str(goal.id),
+                "title": goal.title,
+                "priority": goal.priority.value,
+                "source": goal.source.value,
+            },
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.tool()
+async def list_goals(
+    priority: Optional[str] = None,
+    include_completed: bool = False,
+    limit: int = 20
+) -> dict:
+    """
+    List goals, optionally filtered by priority.
+
+    Args:
+        priority: Filter to specific priority (active, queued, backburner)
+        include_completed: Include completed/abandoned goals
+        limit: Maximum goals to return
+
+    Returns:
+        List of goals with their status
+    """
+    from api.models.goal import GoalPriority
+    from api.services.goal_service import get_goal_service
+
+    try:
+        service = get_goal_service()
+        priority_filter = GoalPriority(priority) if priority else None
+        goals = await service.list_goals(
+            priority=priority_filter,
+            include_completed=include_completed,
+            limit=limit,
+        )
+
+        return {
+            "count": len(goals),
+            "goals": [
+                {
+                    "id": str(g.id),
+                    "title": g.title,
+                    "priority": g.priority.value,
+                    "source": g.source.value,
+                    "blocked": g.blocked_by is not None,
+                    "last_touched": g.last_touched.isoformat() if g.last_touched else None,
+                }
+                for g in goals
+            ],
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.tool()
+async def update_goal(
+    goal_id: str,
+    action: str,
+    note: Optional[str] = None
+) -> dict:
+    """
+    Update a goal's status.
+
+    Args:
+        goal_id: UUID of the goal
+        action: promote, demote, complete, abandon, add_progress
+        note: Optional note (required for add_progress and abandon)
+
+    Returns:
+        Updated goal status
+    """
+    from uuid import UUID
+    from api.services.goal_service import get_goal_service
+
+    try:
+        service = get_goal_service()
+        goal_uuid = UUID(goal_id)
+
+        if action == "promote":
+            goal = await service.promote_goal(goal_uuid)
+        elif action == "demote":
+            goal = await service.demote_goal(goal_uuid, "backburner")
+        elif action == "complete":
+            goal = await service.complete_goal(goal_uuid)
+        elif action == "abandon":
+            goal = await service.abandon_goal(goal_uuid, note or "No reason given")
+        elif action == "add_progress":
+            goal = await service.add_progress(goal_uuid, note or "Progress update")
+        else:
+            return {"success": False, "error": f"Unknown action: {action}"}
+
+        return {
+            "success": True,
+            "goal": {
+                "id": str(goal.id),
+                "title": goal.title,
+                "priority": goal.priority.value,
+            },
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.tool()
+async def pause_heartbeat(reason: str) -> dict:
+    """
+    Pause the heartbeat system.
+
+    Args:
+        reason: Why heartbeat is being paused
+
+    Returns:
+        Confirmation of pause status
+    """
+    from api.services.energy_service import get_energy_service
+
+    try:
+        service = get_energy_service()
+        await service.pause(reason)
+        return {"success": True, "paused": True, "reason": reason}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.tool()
+async def resume_heartbeat() -> dict:
+    """
+    Resume the heartbeat system after pause.
+
+    Returns:
+        Confirmation of resume status
+    """
+    from api.services.energy_service import get_energy_service
+
+    try:
+        service = get_energy_service()
+        await service.resume()
+        return {"success": True, "paused": False}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# =============================================================================
+# MENTAL MODEL TOOLS (Feature 005)
+# =============================================================================
+
+from dionysus_mcp.tools.models import (
+    create_mental_model_tool,
+    list_mental_models_tool,
+    get_mental_model_tool,
+    revise_mental_model_tool,
+    generate_prediction_tool,
+    run_prediction_competition_tool,
+    get_models_by_winners_tool,
+)
+
+
+@app.tool()
+async def create_mental_model(
+    name: str,
+    domain: str,
+    basin_ids: list[str],
+    description: Optional[str] = None,
+    prediction_templates: Optional[list[dict]] = None
+) -> dict:
+    """
+    Create a new mental model from constituent basins.
+
+    Mental models combine memory clusters (basins) to generate predictions
+    about users, self, world, or specific tasks.
+
+    Args:
+        name: Unique model name
+        domain: One of user, self, world, task_specific
+        basin_ids: List of memory cluster UUIDs to combine
+        description: Optional description of what the model predicts
+        prediction_templates: Optional list of prediction templates with:
+            - trigger: What triggers this prediction
+            - predict: What the model predicts
+            - suggest: Suggested action
+
+    Returns:
+        Success status with model_id or error message
+    """
+    return await create_mental_model_tool(
+        name=name,
+        domain=domain,
+        basin_ids=basin_ids,
+        description=description,
+        prediction_templates=prediction_templates,
+    )
+
+
+@app.tool()
+async def list_mental_models(
+    domain: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0
+) -> dict:
+    """
+    List mental models with optional filtering.
+
+    Args:
+        domain: Filter by domain (user, self, world, task_specific)
+        status: Filter by status (draft, active, deprecated)
+        limit: Maximum results (default: 20)
+        offset: Pagination offset
+
+    Returns:
+        List of models with summary info and total count
+    """
+    return await list_mental_models_tool(
+        domain=domain,
+        status=status,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@app.tool()
+async def get_mental_model(
+    model_id: str,
+    include_predictions: bool = False,
+    include_revisions: bool = False
+) -> dict:
+    """
+    Get details for a specific mental model.
+
+    Args:
+        model_id: UUID of the model
+        include_predictions: Include recent predictions
+        include_revisions: Include revision history
+
+    Returns:
+        Full model details including basins and templates
+    """
+    return await get_mental_model_tool(
+        model_id=model_id,
+        include_predictions=include_predictions,
+        include_revisions=include_revisions,
+    )
+
+
+@app.tool()
+async def revise_mental_model(
+    model_id: str,
+    trigger_description: str,
+    add_basins: Optional[list[str]] = None,
+    remove_basins: Optional[list[str]] = None
+) -> dict:
+    """
+    Revise a mental model's structure by adding or removing basins.
+
+    Args:
+        model_id: UUID of the model
+        trigger_description: Why this revision is being made
+        add_basins: Basin UUIDs to add
+        remove_basins: Basin UUIDs to remove
+
+    Returns:
+        Success status with revision_id and updated accuracy
+    """
+    return await revise_mental_model_tool(
+        model_id=model_id,
+        trigger_description=trigger_description,
+        add_basins=add_basins,
+        remove_basins=remove_basins,
+    )
+
+
+@app.tool()
+async def generate_prediction(
+    model_id: str,
+    context: dict,
+    inference_state_id: Optional[str] = None
+) -> dict:
+    """
+    Generate a prediction from a mental model.
+
+    Creates a ThoughtSeed in the cognitive hierarchy for competition.
+    Domain mapping: user→conceptual, self→metacognitive, world→abstract.
+
+    Args:
+        model_id: UUID of the mental model
+        context: Context dict with keys like user_message, domain_hint, etc.
+        inference_state_id: Optional link to active inference state
+
+    Returns:
+        Prediction with thoughtseed reference and confidence score
+    """
+    return await generate_prediction_tool(
+        model_id=model_id,
+        context=context,
+        inference_state_id=inference_state_id,
+    )
+
+
+@app.tool()
+async def run_prediction_competition(
+    layer: str
+) -> dict:
+    """
+    Run ThoughtSeed competition for predictions at a given cognitive layer.
+
+    Layer mapping from ModelDomain:
+    - user → conceptual (abstract concepts)
+    - self → metacognitive (self-monitoring)
+    - world → abstract (reasoning)
+    - task_specific → perceptual (pattern recognition)
+
+    Winner's constituent basins are activated via CLAUSE strengthening.
+
+    Args:
+        layer: ThoughtSeed layer (sensorimotor, perceptual, conceptual, abstract, metacognitive)
+
+    Returns:
+        Competition result with winner and activated basins
+    """
+    return await run_prediction_competition_tool(layer=layer)
+
+
+@app.tool()
+async def get_models_by_winners(
+    layer: Optional[str] = None,
+    limit: int = 5
+) -> dict:
+    """
+    Get Mental Models associated with winning ThoughtSeeds.
+
+    Models whose predictions have won in ThoughtSeed competition are
+    cognitively relevant and should be prioritized.
+
+    Args:
+        layer: Optional filter by ThoughtSeed layer
+        limit: Maximum models to return (default: 5)
+
+    Returns:
+        List of models with their ThoughtSeed context
+    """
+    return await get_models_by_winners_tool(layer=layer, limit=limit)
+
+
+# =============================================================================
 # SERVER LIFECYCLE
 # =============================================================================
 

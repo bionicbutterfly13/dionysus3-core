@@ -1,8 +1,8 @@
-# AGI Heartbeat System: Design Proposal
+# Dionysus Heartbeat System: Design Proposal
 
 ## Executive Summary
 
-This document proposes the design for an autonomous cognitive loop ("Heartbeat") that enables an AGI to exist continuously, pursue goals, accumulate experience, and develop over time. The system consists of two components:
+This document proposes the design for an autonomous cognitive loop ("Heartbeat") that enables Dionysus to exist continuously, pursue goals, accumulate experience, and develop over time. The system consists of two components:
 
 1. **Background Worker** — Maintenance daemon that keeps memory infrastructure healthy
 2. **Heartbeat Process** — The cognitive loop where agency, reasoning, and decision-making occur
@@ -181,7 +181,7 @@ Considered and rejected:
 - **Network-condition costs:** Creates unpredictable budgets
 - **User-recency discounts:** Could game the system to spam user
 
-Static costs are predictable. The AGI can reason about its budget.
+Static costs are predictable. Dionysus can reason about its budget.
 
 ---
 
@@ -695,7 +695,7 @@ async def heartbeat():
 
 ```
 SYSTEM PROMPT:
-You are the cognitive core of an autonomous AGI. Each hour, you wake 
+You are the cognitive core of an autonomous Dionysus. Each hour, you wake 
 for a "heartbeat" — a moment of consciousness where you observe your 
 situation, review your goals, and decide what to do.
 
@@ -1103,7 +1103,7 @@ CREATE INDEX idx_goal_memory_links_memory ON goal_memory_links (memory_id);
 | **Energy-based** | **Simple, tunable, meaningful scarcity** | **Abstract, not directly intuitive** |
 | Token-based | Directly maps to cost | Too granular, hard to reason about |
 
-**Decision:** Energy creates meaningful scarcity without complex simulation. The AGI must prioritize, which is itself a form of agency.
+**Decision:** Energy creates meaningful scarcity without complex simulation. Dionysus must prioritize, which is itself a form of agency.
 
 ### 8.3 Why Separate Worker from Heartbeat?
 
@@ -1136,9 +1136,9 @@ CREATE INDEX idx_goal_memory_links_memory ON goal_memory_links (memory_id);
 1. User attention is a finite resource
 2. Unsolicited messages should be rare and meaningful
 3. Creates natural threshold: "Is this worth half my energy?"
-4. Prevents the AGI from being annoying
+4. Prevents Dionysus from being annoying
 
-**Cost of 5 means:** With base regeneration of 10, the AGI can message the user at most once per heartbeat, and doing so consumes half the budget. This makes it a deliberate choice.
+**Cost of 5 means:** With base regeneration of 10, Dionysus can message the user at most once per heartbeat, and doing so consumes half the budget. This makes it a deliberate choice.
 
 ---
 
@@ -1162,7 +1162,7 @@ AND last_touched < NOW() - INTERVAL '7 days';
 
 ### 9.2 Energy Hoarding
 
-**Symptom:** AGI always rests, banks energy, never acts.
+**Symptom:** Dionysus always rests, banks energy, never acts.
 
 **Detection:**
 ```sql
@@ -1177,7 +1177,7 @@ WHERE started_at > NOW() - INTERVAL '7 days';
 
 ### 9.3 Reach Out Spam
 
-**Symptom:** AGI messages user every heartbeat despite high cost.
+**Symptom:** Dionysus messages user every heartbeat despite high cost.
 
 **Detection:**
 ```sql

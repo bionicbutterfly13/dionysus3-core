@@ -1,10 +1,10 @@
-# AGI Memory System
+# Dionysus Memory System
 
 A sophisticated database design for Artificial General Intelligence (AGI) memory management, implementing multiple types of memory storage and retrieval mechanisms inspired by human cognitive architecture.
 
 ## Overview
 
-This system provides a comprehensive memory management solution for AGI applications, featuring:
+This system provides a comprehensive memory management solution for Dionysus applications, featuring:
 
 - Multiple memory types (Episodic, Semantic, Procedural, Strategic)
 - Vector-based memory storage and similarity search
@@ -318,7 +318,7 @@ Choose the scheduling method that best fits your infrastructure and monitoring c
 
 ### Memory Interaction Flow
 
-The AGI Memory System provides a layered approach to memory management, similar to human cognitive processes:
+The Dionysus Memory System provides a layered approach to memory management, similar to human cognitive processes:
 
 1. **Initial Memory Creation**
    - New information enters through working memory
@@ -379,12 +379,12 @@ graph TD
 
 ## Important Note
 
-This database schema is designed for a single AGI instance. Supporting multiple AGI instances would require significant schema modifications, including:
+This database schema is designed for a single Dionysus instance. Supporting multiple Dionysus instances would require significant schema modifications, including:
 
-- Adding AGI instance identification to all memory tables
+- Adding Dionysus instance identification to all memory tables
 - Partitioning strategies for memory isolation
-- Modified relationship handling for cross-AGI memory sharing
-- Separate working memory spaces per AGI
+- Modified relationship handling for cross-instance memory sharing
+- Separate working memory spaces per Dionysus instance
 - Additional access controls and memory ownership
 
-If you need multi-AGI support, consider refactoring the schema to include tenant isolation patterns before implementation.
+If you need multi-instance support, consider refactoring the schema to include tenant isolation patterns before implementation.

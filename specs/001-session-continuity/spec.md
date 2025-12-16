@@ -9,9 +9,9 @@
 
 ### User Story 1 - Track Conversations Across Sessions (Priority: P1)
 
-The AGI system MUST track conversations across multiple sessions, linking related dialogues into a coherent "journey" that represents the user's progression over time.
+The Dionysus system MUST track conversations across multiple sessions, linking related dialogues into a coherent "journey" that represents the user's progression over time.
 
-**Why this priority**: Without session tracking, each conversation is isolated. The AGI cannot reference past discussions ("Remember when we talked about X?") which breaks the illusion of continuous relationship.
+**Why this priority**: Without session tracking, each conversation is isolated. Dionysus cannot reference past discussions ("Remember when we talked about X?") which breaks the illusion of continuous relationship.
 
 **Independent Test**: Create 3 sessions, send messages to each, verify all 3 appear in a single journey timeline with proper ordering.
 
@@ -25,9 +25,9 @@ The AGI system MUST track conversations across multiple sessions, linking relate
 
 ### User Story 2 - Query Journey History (Priority: P2)
 
-Users and the AGI MUST be able to query past conversations within a journey using natural language patterns like "What did we discuss in session X?" or "Remember when we discussed Y?"
+Users and Dionysus MUST be able to query past conversations within a journey using natural language patterns like "What did we discuss in session X?" or "Remember when we discussed Y?"
 
-**Why this priority**: Tracking without retrieval provides no value. The AGI needs to actually USE the session history to provide continuity.
+**Why this priority**: Tracking without retrieval provides no value. Dionysus needs to actually USE the session history to provide continuity.
 
 **Independent Test**: Add 3 sessions with distinct topics, query "sessions about topic X", verify correct session is returned.
 
@@ -41,7 +41,7 @@ Users and the AGI MUST be able to query past conversations within a journey usin
 
 ### User Story 3 - Link Documents to Journey (Priority: P3)
 
-The AGI MUST be able to link uploaded documents, generated artifacts, and external content to a user's journey for future reference.
+Dionysus MUST be able to link uploaded documents, generated artifacts, and external content to a user's journey for future reference.
 
 **Why this priority**: Sessions aren't just conversations - users may upload files, receive generated plans, etc. These artifacts should be part of the journey timeline.
 
@@ -70,7 +70,7 @@ The AGI MUST be able to link uploaded documents, generated artifacts, and extern
 - **FR-003**: System MUST store session summaries for efficient journey queries
 - **FR-004**: System MUST support querying journey history by keyword, time range, and metadata
 - **FR-005**: *(Deferred - Post-MVP)* System MAY track thoughtseed_trajectory and attractor_dynamics_history per journey (Dionysus IWMT consciousness concepts)
-- **FR-006**: System MUST expose journey operations via MCP tools for AGI self-reference
+- **FR-006**: System MUST expose journey operations via MCP tools for Dionysus self-reference
 
 ### Key Entities
 
@@ -100,4 +100,4 @@ The AGI MUST be able to link uploaded documents, generated artifacts, and extern
 - **SC-001**: Journey creation adds <50ms to first session creation
 - **SC-002**: Journey timeline query returns <200ms for journeys with 100+ sessions
 - **SC-003**: Zero data loss when linking sessions to journeys (referential integrity enforced)
-- **SC-004**: AGI can successfully query "What did we discuss?" and receive relevant results
+- **SC-004**: Dionysus can successfully query "What did we discuss?" and receive relevant results
