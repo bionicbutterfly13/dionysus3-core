@@ -1,0 +1,206 @@
+{
+  "name": "memory_v1_ingest_message",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memory/v1/ingest/message",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "0dcf7e9a-8e1f-4d4b-9d19-8b8ec91b23c9",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        760
+      ],
+      "webhookId": "1c2a77d3-9f1a-4e6b-8de4-4c8f8e2c3a10"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json || {};\n\nconst scopePath = Array.isArray(body?.scope?.path) && body.scope.path.length\n  ? body.scope.path\n  : ['global','business'];\n\nconst userId = body?.user?.id || body?.user_id || 'user_drmani';\n\nconst journeySlug = (body?.journey?.slug || body?.journey_slug || '').trim();\nif (!journeySlug) throw new Error('Missing journey.slug (or journey_slug)');\nconst journeyName = body?.journey?.name || body?.journey_name || journeySlug;\n\nconst sessionId = body?.session?.id || body?.session_id || `session-${Date.now()}`;\nconst sessionClient = body?.session?.client || body?.session_client || 'unknown';\n\nconst role = body?.message?.role || body?.role;\nconst content = body?.message?.content || body?.content;\nif (!role) throw new Error('Missing message.role');\nif (!content) throw new Error('Missing message.content');\n\nconst createdAt = body?.message?.created_at || body?.created_at || new Date().toISOString();\nconst messageId = body?.message?.id || body?.message_id || null;\n\nreturn [{\n  user: { id: userId },\n  scope: { path: scopePath },\n  journey: { slug: journeySlug, name: journeyName },\n  session: { id: sessionId, client: sessionClient },\n  message: { id: messageId, role, content, created_at: createdAt },\n  idempotency_key: body?.idempotency_key || null,\n  context: body?.context || {}\n}];"
+      },
+      "id": "f5b3b384-5c39-4a8a-9c7f-1df4f09a7a8a",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/embeddings",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": \"{{ $json.message.content }}\"\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "f820cedc-b7be-4f2d-8d8b-1f6a8fbf89d4",
+      "name": "Ollama Embed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const embedding = $json?.embedding;\nif (!Array.isArray(embedding) || embedding.length < 10) {\n  throw new Error('Missing/invalid embedding from Ollama');\n}\n\nconst text = $json.message.content;\nconst lower = text.toLowerCase();\n\nlet basinId = 'general';\nif (text.length > 1200) basinId = 'deep_processing';\nelse if (/[?]\\s*$/.test(text) || lower.includes('how ') || lower.includes('what ') || lower.includes('why ')) basinId = 'inquiry';\nelse if (lower.includes('learn') || lower.includes('study') || lower.includes('understand')) basinId = 'learning';\nelse if (lower.includes('plan') || lower.includes('roadmap') || lower.includes('steps')) basinId = 'planning';\n\nreturn [{ ...$json, embedding, basin_id: basinId }];"
+      },
+      "id": "a34f0d80-0b77-49ea-91dd-c2a2f23b6e21",
+      "name": "Choose Basin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"WITH $content AS content\\nWITH content, 'sha256:' + apoc.util.sha256(content) AS content_hash\\nWITH content, content_hash, coalesce($idempotency_key, 'sha256:' + apoc.util.sha256($raw_idempotency)) AS idk\\n\\nMERGE (u:User {id: $user_id})\\n  ON CREATE SET u.created_at = datetime()\\n\\nMERGE (j:Journey {slug: $journey_slug})\\n  ON CREATE SET j.id = randomUUID(), j.created_at = datetime()\\nSET j.name = coalesce($journey_name, j.name), j.updated_at = datetime()\\n\\nMERGE (u)-[:HAS_JOURNEY]->(j)\\n\\nWITH u, j, idk, content, content_hash\\nWITH u, j, idk, content, content_hash, $scope_path AS path\\nUNWIND range(0, size(path)-2) AS i\\nMERGE (a:Scope {slug: path[i]})\\n  ON CREATE SET a.id = randomUUID(), a.name = path[i], a.kind = \\\\\\\"scope\\\\\\\", a.created_at = datetime()\\nMERGE (b:Scope {slug: path[i+1]})\\n  ON CREATE SET b.id = randomUUID(), b.name = path[i+1], b.kind = \\\\\\\"scope\\\\\\\", b.created_at = datetime()\\nMERGE (a)-[:HAS_SCOPE]->(b)\\n\\nWITH u, j, idk, content, content_hash, $scope_path AS path\\nMATCH (leaf:Scope {slug: path[size(path)-1]})\\nMERGE (j)-[:IN_SCOPE]->(leaf)\\n\\nWITH j, idk, content, content_hash\\nMERGE (s:Session {id: $session_id})\\n  ON CREATE SET s.created_at = datetime(), s.client = $session_client\\nSET s.last_seen_at = datetime()\\nMERGE (j)-[:HAS_SESSION]->(s)\\n\\nWITH s, idk, content, content_hash\\nMERGE (m:Message {idempotency_key: idk})\\n  ON CREATE SET\\n    m.id = coalesce($message_id, randomUUID()),\\n    m.created_at = datetime($created_at),\\n    m.role = $role,\\n    m.content = content,\\n    m.content_hash = content_hash,\\n    m.embedding = $embedding,\\n    m.first_seen_at = datetime()\\nSET m.last_seen_at = datetime()\\n\\nMERGE (s)-[:HAS_MESSAGE]->(m)\\n\\nWITH m\\nMERGE (b:AttractorBasin {id: $basin_id})\\n  ON CREATE SET b.name = $basin_id, b.strength = 1.0, b.activation_count = 0, b.created_at = datetime()\\nSET b.activation_count = coalesce(b.activation_count, 0) + 1,\\n    b.strength = CASE\\n      WHEN coalesce(b.strength, 1.0) + 0.2 > 2.0 THEN 2.0\\n      ELSE coalesce(b.strength, 1.0) + 0.2\\n    END,\\n    b.updated_at = datetime()\\n\\nMERGE (m)-[:ROUTED_TO]->(b)\\n\\nRETURN m.id AS message_id, (m.first_seen_at = m.last_seen_at) AS created, b.id AS basin_id\",\n      \"parameters\": {\n        \"user_id\": \"{{ $json.user.id }}\",\n        \"scope_path\": {{ $json.scope.path }},\n        \"journey_slug\": \"{{ $json.journey.slug }}\",\n        \"journey_name\": \"{{ $json.journey.name }}\",\n        \"session_id\": \"{{ $json.session.id }}\",\n        \"session_client\": \"{{ $json.session.client }}\",\n        \"message_id\": \"{{ $json.message.id }}\",\n        \"idempotency_key\": {{ $json.idempotency_key }},\n        \"raw_idempotency\": \"{{ $json.user.id }}|{{ $json.journey.slug }}|{{ $json.session.id }}|{{ $json.message.role }}|{{ $json.message.created_at }}|{{ $json.message.content }}\",\n        \"role\": \"{{ $json.message.role }}\",\n        \"content\": \"{{ $json.message.content }}\",\n        \"created_at\": \"{{ $json.message.created_at }}\",\n        \"embedding\": {{ $json.embedding }},\n        \"basin_id\": \"{{ $json.basin_id }}\"\n      }\n    }\n  ]\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "7a3722ab-62f2-45c2-9c5d-f1ee0c8ea4f9",
+      "name": "Neo4j Ingest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1220,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst row = res?.results?.[0]?.data?.[0]?.row;\nif (!row) throw new Error('Neo4j returned no rows');\nconst [message_id, created, basin_id] = row;\nreturn [{\n  ok: true,\n  stored: true,\n  deduped: created === false,\n  message_id,\n  basin_id\n}];"
+      },
+      "id": "1a5a4d69-846a-4e83-9dcb-51961ec7dbb0",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "22e4806a-0e4a-42a1-98d1-7c4d3d7b1f2b",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        760
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Ollama Embed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Embed": {
+      "main": [
+        [
+          {
+            "node": "Choose Basin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Choose Basin": {
+      "main": [
+        [
+          {
+            "node": "Neo4j Ingest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j Ingest": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 300
+  },
+  "versionId": "60283eea-99cf-4ba1-9ccd-4956a6d34f71"
+}

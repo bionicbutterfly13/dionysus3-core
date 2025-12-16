@@ -1,0 +1,144 @@
+{
+  "name": "memory_v1_entity_upsert",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memory/v1/entity/upsert",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "e2c2c0a2-85c6-41e7-a2c8-4b8bf28b69a2",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        1320
+      ],
+      "webhookId": "f20b93f5-3a4d-4f16-8c75-84e13d6c1d14"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json;\nconst journeySlug = (body?.journey_slug || body?.journey?.slug || '').trim();\nif (!journeySlug) throw new Error('Missing journey_slug');\nconst slug = (body?.slug || body?.entity?.slug || '').trim();\nif (!slug) throw new Error('Missing slug');\nconst title = body?.title || body?.entity?.title || slug;\nreturn [{ journey_slug: journeySlug, slug, title }];"
+      },
+      "id": "0f7e8fb2-2e9b-4328-a3c4-64e290a7a7e8",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1320
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"MATCH (j:Journey {slug: $journey_slug})\\nMERGE (e:Entity {type: \\\\\\\"artifact\\\\\\\", slug: $slug})\\n  ON CREATE SET e.id = randomUUID(), e.created_at = datetime()\\nSET e.title = coalesce($title, e.title), e.updated_at = datetime()\\n\\nMERGE (j)-[:HAS_ENTITY]->(e)\\n\\nRETURN e.id AS entity_id, e.slug AS entity_slug, e.title AS entity_title;\",\n      \"parameters\": {\n        \"journey_slug\": \"{{ $json.journey_slug }}\",\n        \"slug\": \"{{ $json.slug }}\",\n        \"title\": \"{{ $json.title }}\"\n      }\n    }\n  ]\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "fd688d5d-b8bd-4c3a-985d-59a4fe9c5706",
+      "name": "Neo4j Entity Upsert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        1320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst row = res?.results?.[0]?.data?.[0]?.row;\nif (!row) throw new Error('Neo4j returned no rows');\nconst [entity_id, entity_slug, entity_title] = row;\nreturn [{ ok: true, entity_id, entity_slug, entity_title }];"
+      },
+      "id": "e2d91795-59a8-4f13-8c6a-7b1b9ee47a0a",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        1320
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "b0ad27ef-6efc-4a7f-9b51-0a8d1bcd5db7",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1220,
+        1320
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Neo4j Entity Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j Entity Upsert": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 300
+  },
+  "versionId": "c3fd722f-5ef7-40b0-a8d4-521cbea9f5b3"
+}

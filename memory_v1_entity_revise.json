@@ -1,0 +1,206 @@
+{
+  "name": "memory_v1_entity_revise",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memory/v1/entity/revise",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "c2c6c9e9-5e2d-4bd7-a1d2-6c0b0a7d2f2b",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        1560
+      ],
+      "webhookId": "d1f34b28-9aab-43e0-8fb2-0f7f2b6d8aa2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json;\nconst journeySlug = (body?.journey_slug || body?.journey?.slug || '').trim();\nif (!journeySlug) throw new Error('Missing journey_slug');\nconst slug = (body?.slug || body?.entity?.slug || '').trim();\nif (!slug) throw new Error('Missing slug');\nconst content = (body?.content || body?.entity?.content || '').trim();\nif (!content) throw new Error('Missing content');\nconst sourceMessageId = body?.source_message_id || null;\nreturn [{ journey_slug: journeySlug, slug, content, source_message_id: sourceMessageId }];"
+      },
+      "id": "1c0f0b06-1f4b-4f2b-a81c-52c3e9d1b9c3",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/embeddings",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": \"{{ $json.content }}\"\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "a5d0d6d1-c2e0-4d64-8c14-6b38af1cfd0e",
+      "name": "Ollama Embed Version",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const embedding = $json?.embedding;\nif (!Array.isArray(embedding) || embedding.length < 10) throw new Error('Missing embedding');\nreturn [{ ...$json, embedding }];"
+      },
+      "id": "f3c7d2e8-6f6b-4a1e-8d1a-5e1c8d6c7f0a",
+      "name": "Validate Embedding",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"MATCH (j:Journey {slug: $journey_slug})-[:HAS_ENTITY]->(e:Entity {type:\\\\\"artifact\\\\\", slug:$slug})\\nOPTIONAL MATCH (e)-[:HAS_VERSION]->(prev:EntityVersion)\\nWITH e, coalesce(max(prev.version), 0) + 1 AS next_version\\n\\nCREATE (ev:EntityVersion {\\n  id: randomUUID(),\\n  version: next_version,\\n  content: $content,\\n  embedding: $embedding,\\n  created_at: datetime()\\n})\\nMERGE (e)-[:HAS_VERSION]->(ev)\\n\\nWITH ev, $source_message_id AS mid\\nOPTIONAL MATCH (m:Message {id: mid})\\nFOREACH (_ IN CASE WHEN m IS NULL THEN [] ELSE [1] END |\\n  MERGE (ev)-[:DERIVED_FROM]->(m)\\n)\\n\\nRETURN ev.id AS entity_version_id, ev.version AS version;\",\n      \"parameters\": {\n        \"journey_slug\": \"{{ $json.journey_slug }}\",\n        \"slug\": \"{{ $json.slug }}\",\n        \"content\": \"{{ $json.content }}\",\n        \"embedding\": {{ $json.embedding }},\n        \"source_message_id\": \"{{ $json.source_message_id }}\"\n      }\n    }\n  ]\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "b92a7bde-0b2d-4a0f-9e9d-5a1e2c3d4f5a",
+      "name": "Neo4j Append Version",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1220,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst row = res?.results?.[0]?.data?.[0]?.row;\nif (!row) throw new Error('Neo4j returned no rows');\nconst [entity_version_id, version] = row;\nreturn [{ ok: true, entity_version_id, version }];"
+      },
+      "id": "0c1f6d7b-2b4e-4d3c-8a9f-1a2b3c4d5e6f",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "6f7e8d9c-0a1b-2c3d-4e5f-6a7b8c9d0e1f",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        1560
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Ollama Embed Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Embed Version": {
+      "main": [
+        [
+          {
+            "node": "Validate Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Embedding": {
+      "main": [
+        [
+          {
+            "node": "Neo4j Append Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j Append Version": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 300
+  },
+  "versionId": "8a1232a3-32fb-4a48-83f1-043c68beb70f"
+}
