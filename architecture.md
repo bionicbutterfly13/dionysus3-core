@@ -1,8 +1,8 @@
-# AGI Memory System - Architecture Summary
+# Dionysus Memory System - Architecture Summary
 
 ## Overview
 
-This schema implements a hybrid memory system for an AGI agent, combining:
+This schema implements a hybrid memory system for a Dionysus agent, combining:
 - **Relational storage** (PostgreSQL) for structured data and aggregations
 - **Vector search** (pgvector) for semantic similarity
 - **Graph database** (Apache AGE) for reasoning and traversal

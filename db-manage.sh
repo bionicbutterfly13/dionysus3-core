@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Database management script for AGI Memory System
+# Database management script for Dionysus Memory System
 # Usage: ./db-manage.sh [command]
 
 set -e  # Exit on any error
@@ -16,7 +16,7 @@ POSTGRES_DB=${POSTGRES_DB:-memory_db}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
 
 show_help() {
-    echo "AGI Memory Database Management Script"
+    echo "Dionysus Memory Database Management Script"
     echo ""
     echo "Usage: ./db-manage.sh [command]"
     echo ""

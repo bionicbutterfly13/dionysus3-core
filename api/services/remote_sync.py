@@ -13,6 +13,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import time
 from collections import deque
 from datetime import datetime, timedelta
@@ -22,6 +23,47 @@ import httpx
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+
+# =========================================================================
+# Neo4j Driver (Direct Access for Internal Services)
+# =========================================================================
+#
+# Several internal services (heartbeat, goals, background workers) expect a
+# Neo4j driver to be available for local graph operations and tests.
+# RemoteSyncService still uses n8n webhooks for sync/recall, but we expose a
+# shared AsyncGraphDatabase driver here for components that run Cypher locally.
+
+_neo4j_driver = None
+
+
+def get_neo4j_driver():
+    """Get or create a shared Neo4j AsyncGraphDatabase driver."""
+    global _neo4j_driver
+    if _neo4j_driver is not None:
+        return _neo4j_driver
+
+    try:
+        from neo4j import AsyncGraphDatabase  # type: ignore
+    except Exception as e:  # pragma: no cover
+        raise RuntimeError(
+            "neo4j package is required for direct graph access. "
+            "Install it (e.g. `pip install neo4j`) or configure services to use webhooks only."
+        ) from e
+
+    uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    user = os.getenv("NEO4J_USER", "neo4j")
+    password = os.getenv("NEO4J_PASSWORD", "")
+
+    _neo4j_driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
+    return _neo4j_driver
+
+
+async def close_neo4j_driver() -> None:
+    """Close the shared Neo4j driver, if initialized."""
+    global _neo4j_driver
+    if _neo4j_driver is not None:
+        await _neo4j_driver.close()
+        _neo4j_driver = None
 
 
 # =========================================================================

@@ -1,4 +1,4 @@
-# New Test Cases Plan for AGI Memory System
+# New Test Cases Plan for Dionysus Memory System
 
 Based on review of `schema.sql` and `architecture.md`, the following test gaps have been identified.
 
