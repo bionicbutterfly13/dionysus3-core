@@ -1,0 +1,206 @@
+{
+  "name": "memory_v1_recall",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memory/v1/recall",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "2bd0f03b-2bb4-4b0f-aac6-3d7b5f66f1ab",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        1040
+      ],
+      "webhookId": "b0b0a8cc-7d5a-4f8b-b1a5-0b9f4f7a2d0c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json;\nconst scopePath = Array.isArray(body?.scope?.path) && body.scope.path.length\n  ? body.scope.path\n  : ['global','business'];\nconst userId = body?.user_id || 'user_drmani';\nconst journeySlug = (body?.journey_slug || '').trim();\nconst query = (body?.query || '').trim();\nif (!query) throw new Error('Missing query');\nconst k = Number.isFinite(body?.k) ? body.k : 20;\nreturn [{ user_id: userId, scope_path: scopePath, journey_slug: journeySlug, query, k }];"
+      },
+      "id": "67f47c0f-35be-4eb9-b8c4-b21e77c647f0",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/embeddings",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": \"{{ $json.query }}\"\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "40a9c6c5-6c2a-4f7d-a16f-8c6a2a8d9a50",
+      "name": "Ollama Embed Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const embedding = $json?.embedding;\nif (!Array.isArray(embedding) || embedding.length < 10) throw new Error('Missing embedding');\nreturn [{ ...$json, embedding }];"
+      },
+      "id": "d1c8d6db-9a9e-4f48-8f7a-7a5f2e72d7d4",
+      "name": "Validate Embedding",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"CALL db.index.vector.queryNodes('message_embedding', $k, $embedding)\\nYIELD node, score\\nRETURN node.id AS message_id, node.role AS role, node.content AS content, node.created_at AS created_at, score\\nORDER BY score DESC;\",\n      \"parameters\": {\n        \"k\": {{ $json.k }},\n        \"embedding\": {{ $json.embedding }}\n      }\n    }\n  ]\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "f30c3cf7-e0b9-445a-8a16-4c4b3b70c08c",
+      "name": "Neo4j Vector Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1220,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst rows = (res?.results?.[0]?.data || []).map(d => {\n  const [message_id, role, content, created_at, score] = d.row;\n  return { message_id, role, content, created_at, score };\n});\nreturn [{ ok: true, results: rows }];"
+      },
+      "id": "c0abcf2d-5f84-4e7f-98f6-3e5a71f0d3b5",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "9e46ce8c-1b46-4f3f-b7c8-72d5945a18de",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        1040
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Ollama Embed Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Embed Query": {
+      "main": [
+        [
+          {
+            "node": "Validate Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Embedding": {
+      "main": [
+        [
+          {
+            "node": "Neo4j Vector Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j Vector Query": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 300
+  },
+  "versionId": "9b060b7d-ad27-4325-91d7-5d2120a4bdb4"
+}

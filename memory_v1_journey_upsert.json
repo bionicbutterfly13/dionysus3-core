@@ -1,0 +1,144 @@
+{
+  "name": "memory_v1_journey_upsert",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memory/v1/journey/upsert",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "3a3b2c4f-0a78-4de9-93b9-1f4b3bf37e1a",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "5b16e73f-7c8e-4d64-a4d1-8c3f7e4a8b31"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json;\n\nconst scopePath = Array.isArray(body?.scope?.path) && body.scope.path.length\n  ? body.scope.path\n  : ['global','business'];\n\nconst userId = body?.user_id || body?.user?.id || 'user_drmani';\n\nif (!body?.journey?.slug && !body?.journey_slug) {\n  throw new Error('Missing journey.slug (or journey_slug)');\n}\n\nconst journeySlug = (body?.journey?.slug || body?.journey_slug).trim();\nconst journeyName = body?.journey?.name || body?.journey_name || journeySlug;\n\nreturn [{\n  user_id: userId,\n  scope_path: scopePath,\n  journey_slug: journeySlug,\n  journey_name: journeyName\n}];"
+      },
+      "id": "c6b04dfe-8bf8-4f98-b4cf-9f8c3d7fd6a8",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"MERGE (u:User {id: $user_id})\\n  ON CREATE SET u.created_at = datetime();\\n\\nMERGE (j:Journey {slug: $journey_slug})\\n  ON CREATE SET j.id = randomUUID(), j.created_at = datetime()\\nSET j.name = coalesce($journey_name, j.name), j.updated_at = datetime();\\n\\nMERGE (u)-[:HAS_JOURNEY]->(j);\\n\\nWITH $scope_path AS path\\nUNWIND range(0, size(path)-2) AS i\\nMERGE (a:Scope {slug: path[i]})\\n  ON CREATE SET a.id = randomUUID(), a.name = path[i], a.kind = \\\\\\\"scope\\\\\\\", a.created_at = datetime()\\nMERGE (b:Scope {slug: path[i+1]})\\n  ON CREATE SET b.id = randomUUID(), b.name = path[i+1], b.kind = \\\\\\\"scope\\\\\\\", b.created_at = datetime()\\nMERGE (a)-[:HAS_SCOPE]->(b);\\n\\nWITH j, $scope_path AS path\\nMATCH (leaf:Scope {slug: path[size(path)-1]})\\nMERGE (j)-[:IN_SCOPE]->(leaf)\\n\\nRETURN j.id AS journey_id, j.slug AS journey_slug, j.name AS journey_name, leaf.slug AS scope_leaf;\",\n      \"parameters\": {\n        \"user_id\": \"{{ $json.user_id }}\",\n        \"scope_path\": {{ $json.scope_path }},\n        \"journey_slug\": \"{{ $json.journey_slug }}\",\n        \"journey_name\": \"{{ $json.journey_name }}\"\n      }\n    }\n  ]\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "c5c9b2d9-4fb7-4d34-8c43-06f8d2b7f401",
+      "name": "Neo4j Upsert Journey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst row = res?.results?.[0]?.data?.[0]?.row;\nif (!row) {\n  throw new Error('Neo4j returned no rows');\n}\nconst [journey_id, journey_slug, journey_name, scope_leaf] = row;\nreturn [{ ok: true, journey_id, journey_slug, journey_name, scope_leaf }];"
+      },
+      "id": "c6a0c7aa-9618-4589-890a-060019b2ce57",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "bfb7b4d0-4f29-4b91-9f10-0c45f3d6f50c",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1220,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Neo4j Upsert Journey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j Upsert Journey": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 300
+  },
+  "versionId": "84417bdf-c423-4532-9ef8-6129cdc784e4"
+}

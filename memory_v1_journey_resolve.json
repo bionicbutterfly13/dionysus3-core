@@ -1,0 +1,144 @@
+{
+  "name": "memory_v1_journey_resolve",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memory/v1/journey/resolve",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "29f254b1-2f70-4b6a-9d3a-5cdb0a8e0d57",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        520
+      ],
+      "webhookId": "9f0b4c42-9e4a-4b2a-8a33-4b9bdfda2a18"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json;\nconst scopePath = Array.isArray(body?.scope?.path) && body.scope.path.length\n  ? body.scope.path\n  : ['global','business'];\n\nconst nameOrSlug = (body?.name_or_slug || body?.journey_slug || body?.journey?.slug || body?.name || '').trim();\nif (!nameOrSlug) throw new Error('Missing name_or_slug');\n\nconst normalized = nameOrSlug.toLowerCase().trim();\n\nreturn [{\n  scope_path: scopePath,\n  name_or_slug: nameOrSlug,\n  normalized\n}];"
+      },
+      "id": "5d92d7b4-7d45-44f1-9a0f-7ddcc0f6d0d8",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"WITH $scope_path AS path\\nUNWIND range(0, size(path)-2) AS i\\nMERGE (a:Scope {slug: path[i]})\\n  ON CREATE SET a.id = randomUUID(), a.name = path[i], a.kind = \\\\\\\"scope\\\\\\\", a.created_at = datetime()\\nMERGE (b:Scope {slug: path[i+1]})\\n  ON CREATE SET b.id = randomUUID(), b.name = path[i+1], b.kind = \\\\\\\"scope\\\\\\\", b.created_at = datetime()\\nMERGE (a)-[:HAS_SCOPE]->(b);\\n\\nWITH $scope_path AS path\\nMATCH (leaf:Scope {slug: path[size(path)-1]})\\nWITH leaf\\nMATCH (j:Journey)-[:IN_SCOPE]->(leaf)\\nWHERE toLower(j.slug) = $normalized OR toLower(j.name) = $normalized\\nRETURN j.id AS journey_id, j.slug AS journey_slug, j.name AS journey_name, leaf.slug AS scope_leaf\\nLIMIT 1;\",\n      \"parameters\": {\n        \"scope_path\": {{ $json.scope_path }},\n        \"normalized\": \"{{ $json.normalized }}\"\n      }\n    }\n  ]\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "3b13f0f0-bc89-4d4b-9a63-fbce68a8f7af",
+      "name": "Neo4j Resolve",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst row = res?.results?.[0]?.data?.[0]?.row;\nif (!row) return [{ ok: true, found: false }];\nconst [journey_id, journey_slug, journey_name, scope_leaf] = row;\nreturn [{ ok: true, found: true, journey_id, journey_slug, journey_name, scope_leaf }];"
+      },
+      "id": "a6a790f9-c2e1-4760-8f8c-3e245fdb8a3b",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "967dd93c-21b9-4e49-92d7-2ab73f08a4b2",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1220,
+        520
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Neo4j Resolve",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j Resolve": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 300
+  },
+  "versionId": "a66201e0-6471-40d2-8440-8b7d69f94e92"
+}
