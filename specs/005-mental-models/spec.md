@@ -103,6 +103,24 @@ As a user, I want Dionysus to maintain different types of models (about me, abou
 
 ---
 
+### User Story 6 - Identity/Worldview Integration (Priority: P1)
+
+As the system, I want Mental Models to bidirectionally integrate with Identity and Worldview, so that self-models inform identity aspects and world-models update worldview beliefs based on prediction accuracy.
+
+**Why this priority**: This connects Mental Models to the generative model (Active Inference). Without this integration, predictions exist in isolation and don't update the system's core beliefs about self and world.
+
+**Independent Test**: Create a world-domain model, generate predictions, resolve with error, and verify worldview primitive confidence is updated via precision-weighted accumulation.
+
+**Acceptance Scenarios**:
+
+1. **Given** a model with domain="self", **When** the model is created, **Then** it is automatically linked to relevant identity_aspects based on shared memory basins.
+2. **Given** a model with domain="world", **When** predictions are resolved with errors, **Then** linked worldview_primitives accumulate error evidence.
+3. **Given** accumulated prediction errors exceed threshold (5+ errors), **When** the worldview update function runs, **Then** worldview confidence is updated using precision-weighted formula.
+4. **Given** a prediction is generated, **When** it contradicts linked worldview beliefs (alignment < 0.3), **Then** the prediction is flagged for review with suppression factor applied.
+5. **Given** worldview confidence is high (>0.8), **When** prediction errors accumulate, **Then** the learning rate is reduced (0.05) to maintain belief stability.
+
+---
+
 ### Edge Cases
 
 - What happens when a model has no constituent basins (basins were deleted)?
@@ -131,6 +149,13 @@ As a user, I want Dionysus to maintain different types of models (about me, abou
 - **FR-011**: System MUST allow querying models by domain and status
 - **FR-012**: System MUST record predictions with confidence scores and context
 - **FR-013**: System MUST integrate with existing active inference processing
+- **FR-014**: System MUST auto-link self-domain models to identity_aspects sharing memory basins
+- **FR-015**: System MUST auto-link world-domain models to worldview_primitives matching explanatory scope
+- **FR-016**: System MUST accumulate prediction errors per worldview primitive before updating confidence
+- **FR-017**: System MUST use precision-weighted error formula: `error / (1 + variance)`
+- **FR-018**: System MUST apply learning rate based on belief stability (0.05-0.2)
+- **FR-019**: System MUST flag predictions contradicting worldview (alignment < 0.3) with suppression factor
+- **FR-020**: System MUST sync model-identity/worldview relationships to Neo4j via n8n webhooks
 
 ### Key Entities
 

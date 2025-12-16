@@ -1,0 +1,180 @@
+{
+  "name": "Mental Model Identity/Worldview Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "model-prediction-resolved",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook: Prediction Resolved",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "model-prediction-resolved"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate HMAC-SHA256 signature\nconst crypto = require('crypto');\n\nconst secret = $env.WEBHOOK_SECRET;\nconst signature = $input.first().headers['x-webhook-signature'];\nconst payload = JSON.stringify($input.first().json);\n\nconst expectedSig = 'sha256=' + crypto\n  .createHmac('sha256', secret)\n  .update(payload)\n  .digest('hex');\n\nif (signature !== expectedSig) {\n  throw new Error('Invalid HMAC signature');\n}\n\nreturn $input.first().json;"
+      },
+      "id": "hmac-validate",
+      "name": "Validate HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.model_domain }}",
+              "value2": "self"
+            }
+          ]
+        }
+      },
+      "id": "switch-domain",
+      "name": "Route by Domain",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "MATCH (m:MentalModel {id: $model_id})-[r:INFORMS_IDENTITY]->(ia:IdentityAspect)\nSET r.error_history = COALESCE(r.error_history, []) + [$prediction_error]\nWITH m, r, ia, size(r.error_history) as count\nWHERE count >= 5\nWITH ia, r,\n     reduce(s=0.0, e IN r.error_history[-5..] | s+e)/5.0 as avg_error\nSET ia.stability = ia.stability * (1 - 0.1 * avg_error),\n    ia.updated_at = datetime()\nRETURN ia.id, ia.stability",
+        "parameters": {
+          "model_id": "={{ $json.model_id }}",
+          "prediction_error": "={{ $json.prediction_error }}"
+        }
+      },
+      "id": "neo4j-identity",
+      "name": "Update Identity Stability",
+      "type": "n8n-nodes-base.neo4j",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "credentials": {
+        "neo4j": {
+          "id": "neo4j-vps",
+          "name": "Neo4j VPS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "MATCH (m:MentalModel {id: $model_id})-[r:SHAPES_WORLDVIEW]->(wp:WorldviewPrimitive)\nSET r.error_history = COALESCE(r.error_history, []) + [$prediction_error]\nWITH m, r, wp, size(r.error_history) as count\nWHERE count >= 5\nWITH wp, r,\n     reduce(s=0.0, e IN r.error_history[-5..] | s+e)/5.0 as avg_error,\n     CASE\n         WHEN wp.confidence > 0.8 THEN 0.05\n         WHEN wp.confidence > 0.5 THEN 0.1\n         ELSE 0.2\n     END as learning_rate\nSET wp.confidence = wp.confidence * (1 - learning_rate * avg_error),\n    wp.updated_at = datetime(),\n    r.confidence_delta = COALESCE(r.confidence_delta, 0) + (learning_rate * avg_error)\nRETURN wp.id, wp.confidence, r.confidence_delta",
+        "parameters": {
+          "model_id": "={{ $json.model_id }}",
+          "prediction_error": "={{ $json.prediction_error }}"
+        }
+      },
+      "id": "neo4j-worldview",
+      "name": "Update Worldview Confidence",
+      "type": "n8n-nodes-base.neo4j",
+      "typeVersion": 1,
+      "position": [900, 400],
+      "credentials": {
+        "neo4j": {
+          "id": "neo4j-vps",
+          "name": "Neo4j VPS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, updated: $json }) }}"
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1150, 300]
+    }
+  ],
+  "connections": {
+    "Webhook: Prediction Resolved": {
+      "main": [
+        [
+          {
+            "node": "Validate HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate HMAC": {
+      "main": [
+        [
+          {
+            "node": "Route by Domain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Domain": {
+      "main": [
+        [
+          {
+            "node": "Update Identity Stability",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Worldview Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Identity Stability": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Worldview Confidence": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "005-mental-models"
+    },
+    {
+      "name": "identity-worldview"
+    }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "_comment": "Webhook payload schema: { event: 'prediction_resolved', model_id: UUID, model_domain: 'self'|'world', prediction_id: UUID, prediction_error: float, linked_worldview_ids: UUID[], linked_identity_ids: UUID[], timestamp: ISO8601 }"
+}

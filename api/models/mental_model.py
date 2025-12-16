@@ -268,8 +268,11 @@ class ModelRevision(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     model_id: UUID
 
+    # Revision sequencing (not currently persisted in DB schema, but used in tests/specs)
+    revision_number: int = Field(default=1, ge=1, description="Monotonic revision number")
+
     # Trigger information
-    trigger_type: RevisionTrigger
+    trigger_type: RevisionTrigger = Field(alias="trigger")
     trigger_memory_id: UUID | None = None
     trigger_description: str | None = None
 
@@ -281,22 +284,38 @@ class ModelRevision(BaseModel):
     change_description: str | None = None
 
     # Accuracy tracking
-    prediction_error_before: float | None = Field(None, ge=0.0, le=1.0)
-    prediction_error_after: float | None = Field(None, ge=0.0, le=1.0)
+    prediction_error_before: float | None = Field(None, ge=0.0, le=1.0, alias="accuracy_before")
+    prediction_error_after: float | None = Field(None, ge=0.0, le=1.0, alias="accuracy_after")
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    @property
+    def trigger(self) -> RevisionTrigger:
+        """Compatibility alias for tests/specs."""
+        return self.trigger_type
+
+    @property
+    def accuracy_before(self) -> float | None:
+        """Compatibility alias for tests/specs."""
+        return self.prediction_error_before
+
+    @property
+    def accuracy_after(self) -> float | None:
+        """Compatibility alias for tests/specs."""
+        return self.prediction_error_after
+
     model_config = {
+        "populate_by_name": True,
         "json_schema_extra": {
             "example": {
                 "id": "880e8400-e29b-41d4-a716-446655440101",
                 "model_id": "660e8400-e29b-41d4-a716-446655440099",
-                "trigger_type": "prediction_error",
+                "trigger": "prediction_error",
                 "trigger_description": "Average error exceeded 50% threshold",
                 "basins_added": ["550e8400-e29b-41d4-a716-446655440003"],
                 "basins_removed": [],
-                "prediction_error_before": 0.55,
-                "prediction_error_after": 0.42,
+                "accuracy_before": 0.55,
+                "accuracy_after": 0.42,
             }
         }
     }
