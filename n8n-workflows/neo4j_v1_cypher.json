@@ -1,0 +1,112 @@
+{
+  "name": "neo4j_v1_cypher",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "neo4j/v1/cypher",
+        "options": {
+          "rawBody": true
+        },
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst payload = $input.first().binary?.data?.toString() || JSON.stringify($input.first().json);\nconst signature = $input.first().headers['x-webhook-signature'];\nconst secret = $env.MEMORY_WEBHOOK_TOKEN;\n\nif (!signature) throw new Error('Missing X-Webhook-Signature header');\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');\nconst valid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));\nif (!valid) throw new Error('Invalid signature');\n\nreturn $input.first();"
+      },
+      "id": "validate-signature",
+      "name": "Validate HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json || {};\nconst statement = (body.statement || '').trim();\nconst mode = (body.mode || 'read').trim();\nconst parameters = body.parameters && typeof body.parameters === 'object' ? body.parameters : {};\n\nif (!statement) throw new Error('Missing statement');\nif (!['read','write'].includes(mode)) throw new Error('mode must be read|write');\n\n// Basic safety: if mode=read, reject common write keywords.\nif (mode === 'read') {\n  const write = /\\b(CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP)\\b/i;\n  if (write.test(statement)) throw new Error('Write keywords not allowed in read mode');\n}\n\nreturn [{ json: { statement, parameters, mode } }];"
+      },
+      "id": "validate-payload",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 520]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"{{ $json.statement }}\",\n      \"parameters\": {{ $json.parameters }}\n    }\n  ]\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "neo4j-tx",
+      "name": "Neo4j Tx Commit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst out = { success: true, records: [] };\n\nconst results = Array.isArray(res?.results) ? res.results : [];\nif (results.length === 0) return [{ json: out }];\n\nconst columns = results[0]?.columns || [];\nconst data = results[0]?.data || [];\n\nout.records = data.map(d => {\n  const row = d.row || [];\n  const obj = {};\n  for (let i = 0; i < columns.length; i++) obj[columns[i]] = row[i];\n  return obj;\n});\n\nreturn [{ json: out }];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1160, 520]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 520]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Validate HMAC Signature", "type": "main", "index": 0 }]]
+    },
+    "Validate HMAC Signature": {
+      "main": [[{ "node": "Validate Payload", "type": "main", "index": 0 }]]
+    },
+    "Validate Payload": {
+      "main": [[{ "node": "Neo4j Tx Commit", "type": "main", "index": 0 }]]
+    },
+    "Neo4j Tx Commit": {
+      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]]
+    },
+    "Format Response": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 300
+  },
+  "versionId": "template-neo4j-v1-cypher"
+}
+

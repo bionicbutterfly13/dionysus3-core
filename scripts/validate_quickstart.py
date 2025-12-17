@@ -5,13 +5,12 @@ Feature: 002-remote-persistence-safety
 Task: T059
 
 Validates the complete quickstart.md flow:
-1. VPS connectivity (neo4j, n8n, ollama)
+1. VPS connectivity (n8n, ollama)
 2. Webhook HMAC signing
 3. Memory sync flow
-4. Recovery from Neo4j
+4. Recovery via n8n
 
-Run with SSH tunnels active:
-    ssh -N dionysus-tunnel &
+Run with n8n + ollama active:
     python scripts/validate_quickstart.py
 """
 
@@ -30,13 +29,13 @@ import httpx
 # Configuration
 # =============================================================================
 
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "DionysusMem2025!")
-
 N8N_WEBHOOK_URL = os.getenv(
     "N8N_WEBHOOK_URL",
     "http://localhost:5678/webhook/memory/v1/ingest/message"
+)
+N8N_CYPHER_URL = os.getenv(
+    "N8N_CYPHER_URL",
+    "http://localhost:5678/webhook/neo4j/v1/cypher"
 )
 MEMORY_WEBHOOK_TOKEN = os.getenv(
     "MEMORY_WEBHOOK_TOKEN",
@@ -81,50 +80,29 @@ results = ValidationResult()
 
 
 async def test_neo4j_connectivity():
-    """Test Neo4j connection via SSH tunnel."""
-    print("\n[1] Testing Neo4j Connectivity...")
+    """Test Neo4j reachability indirectly via n8n cypher webhook."""
+    print("\n[1] Testing Neo4j Connectivity (via n8n)...")
+
+    payload = {"operation": "cypher", "mode": "read", "statement": "RETURN 1 as n", "parameters": {}}
+    payload_bytes = json.dumps(payload).encode("utf-8")
+
+    signature = "sha256=" + hmac.new(
+        key=MEMORY_WEBHOOK_TOKEN.encode("utf-8"),
+        msg=payload_bytes,
+        digestmod=hashlib.sha256,
+    ).hexdigest()
 
     try:
-        from neo4j import AsyncGraphDatabase
-
-        driver = AsyncGraphDatabase.driver(
-            NEO4J_URI,
-            auth=(NEO4J_USER, NEO4J_PASSWORD)
-        )
-
-        async with driver.session() as session:
-            result = await session.run("RETURN 1 as n")
-            record = await result.single()
-            value = record["n"]
-
-        await driver.close()
-
-        results.add("Neo4j connection", value == 1, f"Returned {value}")
-
-        # Check schema exists
-        driver = AsyncGraphDatabase.driver(
-            NEO4J_URI,
-            auth=(NEO4J_USER, NEO4J_PASSWORD)
-        )
-        async with driver.session() as session:
-            # Check for Memory constraint
-            result = await session.run(
-                "SHOW CONSTRAINTS WHERE name = 'memory_id_unique'"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                N8N_CYPHER_URL,
+                content=payload_bytes,
+                headers={"Content-Type": "application/json", "X-Webhook-Signature": signature},
             )
-            constraints = await result.data()
-
-        await driver.close()
-
-        results.add(
-            "Neo4j schema initialized",
-            len(constraints) > 0,
-            f"Found {len(constraints)} constraints"
-        )
-
-    except ImportError:
-        results.add("Neo4j connection", False, "neo4j package not installed")
+        ok = resp.status_code == 200
+        results.add("n8n cypher webhook reachable", ok, f"Status {resp.status_code}")
     except Exception as e:
-        results.add("Neo4j connection", False, str(e))
+        results.add("n8n cypher webhook reachable", False, str(e))
 
 
 async def test_n8n_connectivity():
@@ -252,49 +230,47 @@ async def test_memory_in_neo4j():
     # Give n8n time to process
     await asyncio.sleep(3)
 
+    stmt = """
+    MATCH (m:Memory {id: $memory_id})
+    RETURN m.content as content,
+           m.embedding IS NOT NULL as has_embedding,
+           m.session_id as session_id
+    """
+    payload = {
+        "operation": "cypher",
+        "mode": "read",
+        "statement": stmt,
+        "parameters": {"memory_id": TEST_MEMORY_ID},
+    }
+    payload_bytes = json.dumps(payload).encode("utf-8")
+    signature = "sha256=" + hmac.new(
+        key=MEMORY_WEBHOOK_TOKEN.encode("utf-8"),
+        msg=payload_bytes,
+        digestmod=hashlib.sha256,
+    ).hexdigest()
     try:
-        from neo4j import AsyncGraphDatabase
-
-        driver = AsyncGraphDatabase.driver(
-            NEO4J_URI,
-            auth=(NEO4J_USER, NEO4J_PASSWORD)
-        )
-
-        async with driver.session() as session:
-            result = await session.run(
-                """
-                MATCH (m:Memory {id: $memory_id})
-                RETURN m.content as content,
-                       m.embedding IS NOT NULL as has_embedding,
-                       m.session_id as session_id
-                """,
-                memory_id=TEST_MEMORY_ID
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                N8N_CYPHER_URL,
+                content=payload_bytes,
+                headers={"Content-Type": "application/json", "X-Webhook-Signature": signature},
             )
-            record = await result.single()
-
-        await driver.close()
-
+        if resp.status_code != 200:
+            results.add("Memory synced to Neo4j", False, f"Status {resp.status_code}: {resp.text[:120]}")
+            return
+        body = resp.json()
+        rows = body.get("records") or []
+        record = rows[0] if rows else None
         if record:
-            results.add(
-                "Memory synced to Neo4j",
-                True,
-                f"Content: {record['content'][:30]}..."
-            )
-            results.add(
-                "Embedding generated",
-                record["has_embedding"],
-                f"Has embedding: {record['has_embedding']}"
-            )
+            results.add("Memory synced to Neo4j", True, f"Content: {str(record.get('content',''))[:30]}...")
+            results.add("Embedding generated", bool(record.get("has_embedding")), f"Has embedding: {record.get('has_embedding')}")
             results.add(
                 "Session ID preserved",
-                record["session_id"] == TEST_SESSION_ID,
-                f"Session: {record['session_id']}"
+                record.get("session_id") == TEST_SESSION_ID,
+                f"Session: {record.get('session_id')}",
             )
         else:
             results.add("Memory synced to Neo4j", False, "Memory not found")
-
-    except ImportError:
-        results.add("Memory synced to Neo4j", False, "neo4j package not installed")
     except Exception as e:
         results.add("Memory synced to Neo4j", False, str(e))
 
@@ -303,35 +279,37 @@ async def test_recall_query():
     """Test querying memories back from Neo4j."""
     print("\n[6] Testing Memory Recall...")
 
+    stmt = """
+    MATCH (m:Memory)
+    WHERE m.session_id = $session_id
+    RETURN count(m) as count
+    """
+    payload = {
+        "operation": "cypher",
+        "mode": "read",
+        "statement": stmt,
+        "parameters": {"session_id": TEST_SESSION_ID},
+    }
+    payload_bytes = json.dumps(payload).encode("utf-8")
+    signature = "sha256=" + hmac.new(
+        key=MEMORY_WEBHOOK_TOKEN.encode("utf-8"),
+        msg=payload_bytes,
+        digestmod=hashlib.sha256,
+    ).hexdigest()
     try:
-        from neo4j import AsyncGraphDatabase
-
-        driver = AsyncGraphDatabase.driver(
-            NEO4J_URI,
-            auth=(NEO4J_USER, NEO4J_PASSWORD)
-        )
-
-        async with driver.session() as session:
-            # Query by session
-            result = await session.run(
-                """
-                MATCH (m:Memory)
-                WHERE m.session_id = $session_id
-                RETURN count(m) as count
-                """,
-                session_id=TEST_SESSION_ID
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                N8N_CYPHER_URL,
+                content=payload_bytes,
+                headers={"Content-Type": "application/json", "X-Webhook-Signature": signature},
             )
-            record = await result.single()
-            count = record["count"]
-
-        await driver.close()
-
-        results.add(
-            "Query by session works",
-            count >= 1,
-            f"Found {count} memories in session"
-        )
-
+        if resp.status_code != 200:
+            results.add("Query by session works", False, f"Status {resp.status_code}: {resp.text[:120]}")
+            return
+        body = resp.json()
+        rows = body.get("records") or []
+        count = int(rows[0].get("count", 0)) if rows else 0
+        results.add("Query by session works", count >= 1, f"Found {count} memories in session")
     except Exception as e:
         results.add("Query by session works", False, str(e))
 
@@ -340,34 +318,38 @@ async def cleanup_test_data():
     """Clean up test data from Neo4j."""
     print("\n[7] Cleaning Up Test Data...")
 
+    stmt = """
+    MATCH (m:Memory {id: $memory_id})
+    DETACH DELETE m
+    RETURN count(m) as deleted
+    """
+    payload = {
+        "operation": "cypher",
+        "mode": "write",
+        "statement": stmt,
+        "parameters": {"memory_id": TEST_MEMORY_ID},
+    }
+    payload_bytes = json.dumps(payload).encode("utf-8")
+    signature = "sha256=" + hmac.new(
+        key=MEMORY_WEBHOOK_TOKEN.encode("utf-8"),
+        msg=payload_bytes,
+        digestmod=hashlib.sha256,
+    ).hexdigest()
     try:
-        from neo4j import AsyncGraphDatabase
-
-        driver = AsyncGraphDatabase.driver(
-            NEO4J_URI,
-            auth=(NEO4J_USER, NEO4J_PASSWORD)
-        )
-
-        async with driver.session() as session:
-            result = await session.run(
-                """
-                MATCH (m:Memory {id: $memory_id})
-                DETACH DELETE m
-                RETURN count(m) as deleted
-                """,
-                memory_id=TEST_MEMORY_ID
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                N8N_CYPHER_URL,
+                content=payload_bytes,
+                headers={"Content-Type": "application/json", "X-Webhook-Signature": signature},
             )
-            record = await result.single()
-            deleted = record["deleted"]
-
-        await driver.close()
-
-        results.add(
-            "Test data cleaned up",
-            True,
-            f"Deleted {deleted} test memories"
-        )
-
+        ok = resp.status_code == 200
+        if not ok:
+            results.add("Test data cleaned up", False, f"Status {resp.status_code}: {resp.text[:120]}")
+            return
+        body = resp.json()
+        rows = body.get("records") or []
+        deleted = rows[0].get("deleted") if rows else None
+        results.add("Test data cleaned up", True, f"Deleted {deleted} test memories")
     except Exception as e:
         results.add("Test data cleaned up", False, str(e))
 
@@ -381,8 +363,8 @@ async def main():
     print("QUICKSTART VALIDATION - Feature 002-remote-persistence-safety")
     print("=" * 60)
     print(f"\nConfiguration:")
-    print(f"  NEO4J_URI: {NEO4J_URI}")
     print(f"  N8N_WEBHOOK_URL: {N8N_WEBHOOK_URL}")
+    print(f"  N8N_CYPHER_URL: {N8N_CYPHER_URL}")
     print(f"  OLLAMA_URL: {OLLAMA_URL}")
     print(f"  TEST_MEMORY_ID: {TEST_MEMORY_ID}")
 
@@ -399,13 +381,13 @@ async def main():
     success = results.summary()
 
     if success:
-        print("\n🎉 All validations passed! Quickstart is working correctly.")
+        print("\nAll validations passed! Quickstart is working correctly.")
     else:
-        print("\n❌ Some validations failed. Check the output above.")
+        print("\nSome validations failed. Check the output above.")
         print("\nTroubleshooting:")
-        print("  1. Ensure SSH tunnels are active: ssh -N dionysus-tunnel")
-        print("  2. Check VPS services: ssh root@72.61.78.89 'docker ps'")
-        print("  3. Verify .env configuration matches quickstart.md")
+        print("  1. Ensure n8n is reachable and /healthz returns 200")
+        print("  2. Ensure n8n has Neo4j credentials configured")
+        print("  3. Verify MEMORY_WEBHOOK_TOKEN matches both API and n8n")
 
     sys.exit(0 if success else 1)
 

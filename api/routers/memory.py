@@ -8,6 +8,7 @@ Includes semantic similarity search (Feature 003).
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 from fastapi import APIRouter, Query, HTTPException
@@ -61,6 +62,34 @@ class ProjectMemoriesResponse(BaseModel):
     project_id: str
     memories: list[MemoryResponse] = Field(default_factory=list)
     total: int = 0
+
+
+# =============================================================================
+# Graph Traversal (Webhook-backed)
+# =============================================================================
+
+
+class TraverseQueryType(str, Enum):
+    CONCEPT_HIERARCHY = "concept_hierarchy"
+    JOURNEY_TIMELINE = "journey_timeline"
+    RELATED_2HOP = "related_2hop"
+    DOCUMENT_LINKS = "document_links"
+    WORLDVIEW_FILTER = "worldview_filter"
+    SKILL_GRAPH = "skill_graph"
+
+
+class MemoryTraverseRequest(BaseModel):
+    query_type: TraverseQueryType = Field(
+        ...,
+        description="Traversal query identifier (mapped to vetted Cypher in n8n).",
+    )
+    params: dict = Field(default_factory=dict, description="Query parameters")
+
+
+class MemoryTraverseResponse(BaseModel):
+    success: bool = True
+    query_type: str
+    data: dict = Field(default_factory=dict)
 
 
 # =============================================================================
@@ -232,6 +261,24 @@ async def get_project_memories(
         project_id=project_id,
         memories=[],
         total=0,
+    )
+
+
+@router.post(
+    "/traverse",
+    response_model=MemoryTraverseResponse,
+    summary="Run vetted graph traversal query",
+    description="Executes a predefined traversal query via n8n; the API never contacts Neo4j directly.",
+)
+async def traverse_memory_graph(req: MemoryTraverseRequest) -> MemoryTraverseResponse:
+    sync_service = get_sync_service()
+    result = await sync_service.traverse(query_type=req.query_type.value, params=req.params)
+    if not result.get("success", True):
+        raise HTTPException(status_code=502, detail=result.get("error", "Traversal failed"))
+    return MemoryTraverseResponse(
+        success=True,
+        query_type=req.query_type.value,
+        data=result,
     )
 
 

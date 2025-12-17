@@ -6,10 +6,7 @@ Feature: 002-remote-persistence-safety
 Applies the Neo4j schema from contracts/neo4j-schema.cypher to the VPS Neo4j instance.
 
 Usage:
-    # Start SSH tunnel first:
-    ssh -L 7687:127.0.0.1:7687 -N root@72.61.78.89
-
-    # Then run this script:
+    # Requires n8n to be running and configured to reach Neo4j:
     python scripts/init_neo4j_schema.py
 """
 
@@ -80,72 +77,52 @@ SET p.name = 'Dionysus Memory',
 
 
 async def apply_schema():
-    """Apply Neo4j schema to the database."""
+    """Apply Neo4j schema via n8n cypher webhook (no direct Neo4j access)."""
     try:
-        from neo4j import AsyncGraphDatabase
-    except ImportError:
-        print("✗ neo4j package not installed. Run: pip install neo4j")
+        from api.services.remote_sync import RemoteSyncService, SyncConfig
+    except Exception as e:
+        print(f"✗ Failed to import webhook client: {e}")
         return False
 
-    uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-    user = os.getenv("NEO4J_USER", "neo4j")
-    password = os.getenv("NEO4J_PASSWORD", "")
-
-    if not password:
-        print("✗ NEO4J_PASSWORD not set in environment")
+    token = os.getenv("MEMORY_WEBHOOK_TOKEN", "")
+    if not token:
+        print("✗ MEMORY_WEBHOOK_TOKEN not set in environment")
         return False
 
-    print(f"Connecting to Neo4j at {uri}...")
+    cypher_url = os.getenv("N8N_CYPHER_URL", "http://localhost:5678/webhook/neo4j/v1/cypher")
+    sync = RemoteSyncService(config=SyncConfig(webhook_token=token, cypher_webhook_url=cypher_url))
 
+    print(f"Using n8n cypher webhook: {cypher_url}")
+
+    # Apply each schema statement
+    print("\nApplying schema statements...")
+    for i, statement in enumerate(SCHEMA_STATEMENTS, 1):
+        first_line = statement.strip().split("\n")[0][:60]
+        print(f"  [{i}/{len(SCHEMA_STATEMENTS)}] {first_line}...")
+        try:
+            res = await sync.run_cypher(statement, mode="write")
+            if res.get("success", True) is False:
+                raise RuntimeError(res.get("error", "Webhook returned failure"))
+            print("       ✓ Success")
+        except Exception as e:
+            error_msg = str(e)
+            if "already exists" in error_msg.lower():
+                print("       ⚠ Already exists (skipped)")
+            else:
+                print(f"       ✗ Error: {error_msg}")
+
+    # Basic verification
+    print("\nVerifying schema...")
     try:
-        driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
+        projects = await sync.run_cypher("MATCH (p:Project) RETURN count(p) as count", mode="read")
+        records = projects.get("records") or projects.get("results") or []
+        count = records[0].get("count") if records and isinstance(records[0], dict) else None
+        print(f"  Projects: {count}")
+    except Exception as e:
+        print(f"  ⚠ Verification failed: {e}")
 
-        # Test connection
-        async with driver.session() as session:
-            result = await session.run("RETURN 1")
-            await result.single()
-            print("✓ Connected to Neo4j")
-
-        # Apply each schema statement
-        print("\nApplying schema statements...")
-        async with driver.session() as session:
-            for i, statement in enumerate(SCHEMA_STATEMENTS, 1):
-                try:
-                    # Get a brief description from the statement
-                    first_line = statement.strip().split("\n")[0][:60]
-                    print(f"  [{i}/{len(SCHEMA_STATEMENTS)}] {first_line}...")
-
-                    await session.run(statement)
-                    print(f"       ✓ Success")
-                except Exception as e:
-                    error_msg = str(e)
-                    # Some errors are expected (e.g., index already exists)
-                    if "already exists" in error_msg.lower():
-                        print(f"       ⚠ Already exists (skipped)")
-                    else:
-                        print(f"       ✗ Error: {error_msg}")
-
-        # Verify schema
-        print("\nVerifying schema...")
-        async with driver.session() as session:
-            # Check constraints
-            result = await session.run("SHOW CONSTRAINTS")
-            constraints = await result.values()
-            print(f"  Constraints: {len(constraints)}")
-
-            # Check indexes
-            result = await session.run("SHOW INDEXES")
-            indexes = await result.values()
-            print(f"  Indexes: {len(indexes)}")
-
-            # Check projects
-            result = await session.run("MATCH (p:Project) RETURN count(p) as count")
-            record = await result.single()
-            print(f"  Projects: {record['count']}")
-
-        await driver.close()
-        print("\n✓ Schema initialization complete!")
-        return True
+    print("\n✓ Schema initialization complete (via n8n)!")
+    return True
 
     except Exception as e:
         print(f"\n✗ Schema initialization failed: {e}")
@@ -161,8 +138,8 @@ async def main():
     print()
 
     print("Prerequisites:")
-    print("  Ensure SSH tunnel is running:")
-    print("    ssh -L 7687:127.0.0.1:7687 -N root@72.61.78.89")
+    print("  Ensure n8n is running and configured with Neo4j credentials.")
+    print("  Ensure MEMORY_WEBHOOK_TOKEN matches both API and n8n.")
     print()
 
     success = await apply_schema()

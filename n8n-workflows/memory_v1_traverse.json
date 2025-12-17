@@ -1,0 +1,124 @@
+{
+  "name": "memory_v1_traverse",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memory/v1/traverse",
+        "options": {
+          "rawBody": true
+        },
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst payload = $input.first().binary?.data?.toString() || JSON.stringify($input.first().json);\nconst signature = $input.first().headers['x-webhook-signature'];\nconst secret = $env.MEMORY_WEBHOOK_TOKEN;\n\nif (!signature) throw new Error('Missing X-Webhook-Signature header');\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');\nconst valid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));\nif (!valid) throw new Error('Invalid signature');\n\nreturn $input.first();"
+      },
+      "id": "validate-signature",
+      "name": "Validate HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json || {};\nconst queryType = (body.query_type || '').trim();\nconst params = body.params && typeof body.params === 'object' ? body.params : {};\nif (!queryType) throw new Error('Missing query_type');\nreturn [{ json: { operation: body.operation || 'traverse', query_type: queryType, params } }];"
+      },
+      "id": "normalize",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { query_type, params } = $json;\n\nfunction requireKeys(obj, keys) {\n  for (const k of keys) {\n    if (obj[k] === undefined || obj[k] === null || obj[k] === '') {\n      throw new Error(`Missing param: ${k}`);\n    }\n  }\n}\n\nlet statement = null;\nlet parameters = {};\n\nswitch (query_type) {\n  case 'concept_hierarchy': {\n    // params: { concept_id? | concept_name? }\n    // If neither provided, returns a small sample.\n    const filter = params.concept_id\n      ? 'WHERE c.id = $concept_id'\n      : (params.concept_name ? 'WHERE c.name = $concept_name' : '');\n\n    statement = `\n      MATCH (c:Concept)\n      ${filter}\n      OPTIONAL MATCH (c)-[:HAS_PARENT]->(parent:Concept)\n      OPTIONAL MATCH (c)-[:HAS_CHILD]->(child:Concept)\n      RETURN c, parent, child\n      LIMIT 200\n    `;\n\n    parameters = {\n      concept_id: params.concept_id,\n      concept_name: params.concept_name,\n    };\n    break;\n  }\n\n  case 'journey_timeline': {\n    // params: { journey_id | journey_slug }\n    // Supports Journey label from Dionysus-2.0: AutobiographicalJourney\n    requireKeys(params, ['journey_slug']);\n    statement = `\n      MATCH (j:AutobiographicalJourney {slug: $journey_slug})-[:CONTAINS]->(s:Session)-[:CONTAINS]->(m:ConversationMoment)\n      RETURN j, s, m\n      ORDER BY m.timestamp\n      LIMIT 2000\n    `;\n    parameters = { journey_slug: params.journey_slug };\n    break;\n  }\n\n  case 'related_2hop': {\n    // params: { seed_ids: [elementId(...), ...] }\n    requireKeys(params, ['seed_ids']);\n    if (!Array.isArray(params.seed_ids) || params.seed_ids.length === 0) throw new Error('seed_ids must be a non-empty array');\n\n    statement = `\n      MATCH (seed)\n      WHERE elementId(seed) IN $seed_ids\n      MATCH (seed)-[r*1..2]-(related)\n      RETURN DISTINCT related, count(r) as path_count\n      ORDER BY path_count DESC\n      LIMIT 200\n    `;\n    parameters = { seed_ids: params.seed_ids };\n    break;\n  }\n\n  case 'document_links': {\n    // params: { document_id }\n    requireKeys(params, ['document_id']);\n    statement = `\n      MATCH (d:Document {document_id: $document_id})\n      OPTIONAL MATCH (c:Concept)-[:EXTRACTED_FROM]->(d)\n      OPTIONAL MATCH (b:AttractorBasin)-[:ATTRACTED_TO]->(d)\n      OPTIONAL MATCH (t:ThoughtSeed)-[:GERMINATED_FROM]->(d)\n      RETURN d, collect(DISTINCT c) as concepts, collect(DISTINCT b) as basins, collect(DISTINCT t) as thoughtseeds\n      LIMIT 1\n    `;\n    parameters = { document_id: params.document_id };\n    break;\n  }\n\n  case 'worldview_filter': {\n    // params: { user_id, category }\n    requireKeys(params, ['user_id', 'category']);\n    statement = `\n      MATCH (w:Worldview {user_id: $user_id})\n      WHERE w.category = $category\n      RETURN w\n      ORDER BY coalesce(w.updated_at, w.created_at) DESC\n      LIMIT 50\n    `;\n    parameters = { user_id: params.user_id, category: params.category };\n    break;\n  }\n\n  case 'skill_graph': {\n    // params: { skill_id }\n    requireKeys(params, ['skill_id']);\n    statement = `\n      MATCH (s:Skill {skill_id: $skill_id})\n      OPTIONAL MATCH (s)-[r]->(out)\n      WHERE type(r) IN ['REQUIRES','HAS_SUBSTEP','APPLIES_TO','LEARNED_FROM']\n      WITH s, collect({rel: type(r), node: out}) as outgoing\n      OPTIONAL MATCH (inc)-[r2]->(s)\n      WHERE type(r2) IN ['REQUIRES','HAS_SUBSTEP']\n      RETURN s as skill, outgoing, collect({rel: type(r2), node: inc}) as incoming\n      LIMIT 1\n    `;\n    parameters = { skill_id: params.skill_id };\n    break;\n  }\n\n  default:\n    throw new Error(`Unknown query_type: ${query_type}`);\n}\n\nreturn [{ json: { statement, parameters } }];"
+      },
+      "id": "build-statement",
+      "name": "Build Statement",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"{{ $json.statement }}\",\n      \"parameters\": {{ $json.parameters }}\n    }\n  ]\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "neo4j-tx",
+      "name": "Neo4j Tx Commit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1160, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst out = { success: true, records: [] };\n\nconst results = Array.isArray(res?.results) ? res.results : [];\nif (results.length === 0) return [{ json: out }];\n\nconst columns = results[0]?.columns || [];\nconst data = results[0]?.data || [];\n\nout.records = data.map(d => {\n  const row = d.row || [];\n  const obj = {};\n  for (let i = 0; i < columns.length; i++) obj[columns[i]] = row[i];\n  return obj;\n});\n\nreturn [{ json: out }];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1640, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Validate HMAC Signature", "type": "main", "index": 0 }]]
+    },
+    "Validate HMAC Signature": {
+      "main": [[{ "node": "Normalize Input", "type": "main", "index": 0 }]]
+    },
+    "Normalize Input": {
+      "main": [[{ "node": "Build Statement", "type": "main", "index": 0 }]]
+    },
+    "Build Statement": {
+      "main": [[{ "node": "Neo4j Tx Commit", "type": "main", "index": 0 }]]
+    },
+    "Neo4j Tx Commit": {
+      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]]
+    },
+    "Format Response": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 300
+  },
+  "versionId": "template-memory-v1-traverse"
+}

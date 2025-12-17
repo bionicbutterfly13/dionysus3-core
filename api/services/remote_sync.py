@@ -25,46 +25,38 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 # =========================================================================
-# Neo4j Driver (Direct Access for Internal Services)
+# Webhook Neo4j "Driver" (compatibility layer)
 # =========================================================================
-#
-# Several internal services (heartbeat, goals, background workers) expect a
-# Neo4j driver to be available for local graph operations and tests.
-# RemoteSyncService still uses n8n webhooks for sync/recall, but we expose a
-# shared AsyncGraphDatabase driver here for components that run Cypher locally.
 
-_neo4j_driver = None
+_webhook_neo4j_driver = None
 
 
 def get_neo4j_driver():
-    """Get or create a shared Neo4j AsyncGraphDatabase driver."""
-    global _neo4j_driver
-    if _neo4j_driver is not None:
-        return _neo4j_driver
+    """
+    Compatibility shim for services that expect a Neo4j driver.
 
-    try:
-        from neo4j import AsyncGraphDatabase  # type: ignore
-    except Exception as e:  # pragma: no cover
-        raise RuntimeError(
-            "neo4j package is required for direct graph access. "
-            "Install it (e.g. `pip install neo4j`) or configure services to use webhooks only."
-        ) from e
+    Returns a webhook-backed driver that executes Cypher via n8n.
+    """
+    global _webhook_neo4j_driver
+    if _webhook_neo4j_driver is None:
+        from api.services.webhook_neo4j_driver import WebhookNeo4jDriver
 
-    uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-    user = os.getenv("NEO4J_USER", "neo4j")
-    password = os.getenv("NEO4J_PASSWORD", "")
-
-    _neo4j_driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
-    return _neo4j_driver
+        _webhook_neo4j_driver = WebhookNeo4jDriver(
+            config=SyncConfig(
+                webhook_token=os.getenv("MEMORY_WEBHOOK_TOKEN", ""),
+                cypher_webhook_url=os.getenv(
+                    "N8N_CYPHER_URL", "http://localhost:5678/webhook/neo4j/v1/cypher"
+                ),
+            )
+        )
+    return _webhook_neo4j_driver
 
 
 async def close_neo4j_driver() -> None:
-    """Close the shared Neo4j driver, if initialized."""
-    global _neo4j_driver
-    if _neo4j_driver is not None:
-        await _neo4j_driver.close()
-        _neo4j_driver = None
-
+    global _webhook_neo4j_driver
+    if _webhook_neo4j_driver is not None:
+        await _webhook_neo4j_driver.close()
+        _webhook_neo4j_driver = None
 
 # =========================================================================
 # Configuration
@@ -75,15 +67,43 @@ class SyncConfig(BaseModel):
     """Configuration for remote sync service."""
 
     webhook_url: str = Field(
-        default="http://localhost:5678/webhook/memory/v1/ingest/message",
+        default_factory=lambda: os.getenv(
+            "N8N_WEBHOOK_URL", "http://localhost:5678/webhook/memory/v1/ingest/message"
+        ),
         description="n8n webhook URL for memory sync (ingest)",
     )
     recall_webhook_url: str = Field(
-        default="http://localhost:5678/webhook/memory/v1/recall",
+        default_factory=lambda: os.getenv(
+            "N8N_RECALL_URL", "http://localhost:5678/webhook/memory/v1/recall"
+        ),
         description="n8n webhook URL for memory recall (query)",
     )
+    traverse_webhook_url: str = Field(
+        default_factory=lambda: os.getenv(
+            "N8N_TRAVERSE_URL", "http://localhost:5678/webhook/memory/v1/traverse"
+        ),
+        description="n8n webhook URL for graph traversal queries (read-only)",
+    )
+    cypher_webhook_url: str = Field(
+        default_factory=lambda: os.getenv(
+            "N8N_CYPHER_URL", "http://localhost:5678/webhook/neo4j/v1/cypher"
+        ),
+        description="n8n webhook URL for executing vetted Cypher (read/write).",
+    )
+    skill_upsert_webhook_url: str = Field(
+        default_factory=lambda: os.getenv(
+            "N8N_SKILL_UPSERT_URL", "http://localhost:5678/webhook/memory/v1/skill/upsert"
+        ),
+        description="n8n webhook URL for Skill upsert (write).",
+    )
+    skill_practice_webhook_url: str = Field(
+        default_factory=lambda: os.getenv(
+            "N8N_SKILL_PRACTICE_URL", "http://localhost:5678/webhook/memory/v1/skill/practice"
+        ),
+        description="n8n webhook URL for Skill practice updates (write).",
+    )
     webhook_token: str = Field(
-        default="",
+        default_factory=lambda: os.getenv("MEMORY_WEBHOOK_TOKEN", ""),
         description="HMAC secret for webhook authentication",
     )
     max_retries: int = Field(default=5, ge=1, le=10)
@@ -617,6 +637,70 @@ class RemoteSyncService:
                     "success": False,
                     "error": f"Webhook returned {response.status_code}: {response.text}",
                 }
+
+    # =========================================================================
+    # Cypher Execution (Webhook-only)
+    # =========================================================================
+
+    async def run_cypher(
+        self,
+        statement: str,
+        parameters: Optional[dict[str, Any]] = None,
+        *,
+        mode: str = "read",
+    ) -> dict[str, Any]:
+        """
+        Execute Cypher through n8n (never direct to Neo4j).
+
+        The n8n workflow should enforce safety/allowlists as needed.
+        """
+        payload: dict[str, Any] = {
+            "operation": "cypher",
+            "mode": mode,
+            "statement": statement,
+            "parameters": parameters or {},
+        }
+        return await self._send_to_webhook(payload, webhook_url=self.config.cypher_webhook_url)
+
+    # =========================================================================
+    # Graph Traversal (read-only)
+    # =========================================================================
+
+    async def traverse(
+        self,
+        *,
+        query_type: str,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Run a predefined traversal query via n8n.
+
+        query_type is mapped to a vetted Cypher query in the n8n workflow.
+        """
+        payload = {
+            "operation": "traverse",
+            "query_type": query_type,
+            "params": params,
+        }
+        return await self._send_to_webhook(payload, webhook_url=self.config.traverse_webhook_url)
+
+    # =========================================================================
+    # Skills (procedural memory) - webhook-only write operations
+    # =========================================================================
+
+    async def skill_upsert(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """
+        Upsert a Skill node (procedural memory) via n8n.
+        """
+        body = {"operation": "skill_upsert", **payload}
+        return await self._send_to_webhook(body, webhook_url=self.config.skill_upsert_webhook_url)
+
+    async def skill_practice(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """
+        Apply a practice event to a Skill node (increment practice_count, update proficiency, etc.) via n8n.
+        """
+        body = {"operation": "skill_practice", **payload}
+        return await self._send_to_webhook(body, webhook_url=self.config.skill_practice_webhook_url)
 
     # =========================================================================
     # Bootstrap Recovery - via n8n recall webhook
