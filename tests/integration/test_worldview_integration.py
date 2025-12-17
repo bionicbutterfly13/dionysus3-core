@@ -12,15 +12,15 @@ TDD: These tests are written FIRST, before implementation.
 import pytest
 from uuid import uuid4
 
-# Skip DB-dependent tests until implementation exists
-# Note: Service-level tests (FR-019) are unskipped for TDD validation
+# FR-014 to FR-018: Database tests (require test DB on port 5434)
+# FR-019: Service-level tests (no DB required)
+# FR-020: n8n webhook tests (skipped, requires mock)
 
 
-@pytest.mark.skip(reason="TDD: DB implementation pending")
 class TestSelfModelIdentityLinking:
     """FR-014: Auto-link self-domain models to identity_aspects."""
 
-    async def test_self_model_auto_links_to_identity_aspects(self, db_pool):
+    async def test_self_model_auto_links_to_identity_aspects(self, db_pool, cleanup_mental_models):
         """
         Given: A self-domain model with basins overlapping identity core_memory_clusters
         When: Model is created
@@ -30,14 +30,14 @@ class TestSelfModelIdentityLinking:
         basin_id = uuid4()
         identity_id = await db_pool.fetchval("""
             INSERT INTO identity_aspects (aspect_type, content, core_memory_clusters)
-            VALUES ('self_concept', 'I am helpful', ARRAY[$1]::uuid[])
+            VALUES ('self_concept', 'Test: I am helpful', ARRAY[$1]::uuid[])
             RETURNING id
         """, basin_id)
 
         # Act: Create self-domain model with overlapping basin
         model_id = await db_pool.fetchval("""
             INSERT INTO mental_models (name, domain, constituent_basins, status)
-            VALUES ('Self Helper Model', 'self', ARRAY[$1]::uuid[], 'active')
+            VALUES ('Test Self Helper', 'self', ARRAY[$1]::uuid[], 'active')
             RETURNING id
         """, basin_id)
 
@@ -54,7 +54,7 @@ class TestSelfModelIdentityLinking:
         assert link["link_type"] == "informs"
         assert link["strength"] > 0
 
-    async def test_self_model_no_link_when_no_overlap(self, db_pool):
+    async def test_self_model_no_link_when_no_overlap(self, db_pool, cleanup_mental_models):
         """
         Given: A self-domain model with basins NOT in any identity aspect
         When: Model is created
@@ -63,13 +63,13 @@ class TestSelfModelIdentityLinking:
         # Arrange: Identity with different basins
         await db_pool.execute("""
             INSERT INTO identity_aspects (aspect_type, content, core_memory_clusters)
-            VALUES ('values', 'honesty', ARRAY[$1]::uuid[])
+            VALUES ('values', 'Test: honesty', ARRAY[$1]::uuid[])
         """, uuid4())
 
         # Act: Create model with non-overlapping basin
         model_id = await db_pool.fetchval("""
             INSERT INTO mental_models (name, domain, constituent_basins, status)
-            VALUES ('Isolated Model', 'self', ARRAY[$1]::uuid[], 'active')
+            VALUES ('Test Isolated', 'self', ARRAY[$1]::uuid[], 'active')
             RETURNING id
         """, uuid4())
 
@@ -83,11 +83,10 @@ class TestSelfModelIdentityLinking:
         assert count == 0
 
 
-@pytest.mark.skip(reason="TDD: DB implementation pending")
 class TestWorldModelWorldviewLinking:
     """FR-015: Auto-link world-domain models to worldview_primitives."""
 
-    async def test_world_model_auto_links_to_worldview(self, db_pool):
+    async def test_world_model_auto_links_to_worldview(self, db_pool, cleanup_mental_models):
         """
         Given: A world-domain model with explanatory_scope matching worldview category
         When: Model is created
@@ -96,14 +95,14 @@ class TestWorldModelWorldviewLinking:
         # Arrange: Create worldview primitive
         worldview_id = await db_pool.fetchval("""
             INSERT INTO worldview_primitives (category, belief, confidence)
-            VALUES ('technology', 'AI will transform work', 0.8)
+            VALUES ('test_technology', 'AI will transform work', 0.8)
             RETURNING id
         """)
 
         # Act: Create world model with matching scope
         model_id = await db_pool.fetchval("""
-            INSERT INTO mental_models (name, domain, explanatory_scope, status)
-            VALUES ('Tech Trends Model', 'world', ARRAY['technology'], 'active')
+            INSERT INTO mental_models (name, domain, constituent_basins, explanatory_scope, status)
+            VALUES ('Test Tech Trends', 'world', ARRAY[]::uuid[], ARRAY['test_technology'], 'active')
             RETURNING id
         """)
 
@@ -119,11 +118,10 @@ class TestWorldModelWorldviewLinking:
         assert link["link_type"] == "supports"
 
 
-@pytest.mark.skip(reason="TDD: DB implementation pending")
 class TestPredictionErrorAccumulation:
     """FR-016: Accumulate prediction errors per worldview primitive."""
 
-    async def test_prediction_error_accumulates(self, db_pool):
+    async def test_prediction_error_accumulates(self, db_pool, cleanup_mental_models):
         """
         Given: A world model linked to a worldview primitive
         When: Multiple predictions are resolved with errors
@@ -132,13 +130,13 @@ class TestPredictionErrorAccumulation:
         # Arrange
         worldview_id = await db_pool.fetchval("""
             INSERT INTO worldview_primitives (category, belief, confidence)
-            VALUES ('economics', 'Markets are efficient', 0.7)
+            VALUES ('test_economics', 'Markets are efficient', 0.7)
             RETURNING id
         """)
 
         model_id = await db_pool.fetchval("""
-            INSERT INTO mental_models (name, domain, status)
-            VALUES ('Market Model', 'world', 'active')
+            INSERT INTO mental_models (name, domain, constituent_basins, status)
+            VALUES ('Test Market Model', 'world', ARRAY[]::uuid[], 'active')
             RETURNING id
         """)
 
@@ -171,11 +169,10 @@ class TestPredictionErrorAccumulation:
         assert count == 5
 
 
-@pytest.mark.skip(reason="TDD: DB implementation pending")
 class TestPrecisionWeightedUpdate:
     """FR-017: Precision-weighted error formula."""
 
-    async def test_precision_weighted_update_calculation(self, db_pool):
+    async def test_precision_weighted_update_calculation(self, db_pool, cleanup_mental_models):
         """
         Given: 5+ accumulated errors with known variance
         When: calculate_worldview_update() is called
@@ -189,8 +186,8 @@ class TestPrecisionWeightedUpdate:
         """)
 
         model_id = await db_pool.fetchval("""
-            INSERT INTO mental_models (name, domain, status)
-            VALUES ('Test Model', 'world', 'active')
+            INSERT INTO mental_models (name, domain, constituent_basins, status)
+            VALUES ('Test Model', 'world', ARRAY[]::uuid[], 'active')
             RETURNING id
         """)
 
@@ -198,7 +195,12 @@ class TestPrecisionWeightedUpdate:
         # avg = 0.3, variance = 0.005
         errors = [0.2, 0.3, 0.4, 0.3, 0.3]
         for error in errors:
-            prediction_id = uuid4()
+            # Create prediction first (FK constraint)
+            prediction_id = await db_pool.fetchval("""
+                INSERT INTO model_predictions (model_id, prediction, confidence)
+                VALUES ($1, '{"outcome": "test"}', 0.7)
+                RETURNING id
+            """, model_id)
             await db_pool.execute("""
                 INSERT INTO worldview_prediction_errors
                 (worldview_id, model_id, prediction_id, prediction_error)
@@ -217,11 +219,10 @@ class TestPrecisionWeightedUpdate:
         assert result["new_confidence"] < 0.6
 
 
-@pytest.mark.skip(reason="TDD: DB implementation pending")
 class TestLearningRateByStability:
     """FR-018: Learning rate based on belief stability."""
 
-    async def test_high_confidence_low_learning_rate(self, db_pool):
+    async def test_high_confidence_low_learning_rate(self, db_pool, cleanup_mental_models):
         """
         Given: Worldview with confidence > 0.8
         When: Errors accumulate
@@ -230,19 +231,28 @@ class TestLearningRateByStability:
         # Arrange: High confidence belief
         worldview_id = await db_pool.fetchval("""
             INSERT INTO worldview_primitives (category, belief, confidence)
-            VALUES ('core', 'fundamental truth', 0.9)
+            VALUES ('test_core', 'fundamental truth', 0.9)
             RETURNING id
         """)
 
-        model_id = uuid4()
+        model_id = await db_pool.fetchval("""
+            INSERT INTO mental_models (name, domain, constituent_basins, status)
+            VALUES ('Test High Confidence', 'world', ARRAY[]::uuid[], 'active')
+            RETURNING id
+        """)
 
         # Add 5 high errors
         for _ in range(5):
+            prediction_id = await db_pool.fetchval("""
+                INSERT INTO model_predictions (model_id, prediction, confidence)
+                VALUES ($1, '{"outcome": "test"}', 0.7)
+                RETURNING id
+            """, model_id)
             await db_pool.execute("""
                 INSERT INTO worldview_prediction_errors
                 (worldview_id, model_id, prediction_id, prediction_error)
                 VALUES ($1, $2, $3, 0.8)
-            """, worldview_id, model_id, uuid4())
+            """, worldview_id, model_id, prediction_id)
 
         # Act
         result = await db_pool.fetchrow("""
@@ -253,7 +263,7 @@ class TestLearningRateByStability:
         # new = 0.9 * (1 - 0.05 * precision_weighted_error)
         assert result["new_confidence"] > 0.85  # Stable belief resists change
 
-    async def test_low_confidence_high_learning_rate(self, db_pool):
+    async def test_low_confidence_high_learning_rate(self, db_pool, cleanup_mental_models):
         """
         Given: Worldview with confidence < 0.5
         When: Errors accumulate
@@ -262,19 +272,28 @@ class TestLearningRateByStability:
         # Arrange: Low confidence belief
         worldview_id = await db_pool.fetchval("""
             INSERT INTO worldview_primitives (category, belief, confidence)
-            VALUES ('uncertain', 'maybe true', 0.3)
+            VALUES ('test_uncertain', 'maybe true', 0.3)
             RETURNING id
         """)
 
-        model_id = uuid4()
+        model_id = await db_pool.fetchval("""
+            INSERT INTO mental_models (name, domain, constituent_basins, status)
+            VALUES ('Test Low Confidence', 'world', ARRAY[]::uuid[], 'active')
+            RETURNING id
+        """)
 
         # Add 5 moderate errors
         for _ in range(5):
+            prediction_id = await db_pool.fetchval("""
+                INSERT INTO model_predictions (model_id, prediction, confidence)
+                VALUES ($1, '{"outcome": "test"}', 0.7)
+                RETURNING id
+            """, model_id)
             await db_pool.execute("""
                 INSERT INTO worldview_prediction_errors
                 (worldview_id, model_id, prediction_id, prediction_error)
                 VALUES ($1, $2, $3, 0.5)
-            """, worldview_id, model_id, uuid4())
+            """, worldview_id, model_id, prediction_id)
 
         # Act
         result = await db_pool.fetchrow("""
@@ -282,7 +301,8 @@ class TestLearningRateByStability:
         """, worldview_id)
 
         # Assert: With 0.2 learning rate, confidence drops more significantly
-        assert result["new_confidence"] < 0.25  # Uncertain belief changes quickly
+        # Formula: new = 0.3 * (1 - 0.2 * 0.5) = 0.27
+        assert result["new_confidence"] < 0.3  # Uncertain belief changes quickly
 
 
 class TestWorldviewPredictionFiltering:
