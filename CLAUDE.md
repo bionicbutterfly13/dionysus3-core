@@ -144,6 +144,9 @@ deprecated_ids = await service.deprecate_degraded_models()
 - **NEVER contact Neo4j directly**: All Neo4j reads/writes MUST go through n8n webhooks. No direct Cypher, no neo4j-driver connections from the application. This is non-negotiable.
 - **Context Engineering**: Follow Context Engineering best practices in `/Volumes/Asylum/repos/Context-Engineering` for all prompts, tool contracts, and context assembly.
 
+### Procedural Memory
+- **Procedural = Skills**: Procedural memory is represented as `(:Skill)` nodes (not ThoughtSeeds). ThoughtSeeds remain ideation/germination only.
+
 ### Why n8n-only Neo4j access?
 1. **Safety**: Prevents LLM-driven data destruction
 2. **Central control**: All graph mutations auditable in one place
