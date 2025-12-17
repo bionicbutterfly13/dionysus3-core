@@ -129,8 +129,23 @@ deprecated_ids = await service.deprecate_degraded_models()
 
 ## Architecture Constraints
 
-- **Neo4j access**: All Neo4j operations MUST go through n8n webhooks. No direct Neo4j connections from the application. This prevents LLM data destruction.
-- **n8n webhook endpoints**:
+### Data Architecture
+- **Neo4j = Source of Truth**: Neo4j is the authoritative store for all memory and graph data
+- **PostgreSQL = Working Memory**: PostgreSQL handles only transactional/working data (predictions, sync queue, session state) - minimal footprint
+- **NEVER contact Neo4j directly**: All Neo4j reads/writes MUST go through n8n webhooks. No direct Cypher, no neo4j-driver connections from the application. This is non-negotiable.
+
+### Why n8n-only Neo4j access?
+1. **Safety**: Prevents LLM-driven data destruction
+2. **Central control**: All graph mutations auditable in one place
+3. **Consistency**: Single point of schema enforcement
+4. **Recovery**: n8n workflows can implement retry/rollback logic
+
+### Files that violate this constraint (need removal):
+- `api/services/vector_search.py` - direct Neo4j access
+- `api/services/remote_sync.py` - direct Neo4j access
+- Any file importing `neo4j` driver directly
+
+### n8n webhook endpoints:
   - `/webhook/memory/v1/ingest/message` - memory creation
   - `/webhook/memory/v1/recall` - memory queries/recovery
   - `/webhook/memory/v1/entity/upsert` - entity creation
