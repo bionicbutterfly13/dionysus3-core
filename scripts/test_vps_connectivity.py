@@ -4,7 +4,7 @@ VPS Connectivity Test Script
 Feature: 002-remote-persistence-safety
 
 Tests connectivity to remote services on VPS:
-- Neo4j (bolt://localhost:7687 via SSH tunnel)
+- Neo4j (indirectly via n8n cypher webhook)
 - n8n (http://localhost:5678 via SSH tunnel)
 - Ollama (http://localhost:11434 via SSH tunnel)
 
@@ -35,33 +35,37 @@ load_dotenv()
 
 
 async def test_neo4j() -> bool:
-    """Test Neo4j connection via bolt protocol."""
+    """Test Neo4j connectivity via n8n cypher webhook (no direct Neo4j access)."""
     try:
-        from neo4j import AsyncGraphDatabase
+        import hashlib
+        import hmac
+        import json
 
-        uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-        user = os.getenv("NEO4J_USER", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "")
-
-        if not password:
-            print("⚠ NEO4J_PASSWORD not set in environment")
+        token = os.getenv("MEMORY_WEBHOOK_TOKEN", "")
+        if not token:
+            print("⚠ MEMORY_WEBHOOK_TOKEN not set in environment")
             return False
 
-        driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
-        async with driver.session() as session:
-            result = await session.run("RETURN 1 as n")
-            record = await result.single()
-            if record and record["n"] == 1:
-                print(f"✓ Neo4j connected at {uri}")
-                await driver.close()
-                return True
-        await driver.close()
-        return False
-    except ImportError:
-        print("✗ neo4j package not installed. Run: pip install neo4j")
-        return False
+        cypher_url = os.getenv("N8N_CYPHER_URL", "http://localhost:5678/webhook/neo4j/v1/cypher")
+        payload = {"operation": "cypher", "mode": "read", "statement": "RETURN 1 as n", "parameters": {}}
+        body = json.dumps(payload).encode("utf-8")
+        signature = "sha256=" + hmac.new(token.encode("utf-8"), body, hashlib.sha256).hexdigest()
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                cypher_url,
+                content=body,
+                headers={"Content-Type": "application/json", "X-Webhook-Signature": signature},
+            )
+
+        if resp.status_code != 200:
+            print(f"✗ n8n cypher webhook returned {resp.status_code}")
+            return False
+
+        print(f"✓ Neo4j reachable via n8n at {cypher_url}")
+        return True
     except Exception as e:
-        print(f"✗ Neo4j connection failed: {e}")
+        print(f"✗ Neo4j (via n8n) check failed: {e}")
         return False
 
 

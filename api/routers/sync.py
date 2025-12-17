@@ -52,6 +52,12 @@ async def get_sync_service() -> RemoteSyncService:
             recall_webhook_url=os.getenv(
                 "N8N_RECALL_URL", "http://localhost:5678/webhook/memory/v1/recall"
             ),
+            traverse_webhook_url=os.getenv(
+                "N8N_TRAVERSE_URL", "http://localhost:5678/webhook/memory/v1/traverse"
+            ),
+            cypher_webhook_url=os.getenv(
+                "N8N_CYPHER_URL", "http://localhost:5678/webhook/neo4j/v1/cypher"
+            ),
             webhook_token=get_webhook_token(),
         )
         _sync_service = RemoteSyncService(config=config)

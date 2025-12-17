@@ -14,7 +14,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from api.routers import ias, heartbeat, models
+from api.routers import ias, heartbeat, models, memory, skills
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -67,6 +67,8 @@ async def health_check():
 app.include_router(ias.router)
 app.include_router(heartbeat.router)
 app.include_router(models.router)
+app.include_router(memory.router)
+app.include_router(skills.router)
 
 
 # Global error handler

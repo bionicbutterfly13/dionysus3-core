@@ -23,6 +23,17 @@ Follow-up TODOs:
 
 ## Core Principles
 
+### 0. Context Engineering Best Practices (MANDATORY)
+
+All features and prompts MUST follow the Context Engineering best practices in ` /Volumes/Asylum/repos/Context-Engineering `.
+
+- Treat context as a first-class interface: define what is passed, why, and how it is validated
+- Prefer structured, minimal, and testable context over verbose free-form prompts
+- Separate: system rules, developer constraints, task instructions, and retrieved data
+- Make contracts explicit (schemas, examples, failure modes) and keep them versioned
+
+**Rationale**: Good context design reduces hallucinations, improves determinism, and makes the system easier to evolve safely.
+
 ### I. Data Integrity First
 
 Memory systems MUST preserve data correctness at all costs. This is non-negotiable for an AGI memory store.
@@ -88,6 +99,7 @@ MCP tool interfaces are contracts. Breaking changes require major version bumps.
 Every feature MUST follow the complete SpecKit workflow. No exceptions. No shortcuts.
 
 - **Step 1**: Create feature branch (`NNN-feature-name`)
+- **Step 1a**: Create a dedicated git branch for each Archon task (e.g. `NNN-feature-name/T007-skill-docs`) so tasks can be implemented/reviewed/merged independently and in parallel
 - **Step 2**: Run `/speckit.specify` to create or validate spec
 - **Step 3**: Run `/speckit.clarify` to resolve ALL ambiguities before planning
 - **Step 4**: Run `/speckit.plan` to create implementation plan

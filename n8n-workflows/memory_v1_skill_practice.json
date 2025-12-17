@@ -1,0 +1,88 @@
+{
+  "name": "memory_v1_skill_practice",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memory/v1/skill/practice",
+        "options": { "rawBody": true },
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst payload = $input.first().binary?.data?.toString() || JSON.stringify($input.first().json);\nconst signature = $input.first().headers['x-webhook-signature'];\nconst secret = $env.MEMORY_WEBHOOK_TOKEN;\n\nif (!signature) throw new Error('Missing X-Webhook-Signature header');\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');\nconst valid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));\nif (!valid) throw new Error('Invalid signature');\n\nreturn $input.first();"
+      },
+      "id": "validate-signature",
+      "name": "Validate HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json || {};\n\nconst skill_id = (body.skill_id || '').trim();\nif (!skill_id) throw new Error('Missing skill_id');\n\nconst delta = body.delta;\nif (delta !== undefined && (typeof delta !== 'number' || delta < -1 || delta > 1)) {\n  throw new Error('delta must be -1..1');\n}\n\nconst practiced_at = body.practiced_at || null;\nconst success = body.success;\nif (success !== undefined && typeof success !== 'boolean') throw new Error('success must be boolean');\n\nreturn [{ json: {\n  skill_id,\n  delta: delta === undefined ? null : delta,\n  success: success === undefined ? null : success,\n  practiced_at,\n  context_id: body.context_id || null,\n  session_id: body.session_id || null,\n  document_id: body.document_id || null\n} }];"
+      },
+      "id": "normalize",
+      "name": "Normalize + Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"MERGE (s:Skill {skill_id: $skill_id})\\nON CREATE SET s.created_at = datetime(), s.name = coalesce(s.name, $skill_id), s.proficiency = coalesce(s.proficiency, 0.0), s.practice_count = coalesce(s.practice_count, 0), s.decay_rate = coalesce(s.decay_rate, 0.0)\\nSET s.practice_count = coalesce(s.practice_count, 0) + 1,\\n    s.last_practiced = CASE WHEN $practiced_at IS NULL THEN datetime() ELSE datetime($practiced_at) END,\\n    s.proficiency = CASE\\n      WHEN $delta IS NULL THEN s.proficiency\\n      ELSE min(1.0, max(0.0, coalesce(s.proficiency, 0.0) + $delta))\\n    END,\\n    s.updated_at = datetime()\\nWITH s\\nFOREACH (_ IN CASE WHEN $context_id IS NULL THEN [] ELSE [1] END | MERGE (c:Context {context_id: $context_id}) ON CREATE SET c.created_at = datetime() MERGE (s)-[:APPLIES_TO]->(c))\\nWITH s\\nFOREACH (_ IN CASE WHEN $document_id IS NULL THEN [] ELSE [1] END | MERGE (d:Document {document_id: $document_id}) ON CREATE SET d.created_at = datetime() MERGE (s)-[:LEARNED_FROM]->(d))\\nWITH s\\nFOREACH (_ IN CASE WHEN $session_id IS NULL THEN [] ELSE [1] END | MERGE (sess:Session {id: $session_id}) ON CREATE SET sess.created_at = datetime() MERGE (s)-[:LEARNED_FROM]->(sess))\\nRETURN s.skill_id as skill_id, s.practice_count as practice_count, s.proficiency as proficiency\",\n      \"parameters\": {\n        \"skill_id\": \"{{ $json.skill_id }}\",\n        \"delta\": {{ $json.delta }},\n        \"success\": {{ $json.success }},\n        \"practiced_at\": {{ $json.practiced_at }},\n        \"context_id\": {{ $json.context_id }},\n        \"session_id\": {{ $json.session_id }},\n        \"document_id\": {{ $json.document_id }}\n      }\n    }\n  ]\n}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "neo4j",
+      "name": "Neo4j Practice Skill",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst results = Array.isArray(res?.results) ? res.results : [];\nconst row = results?.[0]?.data?.[0]?.row || [];\nconst [skill_id, practice_count, proficiency] = row;\nreturn [{ json: { success: true, skill_id, practice_count, proficiency, raw: res } }];"
+      },
+      "id": "format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": { "responseBody": "={{$json}}", "options": {} },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1440, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validate HMAC Signature", "type": "main", "index": 0 }]] },
+    "Validate HMAC Signature": { "main": [[{ "node": "Normalize + Validate", "type": "main", "index": 0 }]] },
+    "Normalize + Validate": { "main": [[{ "node": "Neo4j Practice Skill", "type": "main", "index": 0 }]] },
+    "Neo4j Practice Skill": { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
+    "Format Response": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionTimeout": 300 },
+  "versionId": "template-memory-v1-skill-practice"
+}
+

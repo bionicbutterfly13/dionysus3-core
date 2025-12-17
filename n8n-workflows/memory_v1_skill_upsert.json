@@ -1,0 +1,88 @@
+{
+  "name": "memory_v1_skill_upsert",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memory/v1/skill/upsert",
+        "options": { "rawBody": true },
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst payload = $input.first().binary?.data?.toString() || JSON.stringify($input.first().json);\nconst signature = $input.first().headers['x-webhook-signature'];\nconst secret = $env.MEMORY_WEBHOOK_TOKEN;\n\nif (!signature) throw new Error('Missing X-Webhook-Signature header');\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');\nconst valid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));\nif (!valid) throw new Error('Invalid signature');\n\nreturn $input.first();"
+      },
+      "id": "validate-signature",
+      "name": "Validate HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json || {};\n\nconst skill_id = (body.skill_id || '').trim();\nconst name = (body.name || '').trim();\nif (!skill_id) throw new Error('Missing skill_id');\nif (!name) throw new Error('Missing name');\n\nconst proficiency = body.proficiency;\nif (proficiency !== undefined && (typeof proficiency !== 'number' || proficiency < 0 || proficiency > 1)) {\n  throw new Error('proficiency must be 0..1');\n}\n\nconst decay_rate = body.decay_rate;\nif (decay_rate !== undefined && (typeof decay_rate !== 'number' || decay_rate < 0)) {\n  throw new Error('decay_rate must be >= 0');\n}\n\nconst practice_count = body.practice_count;\nif (practice_count !== undefined && (!Number.isInteger(practice_count) || practice_count < 0)) {\n  throw new Error('practice_count must be int >= 0');\n}\n\nreturn [{ json: {\n  skill_id,\n  name,\n  description: body.description || null,\n  proficiency: proficiency === undefined ? null : proficiency,\n  decay_rate: decay_rate === undefined ? null : decay_rate,\n  practice_count: practice_count === undefined ? null : practice_count,\n  last_practiced: body.last_practiced || null,\n  learned_from_document_id: body.learned_from_document_id || null,\n  learned_from_session_id: body.learned_from_session_id || null,\n  applies_to_context_id: body.applies_to_context_id || null,\n  requires_skill_ids: Array.isArray(body.requires_skill_ids) ? body.requires_skill_ids : [],\n  substep_skill_ids: Array.isArray(body.substep_skill_ids) ? body.substep_skill_ids : []\n} }];"
+      },
+      "id": "normalize",
+      "name": "Normalize + Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"MERGE (s:Skill {skill_id: $skill_id})\\nON CREATE SET s.created_at = datetime()\\nSET s.name = $name,\\n    s.description = $description,\\n    s.proficiency = coalesce($proficiency, s.proficiency, 0.0),\\n    s.decay_rate = coalesce($decay_rate, s.decay_rate, 0.0),\\n    s.practice_count = coalesce($practice_count, s.practice_count, 0),\\n    s.last_practiced = CASE WHEN $last_practiced IS NULL THEN s.last_practiced ELSE datetime($last_practiced) END,\\n    s.updated_at = datetime()\\nWITH s\\nFOREACH (rid IN $requires_skill_ids | MERGE (r:Skill {skill_id: rid}) ON CREATE SET r.created_at = datetime() MERGE (s)-[:REQUIRES]->(r))\\nFOREACH (sid IN $substep_skill_ids | MERGE (sub:Skill {skill_id: sid}) ON CREATE SET sub.created_at = datetime() MERGE (s)-[:HAS_SUBSTEP]->(sub))\\nWITH s\\nFOREACH (_ IN CASE WHEN $applies_to_context_id IS NULL THEN [] ELSE [1] END | MERGE (c:Context {context_id: $applies_to_context_id}) ON CREATE SET c.created_at = datetime() MERGE (s)-[:APPLIES_TO]->(c))\\nWITH s\\nFOREACH (_ IN CASE WHEN $learned_from_document_id IS NULL THEN [] ELSE [1] END | MERGE (d:Document {document_id: $learned_from_document_id}) ON CREATE SET d.created_at = datetime() MERGE (s)-[:LEARNED_FROM]->(d))\\nWITH s\\nFOREACH (_ IN CASE WHEN $learned_from_session_id IS NULL THEN [] ELSE [1] END | MERGE (sess:Session {id: $learned_from_session_id}) ON CREATE SET sess.created_at = datetime() MERGE (s)-[:LEARNED_FROM]->(sess))\\nRETURN s.skill_id as skill_id\",\n      \"parameters\": {\n        \"skill_id\": \"{{ $json.skill_id }}\",\n        \"name\": \"{{ $json.name }}\",\n        \"description\": {{ $json.description }},\n        \"proficiency\": {{ $json.proficiency }},\n        \"decay_rate\": {{ $json.decay_rate }},\n        \"practice_count\": {{ $json.practice_count }},\n        \"last_practiced\": {{ $json.last_practiced }},\n        \"requires_skill_ids\": {{ $json.requires_skill_ids }},\n        \"substep_skill_ids\": {{ $json.substep_skill_ids }},\n        \"applies_to_context_id\": {{ $json.applies_to_context_id }},\n        \"learned_from_document_id\": {{ $json.learned_from_document_id }},\n        \"learned_from_session_id\": {{ $json.learned_from_session_id }}\n      }\n    }\n  ]\n}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "neo4j",
+      "name": "Neo4j Upsert Skill",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst results = Array.isArray(res?.results) ? res.results : [];\nconst row = results?.[0]?.data?.[0]?.row;\nconst skill_id = row?.[0] || null;\nreturn [{ json: { success: true, skill_id, raw: res } }];"
+      },
+      "id": "format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": { "responseBody": "={{$json}}", "options": {} },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1440, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validate HMAC Signature", "type": "main", "index": 0 }]] },
+    "Validate HMAC Signature": { "main": [[{ "node": "Normalize + Validate", "type": "main", "index": 0 }]] },
+    "Normalize + Validate": { "main": [[{ "node": "Neo4j Upsert Skill", "type": "main", "index": 0 }]] },
+    "Neo4j Upsert Skill": { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
+    "Format Response": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionTimeout": 300 },
+  "versionId": "template-memory-v1-skill-upsert"
+}
+
