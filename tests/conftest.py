@@ -18,9 +18,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Database configuration
+# Use test database on port 5434 (docker-compose.test.yml)
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://dionysus:dionysus2024@localhost:5432/dionysus"
+    "postgresql://dionysus:dionysus2024@localhost:5434/dionysus_test"
 )
 
 

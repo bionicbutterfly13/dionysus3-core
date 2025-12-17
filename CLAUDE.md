@@ -36,6 +36,15 @@ Python 3.11+: Follow standard conventions
 
 <!-- MANUAL ADDITIONS START -->
 
+## Engineering Practices
+
+This project follows practices prescribed by Context-Engineering:
+- Reference: `/Volumes/Asylum/repos/Context-Engineering`
+- **SpecKit**: Use `/speckit.*` commands for specification-driven development
+- **Serena MCP**: Semantic code analysis (preferred over Explore agent)
+- **Archon MCP**: Task management (no TodoWrite)
+- **Neo4j access**: Only via n8n webhooks (never direct)
+
 ## Feature: Mental Models (005-mental-models)
 
 Mental Models are structured combinations of memory basins (attractor basins) that generate
@@ -133,6 +142,7 @@ deprecated_ids = await service.deprecate_degraded_models()
 - **Neo4j = Source of Truth**: Neo4j is the authoritative store for all memory and graph data
 - **PostgreSQL = Working Memory**: PostgreSQL handles only transactional/working data (predictions, sync queue, session state) - minimal footprint
 - **NEVER contact Neo4j directly**: All Neo4j reads/writes MUST go through n8n webhooks. No direct Cypher, no neo4j-driver connections from the application. This is non-negotiable.
+- **Context Engineering**: Follow Context Engineering best practices in `/Volumes/Asylum/repos/Context-Engineering` for all prompts, tool contracts, and context assembly.
 
 ### Why n8n-only Neo4j access?
 1. **Safety**: Prevents LLM-driven data destruction
@@ -141,16 +151,16 @@ deprecated_ids = await service.deprecate_degraded_models()
 4. **Recovery**: n8n workflows can implement retry/rollback logic
 
 ### Files that violate this constraint (need removal):
-- `api/services/vector_search.py` - direct Neo4j access
-- `api/services/remote_sync.py` - direct Neo4j access
-- Any file importing `neo4j` driver directly
+- Any file importing `neo4j` driver directly (not allowed)
 
 ### n8n webhook endpoints:
   - `/webhook/memory/v1/ingest/message` - memory creation
   - `/webhook/memory/v1/recall` - memory queries/recovery
+  - `/webhook/memory/v1/traverse` - vetted graph traversal queries
   - `/webhook/memory/v1/entity/upsert` - entity creation
   - `/webhook/memory/v1/entity/revise` - entity updates
   - `/webhook/memory/v1/journey/upsert` - journey tracking
   - `/webhook/memory/v1/journey/resolve` - journey resolution
+  - `/webhook/neo4j/v1/cypher` - cypher execution (must be gated/validated in n8n)
 
 <!-- MANUAL ADDITIONS END -->
