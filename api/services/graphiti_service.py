@@ -15,10 +15,7 @@ from uuid import uuid4
 
 from graphiti_core import Graphiti
 from graphiti_core.nodes import EpisodeType
-from graphiti_core.search.search_config_recipes import (
-    COMBINED_HYBRID_SEARCH_CROSS_ENCODER,
-    EDGE_HYBRID_SEARCH_RRF,
-)
+# Note: search_config_recipes not available in graphiti-core 0.24.3
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +173,7 @@ class GraphitiService:
             query: Search query
             group_ids: Filter by group IDs (default: service group_id)
             limit: Max results
-            use_cross_encoder: Use LLM reranking (slower but better)
+            use_cross_encoder: Use LLM reranking (not supported in 0.24.3)
 
         Returns:
             Dict with nodes, edges, episodes found
@@ -185,14 +182,12 @@ class GraphitiService:
             raise RuntimeError("GraphitiService not initialized")
 
         groups = group_ids or [self.config.group_id]
-        config = COMBINED_HYBRID_SEARCH_CROSS_ENCODER if use_cross_encoder else EDGE_HYBRID_SEARCH_RRF
 
         logger.info(f"Searching for: {query}")
 
         results = await self._graphiti.search(
             query=query,
             group_ids=groups,
-            config=config,
             num_results=limit,
         )
 
