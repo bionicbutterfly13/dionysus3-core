@@ -191,34 +191,21 @@ class GraphitiService:
             num_results=limit,
         )
 
+        # graphiti-core 0.24.3 returns a list of edges directly
+        edges = results if isinstance(results, list) else getattr(results, 'edges', [])
+        
         return {
-            "nodes": [
-                {
-                    "uuid": str(n.uuid),
-                    "name": n.name,
-                    "summary": getattr(n, "summary", None),
-                    "labels": getattr(n, "labels", []),
-                }
-                for n in results.nodes
-            ],
             "edges": [
                 {
                     "uuid": str(e.uuid),
-                    "name": e.name,
-                    "fact": e.fact,
-                    "valid_at": e.valid_at.isoformat() if e.valid_at else None,
-                    "invalid_at": e.invalid_at.isoformat() if e.invalid_at else None,
+                    "name": getattr(e, "name", None),
+                    "fact": getattr(e, "fact", None),
+                    "valid_at": e.valid_at.isoformat() if getattr(e, "valid_at", None) else None,
+                    "invalid_at": e.invalid_at.isoformat() if getattr(e, "invalid_at", None) else None,
                 }
-                for e in results.edges
+                for e in edges
             ],
-            "episodes": [
-                {
-                    "uuid": str(ep.uuid),
-                    "content": ep.content[:500] if ep.content else None,
-                    "valid_at": ep.valid_at.isoformat() if ep.valid_at else None,
-                }
-                for ep in results.episodes
-            ],
+            "count": len(edges),
         }
 
     async def get_entity(self, name: str, group_id: Optional[str] = None) -> Optional[dict[str, Any]]:
