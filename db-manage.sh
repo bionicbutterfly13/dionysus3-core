@@ -12,8 +12,10 @@ fi
 
 # Default values
 POSTGRES_USER=${POSTGRES_USER:-postgres}
-POSTGRES_DB=${POSTGRES_DB:-memory_db}
+POSTGRES_DB=${POSTGRES_DB:-agi_memory}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+COMPOSE_FILE=${COMPOSE_FILE:-docker-compose.local.yml}
+COMPOSE_CMD=(docker compose -f "$COMPOSE_FILE")
 
 show_help() {
     echo "Dionysus Memory Database Management Script"
@@ -37,19 +39,22 @@ show_help() {
     echo "  ./db-manage.sh reset     # Delete and recreate database"
     echo "  ./db-manage.sh start     # Start database and wait for ready"
     echo "  ./db-manage.sh shell     # Open database shell"
+    echo ""
+    echo "Config:"
+    echo "  COMPOSE_FILE=$COMPOSE_FILE"
 }
 
 wait_for_db() {
     echo "Waiting for database to be ready..."
     
     # Wait for container to be running
-    until docker compose ps db | grep -q "Up"; do
+    until "${COMPOSE_CMD[@]}" ps db | grep -q "Up"; do
         echo "Container is not running yet, waiting..."
         sleep 2
     done
     
     # Wait for PostgreSQL to be ready
-    until docker compose exec db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null 2>&1; do
+    until "${COMPOSE_CMD[@]}" exec db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null 2>&1; do
         echo "Database is not ready yet, waiting..."
         sleep 2
     done
@@ -57,7 +62,7 @@ wait_for_db() {
     echo "Database is ready!"
     
     # Test connection
-    if docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1;" > /dev/null 2>&1; then
+    if "${COMPOSE_CMD[@]}" exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1;" > /dev/null 2>&1; then
         echo "Database connection verified!"
         return 0
     else
@@ -68,20 +73,20 @@ wait_for_db() {
 
 start_db() {
     echo "Starting database..."
-    docker compose up -d db
+    "${COMPOSE_CMD[@]}" up -d db
     wait_for_db
     echo "Database is fully operational!"
 }
 
 stop_db() {
     echo "Stopping database..."
-    docker compose stop db
+    "${COMPOSE_CMD[@]}" stop db
     echo "Database stopped."
 }
 
 restart_db() {
     echo "Restarting database..."
-    docker compose restart db
+    "${COMPOSE_CMD[@]}" restart db
     wait_for_db
     echo "Database restarted and ready!"
 }
@@ -95,14 +100,14 @@ reset_db() {
         echo "Resetting database..."
         
         # Stop and remove containers and volumes
-        docker compose down -v
+        "${COMPOSE_CMD[@]}" down -v
         
         # Remove any orphaned containers
-        docker compose rm -f
+        "${COMPOSE_CMD[@]}" rm -f
         
         # Start fresh
         echo "Starting fresh database..."
-        docker compose up -d db
+        "${COMPOSE_CMD[@]}" up -d db
         
         # Wait for it to be ready
         wait_for_db
@@ -116,12 +121,12 @@ reset_db() {
 
 show_status() {
     echo "Database container status:"
-    docker compose ps db
+    "${COMPOSE_CMD[@]}" ps db
     echo ""
     
-    if docker compose ps db | grep -q "Up"; then
+    if "${COMPOSE_CMD[@]}" ps db | grep -q "Up"; then
         echo "Database health check:"
-        if docker compose exec db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null 2>&1; then
+        if "${COMPOSE_CMD[@]}" exec db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" > /dev/null 2>&1; then
             echo "✅ Database is healthy and accepting connections"
         else
             echo "❌ Database container is up but not accepting connections"
@@ -133,13 +138,13 @@ show_status() {
 
 show_logs() {
     echo "Database logs (last 50 lines):"
-    docker compose logs --tail=50 db
+    "${COMPOSE_CMD[@]}" logs --tail=50 db
 }
 
 open_shell() {
     echo "Opening database shell..."
     echo "Type \\q to exit"
-    docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+    "${COMPOSE_CMD[@]}" exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 }
 
 backup_db() {
@@ -147,7 +152,7 @@ backup_db() {
     backup_file="backup_${timestamp}.sql"
     
     echo "Creating backup: $backup_file"
-    docker compose exec db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" > "$backup_file"
+    "${COMPOSE_CMD[@]}" exec db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" > "$backup_file"
     
     if [ $? -eq 0 ]; then
         echo "✅ Backup created successfully: $backup_file"

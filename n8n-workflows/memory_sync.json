@@ -3,6 +3,7 @@
   "description": "Receives memory sync webhook, generates embedding via Ollama, persists to Neo4j",
   "version": "1.0.0",
   "feature": "002-remote-persistence-safety",
+  "active": false,
   "nodes": [
     {
       "id": "webhook-trigger",
