@@ -45,6 +45,12 @@ This project follows practices prescribed by Context-Engineering:
 - **Archon MCP**: Task management (no TodoWrite)
 - **Neo4j access**: Only via n8n webhooks (never direct)
 
+## Security
+
+- **NEVER display .env contents** - Use `grep` for specific non-secret keys only, never `cat .env`
+- **API keys in shell environment** - Prefer `export ANTHROPIC_API_KEY=...` in ~/.zshrc over .env files
+- **.env is gitignored** - Safe for local secrets, but avoid displaying in tool output
+
 ## Feature: Mental Models (005-mental-models)
 
 Mental Models are structured combinations of memory basins (attractor basins) that generate
@@ -142,6 +148,7 @@ deprecated_ids = await service.deprecate_degraded_models()
 - **Neo4j = Source of Truth**: Neo4j is the authoritative store for all memory and graph data
 - **PostgreSQL = Working Memory**: PostgreSQL handles only transactional/working data (predictions, sync queue, session state) - minimal footprint
 - **NEVER contact Neo4j directly**: All Neo4j reads/writes MUST go through n8n webhooks. No direct Cypher, no neo4j-driver connections from the application. This is non-negotiable.
+  - **EXCEPTION: Graphiti** - The `graphiti-core` library is approved for direct Neo4j access as a trusted infrastructure component for temporal entity extraction and knowledge graph management. This exception was approved 2025-12-21.
 - **Context Engineering**: Follow Context Engineering best practices in `/Volumes/Asylum/repos/Context-Engineering` for all prompts, tool contracts, and context assembly.
 
 ### Procedural Memory

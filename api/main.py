@@ -14,7 +14,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from api.routers import ias, heartbeat, models, memory, skills
+from api.routers import ias, heartbeat, models, memory, skills, sync
+from api.services.db import get_db_pool, close_db_pool
+from api.services.model_service import get_model_service
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -25,8 +27,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     print("Starting Dionysus API server...")
+    try:
+        pool = await get_db_pool()
+        get_model_service(db_pool=pool)
+        app.state.db_pool = pool
+    except Exception as e:
+        print(f"Warning: database pool unavailable: {e}")
     yield
     # Shutdown
+    await close_db_pool()
     print("Shutting down Dionysus API server...")
 
 
@@ -69,6 +78,7 @@ app.include_router(heartbeat.router)
 app.include_router(models.router)
 app.include_router(memory.router)
 app.include_router(skills.router)
+app.include_router(sync.router)
 
 
 # Global error handler

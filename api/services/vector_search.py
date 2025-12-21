@@ -83,6 +83,12 @@ class VectorSearchService:
     async def close(self) -> None:
         return None
 
+    async def health_check(self) -> dict[str, Any]:
+        """Check connectivity for the vector search webhook."""
+        health = await self._sync.check_health()
+        health["vector_search_webhook_url"] = self._webhook_url
+        return health
+
     async def semantic_search(
         self,
         query: str,
@@ -156,4 +162,3 @@ def get_vector_search_service() -> VectorSearchService:
     if _vector_search_service is None:
         _vector_search_service = VectorSearchService()
     return _vector_search_service
-
