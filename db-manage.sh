@@ -11,9 +11,9 @@ if [ -f .env ]; then
 fi
 
 # Default values
-POSTGRES_USER=${POSTGRES_USER:-postgres}
-POSTGRES_DB=${POSTGRES_DB:-agi_memory}
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+POSTGRES_USER=${POSTGRES_USER:-dionysus}
+POSTGRES_DB=${POSTGRES_DB:-dionysus}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-dionysus2024}
 COMPOSE_FILE=${COMPOSE_FILE:-docker-compose.local.yml}
 COMPOSE_CMD=(docker compose -f "$COMPOSE_FILE")
 

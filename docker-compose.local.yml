@@ -1,11 +1,11 @@
 services:
   db:
     build: .  # Points to the Dockerfile above
-    container_name: agi_brain
+    container_name: dionysus_brain
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-agi_memory}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-dionysus}
+      POSTGRES_USER: ${POSTGRES_USER:-dionysus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dionysus2024}
       # Important for AGE extension
       POSTGRES_HOST_AUTH_METHOD: trust 
     volumes:
@@ -13,7 +13,7 @@ services:
       # Maps your schema.sql to run on init
       - ./schema.sql:/docker-entrypoint-initdb.d/init.sql 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-agi_memory}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dionysus} -d ${POSTGRES_DB:-dionysus}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,7 +25,7 @@ services:
 
   embeddings:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
-    container_name: agi_embeddings
+    container_name: dionysus_embeddings
     platform: linux/amd64
     command: 
       - --model-id
