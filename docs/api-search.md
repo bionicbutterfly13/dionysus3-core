@@ -6,22 +6,19 @@
 
 ## Overview
 
-The Semantic Search API provides vector similarity search for memories using Neo4j + embeddings from Ollama. This enables intelligent recall based on semantic meaning rather than keyword matching.
+The Semantic Search API provides vector similarity search for memories via n8n-backed webhooks. n8n performs embedding and Neo4j vector index queries; the core API does not connect to Neo4j directly.
 
 Key capabilities:
 - Vector similarity search using 768-dimensional embeddings
-- Hybrid search combining keyword and semantic matching
 - Filtering by project, session, date range, and memory type
 - MCP tool for context injection into Claude conversations
 
 ## Architecture
 
 ```
-Query Text → EmbeddingService → Ollama (nomic-embed-text)
+Query Text → Dionysus Core → n8n Recall Webhook
                                      ↓
-                               768-dim embedding
-                                     ↓
-                              Neo4j Vector Index
+                           Embedding + Neo4j Vector Index
                                      ↓
                               Ranked Results
 ```
@@ -42,11 +39,9 @@ Search memories using vector similarity.
   "query": "How did we implement rate limiting?",
   "top_k": 10,
   "threshold": 0.7,
-  "filters": {
-    "project_id": "dionysus-core",
-    "session_id": "sess-123",
-    "memory_types": ["semantic", "procedural"]
-  }
+  "project_id": "dionysus-core",
+  "session_id": "sess-123",
+  "memory_types": ["semantic", "procedural"]
 }
 ```
 
@@ -56,11 +51,11 @@ Search memories using vector similarity.
 | `query` | string | Yes | - | Natural language search query |
 | `top_k` | int | No | 10 | Maximum results to return |
 | `threshold` | float | No | 0.7 | Minimum similarity score (0.0-1.0) |
-| `filters.project_id` | string | No | - | Filter by project |
-| `filters.session_id` | string | No | - | Filter by session |
-| `filters.memory_types` | array | No | - | Filter by types: episodic, semantic, procedural, strategic |
-| `filters.from_date` | datetime | No | - | Filter memories created after |
-| `filters.to_date` | datetime | No | - | Filter memories created before |
+| `project_id` | string | No | - | Filter by project |
+| `session_id` | string | No | - | Filter by session |
+| `memory_types` | array | No | - | Filter by types: episodic, semantic, procedural, strategic |
+| `from_date` | datetime | No | - | Filter memories created after |
+| `to_date` | datetime | No | - | Filter memories created before |
 
 **Response:**
 ```json
@@ -89,7 +84,9 @@ Search memories using vector similarity.
     }
   ],
   "count": 2,
-  "total_time_ms": 45
+  "embedding_time_ms": 0.0,
+  "search_time_ms": 12.4,
+  "total_time_ms": 45.0
 }
 ```
 
@@ -100,94 +97,20 @@ Check semantic search service health.
 **Response:**
 ```json
 {
-  "status": "healthy",
-  "embedding_service": {
-    "available": true,
-    "model": "nomic-embed-text",
-    "dimensions": 768
-  },
-  "vector_index": {
-    "available": true,
-    "index_name": "memory_embedding_index"
-  }
+  "healthy": true,
+  "n8n_reachable": true,
+  "errors": [],
+  "vector_search_webhook_url": "http://localhost:5678/webhook/memory/v1/recall"
 }
 ```
 
-### Hybrid Search
+### Planned (Not Implemented in Core API)
 
-#### POST /api/memory/hybrid-search
+The following endpoints are referenced in older specs/tests but are not
+implemented in the current API:
 
-Search using combined keyword and semantic matching.
-
-**Request:**
-```json
-{
-  "query": "rate limiting token bucket",
-  "top_k": 10,
-  "threshold": 0.5,
-  "keyword_weight": 0.3,
-  "filters": {
-    "project_id": "dionysus-core"
-  }
-}
-```
-
-**Parameters:**
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `query` | string | Yes | - | Search query (used for both keyword and semantic) |
-| `top_k` | int | No | 10 | Maximum results to return |
-| `threshold` | float | No | 0.5 | Minimum combined score |
-| `keyword_weight` | float | No | 0.3 | Weight for keyword matching (0.0=pure semantic, 1.0=pure keyword) |
-| `filters` | object | No | - | Same filters as semantic search |
-
-**Scoring Formula:**
-```
-combined_score = (semantic_score * (1.0 - keyword_weight)) + (keyword_score * keyword_weight)
-```
-
-**Response:**
-```json
-{
-  "query": "rate limiting token bucket",
-  "results": [
-    {
-      "id": "mem-001",
-      "content": "Implemented token bucket algorithm for rate limiting",
-      "similarity_score": 0.95,
-      "keyword_match": true,
-      "combined_score": 0.97
-    }
-  ],
-  "count": 1,
-  "total_time_ms": 52
-}
-```
-
-### Find Similar
-
-#### POST /api/memory/find-similar
-
-Find memories similar to an existing memory.
-
-**Request:**
-```json
-{
-  "memory_id": "mem-001",
-  "top_k": 5,
-  "threshold": 0.7,
-  "exclude_self": true
-}
-```
-
-**Response:**
-```json
-{
-  "source_memory_id": "mem-001",
-  "similar_memories": [...],
-  "count": 4
-}
-```
+- `POST /api/memory/hybrid-search`
+- `POST /api/memory/find-similar`
 
 ---
 
@@ -314,14 +237,9 @@ ORDER BY score DESC
 ### Environment Variables
 
 ```bash
-# Ollama (embedding generation)
-OLLAMA_URL=http://localhost:11434
-OLLAMA_EMBED_MODEL=nomic-embed-text
-
-# Neo4j (vector index)
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=<password>
+# n8n (recall + vector search)
+N8N_RECALL_URL=http://localhost:5678/webhook/memory/v1/recall
+N8N_VECTOR_SEARCH_URL=http://localhost:5678/webhook/memory/v1/recall
 
 # Search defaults
 SEMANTIC_SEARCH_TOP_K=10
@@ -357,17 +275,6 @@ response = await search.semantic_search(
     filters=filters
 )
 
-# Hybrid search
-response = await search.hybrid_search(
-    query="token bucket algorithm",
-    keyword_weight=0.4  # 40% keyword, 60% semantic
-)
-
-# Find similar memories
-similar = await search.find_similar_memories(
-    memory_id="mem-001",
-    top_k=5
-)
 ```
 
 ### cURL
@@ -380,14 +287,6 @@ curl -X POST http://localhost:8000/api/memory/semantic-search \
     "query": "rate limiting implementation",
     "top_k": 5,
     "threshold": 0.7
-  }'
-
-# Hybrid search
-curl -X POST http://localhost:8000/api/memory/hybrid-search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "token bucket",
-    "keyword_weight": 0.3
   }'
 
 # Health check
@@ -408,9 +307,8 @@ Use the semantic_recall tool:
 ## Performance Considerations
 
 ### Embedding Generation
-- ~50-100ms per query via Ollama
-- Batch embedding available for multiple queries
-- Model: nomic-embed-text (768 dimensions)
+- Performed inside n8n (core API does not embed)
+- Model and latency depend on n8n configuration
 
 ### Vector Search
 - Neo4j HNSW index for approximate nearest neighbor
@@ -436,4 +334,4 @@ The semantic search complements existing keyword search:
 | Speed | Faster | Slightly slower |
 | Results | Precise matches | Related concepts |
 
-**Recommendation:** Use hybrid search with `keyword_weight=0.3` for best results.
+**Recommendation:** Use semantic search when you need conceptual recall; use keyword search for exact terms.
