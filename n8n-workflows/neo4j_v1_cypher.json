@@ -28,7 +28,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json || {};\nconst statement = (body.statement || '').trim();\nconst mode = (body.mode || 'read').trim();\nconst parameters = body.parameters && typeof body.parameters === 'object' ? body.parameters : {};\n\nif (!statement) throw new Error('Missing statement');\nif (!['read','write'].includes(mode)) throw new Error('mode must be read|write');\n\n// Basic safety: if mode=read, reject common write keywords.\nif (mode === 'read') {\n  const write = /\\b(CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP)\\b/i;\n  if (write.test(statement)) throw new Error('Write keywords not allowed in read mode');\n}\n\nreturn [{ json: { statement, parameters, mode } }];"
+        "jsCode": "const body = $input.first().json || {};\nconst statement = (body.statement || '').trim();\nconst mode = (body.mode || 'read').trim();\nconst parameters = body.parameters && typeof body.parameters === 'object' ? body.parameters : {};\n\nif (!statement) throw new Error('Missing statement');\nif (!['read','write'].includes(mode)) throw new Error('mode must be read|write');\n\n// Basic safety: if mode=read, reject common write keywords.\nif (mode === 'read') {\n  const write = /\\b(CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP)\\b/i;\n  if (write.test(statement)) throw new Error('Write keywords not allowed in read mode');\n}\n\n// Build full request body as JSON string for HTTP node\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters }] });\n\nreturn [{ json: { statement, parameters, mode, requestBody } }];"
       },
       "id": "validate-payload",
       "name": "Validate Payload",
@@ -43,13 +43,13 @@
         "options": {},
         "sendBody": true,
         "sendHeaders": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"statements\": [\n    {\n      \"statement\": \"{{ $json.statement }}\",\n      \"parameters\": {{ $json.parameters }}\n    }\n  ]\n}",
+        "specifyBody": "string",
+        "body": "={{ $json.requestBody }}",
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "{{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
+              "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
             },
             {
               "name": "Content-Type",
