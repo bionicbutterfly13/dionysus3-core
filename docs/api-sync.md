@@ -27,15 +27,18 @@ All Neo4j access goes through n8n webhooks. No direct database connections in pr
 
 ## REST API Endpoints
 
+Note: In the core API, these routes are mounted without an `/api` prefix.
+If you mount the sync router under `/api`, prepend `/api` in your requests.
+
 ### Sync Operations
 
-#### POST /api/sync/trigger
+#### POST /sync/trigger
 
 Manually trigger sync queue processing.
 
 **Request:**
 ```http
-POST /api/sync/trigger
+POST /sync/trigger
 Authorization: Bearer <token>
 ```
 
@@ -50,7 +53,7 @@ Authorization: Bearer <token>
 }
 ```
 
-#### GET /api/sync/status
+#### GET /sync/status
 
 Get current sync system status.
 
@@ -176,7 +179,7 @@ Get memories for a specific project.
 
 ### Recovery Operations
 
-#### POST /api/recovery/bootstrap
+#### POST /recovery/bootstrap
 
 Recover memories from remote Neo4j.
 
@@ -471,17 +474,17 @@ recovered = await sync.bootstrap_recovery(
 
 ```bash
 # Get sync status
-curl http://localhost:8000/api/sync/status
+curl http://localhost:8000/sync/status
 
 # Trigger manual sync
-curl -X POST http://localhost:8000/api/sync/trigger \
+curl -X POST http://localhost:8000/sync/trigger \
   -H "Authorization: Bearer <token>"
 
 # Search memories
 curl "http://localhost:8000/api/memory/search?query=rate+limiting&limit=10"
 
 # Bootstrap recovery (dry run)
-curl -X POST http://localhost:8000/api/recovery/bootstrap \
+curl -X POST http://localhost:8000/recovery/bootstrap \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"dry_run": true}'
