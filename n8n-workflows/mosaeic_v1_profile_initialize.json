@@ -1,0 +1,282 @@
+{
+  "name": "mosaeic_v1_profile_initialize",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "mosaeic/v1/profile/initialize",
+        "options": { "rawBody": true },
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst payload = $input.first().binary?.data?.toString() || JSON.stringify($input.first().json);\nconst signature = $input.first().headers['x-webhook-signature'];\nconst secret = $env.MEMORY_WEBHOOK_TOKEN;\n\nif (!signature) throw new Error('Missing X-Webhook-Signature header');\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');\nconst valid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));\nif (!valid) throw new Error('Invalid signature');\n\nreturn $input.first();"
+      },
+      "id": "validate-signature",
+      "name": "Validate HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json || {};\nconst crypto = require('crypto');\n\n// Required: user_id\nconst user_id = (body.user_id || '').trim();\nif (!user_id) throw new Error('Missing user_id');\n\n// SelfConcept fields\nconst neurotype_classification = body.neurotype_classification || 'unknown';\nconst sensory_processing_style = body.sensory_processing_style || 'standard';\nconst biological_model = body.biological_model || 'orchid';\n\n// Aspects array (Boardroom members)\nconst aspects = Array.isArray(body.aspects) ? body.aspects : [];\n\n// ThreatPredictions array\nconst threat_predictions = Array.isArray(body.threat_predictions) ? body.threat_predictions : [];\n\n// Validate aspects structure\nconst validatedAspects = aspects.map((a, idx) => {\n  if (!a.name) throw new Error(`Aspect at index ${idx} missing name`);\n  return {\n    id: crypto.randomUUID(),\n    name: a.name,\n    role: a.role || '',\n    status: a.status || 'Active',\n    symbol: a.symbol || null\n  };\n});\n\n// Validate threat predictions structure\nconst validatedThreats = threat_predictions.map((t, idx) => {\n  if (!t.prediction) throw new Error(`ThreatPrediction at index ${idx} missing prediction`);\n  return {\n    id: crypto.randomUUID(),\n    prediction: t.prediction,\n    condition: t.condition || null,\n    feared_outcome: t.feared_outcome || null,\n    domain: t.domain || 'self',\n    protector_directive: t.protector_directive || null,\n    emotional_cost: t.emotional_cost || null,\n    silenced_aspect: t.silenced_aspect || null\n  };\n});\n\nconst params = {\n  user_id,\n  selfconcept_id: crypto.randomUUID(),\n  neurotype_classification,\n  sensory_processing_style,\n  biological_model,\n  aspects: validatedAspects,\n  threat_predictions: validatedThreats\n};\n\nreturn [{ json: params }];"
+      },
+      "id": "normalize",
+      "name": "Normalize + Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Build Cypher statement for User + SelfConcept\nconst statement = `\n// MERGE User node\nMERGE (u:User {id: $user_id})\nON CREATE SET u.created_at = datetime()\nSET u.updated_at = datetime()\n\n// CREATE SelfConcept (version 1, initial)\nWITH u\nCREATE (sc:SelfConcept {\n  id: $selfconcept_id,\n  type: 'Orchid',\n  version: 1,\n  neurotype_classification: $neurotype_classification,\n  sensory_processing_style: $sensory_processing_style,\n  biological_model: $biological_model,\n  valid_from: datetime(),\n  valid_to: null,\n  created_at: datetime()\n})\nCREATE (u)-[:HAS_PROFILE_VERSION]->(sc)\n\nRETURN u.id AS user_id, sc.id AS selfconcept_id, sc.version AS profile_version\n`;\n\nconst params = {\n  user_id: data.user_id,\n  selfconcept_id: data.selfconcept_id,\n  neurotype_classification: data.neurotype_classification,\n  sensory_processing_style: data.sensory_processing_style,\n  biological_model: data.biological_model\n};\n\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: params }] });\n\nreturn [{ json: { ...data, userRequestBody: requestBody } }];"
+      },
+      "id": "build-user-query",
+      "name": "Build User + SelfConcept Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "string",
+        "body": "={{ $json.userRequestBody }}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "neo4j-user",
+      "name": "Neo4j Create User + SelfConcept",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1160, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst prevData = $input.all()[0].json;\n\nif (res.errors && res.errors.length > 0) {\n  throw new Error('Neo4j error: ' + res.errors.map(e => e.message).join('; '));\n}\n\nconst results = res?.results?.[0]?.data?.[0]?.row || [];\n\nreturn [{ json: {\n  user_id: prevData.user_id,\n  selfconcept_id: prevData.selfconcept_id,\n  profile_version: 1,\n  aspects: prevData.aspects,\n  threat_predictions: prevData.threat_predictions,\n  step: 'user_created'\n}}];"
+      },
+      "id": "parse-user-response",
+      "name": "Parse User Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.aspects.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "has-aspects",
+      "name": "Has Aspects?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Build Cypher to create all Aspects at once using UNWIND\nconst aspectsList = data.aspects.map(a => ({\n  id: a.id,\n  name: a.name,\n  role: a.role,\n  status: a.status,\n  symbol: a.symbol\n}));\n\nconst statement = `\nMATCH (u:User {id: $user_id})\nUNWIND $aspects AS aspectData\nCREATE (a:Aspect {\n  id: aspectData.id,\n  name: aspectData.name,\n  role: aspectData.role,\n  status: aspectData.status,\n  symbol: aspectData.symbol,\n  seat_position: CASE aspectData.name\n    WHEN 'Protector' THEN 'Head of Table'\n    WHEN 'Inner CEO' THEN 'Executive Chair'\n    WHEN 'Inner Child' THEN 'Corner Seat'\n    WHEN 'Inner Critic' THEN 'Standing'\n    WHEN 'Visionary' THEN 'Window Seat'\n    ELSE 'Guest Chair'\n  END,\n  system_message: CASE aspectData.name\n    WHEN 'Protector' THEN 'This aspect has kept you safe. We are not firing it; we are repositioning it.'\n    WHEN 'Inner CEO' THEN 'Your executive self is ready to lead when given the chance.'\n    WHEN 'Inner Child' THEN 'Your emotional core deserves a seat at the table.'\n    WHEN 'Inner Critic' THEN 'High standards can be valuable when balanced with compassion.'\n    WHEN 'Visionary' THEN 'Your dreams matter. They guide where you want to go.'\n    ELSE 'Every voice has value in the boardroom.'\n  END,\n  original_status: aspectData.status,\n  target_status: 'Balanced',\n  created_at: datetime(),\n  updated_at: datetime()\n})\nCREATE (u)-[:HAS_ASPECT]->(a)\nRETURN count(a) AS aspects_created\n`;\n\nconst params = {\n  user_id: data.user_id,\n  aspects: aspectsList\n};\n\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: params }] });\n\nreturn [{ json: { ...data, aspectsRequestBody: requestBody } }];"
+      },
+      "id": "build-aspects-query",
+      "name": "Build Aspects Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1880, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "string",
+        "body": "={{ $json.aspectsRequestBody }}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "neo4j-aspects",
+      "name": "Neo4j Create Aspects",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2120, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst prevData = $input.all()[0].json;\n\nif (res.errors && res.errors.length > 0) {\n  throw new Error('Neo4j error: ' + res.errors.map(e => e.message).join('; '));\n}\n\nconst aspectsCreated = res?.results?.[0]?.data?.[0]?.row?.[0] || 0;\n\nreturn [{ json: {\n  user_id: prevData.user_id,\n  selfconcept_id: prevData.selfconcept_id,\n  profile_version: prevData.profile_version,\n  aspects: prevData.aspects,\n  threat_predictions: prevData.threat_predictions,\n  aspects_created: aspectsCreated,\n  step: 'aspects_created'\n}}];"
+      },
+      "id": "parse-aspects-response",
+      "name": "Parse Aspects Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2360, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n// No aspects to create, pass through\nreturn [{ json: {\n  ...data,\n  aspects_created: 0,\n  step: 'aspects_skipped'\n}}];"
+      },
+      "id": "skip-aspects",
+      "name": "Skip Aspects",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1880, 400]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "merge-aspects",
+      "name": "Merge After Aspects",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2600, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.threat_predictions.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "has-threats",
+      "name": "Has Threats?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2840, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Build Cypher to create ThreatPredictions and link to silenced aspects\nconst threatsList = data.threat_predictions.map(t => ({\n  id: t.id,\n  prediction: t.prediction,\n  condition: t.condition,\n  feared_outcome: t.feared_outcome,\n  domain: t.domain,\n  protector_directive: t.protector_directive,\n  emotional_cost: t.emotional_cost,\n  silenced_aspect: t.silenced_aspect\n}));\n\nconst statement = `\nMATCH (u:User {id: $user_id})\nUNWIND $threats AS threatData\nCREATE (tp:ThreatPrediction {\n  id: threatData.id,\n  prediction: threatData.prediction,\n  condition: threatData.condition,\n  feared_outcome: threatData.feared_outcome,\n  domain: threatData.domain,\n  protector_directive: threatData.protector_directive,\n  emotional_cost: threatData.emotional_cost,\n  silenced_aspect: threatData.silenced_aspect,\n  active: true,\n  challenge_count: 0,\n  invalidation_evidence: null,\n  created_at: datetime(),\n  updated_at: datetime()\n})\nCREATE (u)-[:HAS_THREAT]->(tp)\nWITH u, tp, threatData\nFOREACH (_ IN CASE WHEN threatData.silenced_aspect IS NOT NULL THEN [1] ELSE [] END |\n  MERGE (a:Aspect {name: threatData.silenced_aspect})<-[:HAS_ASPECT]-(u)\n  CREATE (tp)-[:SILENCES]->(a)\n)\nRETURN count(DISTINCT tp) AS threats_created\n`;\n\nconst params = {\n  user_id: data.user_id,\n  threats: threatsList\n};\n\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: params }] });\n\nreturn [{ json: { ...data, threatsRequestBody: requestBody } }];"
+      },
+      "id": "build-threats-query",
+      "name": "Build Threats Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3080, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "string",
+        "body": "={{ $json.threatsRequestBody }}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "neo4j-threats",
+      "name": "Neo4j Create Threats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3320, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst prevData = $input.all()[0].json;\n\nif (res.errors && res.errors.length > 0) {\n  throw new Error('Neo4j error: ' + res.errors.map(e => e.message).join('; '));\n}\n\nconst threatsCreated = res?.results?.[0]?.data?.[0]?.row?.[0] || 0;\n\nreturn [{ json: {\n  success: true,\n  user_id: prevData.user_id,\n  selfconcept_id: prevData.selfconcept_id,\n  profile_version: prevData.profile_version,\n  aspects_created: prevData.aspects_created,\n  threats_created: threatsCreated\n}}];"
+      },
+      "id": "format-final",
+      "name": "Format Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3560, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n// No threats to create\nreturn [{ json: {\n  success: true,\n  user_id: data.user_id,\n  selfconcept_id: data.selfconcept_id,\n  profile_version: data.profile_version,\n  aspects_created: data.aspects_created,\n  threats_created: 0\n}}];"
+      },
+      "id": "skip-threats",
+      "name": "Skip Threats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3080, 400]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "merge-final",
+      "name": "Merge Final",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [3800, 300]
+    },
+    {
+      "parameters": { "responseBody": "={{$json}}", "options": {} },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [4040, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validate HMAC Signature", "type": "main", "index": 0 }]] },
+    "Validate HMAC Signature": { "main": [[{ "node": "Normalize + Validate", "type": "main", "index": 0 }]] },
+    "Normalize + Validate": { "main": [[{ "node": "Build User + SelfConcept Query", "type": "main", "index": 0 }]] },
+    "Build User + SelfConcept Query": { "main": [[{ "node": "Neo4j Create User + SelfConcept", "type": "main", "index": 0 }]] },
+    "Neo4j Create User + SelfConcept": { "main": [[{ "node": "Parse User Response", "type": "main", "index": 0 }]] },
+    "Parse User Response": { "main": [[{ "node": "Has Aspects?", "type": "main", "index": 0 }]] },
+    "Has Aspects?": {
+      "main": [
+        [{ "node": "Build Aspects Query", "type": "main", "index": 0 }],
+        [{ "node": "Skip Aspects", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Aspects Query": { "main": [[{ "node": "Neo4j Create Aspects", "type": "main", "index": 0 }]] },
+    "Neo4j Create Aspects": { "main": [[{ "node": "Parse Aspects Response", "type": "main", "index": 0 }]] },
+    "Parse Aspects Response": { "main": [[{ "node": "Merge After Aspects", "type": "main", "index": 0 }]] },
+    "Skip Aspects": { "main": [[{ "node": "Merge After Aspects", "type": "main", "index": 1 }]] },
+    "Merge After Aspects": { "main": [[{ "node": "Has Threats?", "type": "main", "index": 0 }]] },
+    "Has Threats?": {
+      "main": [
+        [{ "node": "Build Threats Query", "type": "main", "index": 0 }],
+        [{ "node": "Skip Threats", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Threats Query": { "main": [[{ "node": "Neo4j Create Threats", "type": "main", "index": 0 }]] },
+    "Neo4j Create Threats": { "main": [[{ "node": "Format Final Response", "type": "main", "index": 0 }]] },
+    "Format Final Response": { "main": [[{ "node": "Merge Final", "type": "main", "index": 0 }]] },
+    "Skip Threats": { "main": [[{ "node": "Merge Final", "type": "main", "index": 1 }]] },
+    "Merge Final": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionTimeout": 300 },
+  "versionId": "template-mosaeic-v1-profile-initialize"
+}

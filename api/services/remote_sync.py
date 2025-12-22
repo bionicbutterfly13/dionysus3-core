@@ -102,6 +102,25 @@ class SyncConfig(BaseModel):
         ),
         description="n8n webhook URL for Skill practice updates (write).",
     )
+    # MoSAEIC Protocol webhooks (Neo4j-Only Architecture)
+    mosaeic_capture_webhook_url: str = Field(
+        default_factory=lambda: os.getenv(
+            "N8N_MOSAEIC_CAPTURE_URL", "http://localhost:5678/webhook/mosaeic/v1/capture/create"
+        ),
+        description="n8n webhook URL for MoSAEIC capture creation.",
+    )
+    mosaeic_profile_webhook_url: str = Field(
+        default_factory=lambda: os.getenv(
+            "N8N_MOSAEIC_PROFILE_URL", "http://localhost:5678/webhook/mosaeic/v1/profile/initialize"
+        ),
+        description="n8n webhook URL for MoSAEIC profile initialization.",
+    )
+    mosaeic_pattern_webhook_url: str = Field(
+        default_factory=lambda: os.getenv(
+            "N8N_MOSAEIC_PATTERN_URL", "http://localhost:5678/webhook/mosaeic/v1/pattern/detect"
+        ),
+        description="n8n webhook URL for MoSAEIC pattern detection.",
+    )
     webhook_token: str = Field(
         default_factory=lambda: os.getenv("MEMORY_WEBHOOK_TOKEN", ""),
         description="HMAC secret for webhook authentication",
@@ -701,6 +720,147 @@ class RemoteSyncService:
         """
         body = {"operation": "skill_practice", **payload}
         return await self._send_to_webhook(body, webhook_url=self.config.skill_practice_webhook_url)
+
+    # =========================================================================
+    # MoSAEIC Protocol (Feature 009 - Neo4j-Only Architecture)
+    # =========================================================================
+
+    async def create_capture(
+        self,
+        session_id: str,
+        senses: Optional[dict[str, Any]] = None,
+        actions: Optional[dict[str, Any]] = None,
+        emotions: Optional[dict[str, Any]] = None,
+        impulses: Optional[dict[str, Any]] = None,
+        cognitions: Optional[dict[str, Any]] = None,
+        emotional_intensity: float = 5.0,
+        context: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """
+        Create a MoSAEIC Capture node via n8n webhook.
+
+        Captures the 5 experiential windows:
+        - senses: Interoceptive/exteroceptive sensations, body state
+        - actions: Executed behaviors, motor output
+        - emotions: Feelings, affective tone, valence
+        - impulses: Urges, action tendencies, behavioral drives
+        - cognitions: Thoughts, interpretations, predictions, core beliefs
+
+        Auto-detects turning points (emotional_intensity >= 8.5).
+        Matches cognitions.coreBelief against existing ThreatPredictions.
+
+        Args:
+            session_id: Session UUID this capture belongs to
+            senses: Sensory window data
+            actions: Action window data
+            emotions: Emotion window data
+            impulses: Impulse window data
+            cognitions: Cognition window data (includes coreBelief for threat matching)
+            emotional_intensity: 0-10 scale intensity rating
+            context: Additional context metadata
+
+        Returns:
+            Response with capture_id, turning_point flag, and matched_threats
+        """
+        payload = {
+            "session_id": session_id,
+            "senses": senses,
+            "actions": actions,
+            "emotions": emotions,
+            "impulses": impulses,
+            "cognitions": cognitions,
+            "emotional_intensity": emotional_intensity,
+            "context": context or {},
+        }
+        return await self._send_to_webhook(
+            payload, webhook_url=self.config.mosaeic_capture_webhook_url
+        )
+
+    async def initialize_profile(
+        self,
+        user_id: str,
+        neurotype_classification: str,
+        biological_model: str = "orchid",
+        sensory_processing_style: str = "high_sensitivity",
+        aspects: Optional[list[dict[str, Any]]] = None,
+        threat_predictions: Optional[list[dict[str, Any]]] = None,
+    ) -> dict[str, Any]:
+        """
+        Initialize user narrative profile from Step 1 work via n8n webhook.
+
+        Creates:
+        - User node (if not exists)
+        - SelfConcept node (Orchid classification with Graphiti temporal versioning)
+        - Aspect nodes (Boardroom members: Protector, Inner CEO, Inner Child, etc.)
+        - ThreatPrediction nodes (If/Then statements from threat mapping)
+
+        Args:
+            user_id: User UUID
+            neurotype_classification: e.g., 'analytical_empath', 'creative_sensitive'
+            biological_model: 'orchid', 'dandelion', or 'tulip'
+            sensory_processing_style: 'high_sensitivity', 'moderate_sensitivity', 'standard'
+            aspects: List of aspect definitions:
+                [{"name": "Protector", "status": "In Control", "role": "..."}]
+            threat_predictions: List of threat prediction definitions:
+                [{"prediction": "If I show vulnerability...",
+                  "domain": "relationships",
+                  "protector_directive": "Never let them see...",
+                  "silenced_aspect": "Inner Child"}]
+
+        Returns:
+            Response with profile_version and created node counts
+        """
+        payload = {
+            "user_id": user_id,
+            "neurotype_classification": neurotype_classification,
+            "biological_model": biological_model,
+            "sensory_processing_style": sensory_processing_style,
+            "aspects": aspects or [],
+            "threat_predictions": threat_predictions or [],
+        }
+        return await self._send_to_webhook(
+            payload, webhook_url=self.config.mosaeic_profile_webhook_url
+        )
+
+    async def detect_pattern(
+        self,
+        user_id: str,
+        capture_id: str,
+        belief_content: str,
+        domain: str = "self",
+        initial_severity: float = 0.1,
+    ) -> dict[str, Any]:
+        """
+        Detect maladaptive patterns via n8n webhook.
+
+        Searches for existing patterns with similar belief content.
+        If found: increments recurrence_count, updates severity_score.
+        If not found: creates new Pattern node.
+
+        When recurrence_count >= 3 AND severity_score >= 0.7, sets
+        intervention_status = 'queued' for therapeutic intervention.
+
+        Args:
+            user_id: User UUID for pattern search scope
+            capture_id: Capture UUID to link pattern to
+            belief_content: The maladaptive belief content (e.g., "I am incompetent")
+            domain: Domain of the pattern ('self', 'relationships', 'work', 'world', 'health')
+            initial_severity: Initial severity score for new patterns (0.0-1.0)
+
+        Returns:
+            Response with pattern_id, recurrence_count, severity_score,
+            intervention_status, and needs_intervention flag
+        """
+        payload = {
+            "user_id": user_id,
+            "capture_id": capture_id,
+            "belief_content": belief_content,
+            "domain": domain,
+            "initial_severity": initial_severity,
+        }
+        return await self._send_to_webhook(
+            payload, webhook_url=self.config.mosaeic_pattern_webhook_url
+        )
 
     # =========================================================================
     # Bootstrap Recovery - via n8n recall webhook

@@ -1,0 +1,222 @@
+{
+  "name": "mosaeic_v1_pattern_detect",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "mosaeic/v1/pattern/detect",
+        "options": { "rawBody": true },
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst payload = $input.first().binary?.data?.toString() || JSON.stringify($input.first().json);\nconst signature = $input.first().headers['x-webhook-signature'];\nconst secret = $env.MEMORY_WEBHOOK_TOKEN;\n\nif (!signature) throw new Error('Missing X-Webhook-Signature header');\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');\nconst valid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));\nif (!valid) throw new Error('Invalid signature');\n\nreturn $input.first();"
+      },
+      "id": "validate-signature",
+      "name": "Validate HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json || {};\nconst crypto = require('crypto');\n\n// Required fields\nconst user_id = (body.user_id || '').trim();\nconst capture_id = (body.capture_id || '').trim();\nconst belief_content = (body.belief_content || '').trim();\n\nif (!user_id) throw new Error('Missing user_id');\nif (!capture_id) throw new Error('Missing capture_id');\nif (!belief_content) throw new Error('Missing belief_content');\n\n// Optional fields\nconst domain = body.domain || 'self';\nconst initial_severity = typeof body.initial_severity === 'number' \n  ? Math.min(1, Math.max(0, body.initial_severity)) \n  : 0.1;\n\nconst params = {\n  user_id,\n  capture_id,\n  belief_content,\n  belief_content_lower: belief_content.toLowerCase(),\n  domain,\n  initial_severity,\n  new_pattern_id: crypto.randomUUID()\n};\n\nreturn [{ json: params }];"
+      },
+      "id": "normalize",
+      "name": "Normalize + Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Query to find existing patterns with similar belief content\n// Using case-insensitive CONTAINS for simple matching\nconst statement = `\nMATCH (u:User {id: $user_id})-[:HAS_SESSION]->(:Session)-[:CAPTURED]->(:Capture)-[:EXHIBITS_PATTERN]->(p:Pattern)\nWHERE p.domain = $domain\n  AND (toLower(p.belief_content) CONTAINS $belief_content_lower\n       OR $belief_content_lower CONTAINS toLower(p.belief_content))\nRETURN p.id AS pattern_id, p.belief_content AS belief_content, p.recurrence_count AS recurrence_count\nORDER BY p.recurrence_count DESC\nLIMIT 1\n`;\n\nconst params = {\n  user_id: data.user_id,\n  domain: data.domain,\n  belief_content_lower: data.belief_content_lower\n};\n\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: params }] });\n\nreturn [{ json: { ...data, findRequestBody: requestBody } }];"
+      },
+      "id": "build-find-query",
+      "name": "Build Find Pattern Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "string",
+        "body": "={{ $json.findRequestBody }}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "neo4j-find",
+      "name": "Neo4j Find Pattern",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1160, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst prevData = $input.all()[0].json;\n\nif (res.errors && res.errors.length > 0) {\n  throw new Error('Neo4j error: ' + res.errors.map(e => e.message).join('; '));\n}\n\nconst results = res?.results?.[0]?.data || [];\nconst hasMatch = results.length > 0;\n\nlet existingPatternId = null;\nlet existingBeliefContent = null;\nlet existingRecurrenceCount = 0;\n\nif (hasMatch) {\n  existingPatternId = results[0].row[0];\n  existingBeliefContent = results[0].row[1];\n  existingRecurrenceCount = results[0].row[2];\n}\n\nreturn [{ json: {\n  ...prevData,\n  has_match: hasMatch,\n  existing_pattern_id: existingPatternId,\n  existing_belief_content: existingBeliefContent,\n  existing_recurrence_count: existingRecurrenceCount\n}}];"
+      },
+      "id": "parse-find-response",
+      "name": "Parse Find Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.has_match }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "has-match",
+      "name": "Has Match?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// UPDATE existing pattern: increment recurrence, update severity, link capture\nconst newRecurrence = data.existing_recurrence_count + 1;\n\nconst statement = `\nMATCH (p:Pattern {id: $pattern_id})\nMATCH (c:Capture {id: $capture_id})\n\nSET p.recurrence_count = $new_recurrence,\n    p.last_occurrence = datetime(),\n    p.severity_score = CASE\n      WHEN $new_recurrence >= 5 THEN 0.9\n      WHEN $new_recurrence >= 3 THEN 0.7\n      WHEN $new_recurrence >= 2 THEN 0.5\n      ELSE 0.3\n    END,\n    p.intervention_status = CASE\n      WHEN $new_recurrence >= 3 AND p.severity_score >= 0.5 THEN 'queued'\n      ELSE p.intervention_status\n    END\n\nCREATE (c)-[:EXHIBITS_PATTERN]->(p)\n\nRETURN p.id AS pattern_id,\n       p.belief_content AS belief_content,\n       p.recurrence_count AS recurrence_count,\n       p.severity_score AS severity_score,\n       p.intervention_status AS intervention_status,\n       CASE WHEN $new_recurrence >= 3 AND p.severity_score >= 0.7 THEN true ELSE false END AS needs_intervention\n`;\n\nconst params = {\n  pattern_id: data.existing_pattern_id,\n  capture_id: data.capture_id,\n  new_recurrence: newRecurrence\n};\n\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: params }] });\n\nreturn [{ json: { ...data, updateRequestBody: requestBody, action: 'update' } }];"
+      },
+      "id": "build-update-query",
+      "name": "Build Update Pattern Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1880, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// CREATE new pattern and link to capture\nconst statement = `\nMATCH (c:Capture {id: $capture_id})\n\nCREATE (p:Pattern {\n  id: $pattern_id,\n  belief_content: $belief_content,\n  domain: $domain,\n  recurrence_count: 1,\n  severity_score: $initial_severity,\n  intervention_status: 'detected',\n  first_detected: datetime(),\n  last_occurrence: datetime(),\n  created_at: datetime()\n})\n\nCREATE (c)-[:EXHIBITS_PATTERN]->(p)\n\nRETURN p.id AS pattern_id,\n       p.belief_content AS belief_content,\n       p.recurrence_count AS recurrence_count,\n       p.severity_score AS severity_score,\n       p.intervention_status AS intervention_status,\n       false AS needs_intervention\n`;\n\nconst params = {\n  pattern_id: data.new_pattern_id,\n  capture_id: data.capture_id,\n  belief_content: data.belief_content,\n  domain: data.domain,\n  initial_severity: data.initial_severity\n};\n\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: params }] });\n\nreturn [{ json: { ...data, createRequestBody: requestBody, action: 'create' } }];"
+      },
+      "id": "build-create-query",
+      "name": "Build Create Pattern Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1880, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "string",
+        "body": "={{ $json.updateRequestBody }}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "neo4j-update",
+      "name": "Neo4j Update Pattern",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2120, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "string",
+        "body": "={{ $json.createRequestBody }}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "neo4j-create",
+      "name": "Neo4j Create Pattern",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2120, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst prevData = $input.all()[0].json;\n\nif (res.errors && res.errors.length > 0) {\n  throw new Error('Neo4j error: ' + res.errors.map(e => e.message).join('; '));\n}\n\nconst results = res?.results?.[0]?.data?.[0]?.row || [];\n\nreturn [{ json: {\n  success: true,\n  action: prevData.action,\n  capture_id: prevData.capture_id,\n  pattern_id: results[0],\n  belief_content: results[1],\n  recurrence_count: results[2],\n  severity_score: results[3],\n  intervention_status: results[4],\n  needs_intervention: results[5]\n}}];"
+      },
+      "id": "format-update-response",
+      "name": "Format Update Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2360, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst prevData = $input.all()[0].json;\n\nif (res.errors && res.errors.length > 0) {\n  throw new Error('Neo4j error: ' + res.errors.map(e => e.message).join('; '));\n}\n\nconst results = res?.results?.[0]?.data?.[0]?.row || [];\n\nreturn [{ json: {\n  success: true,\n  action: prevData.action,\n  capture_id: prevData.capture_id,\n  pattern_id: results[0],\n  belief_content: results[1],\n  recurrence_count: results[2],\n  severity_score: results[3],\n  intervention_status: results[4],\n  needs_intervention: results[5]\n}}];"
+      },
+      "id": "format-create-response",
+      "name": "Format Create Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2360, 400]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "merge",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2600, 300]
+    },
+    {
+      "parameters": { "responseBody": "={{$json}}", "options": {} },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2840, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validate HMAC Signature", "type": "main", "index": 0 }]] },
+    "Validate HMAC Signature": { "main": [[{ "node": "Normalize + Validate", "type": "main", "index": 0 }]] },
+    "Normalize + Validate": { "main": [[{ "node": "Build Find Pattern Query", "type": "main", "index": 0 }]] },
+    "Build Find Pattern Query": { "main": [[{ "node": "Neo4j Find Pattern", "type": "main", "index": 0 }]] },
+    "Neo4j Find Pattern": { "main": [[{ "node": "Parse Find Response", "type": "main", "index": 0 }]] },
+    "Parse Find Response": { "main": [[{ "node": "Has Match?", "type": "main", "index": 0 }]] },
+    "Has Match?": {
+      "main": [
+        [{ "node": "Build Update Pattern Query", "type": "main", "index": 0 }],
+        [{ "node": "Build Create Pattern Query", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Update Pattern Query": { "main": [[{ "node": "Neo4j Update Pattern", "type": "main", "index": 0 }]] },
+    "Build Create Pattern Query": { "main": [[{ "node": "Neo4j Create Pattern", "type": "main", "index": 0 }]] },
+    "Neo4j Update Pattern": { "main": [[{ "node": "Format Update Response", "type": "main", "index": 0 }]] },
+    "Neo4j Create Pattern": { "main": [[{ "node": "Format Create Response", "type": "main", "index": 0 }]] },
+    "Format Update Response": { "main": [[{ "node": "Merge Results", "type": "main", "index": 0 }]] },
+    "Format Create Response": { "main": [[{ "node": "Merge Results", "type": "main", "index": 1 }]] },
+    "Merge Results": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionTimeout": 300 },
+  "versionId": "template-mosaeic-v1-pattern-detect"
+}
