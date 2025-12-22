@@ -1234,6 +1234,203 @@ class ReviseModelHandler(ActionHandler):
 
 
 # =============================================================================
+# T007: MOSAEIC Memory Management Actions
+# =============================================================================
+
+
+class ReviseBeliefHandler(ActionHandler):
+    """
+    ReviseBelief: Update or replace a semantic belief.
+
+    Cost: 3
+    Params: belief_id (UUID), prediction_correct (bool) OR new_belief (str)
+    Output: Updated belief confidence or new belief
+    """
+
+    action_type = ActionType.REVISE_BELIEF
+
+    async def execute(self, request: ActionRequest) -> ActionResult:
+        """Revise a belief based on prediction outcome or replacement."""
+        started_at = datetime.utcnow()
+        cost = self.energy_service.get_action_cost(self.action_type)
+
+        try:
+            belief_id = request.params.get("belief_id")
+            prediction_correct = request.params.get("prediction_correct")
+
+            if not belief_id:
+                return ActionResult(
+                    action_type=self.action_type,
+                    status=ActionStatus.FAILED,
+                    energy_cost=0.0,
+                    error="belief_id is required",
+                    started_at=started_at,
+                    ended_at=datetime.utcnow(),
+                )
+
+            from api.services.semantic_archive_service import get_semantic_archive_service
+
+            archive_service = get_semantic_archive_service()
+            belief_uuid = UUID(belief_id) if isinstance(belief_id, str) else belief_id
+
+            if prediction_correct is not None:
+                # Update confidence based on prediction
+                updated_belief = await archive_service.update_confidence(
+                    belief_uuid,
+                    prediction_correct,
+                )
+
+                if not updated_belief:
+                    return ActionResult(
+                        action_type=self.action_type,
+                        status=ActionStatus.FAILED,
+                        energy_cost=cost,
+                        error="Belief not found",
+                        started_at=started_at,
+                        ended_at=datetime.utcnow(),
+                    )
+
+                return ActionResult(
+                    action_type=self.action_type,
+                    status=ActionStatus.COMPLETED,
+                    energy_cost=cost,
+                    data={
+                        "belief_id": str(belief_uuid),
+                        "prediction_correct": prediction_correct,
+                        "new_confidence": updated_belief.adaptiveness_score,
+                        "needs_revision": updated_belief.needs_revision,
+                    },
+                    started_at=started_at,
+                    ended_at=datetime.utcnow(),
+                )
+
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.FAILED,
+                energy_cost=0.0,
+                error="prediction_correct is required",
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+
+        except Exception as e:
+            logger.error(f"ReviseBelief action failed: {e}")
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.FAILED,
+                energy_cost=0.0,
+                error=str(e),
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+
+
+class PruneEpisodicHandler(ActionHandler):
+    """
+    PruneEpisodic: Apply episodic decay to old memories.
+
+    Cost: 2
+    Params: threshold_days (int, optional)
+    Output: Decay statistics
+    """
+
+    action_type = ActionType.PRUNE_EPISODIC
+
+    async def execute(self, request: ActionRequest) -> ActionResult:
+        """Apply episodic decay."""
+        started_at = datetime.utcnow()
+        cost = self.energy_service.get_action_cost(self.action_type)
+
+        try:
+            threshold_days = request.params.get("threshold_days")
+
+            from api.services.episodic_decay_service import get_episodic_decay_service
+
+            decay_service = get_episodic_decay_service()
+            result = await decay_service.apply_decay(threshold_days=threshold_days)
+
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.COMPLETED,
+                energy_cost=cost,
+                data={
+                    "candidates_found": result.candidates_found,
+                    "fully_decayed": result.fully_decayed,
+                    "dimensions_decayed": result.dimensions_decayed,
+                    "duration_ms": result.duration_ms,
+                    "errors": len(result.errors),
+                },
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+
+        except Exception as e:
+            logger.error(f"PruneEpisodic action failed: {e}")
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.FAILED,
+                energy_cost=0.0,
+                error=str(e),
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+
+
+class ArchiveSemanticHandler(ActionHandler):
+    """
+    ArchiveSemantic: Archive low-confidence semantic beliefs.
+
+    Cost: 1
+    Params: confidence_threshold (float, optional), stale_days (int, optional)
+    Output: Archive statistics
+    """
+
+    action_type = ActionType.ARCHIVE_SEMANTIC
+
+    async def execute(self, request: ActionRequest) -> ActionResult:
+        """Archive low-confidence beliefs."""
+        started_at = datetime.utcnow()
+        cost = self.energy_service.get_action_cost(self.action_type)
+
+        try:
+            confidence_threshold = request.params.get("confidence_threshold")
+            stale_days = request.params.get("stale_days")
+
+            from api.services.semantic_archive_service import get_semantic_archive_service
+
+            archive_service = get_semantic_archive_service()
+            result = await archive_service.apply_archival(
+                confidence_threshold=confidence_threshold,
+                stale_days=stale_days,
+            )
+
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.COMPLETED,
+                energy_cost=cost,
+                data={
+                    "candidates_found": result.candidates_found,
+                    "archived": result.archived,
+                    "duration_ms": result.duration_ms,
+                    "errors": len(result.errors),
+                },
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+
+        except Exception as e:
+            logger.error(f"ArchiveSemantic action failed: {e}")
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.FAILED,
+                energy_cost=0.0,
+                error=str(e),
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+
+
+# =============================================================================
 # Action Executor Registry
 # =============================================================================
 
@@ -1281,6 +1478,10 @@ class ActionExecutor:
             ActionType.REACH_OUT_PUBLIC: ReachOutPublicHandler(energy_service, driver),
             # Mental Model actions (T050)
             ActionType.REVISE_MODEL: ReviseModelHandler(energy_service, driver),
+            # MOSAEIC Memory Management actions (T007)
+            ActionType.REVISE_BELIEF: ReviseBeliefHandler(energy_service, driver),
+            ActionType.PRUNE_EPISODIC: PruneEpisodicHandler(energy_service, driver),
+            ActionType.ARCHIVE_SEMANTIC: ArchiveSemanticHandler(energy_service, driver),
         }
 
     async def execute(self, request: ActionRequest) -> ActionResult:
