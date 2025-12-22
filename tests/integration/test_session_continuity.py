@@ -8,7 +8,7 @@ Tests the core journey tracking functionality:
 2. T013: Existing device links session to existing journey
 3. T014: Journey timeline returns sessions in chronological order
 
-Database: PostgreSQL at postgresql://dionysus:dionysus2024@localhost:5432/dionysus
+Database: PostgreSQL (via DATABASE_URL environment variable)
 """
 
 import os
@@ -26,10 +26,13 @@ load_dotenv()
 
 
 # Database configuration
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://dionysus:dionysus2024@localhost:5432/dionysus"
-)
+# Requires DATABASE_URL to be set explicitly (typically via test command)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable required for tests. "
+        "Use: DATABASE_URL=postgresql://dionysus:dionysus2024@localhost:5434/dionysus_test pytest"
+    )
 
 
 @pytest.fixture

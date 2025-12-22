@@ -3,14 +3,13 @@
 Auto-generated from all feature plans. Last updated: 2025-12-13
 
 ## Active Technologies
-- Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, neo4j-driver, httpx (webhooks), pydantic (002-remote-persistence-safety)
-- PostgreSQL (local, existing) + Neo4j 5 (remote VPS 72.61.78.89:7687) (002-remote-persistence-safety)
-- Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, pydantic (matches 002-remote-persistence-safety) (001-session-continuity)
-- PostgreSQL (local, via DATABASE_URL) (001-session-continuity)
-- Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, pydantic, anthropic (for LLM prediction generation) (005-mental-models)
-- PostgreSQL (local, existing schema) - adds 3 tables + 1 ALTER (005-mental-models)
 
-- Python 3.11+ + FastAPI, asyncpg, pydantic (001-session-continuity)
+- **Python 3.11+** with FastAPI, asyncpg, pydantic, httpx, anthropic
+- **PostgreSQL** on VPS (72.61.78.89:5432) - single source of truth, accessed via SSH tunnel
+- **Neo4j 5** on VPS (72.61.78.89:7687) - graph memory, accessed via n8n webhooks only
+- **Graphiti** on VPS (72.61.78.89:8001) - temporal entity extraction
+- **n8n** on VPS (72.61.78.89:5678) - workflow automation and Neo4j gateway
+- **Ollama** on VPS (72.61.78.89:11434) - local embeddings (nomic-embed-text)
 
 ## Project Structure
 
@@ -29,9 +28,11 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+: Follow standard conventions
 
 ## Recent Changes
-- 005-mental-models: Added Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, pydantic, anthropic (for LLM prediction generation)
-- 001-session-continuity: Added Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, pydantic (matches 002-remote-persistence-safety)
-- 002-remote-persistence-safety: Added Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, neo4j-driver, httpx (webhooks), pydantic
+- 008-local-db-cleanup: Consolidated to VPS PostgreSQL, removed local database infrastructure
+- 007-memory-consolidation: Spec created for PostgreSQL → Neo4j batch sync
+- 006-procedural-skills: Skill nodes for procedural memory
+- 005-mental-models: Mental models with prediction generation and revision
+- 001-session-continuity: Journey tracking across sessions
 
 
 <!-- MANUAL ADDITIONS START -->

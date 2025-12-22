@@ -26,10 +26,12 @@ import asyncpg
 from mcp.server.fastmcp import FastMCP
 
 # Database configuration
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:password@localhost:5433/agi_memory"
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable required. "
+        "For VPS: start SSH tunnel then set DATABASE_URL=postgresql://dionysus:PASSWORD@localhost:5432/dionysus"
+    )
 
 # Global connection pool
 _pool: Optional[asyncpg.Pool] = None

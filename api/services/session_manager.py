@@ -38,10 +38,12 @@ from api.models.journey import (
 # Configuration
 # =============================================================================
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://dionysus:dionysus2024@localhost:5432/dionysus"
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable required. "
+        "For VPS: start SSH tunnel then set DATABASE_URL=postgresql://dionysus:PASSWORD@localhost:5432/dionysus"
+    )
 
 # =============================================================================
 # Logging Setup (T010)

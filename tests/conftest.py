@@ -18,11 +18,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Database configuration
-# Use test database on port 5434 (docker-compose.test.yml)
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://dionysus:dionysus2024@localhost:5434/dionysus_test"
-)
+# Requires DATABASE_URL to be set explicitly (typically via test command)
+# Example: DATABASE_URL=postgresql://dionysus:dionysus2024@localhost:5434/dionysus_test pytest
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable required for tests. "
+        "Use: DATABASE_URL=postgresql://dionysus:dionysus2024@localhost:5434/dionysus_test pytest"
+    )
 
 
 @pytest.fixture(scope="session")
