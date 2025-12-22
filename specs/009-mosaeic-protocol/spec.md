@@ -1,0 +1,251 @@
+# Feature Specification: MOSAEIC Protocol (Self-Architecture Reconstruction)
+
+**Feature Branch**: `009-mosaeic-protocol`
+**Created**: 2025-12-22
+**Status**: Draft
+**Input**: Active refactoring engine for self-architecture reconstruction using therapeutic memory reconsolidation framework
+
+## Overview
+
+MOSAEIC (Memory, Observation, Senses, Actions, Emotions, Impulses/Cognitions) is a 5-phase therapeutic intervention protocol that enables self-architecture reconstruction through memory reconsolidation. It operates as a vertical process initiated by the Meta-Learning Layer when maladaptive patterns are detected, creating prediction errors to unlock neural pathways for belief rewriting.
+
+## User Scenarios & Testing *(mandatory)*
+
+### User Story 1 - Pattern Interrupt Detection (Priority: P1) 🎯 MVP
+
+The system detects when a user exhibits a maladaptive pattern (repeated negative thought, behavior, or emotional response) and initiates the MOSAEIC intervention protocol.
+
+**Why this priority**: Without detection, no intervention can occur. This is the entry point for all therapeutic work.
+
+**Independent Test**: System can identify recurring negative patterns and flag them for intervention.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user's history of memories and predictions, **When** the same negative pattern appears 3+ times within a week, **Then** the system flags it as a potential maladaptive pattern for intervention
+2. **Given** a flagged pattern, **When** the Meta-Learning Layer analyzes it, **Then** it determines if MOSAEIC intervention is appropriate based on pattern severity and user readiness
+3. **Given** an approved intervention, **When** the user next exhibits the pattern, **Then** the system initiates Phase 1 (Interrupt) with appropriate timing
+
+---
+
+### User Story 2 - 5-Window Data Capture (Priority: P1) 🎯 MVP
+
+During an active intervention, the system guides the user through capturing data across all 5 MOSAEIC windows: Mental state, Observations, Senses, Actions, and Emotions/Impulses/Cognitions.
+
+**Why this priority**: Comprehensive data capture is essential for identifying the belief structure to rewrite.
+
+**Independent Test**: User can complete a full 5-window capture session and data is stored for analysis.
+
+**Acceptance Scenarios**:
+
+1. **Given** an initiated intervention, **When** the user engages with Phase 2, **Then** the system prompts for each window in sequence: Mental → Observation → Senses → Actions → Emotions/Impulses
+2. **Given** a window prompt, **When** the user provides input, **Then** the system captures the data with timestamp and emotional intensity rating
+3. **Given** all 5 windows captured, **When** the session completes, **Then** the system synthesizes a coherent snapshot of the triggering experience
+
+---
+
+### User Story 3 - Prediction Error Generation (Priority: P1) 🎯 MVP
+
+The system generates a prediction error by identifying the mismatch between the user's believed outcome and observed reality, creating the window for belief reconsolidation.
+
+**Why this priority**: Prediction error is the core mechanism that unlocks neural pathways for rewriting.
+
+**Independent Test**: Given captured data, system can identify belief-reality mismatch and articulate it clearly.
+
+**Acceptance Scenarios**:
+
+1. **Given** completed 5-window data, **When** the system analyzes the pattern, **Then** it identifies the core belief (what user expected to happen)
+2. **Given** the core belief, **When** compared to observed outcomes, **Then** the system calculates the prediction error magnitude
+3. **Given** significant prediction error (>50% mismatch), **When** presented to user, **Then** it creates cognitive dissonance that enables reconsolidation
+
+---
+
+### User Story 4 - Belief Rewrite Session (Priority: P2)
+
+The system guides the user through rewriting the maladaptive belief during the reconsolidation window (typically 5-hour window after prediction error).
+
+**Why this priority**: Rewriting transforms insight into lasting change, but requires the mismatch phase to complete first.
+
+**Independent Test**: User can complete a rewrite session and new belief is stored in long-term memory.
+
+**Acceptance Scenarios**:
+
+1. **Given** an active reconsolidation window, **When** the user engages with Phase 4, **Then** the system presents the old belief and prompts for alternative interpretations
+2. **Given** user-generated alternatives, **When** the system evaluates them, **Then** it identifies which alternatives are more adaptive (evidence-based, less catastrophic, more nuanced)
+3. **Given** a selected new belief, **When** stored in long-term memory, **Then** it is linked to the same contextual triggers as the old belief
+
+---
+
+### User Story 5 - Verification and Integration (Priority: P2)
+
+The system verifies the rewrite by tracking future encounters with the trigger and measuring whether the new belief activates instead of the old one.
+
+**Why this priority**: Verification ensures the intervention succeeded and enables iterative refinement.
+
+**Independent Test**: System can track trigger encounters and compare response patterns before/after intervention.
+
+**Acceptance Scenarios**:
+
+1. **Given** a completed rewrite, **When** the user encounters the trigger context again, **Then** the system logs which belief (old or new) activates
+2. **Given** 3+ post-intervention trigger encounters, **When** analyzed, **Then** the system calculates intervention success rate (% new belief activation)
+3. **Given** success rate <70%, **When** flagged, **Then** the system recommends a follow-up intervention session
+
+---
+
+### User Story 6 - Intervention History and Progress (Priority: P3)
+
+Users can view their intervention history, track progress on multiple maladaptive patterns, and see their overall self-architecture reconstruction journey.
+
+**Why this priority**: Progress visibility supports long-term engagement but isn't required for core functionality.
+
+**Independent Test**: User can view dashboard showing all interventions, success rates, and patterns addressed.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user with intervention history, **When** they request progress view, **Then** they see all interventions sorted by recency with success indicators
+2. **Given** multiple interventions, **When** aggregated, **Then** user sees overall "architecture health" score based on combined success rates
+3. **Given** a specific intervention, **When** viewed in detail, **Then** user can see the original belief, new belief, and activation history
+
+---
+
+### Edge Cases
+
+- What happens if user abandons intervention mid-session? (Answer: Session saved as incomplete, can resume within 24 hours or restart)
+- How does system handle rapid mood shifts during intervention? (Answer: Pause and offer grounding exercise, can resume when stable)
+- What if user cannot identify the core belief? (Answer: System offers common belief templates based on pattern type)
+- How does system handle conflicting beliefs about same trigger? (Answer: Address most activated belief first, queue others)
+- What if reconsolidation window expires? (Answer: Reactivation required - replay capture summary to re-open window)
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+**Phase 1 - Interrupt**:
+- **FR-001**: System MUST detect maladaptive patterns based on configurable criteria (recurrence, emotional intensity, impact)
+- **FR-002**: System MUST determine intervention appropriateness based on user readiness signals
+- **FR-003**: System MUST initiate interrupt at optimal timing (not during crisis, with user consent)
+- **FR-004**: System MUST provide clear explanation of what's happening and why intervention is recommended
+
+**Phase 2 - Data Capture (5 Windows)**:
+- **FR-005**: System MUST guide capture of Mental state (thoughts, interpretations, meanings)
+- **FR-006**: System MUST guide capture of Observation (objective facts of the situation)
+- **FR-007**: System MUST guide capture of Senses (physical sensations, body state)
+- **FR-008**: System MUST guide capture of Actions (what user did or wanted to do)
+- **FR-009**: System MUST guide capture of Emotions/Impulses/Cognitions (feelings, urges, automatic thoughts)
+- **FR-010**: System MUST allow rating of emotional intensity (1-10 scale) for each window
+- **FR-011**: System MUST synthesize captured data into coherent experience snapshot
+
+**Phase 3 - Mismatch (Prediction Error)**:
+- **FR-012**: System MUST identify core belief from captured data (the prediction the brain made)
+- **FR-013**: System MUST identify observed outcome (what actually happened)
+- **FR-014**: System MUST calculate prediction error magnitude (belief vs reality gap)
+- **FR-015**: System MUST present mismatch in way that creates cognitive dissonance
+- **FR-016**: System MUST track when reconsolidation window opens (timestamp of mismatch recognition)
+
+**Phase 4 - Rewrite**:
+- **FR-017**: System MUST present old belief clearly and neutrally
+- **FR-018**: System MUST prompt for alternative interpretations/beliefs
+- **FR-019**: System MUST evaluate alternatives for adaptiveness (evidence, nuance, flexibility)
+- **FR-020**: System MUST help user select most adaptive new belief
+- **FR-021**: System MUST store new belief linked to same triggers as old belief
+- **FR-022**: System MUST complete rewrite within reconsolidation window (configurable, default 4 hours)
+
+**Phase 5 - Verification**:
+- **FR-023**: System MUST track future trigger encounters
+- **FR-024**: System MUST detect which belief activates (old or new) per encounter
+- **FR-025**: System MUST calculate intervention success rate after 3+ encounters
+- **FR-026**: System MUST flag interventions with <70% success for follow-up
+- **FR-027**: System MUST update autobiographical narrative with successful rewrites
+
+**Cross-Phase**:
+- **FR-028**: System MUST persist intervention state for session recovery
+- **FR-029**: System MUST provide grounding exercises if user becomes distressed
+- **FR-030**: System MUST log all phases for intervention history
+
+### Key Entities
+
+- **MaladaptivePattern**: Detected recurring negative pattern; attributes: id, trigger_context, belief_content, recurrence_count, last_occurrence, severity_score, intervention_status
+- **MOSAEICIntervention**: A complete intervention instance; attributes: id, pattern_id, phase (1-5), started_at, completed_at, status (active/paused/completed/abandoned)
+- **FiveWindowCapture**: Data from Phase 2; attributes: id, intervention_id, mental_content, observation_content, senses_content, actions_content, emotions_content, intensity_ratings (per window)
+- **PredictionError**: The mismatch calculation; attributes: id, intervention_id, old_belief, observed_outcome, error_magnitude, window_opened_at, window_expires_at
+- **BeliefRewrite**: The new belief; attributes: id, intervention_id, old_belief_id, new_belief_content, adaptiveness_score, created_at
+- **VerificationEncounter**: Post-intervention trigger tracking; attributes: id, intervention_id, trigger_occurred_at, belief_activated (old/new), context_notes
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: Pattern detection identifies 80% of recurring maladaptive patterns within 1 week of third occurrence
+- **SC-002**: Users complete 5-window capture in under 15 minutes
+- **SC-003**: Prediction error generation produces user-recognized "aha moment" in 70% of interventions
+- **SC-004**: Belief rewrites are completed within the reconsolidation window 90% of the time
+- **SC-005**: Intervention success rate (new belief activation) averages >60% across all completed interventions
+- **SC-006**: Users who complete 3+ interventions report improved self-understanding in follow-up surveys
+- **SC-007**: Abandoned intervention rate is <30%
+- **SC-008**: System correctly identifies core beliefs (validated by user confirmation) in 75% of cases
+
+## Architecture Overview
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          META-LEARNING LAYER                             │
+│                     (Pattern Detection & Orchestration)                  │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────────────┐ │
+│  │  Pattern        │   │   Intervention  │   │      Readiness          │ │
+│  │  Detector       │──▶│   Orchestrator  │◀──│      Assessor           │ │
+│  │                 │   │                 │   │                         │ │
+│  └─────────────────┘   └─────────────────┘   └─────────────────────────┘ │
+│          │                     │                                         │
+└──────────│─────────────────────│─────────────────────────────────────────┘
+           │                     │
+           ▼                     ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         MOSAEIC ENGINE                                   │
+│                   (5-Phase Intervention Pipeline)                        │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Phase 1        Phase 2         Phase 3        Phase 4       Phase 5    │
+│  ┌──────┐      ┌──────────┐    ┌─────────┐   ┌─────────┐   ┌──────────┐ │
+│  │Inter-│      │  5-Window │   │Prediction│  │ Belief  │   │Verifica- │ │
+│  │rupt  │─────▶│  Capture  │──▶│  Error   │─▶│ Rewrite │──▶│  tion    │ │
+│  └──────┘      └──────────┘    └─────────┘   └─────────┘   └──────────┘ │
+│                     │                             │                      │
+│                     ▼                             ▼                      │
+│            ┌──────────────┐              ┌──────────────┐               │
+│            │Working Memory│              │ Long-Term    │               │
+│            │ (Capture DB) │              │ Memory (Neo4j)│               │
+│            └──────────────┘              └──────────────┘               │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+           │                                          │
+           ▼                                          ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                     AUTOBIOGRAPHICAL LAYER                               │
+│              (Integration & Progress Tracking)                           │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────────────┐ │
+│  │  Intervention   │   │    Progress     │   │   Architecture Health   │ │
+│  │    History      │   │    Dashboard    │   │        Score            │ │
+│  │                 │   │                 │   │                         │ │
+│  └─────────────────┘   └─────────────────┘   └─────────────────────────┘ │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+## Assumptions
+
+- Users are willing to engage in structured self-reflection exercises
+- Memory reconsolidation principles (from neuroscience research) apply to belief updating
+- 4-5 hour reconsolidation window is sufficient for most belief rewrites
+- Users can accurately report their mental/emotional states when prompted
+- Pattern detection has sufficient historical data (minimum 2 weeks of interaction)
+
+## Dependencies
+
+- Mental Models system (005-mental-models) for belief representation
+- Memory consolidation infrastructure (007-memory-consolidation) for reconsolidation
+- Heartbeat/Active Inference system for pattern monitoring
+- Long-term memory (Neo4j via n8n) for belief storage
+- Working memory (PostgreSQL) for intervention state
