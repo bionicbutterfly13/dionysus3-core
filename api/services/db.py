@@ -18,17 +18,14 @@ _pool: Optional[asyncpg.Pool] = None
 
 
 def _build_database_url() -> str:
+    """Get DATABASE_URL from environment. Raises if not set."""
     url = os.getenv("DATABASE_URL")
-    if url:
-        return url
-
-    user = os.getenv("POSTGRES_USER", "postgres")
-    password = os.getenv("POSTGRES_PASSWORD", "password")
-    host = os.getenv("POSTGRES_HOST", "localhost")
-    port = os.getenv("POSTGRES_PORT", "5432")
-    db = os.getenv("POSTGRES_DB", "postgres")
-
-    return f"postgresql://{user}:{password}@{host}:{port}/{db}"
+    if not url:
+        raise ValueError(
+            "DATABASE_URL environment variable required. "
+            "For VPS: start SSH tunnel then set DATABASE_URL=postgresql://dionysus:PASSWORD@localhost:5432/dionysus"
+        )
+    return url
 
 
 async def get_db_pool() -> asyncpg.Pool:
