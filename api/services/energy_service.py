@@ -54,6 +54,11 @@ class ActionType(str, Enum):
     # Mental Models (cost 3)
     REVISE_MODEL = "revise_model"
 
+    # MOSAEIC Memory Management (cost 1-3)
+    REVISE_BELIEF = "revise_belief"      # Update/replace a belief
+    PRUNE_EPISODIC = "prune_episodic"    # Apply episodic decay
+    ARCHIVE_SEMANTIC = "archive_semantic"  # Archive low-confidence beliefs
+
 
 # Default action costs (can be overridden from Neo4j config)
 DEFAULT_ACTION_COSTS: dict[ActionType, float] = {
@@ -80,6 +85,10 @@ DEFAULT_ACTION_COSTS: dict[ActionType, float] = {
     ActionType.REACH_OUT_PUBLIC: 7.0,
     # Mental Models
     ActionType.REVISE_MODEL: 3.0,
+    # MOSAEIC Memory Management
+    ActionType.REVISE_BELIEF: 3.0,
+    ActionType.PRUNE_EPISODIC: 2.0,
+    ActionType.ARCHIVE_SEMANTIC: 1.0,
 }
 
 
