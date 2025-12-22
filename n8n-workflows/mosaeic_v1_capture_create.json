@@ -1,0 +1,178 @@
+{
+  "name": "mosaeic_v1_capture_create",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "mosaeic/v1/capture/create",
+        "options": { "rawBody": true },
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst payload = $input.first().binary?.data?.toString() || JSON.stringify($input.first().json);\nconst signature = $input.first().headers['x-webhook-signature'];\nconst secret = $env.MEMORY_WEBHOOK_TOKEN;\n\nif (!signature) throw new Error('Missing X-Webhook-Signature header');\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');\nconst valid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));\nif (!valid) throw new Error('Invalid signature');\n\nreturn $input.first();"
+      },
+      "id": "validate-signature",
+      "name": "Validate HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json || {};\n\n// Required fields\nconst session_id = (body.session_id || '').trim();\nif (!session_id) throw new Error('Missing session_id');\n\n// Generate capture ID\nconst capture_id = body.capture_id || require('crypto').randomUUID();\n\n// 5 MoSAEIC Windows (all optional, stored as JSON strings)\nconst senses = body.senses ? JSON.stringify(body.senses) : null;\nconst actions = body.actions ? JSON.stringify(body.actions) : null;\nconst emotions = body.emotions ? JSON.stringify(body.emotions) : null;\nconst impulses = body.impulses ? JSON.stringify(body.impulses) : null;\nconst cognitions = body.cognitions ? JSON.stringify(body.cognitions) : null;\n\n// Metadata\nconst emotional_intensity = typeof body.emotional_intensity === 'number'\n  ? Math.min(10, Math.max(0, body.emotional_intensity))\n  : 5.0;\n\n// Auto-detect turning point based on intensity\nconst turning_point = emotional_intensity >= 8.5;\nconst preserve_indefinitely = body.preserve_indefinitely === true || turning_point;\n\nconst context = body.context ? JSON.stringify(body.context) : '{}';\n\n// Extract core belief for threat matching (if cognitions provided)\nlet core_belief = null;\nif (body.cognitions && body.cognitions.coreBelief) {\n  core_belief = body.cognitions.coreBelief;\n}\n\nconst params = {\n  capture_id,\n  session_id,\n  senses,\n  actions,\n  emotions,\n  impulses,\n  cognitions,\n  emotional_intensity,\n  turning_point,\n  preserve_indefinitely,\n  context,\n  core_belief\n};\n\n// Cypher: Create Capture node and link to Session\nconst statement = `\nMATCH (s:Session {id: $session_id})\nCREATE (c:Capture {\n  id: $capture_id,\n  timestamp: datetime(),\n  senses: $senses,\n  actions: $actions,\n  emotions: $emotions,\n  impulses: $impulses,\n  cognitions: $cognitions,\n  emotional_intensity: $emotional_intensity,\n  turning_point: $turning_point,\n  preserve_indefinitely: $preserve_indefinitely,\n  context: $context,\n  created_at: datetime()\n})\nCREATE (s)-[:CAPTURED]->(c)\nRETURN c.id AS capture_id, c.turning_point AS turning_point\n`;\n\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: params }] });\n\nreturn [{ json: { ...params, requestBody } }];"
+      },
+      "id": "normalize",
+      "name": "Normalize + Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "string",
+        "body": "={{ $json.requestBody }}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "neo4j-create",
+      "name": "Neo4j Create Capture",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst prevData = $input.all()[0].json;\n\n// Check for errors\nif (res.errors && res.errors.length > 0) {\n  const errorMsg = res.errors.map(e => e.message).join('; ');\n  throw new Error('Neo4j error: ' + errorMsg);\n}\n\nconst results = Array.isArray(res?.results) ? res.results : [];\nconst row = results?.[0]?.data?.[0]?.row;\n\nconst capture_id = row?.[0] || prevData.capture_id;\nconst turning_point = row?.[1] || prevData.turning_point;\n\n// Prepare for threat matching if core belief exists\nconst needsThreatCheck = prevData.core_belief !== null;\n\nreturn [{ json: {\n  success: true,\n  capture_id,\n  turning_point,\n  core_belief: prevData.core_belief,\n  session_id: prevData.session_id,\n  needs_threat_check: needsThreatCheck\n}}];"
+      },
+      "id": "format-capture",
+      "name": "Format Capture Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needs_threat_check }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-threat",
+      "name": "Check Threat?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Query to find matching ThreatPredictions based on core belief similarity\n// Uses case-insensitive CONTAINS for simple matching\nconst statement = `\nMATCH (c:Capture {id: $capture_id})\nMATCH (u:User)-[:HAS_SESSION]->(s:Session)-[:CAPTURED]->(c)\nMATCH (u)-[:HAS_THREAT]->(tp:ThreatPrediction)\nWHERE tp.active = true\n  AND (toLower(tp.prediction) CONTAINS toLower($core_belief)\n       OR toLower(tp.condition) CONTAINS toLower($core_belief))\nCREATE (c)-[:TRIGGERS {timestamp: datetime()}]->(tp)\nSET tp.challenge_count = coalesce(tp.challenge_count, 0) + 1,\n    tp.updated_at = datetime()\nRETURN tp.id AS threat_id, tp.prediction AS threat_prediction\n`;\n\nconst params = {\n  capture_id: data.capture_id,\n  core_belief: data.core_belief\n};\n\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: params }] });\n\nreturn [{ json: { ...data, threatRequestBody: requestBody } }];"
+      },
+      "id": "build-threat-query",
+      "name": "Build Threat Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "string",
+        "body": "={{ $json.threatRequestBody }}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "neo4j-threat",
+      "name": "Neo4j Match Threats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1920, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst prevData = $input.all()[0].json;\n\nconst results = Array.isArray(res?.results) ? res.results : [];\nconst data = results?.[0]?.data || [];\n\nconst matched_threats = data.map(d => ({\n  threat_id: d.row[0],\n  prediction: d.row[1]\n}));\n\nreturn [{ json: {\n  success: true,\n  capture_id: prevData.capture_id,\n  session_id: prevData.session_id,\n  turning_point: prevData.turning_point,\n  matched_threats,\n  threats_triggered: matched_threats.length\n}}];"
+      },
+      "id": "format-threat-response",
+      "name": "Format Threat Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// No threat check needed, return basic response\nreturn [{ json: {\n  success: true,\n  capture_id: data.capture_id,\n  session_id: data.session_id,\n  turning_point: data.turning_point,\n  matched_threats: [],\n  threats_triggered: 0\n}}];"
+      },
+      "id": "skip-threat",
+      "name": "Skip Threat Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 400]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "merge",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2400, 300]
+    },
+    {
+      "parameters": { "responseBody": "={{$json}}", "options": {} },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2640, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validate HMAC Signature", "type": "main", "index": 0 }]] },
+    "Validate HMAC Signature": { "main": [[{ "node": "Normalize + Validate", "type": "main", "index": 0 }]] },
+    "Normalize + Validate": { "main": [[{ "node": "Neo4j Create Capture", "type": "main", "index": 0 }]] },
+    "Neo4j Create Capture": { "main": [[{ "node": "Format Capture Response", "type": "main", "index": 0 }]] },
+    "Format Capture Response": { "main": [[{ "node": "Check Threat?", "type": "main", "index": 0 }]] },
+    "Check Threat?": {
+      "main": [
+        [{ "node": "Build Threat Query", "type": "main", "index": 0 }],
+        [{ "node": "Skip Threat Check", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Threat Query": { "main": [[{ "node": "Neo4j Match Threats", "type": "main", "index": 0 }]] },
+    "Neo4j Match Threats": { "main": [[{ "node": "Format Threat Response", "type": "main", "index": 0 }]] },
+    "Format Threat Response": { "main": [[{ "node": "Merge Results", "type": "main", "index": 0 }]] },
+    "Skip Threat Check": { "main": [[{ "node": "Merge Results", "type": "main", "index": 1 }]] },
+    "Merge Results": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionTimeout": 300 },
+  "versionId": "template-mosaeic-v1-capture-create"
+}
