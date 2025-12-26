@@ -1,0 +1,87 @@
+# Dionysus Core
+
+Dionysus is a VPS-native cognitive engine designed for autonomous reasoning, long-term session continuity, and structured memory management. It operates on a Neo4j-only, webhook-driven architecture, orchestrated by a multi-agent hierarchy.
+
+## Active Technologies
+
+- **Python 3.11+**: Core language (async/await, Pydantic v2).
+- **FastAPI**: Web framework for the API.
+- **Neo4j**: Primary persistence for episodic, semantic, and procedural memory.
+- **Graphiti**: Temporal knowledge graph interface (authorized for direct Neo4j access).
+- **smolagents**: Multi-agent framework (CodeAgent) providing the cognitive orchestration layer.
+- **n8n**: Workflow orchestration for memory synchronization and background processes.
+- **Docker & Docker Compose**: Containerization and VPS-native orchestration.
+- **Ollama / LiteLLM**: Local and remote inference engines.
+
+## Project Architecture & Tracking
+
+The project is consolidated into three unified pillars in Archon for streamlined tracking:
+
+1.  **Dionysus 3 Core**: Unified VPS-native cognitive engine (Smolagents + Neo4j + MoSAEIC).
+2.  **Inner Architect - Marketing Suite**: Unified nurture sequences and high-converting sales pages.
+3.  **Inner Architect - Knowledge Base**: Authoritative IAS conceptual content (Mini-book, Audiobook, Avatar data).
+
+### Project Structure (Filesystem)
+
+```text
+/Volumes/Asylum/dev/dionysus3-core/
+├── api/                  # FastAPI application source code
+│   ├── agents/           # autonomous smolagents (Perception, Reasoning, Heartbeat, etc.)
+│   ├── models/           # Pydantic models (Action, Goal, Journey, MemEvolve)
+│   ├── routers/          # API endpoints (Memory, Heartbeat, MemEvolve)
+│   └── services/         # Business logic (Neo4j drivers, Graphiti integration)
+├── deploy/               # Deployment configurations
+├── dionysus_mcp/         # MCP Server implementation
+├── n8n-workflows/        # Exported n8n workflow definitions
+├── neo4j/                # Neo4j schema and data
+├── scripts/              # Utility and testing scripts (test_memevolve_*, test_heartbeat)
+├── specs/                # Project specifications and design docs (Features 001-009)
+├── tests/                # Test suite
+├── docker-compose.yml    # Docker services configuration
+├── pyproject.toml        # Project configuration and dependencies
+└── requirements.txt      # Python dependencies
+```
+
+## Cognitive Architecture (smolagents Evolution)
+
+The system has evolved from procedural OODA logic to an autonomous multi-agent hierarchy:
+- **ConsciousnessManager**: High-level cognitive orchestrator.
+- **HeartbeatAgent**: A `CodeAgent` that runs the OODA (Observe-Orient-Decide-Act) loop.
+- **PerceptionAgent**: Processes observations into coherent state snapshots.
+- **ReasoningAgent**: Handles complex problem-solving and tool usage.
+- **MetacognitionAgent**: Evaluates system performance and mental model accuracy.
+
+**Status:** Integration is ~85% complete. The legacy `HeartbeatService` currently acts as a bridge, with the final "handoff" to full agentic control pending.
+
+## Development Conventions
+
+- **Database Access:**
+    - **Neo4j-Only:** Relational databases (PostgreSQL) have been removed.
+    - **Strict Rule:** Direct Bolt connections are **FORBIDDEN** for general services. Use Cypher via `WebhookNeo4jDriver` (orchestrated by n8n).
+    - **Exception:** `graphiti-core` is the only component authorized for direct Neo4j access.
+- **Security:** Webhook communication is secured via **HMAC-SHA256** signatures (`verify_memevolve_signature`).
+- **Memory Management:**
+    - **Episodic:** Temporal sequences of events.
+    - **Semantic:** Facts and entities via Graphiti (`valid_at`/`invalid_at`).
+    - **Strategic:** Lessons learned from agent trajectories.
+
+## Roadmap & Pending Tasks
+
+1.  **MemEvolve Phase 4 (✅ DONE):** Integrate agent trajectories into the Heartbeat OODA loop. Implement pattern detection and strategic memory generation.
+2.  **MemEvolve Phase 5 (Current Focus):** Implement `/evolve` endpoint for meta-evolution of retrieval strategies.
+3.  **Heartbeat Handoff:** Finalize transition from `HeartbeatService` legacy logic to full `HeartbeatAgent` orchestration.
+4.  **Persistent Task Log:** Reconstruct completed task history from local Archon.
+
+## Commands
+
+### Building and Running
+```bash
+docker compose up -d --build
+```
+
+### Testing (Inside Container)
+```bash
+docker exec dionysus-api pytest
+docker exec dionysus-api python3 /app/scripts/test_memevolve_recall.py
+docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py
+```
