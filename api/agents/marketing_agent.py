@@ -22,9 +22,9 @@ class MarketingAgent:
             description="Expert in IAS marketing and copy generation. Can generate nurture sequences and sales pages."
         )
 
-    async def generate_email(self, topic: str, framework: str, target_audience: str = "analytical professional") -> str:
+    async def generate_email(self, topic: str, framework: str, target_audience: str = "analytical professional") -> Dict[str, Any]:
         """
-        Generate a specific nurture email with boardroom context.
+        Generate a high-converting nurture email with self-reported confidence.
         """
         from api.services.aspect_service import get_aspect_service
         aspect_service = get_aspect_service()
@@ -33,29 +33,62 @@ class MarketingAgent:
         aspects_text = "\n".join([f"- {a.get('name')}: {a.get('role')}" for a in aspects])
 
         prompt = f"""
-        Generate a high-converting nurture email based on the following:
+        Generate a high-converting nurture email.
         - Topic: {topic}
-        - Framework to use: {framework}
-        - Target Audience: {target_audience}
+        - Framework: {framework}
+        - Target: {target_audience}
+        - Boardroom Context: {aspects_text}
         
-        ## Boardroom Context (Internal Voices to address):
-        {aspects_text}
+        Style: Empathetic, coaching, direct.
         
-        Style: Empathetic, world-class coaching, direct, avoids fluff.
+        Respond with a JSON object:
+        {{
+            "email_text": "...",
+            "subject_line": "...",
+            "confidence": <float 0.0-1.0>,
+            "reasoning": "..."
+        }}
         """
         import asyncio
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.agent.run, prompt)
+        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        
+        try:
+            cleaned = result.strip()
+            if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
+            data = json.loads(cleaned)
+            
+            # FR-004: Divert to review if confidence is low
+            if data.get("confidence", 0.0) < 0.7:
+                await aspect_service.add_to_human_review("Low Confidence Email", data, data.get("confidence", 0.0))
+                
+            return data
+        except Exception as e:
+            # Divert to review on parse failure
+            await aspect_service.add_to_human_review("Email Parse Failure", {"raw": result, "error": str(e)})
+            return {"status": "human_review_queued", "raw": result}
 
-    def generate_sales_page(self, product: str, positioning: str) -> str:
+    async def generate_sales_page(self, product: str, positioning: str) -> Dict[str, Any]:
         """
-        Generate sales page copy.
+        Generate sales page copy with self-reported confidence.
         """
         prompt = f"""
         Write sales page copy for:
         - Product: {product}
         - Positioning: {positioning}
         
-        Include sections for: Hero, Pain Points, Solution (IAS), Features, Social Proof, and CTA.
+        Include sections: Hero, Pain, Solution, Features, Social Proof, CTA.
+        
+        Respond with a JSON object containing 'copy_text', 'confidence', and 'reasoning'.
         """
-        return self.agent.run(prompt)
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        
+        try:
+            cleaned = result.strip()
+            if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
+            data = json.loads(cleaned)
+            return data
+        except:
+            return {"raw": result, "confidence": 0.5}
