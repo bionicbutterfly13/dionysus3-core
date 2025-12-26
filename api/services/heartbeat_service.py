@@ -9,6 +9,7 @@ Initialize → Observe → Orient → Decide → Act → Record
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -466,7 +467,7 @@ class HeartbeatService:
 
     async def _make_decision(self, context: HeartbeatContext) -> HeartbeatDecision:
         """
-        Make the heartbeat decision using LLM.
+        Make the heartbeat decision using agent or LLM.
 
         Args:
             context: Full context for decision
@@ -479,12 +480,41 @@ class HeartbeatService:
             "base_regeneration": self._energy_service.get_config().base_regeneration,
         }
 
+        # Check if agent-based decisions are enabled
+        use_agent = os.getenv("USE_AGENT_DECISIONS", "false").lower() == "true"
+
+        if use_agent:
+            try:
+                from api.agents.decision_adapter import (
+                    AgentDecisionConfig,
+                    get_agent_decision_adapter,
+                )
+
+                config = AgentDecisionConfig(
+                    use_multi_agent=os.getenv("USE_MULTI_AGENT", "false").lower() == "true",
+                    model_id=os.getenv("SMOLAGENTS_MODEL", ""),
+                    max_steps=int(os.getenv("SMOLAGENTS_MAX_STEPS", "5")),
+                    fallback_on_failure=True,
+                )
+
+                adapter = get_agent_decision_adapter(config)
+                decision = await adapter.make_decision(context, energy_config)
+
+                logger.info(
+                    f"Agent decision: {len(decision.action_plan.actions)} actions, "
+                    f"confidence: {decision.confidence}"
+                )
+                return decision
+
+            except Exception as e:
+                logger.error(f"Agent decision failed, using default: {e}")
+
+        # Legacy path
         system_prompt, user_prompt = self._context_builder.format_prompt(
             context, energy_config
         )
 
         # TODO: Call LLM here
-        # For now, return a default decision based on context
         return await self._make_default_decision(context)
 
     async def _make_default_decision(self, context: HeartbeatContext) -> HeartbeatDecision:
