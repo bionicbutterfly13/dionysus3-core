@@ -1,0 +1,112 @@
+"""
+Voice Extractor Agent
+
+Specialized smolagent for extracting linguistic patterns and voice characteristics.
+Feature: 019-avatar-knowledge-graph
+"""
+
+import os
+from smolagents import CodeAgent, LiteLLMModel
+
+from api.agents.knowledge.tools import ingest_avatar_insight, query_avatar_graph
+
+
+class VoiceExtractor:
+    """
+    Specialized agent for voice pattern extraction.
+
+    Capabilities:
+    - Extract distinctive phrases and expressions
+    - Identify emotional tones and contexts
+    - Map vocabulary preferences
+    - Detect linguistic patterns that indicate psychological states
+    """
+
+    def __init__(self, model_id: str = None):
+        model_id = model_id or os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano-2025-08-07")
+
+        self.model = LiteLLMModel(
+            model_id=model_id,
+            api_key=os.getenv("OPENAI_API_KEY"),
+        )
+
+        self.agent = CodeAgent(
+            tools=[ingest_avatar_insight, query_avatar_graph],
+            model=self.model,
+            name="voice_extractor",
+            description="Extracts voice patterns, phrases, and emotional tones from content. Expert at capturing authentic avatar language.",
+            max_steps=5,
+        )
+
+    async def analyze(self, content: str, source: str = "unknown") -> dict:
+        """
+        Analyze content for voice patterns.
+
+        Args:
+            content: Raw text to analyze
+            source: Source document identifier
+
+        Returns:
+            Analysis results with extracted voice patterns
+        """
+        prompt = f"""Analyze this content for voice patterns and linguistic characteristics.
+
+Content from {source}:
+{content}
+
+Your task:
+1. Identify distinctive phrases the avatar uses
+2. For each pattern, use the ingest_avatar_insight tool with insight_type="voice_pattern"
+3. Note the emotional tone of each phrase
+4. Identify the context where they'd use this language
+
+Watch for:
+- Self-talk phrases ("I should be...", "Why can't I...")
+- Emotional markers (frustration, resignation, hope)
+- Professional jargon they use
+- Metaphors and frameworks they naturally employ
+- Words they avoid vs. words they gravitate toward
+
+This is about capturing HOW they speak, not just WHAT they say."""
+
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, self.agent.run, prompt)
+
+        return {
+            "agent": "voice_extractor",
+            "source": source,
+            "analysis": str(result),
+        }
+
+    async def generate_voice_guide(self) -> dict:
+        """
+        Generate a comprehensive voice guide from all extracted patterns.
+
+        Returns:
+            Voice guide with patterns, do's, don'ts, and examples
+        """
+        prompt = """Generate a comprehensive voice guide for writing to this avatar.
+
+1. Query the avatar graph for all voice_pattern insights
+2. Also query for pain points and beliefs to understand emotional context
+3. Synthesize into a voice guide with:
+   - Phrases TO USE (with examples)
+   - Phrases TO AVOID (with alternatives)
+   - Emotional tone guidance
+   - Vocabulary preferences
+   - Sample sentences that sound like them
+
+Make this actionable for copywriters."""
+
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, self.agent.run, prompt)
+
+        return {
+            "voice_guide": str(result),
+        }
+
+    def run(self, task: str) -> str:
+        """Run a custom task."""
+        return self.agent.run(task)
