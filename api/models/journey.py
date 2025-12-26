@@ -8,6 +8,7 @@ across multiple sessions linked to a device's journey.
 from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
@@ -98,6 +99,33 @@ class SessionSummary(BaseModel):
     summary: Optional[str]
     has_diagnosis: bool
     relevance_score: Optional[float] = None
+
+
+# =============================================================================
+# Session Event Models (T085)
+# =============================================================================
+
+class SessionEventType(str, Enum):
+    """Types of session events to track."""
+    DECISION = "decision"
+    COMMITMENT = "commitment"
+    TASK_COMPLETED = "task_completed"
+    TOOL_USE = "tool_use"
+    USER_FEEDBACK = "user_feedback"
+    SYSTEM_STATUS = "system_status"
+
+
+class SessionEvent(BaseModel):
+    """A granular event within a session (decisions, actions, etc.)."""
+    id: UUID = Field(default_factory=lambda: UUID(int=0), description="Event UUID")
+    session_id: Optional[UUID] = Field(None, description="FK to sessions.id")
+    event_type: SessionEventType = Field(..., description="Type of event")
+    content: str = Field(..., description="Event description or payload")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Context metadata")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="When event occurred")
+
+    class Config:
+        use_enum_values = True
 
 
 # =============================================================================
