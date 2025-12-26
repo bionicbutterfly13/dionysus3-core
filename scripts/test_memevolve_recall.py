@@ -9,66 +9,44 @@ import httpx
 import hmac
 import hashlib
 import json
-import subprocess
-import time
-from dotenv import dotenv_values
 
 async def main():
     print("--- Testing MemEvolve /recall Endpoint ---")
     
-    # Debugging .env loading
-    env_path = "/app/.env"
-    print(f"DEBUG: Attempting to load .env from: {env_path}")
-    if os.path.exists(env_path):
-        print(f"DEBUG: .env file found at {env_path}")
-        with open(env_path, 'r') as f:
-            print("DEBUG: .env file content:\n---")
-            print(f.read())
-            print("---")
-    else:
-        print(f"DEBUG: .env file NOT found at {env_path}")
-
-    # Load environment variables from .env
-    config = dotenv_values(env_path)
-    print(f"DEBUG: Loaded config from .env: {config}")
-
-    secret = config.get("MEMEVOLVE_HMAC_SECRET")
-    
     # Configuration
     base_url = "http://localhost:8000"
     endpoint = "/webhook/memevolve/v1/recall"
+    secret = os.getenv("MEMEVOLVE_HMAC_SECRET")
 
     if not secret:
-        print("Error: MEMEVOLVE_HMAC_SECRET not found in .env file.")
+        print("Error: MEMEVOLVE_HMAC_SECRET environment variable not set.")
         return
 
-    # 2. Start server as a subprocess with the loaded environment
-    # Note: This is now managed by the shell executing the tests.
-    # The container itself is already running the API server.
-    # We only need the config for the test client.
+    # 1. Prepare Request
+    body = {
+        "query": "smolagents integration",
+        "limit": 5,
+        "memory_types": ["procedural", "semantic"],
+        "include_temporal_metadata": True
+    }
+    body_bytes = json.dumps(body, separators=(',', ':')).encode("utf-8")
 
+    # 2. Generate Signature
+    signature = "sha256=" + hmac.new(
+        key=secret.encode("utf-8"),
+        msg=body_bytes,
+        digestmod=hashlib.sha256,
+    ).hexdigest()
 
-        body = {
-            "query": "smolagents integration",
-            "limit": 5,
-            "memory_types": ["procedural", "semantic"],
-            "include_temporal_metadata": True
-        }
-        body_bytes = json.dumps(body, separators=(',', ':')).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "X-Webhook-Signature": signature
+    }
 
-        signature = "sha256=" + hmac.new(
-            key=secret.encode("utf-8"),
-            msg=body_bytes,
-            digestmod=hashlib.sha256,
-        ).hexdigest()
-
-        headers = {
-            "Content-Type": "application/json",
-            "X-Webhook-Signature": signature
-        }
-
-        print(f"Sending POST request to {base_url + endpoint}...")
-        
+    # 3. Make API Call
+    print(f"Sending POST request to {base_url + endpoint}...")
+    
+    try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(base_url + endpoint, content=body_bytes, headers=headers)
         
@@ -76,17 +54,14 @@ async def main():
         response_json = response.json()
         print(f"Response Body: {json.dumps(response_json, indent=2)}")
 
+        # 4. Validate Response
         if response.status_code == 200:
             print("\n✅ Test Passed: Received a 200 OK response.")
         else:
             print(f"\n❌ Test Failed: Received status code {response.status_code}.")
-
-    finally:
-        # 4. Terminate the server
-        print(f"\nTerminating server with PID: {server_process.pid}")
-        server_process.terminate()
-        server_process.wait()
+    
+    except Exception as e:
+        print(f"\n❌ An error occurred: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
-
