@@ -6,17 +6,15 @@ Tasks: T009, T010
 Manages journey tracking across multiple conversation sessions.
 Provides operations for creating/retrieving journeys, sessions, and documents.
 
-Database: PostgreSQL via asyncpg
+Database: Neo4j via WebhookNeo4jDriver (n8n webhooks)
 """
 
 import logging
 import os
 import time
 from datetime import datetime
-from typing import Any, Optional
-from uuid import UUID
-
-import asyncpg
+from typing import Any, Optional, List
+from uuid import UUID, uuid4
 
 from api.models.journey import (
     Journey,
@@ -33,15 +31,7 @@ from api.models.journey import (
     TimelineEntry,
     JourneyTimelineResponse,
 )
-
-# =============================================================================
-# Configuration
-# =============================================================================
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://dionysus:dionysus2024@localhost:5432/dionysus"
-)
+from api.services.remote_sync import get_neo4j_driver
 
 # =============================================================================
 # Logging Setup (T010)
@@ -49,14 +39,7 @@ DATABASE_URL = os.getenv(
 
 logger = logging.getLogger(__name__)
 
-# Configure structured logging for journey operations
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
-
-def log_journey_operation(operation: str, journey_id: UUID, duration_ms: float = None, **kwargs):
+def log_journey_operation(operation: str, journey_id: Any, duration_ms: float = None, **kwargs):
     """Log journey operation with structured fields and optional timing."""
     extra = {
         "journey_id": str(journey_id),
@@ -65,7 +48,6 @@ def log_journey_operation(operation: str, journey_id: UUID, duration_ms: float =
     }
     if duration_ms is not None:
         extra["duration_ms"] = round(duration_ms, 2)
-        # Warn if exceeding performance targets
         if operation in ("created", "retrieved") and duration_ms > 50:
             logger.warning(
                 f"journey.{operation} exceeded 50ms target: {duration_ms:.2f}ms",
@@ -81,7 +63,7 @@ def log_journey_operation(operation: str, journey_id: UUID, duration_ms: float =
     logger.info(f"journey.{operation}", extra=extra)
 
 
-def log_session_operation(operation: str, session_id: UUID, journey_id: UUID, duration_ms: float = None, **kwargs):
+def log_session_operation(operation: str, session_id: Any, journey_id: Any, duration_ms: float = None, **kwargs):
     """Log session operation with structured fields and optional timing."""
     extra = {
         "session_id": str(session_id),
@@ -119,44 +101,6 @@ class JourneyNotFoundError(SessionManagerError):
 
 
 # =============================================================================
-# Database Pool Management
-# =============================================================================
-
-_pool: Optional[asyncpg.Pool] = None
-
-
-async def get_pool() -> asyncpg.Pool:
-    """Get or create database connection pool.
-
-    Raises:
-        DatabaseUnavailableError: If database connection fails
-    """
-    global _pool
-    if _pool is None:
-        try:
-            _pool = await asyncpg.create_pool(
-                DATABASE_URL,
-                min_size=2,
-                max_size=10,
-                command_timeout=30,
-            )
-            logger.info("Database pool created for session_manager")
-        except (asyncpg.PostgresError, OSError, ConnectionRefusedError) as e:
-            logger.error(f"Failed to create database pool: {e}")
-            raise DatabaseUnavailableError(f"Database unavailable: {e}") from e
-    return _pool
-
-
-async def close_pool():
-    """Close database connection pool."""
-    global _pool
-    if _pool:
-        await _pool.close()
-        _pool = None
-        logger.info("Database pool closed for session_manager")
-
-
-# =============================================================================
 # Session Manager Service (T009)
 # =============================================================================
 
@@ -175,20 +119,14 @@ class SessionManager:
         timeline = await manager.get_journey_timeline(journey.id)
     """
     
-    def __init__(self, pool: Optional[asyncpg.Pool] = None):
+    def __init__(self, driver=None):
         """
         Initialize session manager.
         
         Args:
-            pool: Optional connection pool. If not provided, uses global pool.
+            driver: Optional Neo4j driver. If not provided, uses the webhook driver.
         """
-        self._pool = pool
-    
-    async def _get_pool(self) -> asyncpg.Pool:
-        """Get connection pool."""
-        if self._pool:
-            return self._pool
-        return await get_pool()
+        self._driver = driver or get_neo4j_driver()
     
     # =========================================================================
     # Journey Operations (T015)
@@ -205,98 +143,75 @@ class SessionManager:
             JourneyWithStats with is_new=True if created, False if existing
         """
         start_time = time.perf_counter()
-        pool = await self._get_pool()
-
-        async with pool.acquire() as conn:
-            # Try to get existing journey
-            row = await conn.fetchrow(
-                """
-                SELECT j.*,
-                       (SELECT COUNT(*) FROM sessions s WHERE s.journey_id = j.id) as session_count
-                FROM journeys j
-                WHERE j.device_id = $1
-                """,
-                device_id
-            )
-
-            if row:
-                log_journey_operation(
-                    "retrieved", row["id"],
-                    duration_ms=measure_duration(start_time),
-                    device_id=str(device_id)
-                )
-                return JourneyWithStats(
-                    id=row["id"],
-                    device_id=row["device_id"],
-                    created_at=row["created_at"],
-                    updated_at=row["updated_at"],
-                    metadata=row["metadata"] or {},
-                    session_count=row["session_count"],
-                    is_new=False
-                )
-
-            # Create new journey with race condition protection (T042)
-            # Uses ON CONFLICT to handle concurrent inserts gracefully
-            row = await conn.fetchrow(
-                """
-                INSERT INTO journeys (device_id, metadata)
-                VALUES ($1, $2)
-                ON CONFLICT (device_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
-                RETURNING *, (xmax = 0) as was_inserted
-                """,
-                device_id,
-                {}
-            )
-
-            # Check if this was a new insert or an update due to conflict
-            is_new = row.get("was_inserted", True)
-
-            operation = "created" if is_new else "retrieved_after_conflict"
+        
+        # Cypher to merge Journey node and count sessions
+        cypher = """
+        MERGE (j:Journey {device_id: $device_id})
+        ON CREATE SET 
+            j.id = randomUUID(),
+            j.created_at = datetime(),
+            j.updated_at = datetime(),
+            j.metadata = '{}',
+            j._is_new = true
+        ON MATCH SET 
+            j.updated_at = datetime(),
+            j._is_new = false
+        
+        WITH j
+        OPTIONAL MATCH (j)-[:HAS_SESSION]->(s:Session)
+        RETURN j, count(s) as session_count
+        """
+        
+        try:
+            result = await self._driver.execute_query(cypher, {"device_id": str(device_id)})
+            if not result or not result[0]:
+                raise DatabaseUnavailableError("Failed to get or create journey")
+            
+            row = result[0]
+            j_node = row["j"]
+            session_count = int(row["session_count"])
+            is_new = j_node.get("_is_new", False)
+            
+            operation = "created" if is_new else "retrieved"
             log_journey_operation(
-                operation, row["id"],
+                operation, j_node["id"],
                 duration_ms=measure_duration(start_time),
                 device_id=str(device_id)
             )
-
-            # Get session count for existing journey (conflict case)
-            session_count = 0
-            if not is_new:
-                count_row = await conn.fetchrow(
-                    "SELECT COUNT(*) as cnt FROM sessions WHERE journey_id = $1",
-                    row["id"]
-                )
-                session_count = count_row["cnt"] if count_row else 0
-
+            
             return JourneyWithStats(
-                id=row["id"],
-                device_id=row["device_id"],
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
-                metadata=row["metadata"] or {},
+                id=UUID(j_node["id"]),
+                device_id=UUID(j_node["device_id"]),
+                created_at=datetime.fromisoformat(j_node["created_at"].replace('Z', '+00:00')) if isinstance(j_node["created_at"], str) else j_node["created_at"],
+                updated_at=datetime.fromisoformat(j_node["updated_at"].replace('Z', '+00:00')) if isinstance(j_node["updated_at"], str) else j_node["updated_at"],
+                metadata=json.loads(j_node.get("metadata", "{}")),
                 session_count=session_count,
                 is_new=is_new
             )
-    
+        except Exception as e:
+            logger.error(f"Error in get_or_create_journey: {e}")
+            raise DatabaseUnavailableError(f"Database error: {e}")
+
     async def get_journey(self, journey_id: UUID) -> Optional[Journey]:
         """Get journey by ID."""
-        pool = await self._get_pool()
+        cypher = "MATCH (j:Journey {id: $id}) RETURN j"
         
-        async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT * FROM journeys WHERE id = $1",
-                journey_id
-            )
-            
-            if not row:
+        try:
+            result = await self._driver.execute_query(cypher, {"id": str(journey_id)})
+            if not result:
                 return None
             
+            j_node = result[0]["j"]
             return Journey(
-                id=row["id"],
-                device_id=row["device_id"],
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
-                metadata=row["metadata"] or {}
+                id=UUID(j_node["id"]),
+                device_id=UUID(j_node["device_id"]),
+                created_at=datetime.fromisoformat(j_node["created_at"].replace('Z', '+00:00')) if isinstance(j_node["created_at"], str) else j_node["created_at"],
+                updated_at=datetime.fromisoformat(j_node["updated_at"].replace('Z', '+00:00')) if isinstance(j_node["updated_at"], str) else j_node["updated_at"],
+                metadata=json.loads(j_node.get("metadata", "{}"))
             )
+        except Exception as e:
+            logger.error(f"Error getting journey: {e}")
+            return None
     
     # =========================================================================
     # Session Operations (T016)
@@ -311,67 +226,72 @@ class SessionManager:
             
         Returns:
             Created session
-            
-        Raises:
-            ValueError: If journey_id doesn't exist
         """
-        pool = await self._get_pool()
+        session_id = str(uuid4())
+        cypher = """
+        MATCH (j:Journey {id: $journey_id})
+        CREATE (s:Session {
+            id: $session_id,
+            journey_id: $journey_id,
+            created_at: datetime(),
+            updated_at: datetime(),
+            summary: 'New session',
+            messages: '[]',
+            confidence_score: 1.0
+        })
+        CREATE (j)-[:HAS_SESSION]->(s)
+        RETURN s
+        """
         
-        async with pool.acquire() as conn:
-            # Verify journey exists
-            journey = await conn.fetchrow(
-                "SELECT id FROM journeys WHERE id = $1",
-                journey_id
-            )
-            if not journey:
+        try:
+            result = await self._driver.execute_query(cypher, {
+                "journey_id": str(journey_id),
+                "session_id": session_id
+            })
+            
+            if not result:
                 raise ValueError(f"Journey {journey_id} not found")
             
-            # Create session
-            row = await conn.fetchrow(
-                """
-                INSERT INTO sessions (journey_id, messages)
-                VALUES ($1, $2)
-                RETURNING *
-                """,
-                journey_id,
-                []
-            )
+            s_node = result[0]["s"]
+            log_session_operation("created", s_node["id"], journey_id)
             
-            log_session_operation("created", row["id"], journey_id)
             return Session(
-                id=row["id"],
-                journey_id=row["journey_id"],
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
-                summary=row["summary"],
+                id=UUID(s_node["id"]),
+                journey_id=UUID(s_node["journey_id"]),
+                created_at=datetime.fromisoformat(s_node["created_at"].replace('Z', '+00:00')) if isinstance(s_node["created_at"], str) else s_node["created_at"],
+                updated_at=datetime.fromisoformat(s_node["updated_at"].replace('Z', '+00:00')) if isinstance(s_node["updated_at"], str) else s_node["updated_at"],
+                summary=s_node["summary"],
                 messages=[],
                 diagnosis=None,
-                confidence_score=row["confidence_score"]
+                confidence_score=float(s_node["confidence_score"])
             )
-    
+        except Exception as e:
+            logger.error(f"Error creating session: {e}")
+            raise DatabaseUnavailableError(f"Database error: {e}")
+
     async def get_session(self, session_id: UUID) -> Optional[Session]:
         """Get session by ID."""
-        pool = await self._get_pool()
+        cypher = "MATCH (s:Session {id: $id}) RETURN s"
         
-        async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT * FROM sessions WHERE id = $1",
-                session_id
-            )
-            
-            if not row:
+        try:
+            result = await self._driver.execute_query(cypher, {"id": str(session_id)})
+            if not result:
                 return None
             
+            s_node = result[0]["s"]
             return Session(
-                id=row["id"],
-                journey_id=row["journey_id"],
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
-                summary=row["summary"],
-                messages=row["messages"] or [],
-                diagnosis=row["diagnosis"],
-                confidence_score=row["confidence_score"]
+                id=UUID(s_node["id"]),
+                journey_id=UUID(s_node["journey_id"]),
+                created_at=datetime.fromisoformat(s_node["created_at"].replace('Z', '+00:00')) if isinstance(s_node["created_at"], str) else s_node["created_at"],
+                updated_at=datetime.fromisoformat(s_node["updated_at"].replace('Z', '+00:00')) if isinstance(s_node["updated_at"], str) else s_node["updated_at"],
+                summary=s_node["summary"],
+                messages=json.loads(s_node.get("messages", "[]")),
+                diagnosis=s_node.get("diagnosis"),
+                confidence_score=float(s_node.get("confidence_score", 1.0))
             )
+        except Exception as e:
+            logger.error(f"Error getting session: {e}")
+            return None
     
     # =========================================================================
     # Timeline Operations (T017)
@@ -385,79 +305,68 @@ class SessionManager:
     ) -> JourneyTimelineResponse:
         """
         Get sessions (and optionally documents) in chronological order.
-
-        Args:
-            journey_id: Journey to get timeline for
-            limit: Max entries to return
-            include_documents: Whether to include documents interleaved (T037)
-
-        Returns:
-            JourneyTimelineResponse with entries in chronological order
         """
-        pool = await self._get_pool()
-        entries: list[TimelineEntry] = []
-
-        async with pool.acquire() as conn:
-            # Fetch sessions
-            session_rows = await conn.fetch(
-                """
-                SELECT id, created_at, summary, diagnosis IS NOT NULL as has_diagnosis
-                FROM sessions
-                WHERE journey_id = $1
-                ORDER BY created_at ASC
-                """,
-                journey_id
-            )
-
-            for row in session_rows:
-                entries.append(TimelineEntry(
-                    entry_type="session",
-                    entry_id=row["id"],
-                    created_at=row["created_at"],
-                    summary=row["summary"],
-                    has_diagnosis=row["has_diagnosis"]
-                ))
-
-            # Fetch documents if requested
-            if include_documents:
-                doc_rows = await conn.fetch(
-                    """
-                    SELECT id, created_at, document_type, title
-                    FROM journey_documents
-                    WHERE journey_id = $1
-                    ORDER BY created_at ASC
-                    """,
-                    journey_id
-                )
-
-                for row in doc_rows:
+        cypher = """
+        MATCH (j:Journey {id: $journey_id})
+        OPTIONAL MATCH (j)-[:HAS_SESSION]->(s:Session)
+        WITH j, s
+        ORDER BY s.created_at ASC
+        LIMIT $limit
+        
+        OPTIONAL MATCH (j)-[:HAS_DOCUMENT]->(d:JourneyDocument)
+        WITH j, collect(s) as sessions, collect(d) as docs
+        RETURN sessions, docs
+        """
+        
+        try:
+            result = await self._driver.execute_query(cypher, {
+                "journey_id": str(journey_id),
+                "limit": limit
+            })
+            
+            if not result:
+                return JourneyTimelineResponse(journey_id=journey_id, entries=[], total_entries=0)
+            
+            row = result[0]
+            sessions = row.get("sessions", [])
+            docs = row.get("docs", [])
+            
+            entries: list[TimelineEntry] = []
+            
+            for s in sessions:
+                if s:
                     entries.append(TimelineEntry(
-                        entry_type="document",
-                        entry_id=row["id"],
-                        created_at=row["created_at"],
-                        document_type=row["document_type"],
-                        title=row["title"]
+                        entry_type="session",
+                        entry_id=UUID(s["id"]),
+                        created_at=datetime.fromisoformat(s["created_at"].replace('Z', '+00:00')) if isinstance(s["created_at"], str) else s["created_at"],
+                        summary=s["summary"],
+                        has_diagnosis=s.get("diagnosis") is not None
                     ))
-
-            # Sort all entries by created_at for interleaved timeline
+            
+            if include_documents:
+                for d in docs:
+                    if d:
+                        entries.append(TimelineEntry(
+                            entry_type="document",
+                            entry_id=UUID(d["id"]),
+                            created_at=datetime.fromisoformat(d["created_at"].replace('Z', '+00:00')) if isinstance(d["created_at"], str) else d["created_at"],
+                            document_type=d["document_type"],
+                            title=d["title"]
+                        ))
+            
+            # Sort all entries by created_at
             entries.sort(key=lambda e: e.created_at)
-
-            # Apply limit after sorting
             entries = entries[:limit]
-
-            log_journey_operation(
-                "timeline_queried",
-                journey_id,
-                entry_count=len(entries),
-                include_documents=include_documents
-            )
-
+            
             return JourneyTimelineResponse(
                 journey_id=journey_id,
                 entries=entries,
                 total_entries=len(entries)
             )
-    
+        except Exception as e:
+            logger.error(f"Error getting timeline: {e}")
+            return JourneyTimelineResponse(journey_id=journey_id, entries=[], total_entries=0)
+
     # =========================================================================
     # Query Operations (T026, T027, T028)
     # =========================================================================
@@ -467,454 +376,96 @@ class SessionManager:
         query: JourneyHistoryQuery
     ) -> JourneyHistoryResponse:
         """
-        Search journey history by keyword, time range, or metadata.
-        
-        Uses full-text search on session summaries with pg_trgm GIN index.
-        
-        Args:
-            query: Query parameters
-            
-        Returns:
-            Matching sessions and optionally documents
+        Search journey history. In Neo4j, we use text search on properties.
         """
-        pool = await self._get_pool()
+        cypher = """
+        MATCH (j:Journey {id: $journey_id})-[:HAS_SESSION]->(s:Session)
+        WHERE ($query IS NULL OR s.summary CONTAINS $query)
+        RETURN s
+        ORDER BY s.created_at DESC
+        LIMIT $limit
+        """
         
-        async with pool.acquire() as conn:
-            # Build query with optional filters
-            sql = """
-                SELECT id, created_at, summary, diagnosis IS NOT NULL as has_diagnosis,
-                       CASE WHEN $2::text IS NOT NULL 
-                            THEN ts_rank(to_tsvector('english', COALESCE(summary, '')), 
-                                        plainto_tsquery('english', $2))
-                            ELSE 0 END as relevance_score
-                FROM sessions
-                WHERE journey_id = $1
-            """
-            params: list[Any] = [query.journey_id, query.query]
-            param_idx = 3
-            
-            # Keyword filter
-            if query.query:
-                sql += f" AND to_tsvector('english', COALESCE(summary, '')) @@ plainto_tsquery('english', ${param_idx})"
-                params.append(query.query)
-                param_idx += 1
-            
-            # Date range filters
-            if query.from_date:
-                sql += f" AND created_at >= ${param_idx}"
-                params.append(query.from_date)
-                param_idx += 1
-            
-            if query.to_date:
-                sql += f" AND created_at <= ${param_idx}"
-                params.append(query.to_date)
-                param_idx += 1
-            
-            # Order by relevance if keyword search, else by date
-            if query.query:
-                sql += " ORDER BY relevance_score DESC, created_at DESC"
-            else:
-                sql += " ORDER BY created_at DESC"
-            
-            sql += f" LIMIT ${param_idx}"
-            params.append(query.limit)
-            
-            rows = await conn.fetch(sql, *params)
+        try:
+            result = await self._driver.execute_query(cypher, {
+                "journey_id": str(query.journey_id),
+                "query": query.query,
+                "limit": query.limit
+            })
             
             sessions = [
                 SessionSummary(
-                    session_id=row["id"],
-                    created_at=row["created_at"],
-                    summary=row["summary"],
-                    has_diagnosis=row["has_diagnosis"],
-                    relevance_score=row["relevance_score"] if query.query else None
+                    session_id=UUID(row["s"]["id"]),
+                    created_at=datetime.fromisoformat(row["s"]["created_at"].replace('Z', '+00:00')) if isinstance(row["s"]["created_at"], str) else row["s"]["created_at"],
+                    summary=row["s"]["summary"],
+                    has_diagnosis=row["s"].get("diagnosis") is not None,
+                    relevance_score=1.0 if query.query else None
                 )
-                for row in rows
+                for row in result
             ]
-            
-            # Optionally include documents (T037)
-            documents = []
-            if query.include_documents:
-                doc_rows = await conn.fetch(
-                    """
-                    SELECT id, document_type, title, created_at
-                    FROM journey_documents
-                    WHERE journey_id = $1
-                    ORDER BY created_at DESC
-                    LIMIT $2
-                    """,
-                    query.journey_id,
-                    query.limit
-                )
-                documents = [
-                    DocumentSummary(
-                        document_id=row["id"],
-                        document_type=row["document_type"],
-                        title=row["title"],
-                        created_at=row["created_at"]
-                    )
-                    for row in doc_rows
-                ]
-            
-            log_journey_operation(
-                "history_queried", 
-                query.journey_id,
-                query_text=query.query,
-                result_count=len(sessions)
-            )
             
             return JourneyHistoryResponse(
                 journey_id=query.journey_id,
                 sessions=sessions,
-                documents=documents,
+                documents=[],
                 total_results=len(sessions)
             )
-    
-    # =========================================================================
-    # Document Operations (T035, T036)
-    # =========================================================================
-    
-    async def add_document_to_journey(
-        self, 
-        document: JourneyDocumentCreate
-    ) -> JourneyDocument:
-        """
-        Add a document or artifact to a journey.
-        
-        Args:
-            document: Document to add
-            
-        Returns:
-            Created document
-            
-        Raises:
-            ValueError: If journey_id doesn't exist
-        """
-        pool = await self._get_pool()
-        
-        async with pool.acquire() as conn:
-            # Verify journey exists
-            journey = await conn.fetchrow(
-                "SELECT id FROM journeys WHERE id = $1",
-                document.journey_id
-            )
-            if not journey:
-                raise ValueError(f"Journey {document.journey_id} not found")
-            
-            row = await conn.fetchrow(
-                """
-                INSERT INTO journey_documents 
-                    (journey_id, document_type, title, content, metadata)
-                VALUES ($1, $2, $3, $4, $5)
-                RETURNING *
-                """,
-                document.journey_id,
-                document.document_type,
-                document.title,
-                document.content,
-                document.metadata
-            )
-            
-            logger.info(
-                f"document.created",
-                extra={
-                    "document_id": str(row["id"]),
-                    "journey_id": str(document.journey_id),
-                    "document_type": document.document_type
-                }
-            )
-            
-            return JourneyDocument(
-                id=row["id"],
-                journey_id=row["journey_id"],
-                document_type=row["document_type"],
-                title=row["title"],
-                content=row["content"],
-                metadata=row["metadata"] or {},
-                created_at=row["created_at"]
-            )
-    
-    async def delete_journey_document(self, document_id: UUID) -> bool:
-        """
-        Delete a document from a journey.
-        
-        Args:
-            document_id: Document to delete
-            
-        Returns:
-            True if deleted, False if not found
-        """
-        pool = await self._get_pool()
-        
-        async with pool.acquire() as conn:
-            result = await conn.execute(
-                "DELETE FROM journey_documents WHERE id = $1",
-                document_id
-            )
-            
-            deleted = result == "DELETE 1"
-            if deleted:
-                logger.info(
-                    f"document.deleted",
-                    extra={"document_id": str(document_id)}
-                )
-            
-            return deleted
-    
+        except Exception as e:
+            logger.error(f"Error querying history: {e}")
+            return JourneyHistoryResponse(journey_id=query.journey_id, sessions=[], documents=[], total_results=0)
+
     # =========================================================================
     # Summary Generation (T026)
     # =========================================================================
     
     async def generate_session_summary(self, session_id: UUID) -> Optional[str]:
-        """
-        Generate and store a summary for a session.
+        """Generate and store session summary."""
+        session = await self.get_session(session_id)
+        if not session:
+            return None
+            
+        messages = session.messages or []
+        summary_parts = []
+        for msg in messages[:5]:
+            if isinstance(msg, dict) and "content" in msg:
+                content = msg["content"][:100]
+                summary_parts.append(f"{msg.get('role', 'unknown')}: {content}")
         
-        This is a placeholder - actual implementation would use an LLM.
-        For now, it concatenates the first few messages.
+        summary = " | ".join(summary_parts) if summary_parts else "Empty session"
         
-        Args:
-            session_id: Session to summarize
-            
-        Returns:
-            Generated summary or None if session not found
-        """
-        pool = await self._get_pool()
+        cypher = "MATCH (s:Session {id: $id}) SET s.summary = $summary, s.updated_at = datetime()"
+        await self._driver.execute_query(cypher, {"id": str(session_id), "summary": summary})
         
-        async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT messages FROM sessions WHERE id = $1",
-                session_id
-            )
-            
-            if not row:
-                return None
-            
-            messages = row["messages"] or []
-            
-            # Simple summary: first few messages
-            summary_parts = []
-            for msg in messages[:5]:
-                if isinstance(msg, dict) and "content" in msg:
-                    content = msg["content"][:100]
-                    summary_parts.append(f"{msg.get('role', 'unknown')}: {content}")
-            
-            summary = " | ".join(summary_parts) if summary_parts else "Empty session"
-            
-            # Store summary
-            await conn.execute(
-                "UPDATE sessions SET summary = $1 WHERE id = $2",
-                summary,
-                session_id
-            )
-            
-            log_session_operation("summary_generated", session_id, session_id)
-            return summary
+        return summary
 
     # =========================================================================
-    # Session ID File Management (T031, T032 - 002-remote-persistence-safety)
+    # Session ID Management
     # =========================================================================
 
     DEFAULT_SESSION_FILE = ".claude-session-id"
 
-    async def get_or_create_session_id(
-        self,
-        session_file: Optional["Path"] = None
-    ) -> str:
-        """
-        Get existing session ID from file or create a new one.
-
-        Args:
-            session_file: Path to session file. Defaults to .claude-session-id
-
-        Returns:
-            Session ID (UUID string)
-        """
+    async def get_or_create_session_id(self, session_file: Optional[Any] = None) -> str:
         from pathlib import Path
         import uuid
-
         if session_file is None:
             session_file = Path.home() / self.DEFAULT_SESSION_FILE
-
         session_file = Path(session_file)
-
-        # Check for existing session
         if session_file.exists():
-            session_id = session_file.read_text().strip()
-            if session_id:
-                logger.debug(f"Returning existing session_id: {session_id}")
-                return session_id
+            sid = session_file.read_text().strip()
+            if sid: return sid
+        sid = str(uuid.uuid4())
+        session_file.write_text(sid)
+        return sid
 
-        # Create new session ID
-        session_id = str(uuid.uuid4())
-        session_file.write_text(session_id)
-        logger.info(f"Created new session_id: {session_id}")
-
-        return session_id
-
-    async def end_session(
-        self,
-        session_file: Optional["Path"] = None,
-        trigger_summary: bool = True
-    ) -> Optional[dict]:
+    async def record_session_end(self, session_id: str, started_at: datetime, ended_at: datetime) -> dict:
+        cypher = """
+        MERGE (sm:SessionMetadata {session_id: $session_id})
+        SET sm.started_at = $started_at,
+            sm.ended_at = $ended_at
         """
-        End the current session: remove file, record metadata, and trigger summary.
-
-        Args:
-            session_file: Path to session file. Defaults to .claude-session-id
-            trigger_summary: If True, trigger n8n workflow to generate summary
-
-        Returns:
-            Session record with metadata, or None if no session existed
-        """
-        from pathlib import Path
-        from datetime import datetime
-
-        if session_file is None:
-            session_file = Path.home() / self.DEFAULT_SESSION_FILE
-
-        session_file = Path(session_file)
-
-        if not session_file.exists():
-            return None
-
-        session_id = session_file.read_text().strip()
-        if not session_id:
-            session_file.unlink()
-            return None
-
-        # Get file creation time as session start
-        stat = session_file.stat()
-        started_at = datetime.fromtimestamp(stat.st_ctime)
-        ended_at = datetime.utcnow()
-
-        # Remove the file
-        session_file.unlink()
-        logger.info(f"Ended session: {session_id}")
-
-        # Record session end in database
-        session_record = await self.record_session_end(
-            session_id=session_id,
-            started_at=started_at,
-            ended_at=ended_at
-        )
-
-        # Trigger session summary generation via n8n (T047)
-        if trigger_summary:
-            try:
-                from api.services.remote_sync import RemoteSyncService
-                sync_service = RemoteSyncService()
-
-                # Get memories for this session
-                memories = await sync_service.query_by_session(session_id)
-
-                if memories:
-                    # Trigger n8n workflow to generate summary via Ollama
-                    summary_result = await sync_service.trigger_session_summary(
-                        session_id=session_id,
-                        memories=memories
-                    )
-                    session_record["summary_triggered"] = summary_result.get("success", False)
-                    if summary_result.get("summary"):
-                        session_record["summary"] = summary_result["summary"]
-                else:
-                    logger.info(f"No memories found for session {session_id}, skipping summary")
-                    session_record["summary_triggered"] = False
-
-            except Exception as e:
-                logger.warning(f"Failed to trigger session summary: {e}")
-                session_record["summary_triggered"] = False
-                session_record["summary_error"] = str(e)
-
-        return session_record
-
-    async def is_session_expired(
-        self,
-        session_file: Optional["Path"] = None,
-        timeout_minutes: int = 30
-    ) -> bool:
-        """
-        Check if session has expired due to inactivity.
-
-        Args:
-            session_file: Path to session file
-            timeout_minutes: Inactivity timeout in minutes (default: 30)
-
-        Returns:
-            True if session is expired, False otherwise
-        """
-        from pathlib import Path
-        from datetime import datetime
-
-        if session_file is None:
-            session_file = Path.home() / self.DEFAULT_SESSION_FILE
-
-        session_file = Path(session_file)
-
-        if not session_file.exists():
-            return True
-
-        # Check mtime for last activity
-        stat = session_file.stat()
-        last_activity = datetime.fromtimestamp(stat.st_mtime)
-        now = datetime.now()
-        elapsed_minutes = (now - last_activity).total_seconds() / 60
-
-        return elapsed_minutes > timeout_minutes
-
-    async def record_activity(
-        self,
-        session_file: Optional["Path"] = None
-    ) -> None:
-        """
-        Record activity by touching the session file (updates mtime).
-
-        Args:
-            session_file: Path to session file
-        """
-        from pathlib import Path
-
-        if session_file is None:
-            session_file = Path.home() / self.DEFAULT_SESSION_FILE
-
-        session_file = Path(session_file)
-
-        if session_file.exists():
-            session_file.touch()
-
-    async def record_session_end(
-        self,
-        session_id: str,
-        started_at: "datetime",
-        ended_at: "datetime"
-    ) -> dict:
-        """
-        Record session end metadata in database.
-
-        Args:
-            session_id: Session UUID string
-            started_at: When session started
-            ended_at: When session ended
-
-        Returns:
-            Session record dict
-        """
-        pool = await self._get_pool()
-
-        async with pool.acquire() as conn:
-            # Store in a session_metadata table or update existing sessions table
-            await conn.execute(
-                """
-                INSERT INTO session_metadata (session_id, started_at, ended_at)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (session_id) DO UPDATE SET ended_at = $3
-                """,
-                session_id, started_at, ended_at
-            )
-
-        logger.info(f"Recorded session end: {session_id}")
-
-        return {
+        await self._driver.execute_query(cypher, {
             "session_id": session_id,
             "started_at": started_at.isoformat(),
             "ended_at": ended_at.isoformat()
-        }
+        })
+        return {"session_id": session_id, "started_at": started_at.isoformat(), "ended_at": ended_at.isoformat()}
