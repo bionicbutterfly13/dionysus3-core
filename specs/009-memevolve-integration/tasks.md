@@ -21,13 +21,14 @@
 - [ ] T011 [US2] Create `n8n-workflows/memevolve-recall.json` to handle vector search and graph traversal in Neo4j.
 - [ ] T012 [US2] Create test script `scripts/test_memevolve_recall.py` to query for memories by topic.
 
-## Phase 3: Ingestion (🚧 DOING)
+## Phase 3: Ingestion (✅ DONE)
 
 - [x] T013 [US1] Implement the `/ingest` endpoint in `api/routers/memevolve.py`.
 - [x] T014 [US1] Implement `ingest` logic in `api/services/memevolve_adapter.py` to forward trajectories to `GraphitiService`.
 - [x] T015 [US1] Modify `api/services/graphiti_service.py` to handle entity/relationship extraction from trajectory data.
-- [ ] T016 [US1] Create `n8n-workflows/memevolve-ingest.json` to manage the upsert logic in Neo4j and the vector index.
-- [ ] T017 [US1] Create test script `scripts/test_memevolve_ingest.py` to send a trajectory and verify its persistence.
+- [x] T016 [US1] Create `n8n-workflows/memevolve-ingest.json` to manage the upsert logic in Neo4j and the vector index.
+- [x] T017 [US1] Create test script `scripts/test_memevolve_ingest.py` to send a trajectory and verify its persistence.
+
 
 
 ## Phase 4: Consciousness & Meta-Evolution (Future) - User Story 3 & 4

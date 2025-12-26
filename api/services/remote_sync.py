@@ -45,11 +45,12 @@ def get_neo4j_driver():
             config=SyncConfig(
                 webhook_token=os.getenv("MEMORY_WEBHOOK_TOKEN", ""),
                 cypher_webhook_url=os.getenv(
-                    "N8N_CYPHER_URL", "http://localhost:5678/webhook/neo4j/v1/cypher"
+                    "N8N_CYPHER_URL", "http://n8n:5678/webhook/neo4j/v1/cypher"
                 ),
             )
         )
     return _webhook_neo4j_driver
+
 
 
 async def close_neo4j_driver() -> None:
