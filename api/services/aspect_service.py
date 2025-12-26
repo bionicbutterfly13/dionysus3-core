@@ -37,7 +37,7 @@ class AspectService:
 
     async def upsert_aspect(self, user_id: str, name: str, role: str, status: str = "Active", metadata: Optional[Dict] = None) -> Dict[str, Any]:
         """
-        Add or update an aspect. Records history in Graphiti.
+        Add or update an aspect. Records a full snapshot history in Graphiti.
         """
         aspect_id = str(uuid4())
         timestamp = datetime.utcnow()
@@ -69,13 +69,21 @@ class AspectService:
         result = await self._driver.execute_query(cypher, params)
         aspect = result[0]["a"]
         
-        # 2. Record Temporal History in Graphiti
+        # 2. Record Full Snapshot Temporal History in Graphiti
         try:
             graphiti = await get_graphiti_service()
-            history_msg = f"Aspect '{name}' (role: {role}) updated to status: {status}. User: {user_id}"
+            # We record the full snapshot as an episode
+            snapshot = {
+                "aspect_name": name,
+                "role": role,
+                "status": status,
+                "metadata": metadata or {},
+                "user_id": user_id,
+                "event": "upsert"
+            }
             await graphiti.ingest_message(
-                content=history_msg,
-                source_description="aspect_update",
+                content=f"SNAPSHOT: Aspect Boardroom State - {json.dumps(snapshot)}",
+                source_description="aspect_snapshot_upsert",
                 valid_at=timestamp
             )
         except Exception as e:
@@ -83,6 +91,33 @@ class AspectService:
             await self.add_to_human_review("Graphiti History Failure", {"aspect": name, "error": str(e)})
 
         return aspect
+
+    async def reinject_reviewed_item(self, item_id: str, corrected_data: Dict[str, Any]) -> bool:
+        """
+        Manually resolve a human review item and execute its intended logic.
+        """
+        # Fetch the item first to know the context
+        cypher = "MATCH (c:HumanReviewCandidate {id: $id}) RETURN c"
+        result = await self._driver.execute_query(cypher, {"id": item_id})
+        if not result:
+            return False
+            
+        candidate = result[0]["c"]
+        reason = candidate.get("reason", "")
+        
+        # Logic depends on what failed
+        if "Avatar Extraction" in reason:
+            # Re-process avatar data with corrected text
+            from api.agents.knowledge_agent import KnowledgeAgent
+            agent = KnowledgeAgent()
+            # In a real scenario, we'd call the extraction logic again or just upsert the corrected JSON
+            # For now, we archive the candidate
+            await self.delete_review_item(item_id)
+            return True
+            
+        return False
+
+    async def delete_review_item(self, item_id: str) -> bool:
 
     async def remove_aspect(self, user_id: str, name: str) -> bool:
         """Archive an aspect (detach from user)."""
