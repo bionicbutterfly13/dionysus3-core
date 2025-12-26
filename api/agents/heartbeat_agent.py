@@ -11,7 +11,7 @@ class HeartbeatAgent:
     Uses smolagents CodeAgent with bridged MCP tools to reason about state.
     """
 
-    def __init__(self, model_id: str = "openai/gpt-4o-mini"):
+    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
         """
         Initialize the Heartbeat Agent with bridged MCP tools.
         """

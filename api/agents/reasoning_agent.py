@@ -8,7 +8,7 @@ class ReasoningAgent:
     Analyzes observations, reflects on patterns, and synthesizes insights via MCP tools.
     """
 
-    def __init__(self, model_id: str = "openai/gpt-4o-mini"):
+    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
         self.model = LiteLLMModel(
             model_id=model_id,
             api_key=os.getenv("OPENAI_API_KEY")

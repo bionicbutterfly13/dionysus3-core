@@ -12,8 +12,8 @@ client = anthropic.AsyncAnthropic(
 )
 
 # Models
-HAIKU = "claude-3-5-haiku-20241022"
-SONNET = "claude-3-5-sonnet-20241022"
+HAIKU = "openai/gpt-5-nano-2025-08-07"
+SONNET = "openai/gpt-5-nano-2025-08-07"
 
 
 async def chat_completion(
@@ -55,7 +55,7 @@ class CoachingAgent:
     """
     Agentic wrapper for IAS coaching logic.
     """
-    def __init__(self, model_id: str = SONNET):
+    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
         self.model = LiteLLMModel(
             model_id=model_id,
             api_key=os.getenv("ANTHROPIC_API_KEY")

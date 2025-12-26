@@ -9,7 +9,7 @@ class MarketingAgent:
     Uses smolagents CodeAgent for creative content generation.
     """
 
-    def __init__(self, model_id: str = "anthropic/claude-3-5-sonnet-20241022"):
+    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
         self.model = LiteLLMModel(
             model_id=model_id,
             api_key=os.getenv("ANTHROPIC_API_KEY")
