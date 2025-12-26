@@ -88,9 +88,10 @@ def validate_signature(
     # Generate expected signature
     expected_digest = hmac.new(
         key=secret.encode("utf-8"),
-        msg=payload,
+        msg=payload, # The raw bytes are used directly
         digestmod=hashlib.sha256,
     ).hexdigest()
+
 
     # Use timing-safe comparison to prevent timing attacks
     try:
@@ -161,6 +162,12 @@ async def verify_memevolve_signature(request: Request) -> bool:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail="MEMEVOLVE_HMAC_SECRET not configured"
         )
+    
+    # For debugging
+    expected_signature_debug = generate_signature(body, secret)
+    print(f"DEBUG: Server received signature: {signature_header}")
+    print(f"DEBUG: Server computed signature: {expected_signature_debug}")
+    print(f"DEBUG: Server received body bytes: {body!r}")
     
     if not validate_signature(body, signature_header, secret):
         raise HTTPException(

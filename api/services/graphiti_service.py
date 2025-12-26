@@ -8,6 +8,7 @@ Uses Graphiti for temporal entity extraction and hybrid search.
 from __future__ import annotations
 
 import os
+import json
 import logging
 from datetime import datetime
 from typing import Optional, Any
@@ -16,6 +17,8 @@ from uuid import uuid4
 from graphiti_core import Graphiti
 from graphiti_core.nodes import EpisodeType
 # Note: search_config_recipes not available in graphiti-core 0.24.3
+from api.models.memevolve import TrajectoryData
+from api.services.claude import chat_completion, HAIKU
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +160,151 @@ class GraphitiService:
                 }
                 for e in result.edges
             ],
+        }
+
+    @staticmethod
+    def _format_trajectory_text(trajectory: TrajectoryData, max_chars: int = 8000) -> str:
+        metadata = trajectory.metadata
+        metadata_lines = []
+        if metadata:
+            if metadata.agent_id:
+                metadata_lines.append(f"Agent: {metadata.agent_id}")
+            if metadata.session_id:
+                metadata_lines.append(f"Session: {metadata.session_id}")
+            if metadata.project_id:
+                metadata_lines.append(f"Project: {metadata.project_id}")
+
+        lines: list[str] = []
+        if metadata_lines:
+            lines.append("Metadata: " + " | ".join(metadata_lines))
+
+        for idx, step in enumerate(trajectory.steps, start=1):
+            if step.observation:
+                lines.append(f"Step {idx} Observation: {step.observation}")
+            if step.thought:
+                lines.append(f"Step {idx} Thought: {step.thought}")
+            if step.action:
+                lines.append(f"Step {idx} Action: {step.action}")
+
+        text = "\n".join(lines).strip()
+        if len(text) > max_chars:
+            text = text[:max_chars].rstrip() + "\n[truncated]"
+        return text
+
+    async def _summarize_trajectory(self, trajectory_text: str) -> str:
+        if not trajectory_text:
+            return "Empty trajectory."
+
+        system_prompt = (
+            "You are a concise technical summarizer. Summarize the agent trajectory "
+            "in 1-3 sentences, focusing on key observations, decisions, and outcomes."
+        )
+        try:
+            return await chat_completion(
+                messages=[{"role": "user", "content": trajectory_text}],
+                system_prompt=system_prompt,
+                model=HAIKU,
+                max_tokens=256,
+            )
+        except Exception as exc:
+            logger.warning(f"Trajectory summarization failed: {exc}")
+            fallback = trajectory_text[:280].rstrip()
+            return f"{fallback}..." if len(trajectory_text) > 280 else fallback
+
+    @staticmethod
+    def _parse_json_response(text: str) -> dict[str, Any]:
+        cleaned = text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.strip("`")
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            cleaned = cleaned[start:end + 1]
+        return json.loads(cleaned)
+
+    @staticmethod
+    def _normalize_extraction(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        entities: list[dict[str, Any]] = []
+        relationships: list[dict[str, Any]] = []
+
+        for item in payload.get("entities", []):
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name")
+            if not name:
+                continue
+            entities.append(
+                {
+                    "name": str(name),
+                    "type": str(item.get("type", "concept")),
+                    "description": item.get("description"),
+                }
+            )
+
+        for item in payload.get("relationships", []):
+            if not isinstance(item, dict):
+                continue
+            source = item.get("source")
+            target = item.get("target")
+            relation = item.get("relation")
+            if not source or not target or not relation:
+                continue
+            relationships.append(
+                {
+                    "source": str(source),
+                    "target": str(target),
+                    "relation": str(relation),
+                    "evidence": item.get("evidence"),
+                }
+            )
+
+        return entities, relationships
+
+    async def extract_and_structure_from_trajectory(
+        self,
+        trajectory: TrajectoryData,
+    ) -> dict[str, Any]:
+        """
+        Extract summary, entities, and relationships from a trajectory using LLM calls.
+
+        Returns:
+            Dict with keys: summary, entities, relationships
+        """
+        trajectory_text = self._format_trajectory_text(trajectory)
+        summary = trajectory.summary or await self._summarize_trajectory(trajectory_text)
+
+        system_prompt = (
+            "You are an information extraction system. Extract named entities "
+            "(people, organizations, tools, concepts) and relationships from the trajectory. "
+            "Respond with JSON only using this schema:\n"
+            "{\n"
+            "  \"entities\": [{\"name\": \"...\", \"type\": \"person|organization|tool|concept|other\", "
+            "\"description\": \"short\"}],\n"
+            "  \"relationships\": [{\"source\": \"...\", \"target\": \"...\", \"relation\": \"...\", "
+            "\"evidence\": \"...\"}]\n"
+            "}"
+        )
+        extraction_text = f"Summary:\n{summary}\n\nTrajectory:\n{trajectory_text}"
+
+        entities: list[dict[str, Any]] = []
+        relationships: list[dict[str, Any]] = []
+
+        try:
+            response = await chat_completion(
+                messages=[{"role": "user", "content": extraction_text}],
+                system_prompt=system_prompt,
+                model=HAIKU,
+                max_tokens=512,
+            )
+            parsed = self._parse_json_response(response)
+            entities, relationships = self._normalize_extraction(parsed)
+        except Exception as exc:
+            logger.warning(f"Trajectory extraction failed: {exc}")
+
+        return {
+            "summary": summary,
+            "entities": entities,
+            "relationships": relationships,
         }
 
     async def search(

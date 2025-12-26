@@ -24,11 +24,14 @@ import os
 from typing import Any, Optional
 from contextlib import asynccontextmanager
 
+import httpx
+from mcp.server.fastmcp import FastMCP
 from api.services.remote_sync import get_neo4j_driver, close_neo4j_driver
 
 
 # Create MCP server using FastMCP (provides @app.tool() decorator)
 app = FastMCP("dionysus-core")
+
 
 
 
@@ -1378,7 +1381,16 @@ def main():
 
     # Register cleanup for the webhook driver
     def cleanup():
-        asyncio.get_event_loop().run_until_complete(close_neo4j_driver())
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError: # No running loop, create a new one for cleanup
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+        if loop.is_running(): # If loop is already running, schedule as a task
+            loop.create_task(close_neo4j_driver())
+        else: # Otherwise, run until complete
+            loop.run_until_complete(close_neo4j_driver())
 
     atexit.register(cleanup)
 

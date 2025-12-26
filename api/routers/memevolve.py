@@ -13,6 +13,7 @@ from api.models.memevolve import (
     MemoryIngestRequest,
     MemoryRecallRequest,
     MemoryRecallResponse,
+    MemoryRecallItem,
     IngestResponse,
 )
 from api.services.hmac_utils import verify_memevolve_signature
@@ -51,13 +52,12 @@ async def ingest_trajectory(
     Ingest memory trajectory from MemEvolve.
     
     Receives trajectory data and processes it for storage.
-    Note: Full implementation in Phase 2.
     """
-    result = await adapter.ingest_trajectory(request.trajectory_data)
+    result = await adapter.ingest_trajectory(request)
     return IngestResponse(
-        success=result["success"],
-        ingested_count=result["ingested_count"],
-        message=result["message"]
+        ingest_id=result["ingest_id"],
+        entities_extracted=result["entities_extracted"],
+        memories_created=result["memories_created"],
     )
 
 
@@ -69,16 +69,22 @@ async def recall_memories(
     """
     Recall memories for MemEvolve query.
     
-    Performs semantic search and returns relevant memories.
-    Note: Full implementation in Phase 2.
+    Performs semantic vector search via n8n webhook and returns
+    relevant memories with similarity scores.
+    
+    Phase 2 implementation - fully functional.
     """
-    result = await adapter.recall_memories(
-        query=request.query,
-        context=request.context,
-        max_results=request.max_results
-    )
+    result = await adapter.recall_memories(request)
+    
+    # Convert dict results to MemoryRecallItem models
+    memory_items = [
+        MemoryRecallItem(**mem) if isinstance(mem, dict) else mem
+        for mem in result.get("memories", [])
+    ]
+    
     return MemoryRecallResponse(
-        memories=result["memories"],
+        memories=memory_items,
         query=result["query"],
-        result_count=result["result_count"]
+        result_count=result["result_count"],
+        search_time_ms=result.get("search_time_ms")
     )

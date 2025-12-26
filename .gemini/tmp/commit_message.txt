@@ -1,0 +1,8 @@
+refactor(mcp): Migrate MCP server from PostgreSQL to Neo4j
+
+Removes all PostgreSQL dependencies and direct SQL queries from the `dionysus_mcp` server.
+
+- Replaces the `asyncpg` connection pool with the existing webhook-based `WebhookNeo4jDriver`.
+- Rewrites all tool implementations (`create_memory`, `get_consciousness_state`, `activate_basin`, etc.) to use Cypher queries executed via n8n webhooks.
+- This centralizes all database access through the secure n8n abstraction layer, aligning the MCP server with the project's core architectural principles.
+- Resolves the `ConnectError` by eliminating the direct dependency on the Supabase/PostgreSQL database.
