@@ -1,0 +1,78 @@
+{
+  "name": "MemEvolve Health Check",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memevolve-health",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "webhookId": "memevolve-health-check"
+    },
+    {
+      "parameters": {
+        "jsCode": "// MemEvolve Health Check - HMAC Verification\n// Feature: 009-memevolve-integration\n\nconst crypto = require('crypto');\n\nconst signature = $input.first().headers['x-webhook-signature'];\nconst body = $input.first().body;\nconst secret = $env.MEMEVOLVE_HMAC_SECRET;\n\nif (!signature) {\n  return [{\n    json: {\n      status: 'error',\n      detail: 'X-Webhook-Signature header missing',\n      code: 400\n    }\n  }];\n}\n\nif (!secret) {\n  return [{\n    json: {\n      status: 'error',\n      detail: 'MEMEVOLVE_HMAC_SECRET not configured',\n      code: 500\n    }\n  }];\n}\n\nconst bodyString = JSON.stringify(body);\nconst expectedSignature = 'sha256=' + crypto.createHmac('sha256', secret)\n  .update(bodyString)\n  .digest('hex');\n\ntry {\n  const sigBuffer = Buffer.from(signature);\n  const expectedBuffer = Buffer.from(expectedSignature);\n  \n  if (sigBuffer.length === expectedBuffer.length && \n      crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {\n    return [{\n      json: {\n        status: 'ok',\n        service: 'dionysus-memevolve-adapter',\n        timestamp: new Date().toISOString()\n      }\n    }];\n  }\n} catch (e) {\n  // Length mismatch or other error\n}\n\nreturn [{\n  json: {\n    status: 'error',\n    detail: 'Invalid signature',\n    code: 401\n  }\n}];"
+      },
+      "id": "verify-hmac",
+      "name": "Verify HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": "={{ $json.code || ($json.status === 'ok' ? 200 : 401) }}"
+        }
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify HMAC": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "memevolve"
+    },
+    {
+      "name": "integration"
+    }
+  ],
+  "triggerCount": 0,
+  "versionId": "1"
+}

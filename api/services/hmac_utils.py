@@ -9,7 +9,10 @@ Used to authenticate webhook requests between local API and n8n.
 
 import hashlib
 import hmac
+import os
 from typing import Union
+
+from fastapi import Request, HTTPException, status
 
 
 def generate_signature(payload: bytes, secret: str) -> str:
@@ -121,3 +124,48 @@ def sign_request(payload: Union[bytes, str], secret: str) -> dict[str, str]:
         "Content-Type": "application/json",
         "X-Webhook-Signature": signature,
     }
+
+
+async def verify_memevolve_signature(request: Request) -> bool:
+    """
+    FastAPI dependency to verify HMAC-SHA256 signature for MemEvolve webhooks.
+    
+    Usage:
+        @router.post("/endpoint", dependencies=[Depends(verify_memevolve_signature)])
+        async def handler():
+            ...
+    
+    Args:
+        request: FastAPI Request object
+        
+    Returns:
+        True if signature is valid
+        
+    Raises:
+        HTTPException: 400 if header missing, 401 if invalid, 500 if secret not configured
+        
+    Feature: 009-memevolve-integration
+    """
+    signature_header = request.headers.get("X-Webhook-Signature")
+    if not signature_header:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="X-Webhook-Signature header missing"
+        )
+    
+    body = await request.body()
+    secret = os.getenv("MEMEVOLVE_HMAC_SECRET", "")
+    
+    if not secret:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail="MEMEVOLVE_HMAC_SECRET not configured"
+        )
+    
+    if not validate_signature(body, signature_header, secret):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid signature"
+        )
+    
+    return True
