@@ -21,9 +21,10 @@ As a cognitive system, I want to access my complete historical task context, so 
 
 ### Functional Requirements
 
-- **FR-001**: System MUST provide a `MaintenanceService` capable of batch-fetching tasks from Archon.
-- **FR-002**: System MUST mirror `ArchonTask` nodes and link them to `ArchonProject` nodes in Neo4j.
+- **FR-001**: System MUST implement a formal `MaintenanceService` class to encapsulate reconstruction and review queue operations.
+- **FR-002**: All communication with Archon MUST be unified via the MCP bridge using `ARCHON_MCP_URL`. REST API fallbacks MUST be removed to prevent silent failures.
 - **FR-003**: Reconstruction MUST be idempotent (subsequent runs update existing nodes).
+- **FR-004**: System MUST validate connectivity to both local MCP and VPS Neo4j before starting migration.
 
 ## Key Entities
 

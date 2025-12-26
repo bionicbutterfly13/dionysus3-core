@@ -27,7 +27,7 @@ As a potential customer, I want to see a clear value proposition for the Bluepri
 
 - **FR-001**: System MUST generate Emails 5-10 using the `MarketingAgent` (CodeAgent).
 - **FR-002**: System MUST generate the $97 Tripwire Sales Page copy.
-- **FR-003**: All assets MUST be exported to `/Volumes/Arkham/Marketing/stefan/assets/`.
+- **FR-003**: System MUST implement a `FileExportService` to write all generated assets to `/Volumes/Arkham/Marketing/stefan/assets/`.
 
 ## Success Criteria
 
