@@ -337,6 +337,76 @@ class ReconstructionService:
         )
     
     # =========================================================================
+    # Task History Reconstruction (Feature 012)
+    # =========================================================================
+
+    async def reconstruct_task_history(self, limit: int = 1000) -> dict[str, Any]:
+        """
+        Fetch all historical tasks from Archon and mirror them in Neo4j.
+        """
+        from api.services.archon_integration import get_archon_service
+        from api.services.remote_sync import get_neo4j_driver
+        
+        archon = get_archon_service()
+        driver = get_neo4j_driver()
+        
+        logger.info(f"Starting historical task reconstruction (limit={limit})...")
+        
+        # 1. Fetch from Archon
+        tasks = await archon.fetch_all_historical_tasks(limit=limit)
+        if not tasks:
+            return {"status": "no_tasks_found", "count": 0}
+            
+        logger.info(f"Fetched {len(tasks)} tasks from Archon. Mirroring to Neo4j...")
+        
+        # 2. Mirror to Neo4j
+        # We use a single large Cypher query with UNWIND for efficiency
+        cypher = """
+        UNWIND $tasks as task
+        MERGE (t:ArchonTask {id: task.id})
+        SET t.title = task.title,
+            t.description = task.description,
+            t.status = task.status,
+            t.feature = task.feature,
+            t.project_id = task.project_id,
+            t.task_order = task.task_order,
+            t.updated_at = datetime()
+        WITH t, task
+        WHERE task.project_id IS NOT NULL
+        MERGE (p:ArchonProject {id: task.project_id})
+        MERGE (t)-[:BELONGS_TO]->(p)
+        RETURN count(t) as mirrored
+        """
+        
+        try:
+            # Clean task data for Neo4j (ensure no nested complex objects)
+            clean_tasks = []
+            for t in tasks:
+                clean_tasks.append({
+                    "id": str(t.get("id", "")),
+                    "title": t.get("title", "Untitled"),
+                    "description": t.get("description", ""),
+                    "status": t.get("status", "unknown"),
+                    "feature": t.get("feature", "default"),
+                    "project_id": str(t.get("project_id", "")) if t.get("project_id") else None,
+                    "task_order": int(t.get("task_order", 50))
+                })
+                
+            result = await driver.execute_query(cypher, {"tasks": clean_tasks})
+            mirrored = int(result[0]["mirrored"]) if result else 0
+            
+            logger.info(f"Successfully mirrored {mirrored} tasks to Neo4j.")
+            
+            return {
+                "status": "success",
+                "fetched": len(tasks),
+                "mirrored": mirrored
+            }
+        except Exception as e:
+            logger.error(f"Error mirroring tasks to Neo4j: {e}")
+            return {"status": "error", "error": str(e)}
+
+    # =========================================================================
     # Step 1: Fragment Scanning
     # =========================================================================
     

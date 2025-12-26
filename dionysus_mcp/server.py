@@ -173,58 +173,70 @@ async def search_memories(
 
 
 @app.tool()
-async def get_memory(memory_id: str) -> Optional[dict]:
+async def observe_environment() -> dict:
     """
-    Get a specific memory by ID via n8n webhook.
-
-    The n8n workflow handles Neo4j lookup and access count updates.
-    No direct database connections.
-
-    Args:
-        memory_id: UUID of the memory
-
-    Returns:
-        Memory record or None if not found
+    Gather a snapshot of the current environment (energy, goals, memories).
     """
-    payload = {
-        "operation": "get",
-        "memory_id": memory_id,
-    }
+    from api.services.action_executor import get_action_executor
+    from api.models.action import ActionRequest
+    from api.services.energy_service import ActionType
+    
+    executor = get_action_executor()
+    result = await executor.execute(ActionRequest(action_type=ActionType.OBSERVE))
+    return result.data.get("snapshot", {}) if result.success else {"error": result.error}
 
-    payload_bytes = json.dumps(payload, default=str).encode("utf-8")
-    signature = _generate_webhook_signature(payload_bytes)
 
-    async with httpx.AsyncClient(timeout=WEBHOOK_TIMEOUT_SECONDS) as client:
-        response = await client.post(
-            N8N_RECALL_URL,
-            content=payload_bytes,
-            headers={
-                "Content-Type": "application/json",
-                "X-Webhook-Signature": signature,
-            },
-        )
+@app.tool()
+async def reflect_on_topic(topic: str, context: Optional[str] = None) -> str:
+    """
+    Deep reflection on a specific topic to gain new insights.
+    """
+    from api.services.claude import chat_completion, SONNET
+    
+    system_prompt = "You are Dionysus's reflective faculty. Analyze for root causes and systemic connections."
+    user_content = f"Topic: {topic}\n\nContext: {context or 'None'}"
+    
+    return await chat_completion(
+        messages=[{"role": "user", "content": user_content}],
+        system_prompt=system_prompt,
+        model=SONNET,
+        max_tokens=1000
+    )
 
-        if response.status_code == 200:
-            result = response.json() if response.text else {}
-            memory = result.get("memory")
 
-            if not memory:
-                return None
+@app.tool()
+async def synthesize_information(objective: str, data_points: str) -> str:
+    """
+    Synthesize multiple data points into a coherent analysis or plan.
+    """
+    from api.services.claude import chat_completion, SONNET
+    
+    system_prompt = "You are Dionysus's synthesis faculty. Weave disparate data into a high-level actionable plan."
+    user_content = f"Objective: {objective}\n\nData Points: {data_points}"
+    
+    return await chat_completion(
+        messages=[{"role": "user", "content": user_content}],
+        system_prompt=system_prompt,
+        model=SONNET,
+        max_tokens=1000
+    )
 
-            return {
-                "id": str(memory.get("id") or memory.get("memory_id") or memory_id),
-                "content": memory.get("content", ""),
-                "type": memory.get("memory_type") or memory.get("type") or "unknown",
-                "status": memory.get("status", "active"),
-                "importance": float(memory.get("importance", 0.5)),
-                "access_count": int(memory.get("access_count", 0)),
-                "last_accessed": memory.get("last_accessed"),
-                "created_at": memory.get("created_at"),
-            }
-        else:
-            raise Exception(
-                f"Webhook returned {response.status_code}: {response.text}"
-            )
+
+@app.tool()
+async def manage_energy(operation: str, amount: float = 0.0) -> dict:
+    """
+    Check energy status or spend energy. Operations: 'get_status', 'spend_energy'.
+    """
+    from api.services.energy_service import get_energy_service
+    service = get_energy_service()
+    
+    if operation == "get_status":
+        state = await service.get_state()
+        return {"current_energy": state.current_energy, "heartbeat_count": state.heartbeat_count}
+    elif operation == "spend_energy":
+        success, remaining = await service.spend_energy(amount)
+        return {"success": success, "remaining_energy": remaining}
+    return {"error": f"Unknown operation: {operation}"}
 
 
 # =============================================================================
@@ -328,62 +340,79 @@ async def update_belief(
 @app.tool()
 async def assess_coherence() -> dict:
     """
-    Assess IWMT coherence via n8n webhook.
+    Assess IWMT coherence based on current attractor basin landscape.
     """
     driver = get_neo4j_driver()
+    
+    # Fetch data for calculation
+    async with driver.session() as session:
+        # Get active basins and their relationships
+        result = await session.run("""
+            MATCH (b:MemoryCluster)
+            WHERE b.basin_state IN ['active', 'activating', 'saturated']
+            OPTIONAL MATCH (b)-[r:LINKED_TO]->(other:MemoryCluster)
+            WHERE other.basin_state IN ['active', 'activating', 'saturated']
+            RETURN b, collect(type(r)) as rels
+        """)
+        rows = await result.data()
 
-    # In a real scenario, these values would be calculated from the graph state.
-    # For this refactoring, we keep the placeholder values.
-    spatial = 0.5
-    temporal = 0.5
-    causal = 0.5
-    embodied = 0.3
-    counterfactual = 0.2
+    if not rows:
+        return {"status": "insufficient_data", "consciousness_level": 0.0}
 
-    # The calculation logic is assumed to be handled by Neo4j/n8n.
-    # We will pass the values and expect the result.
-    # This is a conceptual query; the actual logic may live in n8n.
+    # Real IWMT Coherence Calculations
+    # 1. Spatial: Density of active basin connections
+    total_basins = len(rows)
+    total_rels = sum(len(r["rels"]) for r in rows)
+    spatial = min(1.0, total_rels / (total_basins * 2.0)) if total_basins > 0 else 0.0
+    
+    # 2. Temporal: Stability/Recency of active basins
+    avg_stability = sum(float(r["b"].get("stability", 0.5)) for r in rows) / total_basins
+    temporal = avg_stability
+    
+    # 3. Causal: Presence of directed informational links (CLAUSE strength)
+    avg_strength = sum(float(r["b"].get("clause_strength", 1.0)) for r in rows) / total_basins
+    causal = min(1.0, avg_strength / 2.0)
+    
+    # 4. Embodied Selfhood: Presence of 'self' domain basins
+    self_basins = [r for r in rows if r["b"].get("domain") == "self"]
+    embodied = min(1.0, len(self_basins) / 2.0)
+    
+    # 5. Counterfactual: Depth of basins
+    avg_depth = sum(float(r["b"].get("depth", 0.3)) for r in rows) / total_basins
+    counterfactual = avg_depth
+
+    consciousness_level = (spatial + temporal + causal + embodied + counterfactual) / 5.0
+    
+    # Persist the assessment
     cypher = """
-        // This is a conceptual query. The actual calculation may be more complex
-        // and handled within an n8n workflow or a Neo4j User-Defined Function.
-        WITH $spatial as s, $temporal as t, $causal as c, $embodied as e, $counterfactual as cf
-        // Formula placeholder
-        WITH s, t, c, e, cf, (s + t + c + e + cf) / 5.0 as consciousness_level
         CREATE (iwmt:IWMTCoherence {
             id: randomUUID(),
-            spatial_coherence: s,
-            temporal_coherence: t,
-            causal_coherence: c,
-            embodied_selfhood: e,
-            counterfactual_capacity: cf,
-            consciousness_level: consciousness_level,
-            consciousness_achieved: consciousness_level >= 0.5,
+            spatial_coherence: $s,
+            temporal_coherence: $t,
+            causal_coherence: $c,
+            embodied_selfhood: $e,
+            counterfactual_capacity: $cf,
+            consciousness_level: $level,
+            consciousness_achieved: $achieved,
             created_at: datetime()
         })
-        RETURN iwmt.consciousness_level as consciousness_level,
-               iwmt.consciousness_achieved as consciousness_achieved
+        RETURN iwmt.id as id
     """
     params = {
-        "spatial": spatial,
-        "temporal": temporal,
-        "causal": causal,
-        "embodied": embodied,
-        "counterfactual": counterfactual,
+        "s": spatial, "t": temporal, "c": causal, "e": embodied, "cf": counterfactual,
+        "level": consciousness_level, "achieved": consciousness_level >= 0.5
     }
     
     async with driver.session() as session:
-        result = await session.run(cypher, params)
-        row = await result.single()
+        await session.run(cypher, params)
 
-    consciousness_level = row["consciousness_level"]
-    
     return {
-        "spatial_coherence": spatial,
-        "temporal_coherence": temporal,
-        "causal_coherence": causal,
-        "embodied_selfhood": embodied,
-        "counterfactual_capacity": counterfactual,
-        "consciousness_level": float(consciousness_level),
+        "spatial_coherence": round(spatial, 3),
+        "temporal_coherence": round(temporal, 3),
+        "causal_coherence": round(causal, 3),
+        "embodied_selfhood": round(embodied, 3),
+        "counterfactual_capacity": round(counterfactual, 3),
+        "consciousness_level": round(consciousness_level, 3),
         "consciousness_achieved": consciousness_level >= 0.5
     }
 

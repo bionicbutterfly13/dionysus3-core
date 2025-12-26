@@ -1,0 +1,56 @@
+# Tasks: Agentic Unified Model
+
+**Input**: Design documents from `/specs/015-agentic-unified-model/`
+**Prerequisites**: plan.md (required), spec.md (required)
+
+## Phase 1: Setup (Shared Infrastructure)
+
+- [ ] T001 [P] Ensure `smolagents` and `graphiti-core` are installed in the environment
+- [ ] T002 Configure Graphiti service to use separate group_id for aspect history
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+- [ ] T003 [P] Implement `UnifiedAspectService` in `api/services/aspect_service.py`
+- [ ] T004 Implement human review queue storage in `api/services/aspect_service.py`
+- [ ] T005 [P] Create `MarketingAgent` base in `api/agents/marketing_agent.py`
+- [ ] T006 [P] Create `KnowledgeAgent` base in `api/agents/knowledge_agent.py`
+
+---
+
+## Phase 3: User Story 1 - Unified Agentic Orchestration (Priority: P1) 🎯 MVP
+
+**Goal**: Marketing and KB pillars driven by specialized smolagents.
+
+- [ ] T007 [US1] Refactor `MarketingAgent` to generate nurture emails using `CodeAgent`
+- [ ] T008 [US1] Refactor `MarketingAgent` to generate sales page copy using `CodeAgent`
+- [ ] T009 [US1] Refactor `KnowledgeAgent` to review manuscripts using `CodeAgent`
+- [ ] T010 [US1] Implement structured avatar data extraction in `KnowledgeAgent`
+
+---
+
+## Phase 4: User Story 2 - Temporal Aspect Integrity (Priority: P1)
+
+**Goal**: Single source of truth for boardroom aspects with Graphiti history.
+
+- [ ] T011 [US2] Implement `upsert_aspect` with Graphiti episode recording in `api/services/aspect_service.py`
+- [ ] T012 [US2] Implement `remove_aspect` with removal episode recording in `api/services/aspect_service.py`
+- [ ] T013 [US2] Update `HeartbeatAgent` to use `AspectService` for context construction
+
+---
+
+## Phase 5: User Story 3 - Human-in-the-Loop Review (Priority: P2)
+
+**Goal**: Flag low-confidence outputs for human review.
+
+- [ ] T014 [US3] Implement `add_to_human_review` in `api/services/aspect_service.py`
+- [ ] T015 [US3] Update all agents to catch parsing errors and divert to review queue
+- [ ] T016 [US3] Create `GET /api/maintenance/review-queue` in `api/routers/maintenance.py`
+
+---
+
+## Phase 6: Polish
+
+- [ ] T017 Update `GEMINI.md` status to reflect unified agentic architecture
+- [ ] T018 Run final consistency check across all 3 project pillars

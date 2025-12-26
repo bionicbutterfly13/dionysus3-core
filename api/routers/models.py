@@ -303,26 +303,20 @@ async def get_model_predictions(
         if not model:
             raise HTTPException(status_code=404, detail=f"Model not found: {model_id}")
 
-        # Get predictions based on filter
-        if resolved is False:
-            predictions = await service.get_unresolved_predictions(
-                model_id=model_id,
-                limit=limit,
-            )
-            # Apply offset manually for now
-            predictions = predictions[offset:offset + limit]
-            total = len(predictions)
-        else:
-            # For resolved=True or None, we need to implement get_predictions_for_model
-            # For now, just get all predictions via direct query
-            predictions = await service.get_unresolved_predictions(
-                model_id=model_id,
-                limit=limit + offset,
-            )
-            if resolved is True:
-                predictions = [p for p in predictions if p.resolved_at is not None]
-            predictions = predictions[offset:offset + limit]
-            total = len(predictions)
+        # Get predictions (using Neo4j query via service)
+        predictions = await service.get_unresolved_predictions(
+            model_id=model_id,
+            limit=limit + offset,
+        )
+        
+        # Filter by resolution status if requested
+        if resolved is True:
+            predictions = [p for p in predictions if p.resolved_at is not None]
+        elif resolved is False:
+            predictions = [p for p in predictions if p.resolved_at is None]
+            
+        # Apply offset and limit
+        final_predictions = predictions[offset:offset + limit]
 
         return PredictionListResponse(
             predictions=[
@@ -337,9 +331,9 @@ async def get_model_predictions(
                     resolved_at=p.resolved_at.isoformat() if p.resolved_at else None,
                     created_at=p.created_at.isoformat(),
                 )
-                for p in predictions
+                for p in final_predictions
             ],
-            total=total,
+            total=len(predictions),
         )
 
     except HTTPException:
@@ -478,42 +472,25 @@ async def get_model_revisions(
         if not model:
             raise HTTPException(status_code=404, detail=f"Model not found: {model_id}")
 
-        # Get revisions via direct query (service method returns list)
-        async with service._db_pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                SELECT * FROM model_revisions
-                WHERE model_id = $1
-                ORDER BY revision_number DESC
-                LIMIT $2 OFFSET $3
-                """,
-                model_id,
-                limit,
-                offset,
-            )
-            total_row = await conn.fetchrow(
-                "SELECT COUNT(*) as count FROM model_revisions WHERE model_id = $1",
-                model_id,
-            )
-            total = total_row["count"] if total_row else 0
+        revisions = await service.get_revisions(model_id, limit=limit, offset=offset)
 
         return RevisionListResponse(
             revisions=[
                 RevisionSummaryResponse(
-                    id=str(row["id"]),
-                    model_id=str(row["model_id"]),
-                    revision_number=row["revision_number"],
-                    trigger=row["trigger"],
-                    trigger_description=row["trigger_description"],
-                    basins_added=[str(b) for b in (row["basins_added"] or [])],
-                    basins_removed=[str(b) for b in (row["basins_removed"] or [])],
-                    accuracy_before=row["accuracy_before"],
-                    accuracy_after=row["accuracy_after"],
-                    created_at=row["created_at"].isoformat(),
+                    id=str(r.id),
+                    model_id=str(r.model_id),
+                    revision_number=r.revision_number,
+                    trigger=r.trigger.value,
+                    trigger_description=r.trigger_description,
+                    basins_added=[str(b) for b in r.basins_added],
+                    basins_removed=[str(b) for b in r.basins_removed],
+                    accuracy_before=r.accuracy_before,
+                    accuracy_after=r.accuracy_after,
+                    created_at=r.created_at.isoformat(),
                 )
-                for row in rows
+                for r in revisions
             ],
-            total=total,
+            total=model.revision_count,
         )
 
     except HTTPException:

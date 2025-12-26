@@ -123,6 +123,7 @@ class HeartbeatContext:
     recent_memories: list[dict[str, Any]] = field(default_factory=list)
     recent_trajectories: list[dict[str, Any]] = field(default_factory=list) # Added for MemEvolve
     identity_context: str = ""
+    boardroom_aspects: list[dict[str, Any]] = field(default_factory=list) # Unified Source of Truth
     last_heartbeat_summary: str = ""
     activated_clusters: list[str] = field(default_factory=list)
 
@@ -218,6 +219,12 @@ class ContextBuilder:
             last_record = await last_result.single()
             last_summary = last_record["narrative"] if last_record else "This is my first heartbeat."
 
+        # Fetch boardroom aspects (Source of Truth)
+        from api.services.aspect_service import get_aspect_service
+        aspect_service = get_aspect_service()
+        # For heartbeat, we use a default user_id or system identifier
+        boardroom_aspects = await aspect_service.get_all_aspects(user_id="dionysus_system")
+
         return HeartbeatContext(
             environment=environment,
             goals=goals,
@@ -225,6 +232,7 @@ class ContextBuilder:
             recent_memories=recent_memories,
             recent_trajectories=recent_trajectories,
             identity_context=identity_context,
+            boardroom_aspects=boardroom_aspects,
             last_heartbeat_summary=last_summary,
         )
 
@@ -286,6 +294,12 @@ class ContextBuilder:
             available_energy=context.environment.current_energy,
         )
 
+        # Format boardroom aspects
+        aspects_text = "\n".join(
+            f"- {a.get('name')} ({a.get('status')}): {a.get('role')}"
+            for a in context.boardroom_aspects
+        ) or "None"
+
         # User prompt
         user_prompt = HEARTBEAT_USER_PROMPT.format(
             timestamp=context.environment.timestamp.isoformat(),
@@ -299,9 +313,12 @@ class ContextBuilder:
             goal_issues=issues_text,
             recent_memories=memories_text,
             trajectories=trajectories_text,
-            identity_context=context.environment.heartbeat_number,
+            identity_context=context.identity_context,
             last_heartbeat=context.last_heartbeat_summary,
         )
+        
+        # Add aspects to prompt (we extend the template dynamically)
+        user_prompt += f"\n\n## Boardroom State (Internal Aspects)\n{aspects_text}"
 
         return system_prompt, user_prompt
 

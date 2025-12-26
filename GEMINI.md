@@ -67,10 +67,12 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 
 ## Roadmap & Pending Tasks
 
-1.  **MemEvolve Phase 4 (✅ DONE):** Integrate agent trajectories into the Heartbeat OODA loop. Implement pattern detection and strategic memory generation.
-2.  **MemEvolve Phase 5 (Current Focus):** Implement `/evolve` endpoint for meta-evolution of retrieval strategies.
-3.  **Heartbeat Handoff:** Finalize transition from `HeartbeatService` legacy logic to full `HeartbeatAgent` orchestration.
-4.  **Persistent Task Log:** Reconstruct completed task history from local Archon.
+1.  **Feature 010: Heartbeat Agent Handoff (Completed)**: Full cognitive loop migrated to `smolagents.CodeAgent`. OODA logic delegated to hierarchical managed agents.
+2.  **Feature 011: Core Services Neo4j Migration (Completed)**: `Worldview`, `ThoughtSeed`, and `Model` services refactored to use `WebhookNeo4jDriver`. Precision-weighted belief updates implemented.
+3.  **Feature 012: Historical Task Reconstruction (Completed)**: Mirror local Archon task history into VPS Neo4j graph for longitudinal continuity.
+4.  **System Consolidation (Completed)**: Standardized smolagents usage, moved tools to MCP server, and purged legacy PostgreSQL stubs.
+
+**Current Focus**: Validating the unified cognitive loop and ensuring cross-session continuity with the reconstructed task history.
 
 ## Commands
 

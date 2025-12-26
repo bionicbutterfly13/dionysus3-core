@@ -256,6 +256,43 @@ class ArchonIntegrationService:
             logger.debug(f"Failed to search tasks: {e}")
             return []
 
+    async def fetch_all_historical_tasks(self, limit: int = 1000) -> list[dict[str, Any]]:
+        """
+        Fetch all historical tasks from Archon for reconstruction.
+        
+        Args:
+            limit: Maximum tasks to fetch
+            
+        Returns:
+            List of all tasks from Archon
+        """
+        if not self._enabled:
+            return []
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Call Archon's find_tasks without filters to get all
+                response = await client.post(
+                    f"{self.base_url}/tools/find_tasks",
+                    json={
+                        "per_page": limit,
+                        "include_closed": True
+                    }
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    # Archon response might be {"tasks": [...]} or [...]
+                    if isinstance(result, dict):
+                        return result.get("tasks", [])
+                    return result if isinstance(result, list) else []
+
+                return []
+
+        except Exception as e:
+            logger.error(f"Failed to fetch historical tasks from Archon: {e}")
+            return []
+
     # =========================================================================
     # Project Context
     # =========================================================================
