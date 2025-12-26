@@ -17,6 +17,7 @@
 - [ ] T003 Implement idempotent UNWIND Cypher query for batch task merging
 - [ ] T004 Link tasks to project nodes via `BELONGS_TO` relationships
 - [ ] T005 Create `POST /api/maintenance/reconstruct-tasks` endpoint
+- [ ] T006 Run `scripts/init_boardroom.py` to establish system identity baseline
 
 ---
 
