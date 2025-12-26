@@ -47,6 +47,7 @@
 - [x] T014 [US3] Implement `add_to_human_review` in `api/services/aspect_service.py`
 - [x] T015 [US3] Update all agents to catch parsing errors and divert to review queue
 - [x] T016 [US3] Create `GET /api/maintenance/review-queue` in `api/routers/maintenance.py`
+- [ ] T017 [US3] Implement `reinject_reviewed_item` logic for Marketing and KB agent resume patterns
 
 ---
 

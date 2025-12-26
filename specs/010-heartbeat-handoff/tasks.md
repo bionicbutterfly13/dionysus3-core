@@ -41,6 +41,7 @@
 - [ ] T008 Add `get_unconsumed_trajectories` to `MemEvolveAdapter`
 - [ ] T009 Update `ContextBuilder` to include unconsumed trajectories
 - [ ] T010 Implement trajectory "marking" (processed_at) after agent reasoning
+- [ ] T011 [P] Implement transactional 'read-and-lock' for trajectories to prevent race conditions between heartbeat cycles
 
 ---
 
