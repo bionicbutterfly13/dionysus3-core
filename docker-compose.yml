@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  dionysus-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: dionysus-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    networks:
+      - dionysus_default
+    restart: unless-stopped
+
+networks:
+  dionysus_default:
+    external: true

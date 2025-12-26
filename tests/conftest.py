@@ -1,120 +1,32 @@
-# Copyright 2025 Dionysus Project
-# SPDX-License-Identifier: Apache-2.0
-
 """
-Shared pytest fixtures for all tests.
-
-Provides:
-- db_pool: asyncpg connection pool for database tests
-- cleanup utilities for test isolation
+Shared Pytest Configuration and Fixtures
 """
 
 import os
-
 import pytest
-import asyncpg
-from dotenv import load_dotenv
+import asyncio
+from typing import AsyncGenerator
 
-load_dotenv()
-
-# Database configuration
-# Use test database on port 5434 (docker-compose.test.yml)
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://dionysus:dionysus2024@localhost:5434/dionysus_test"
-)
-
+# =============================================================================
+# Async Support
+# =============================================================================
 
 @pytest.fixture(scope="session")
-async def db_pool():
-    """
-    Create database connection pool for tests.
+def event_loop():
+    """Create session-wide event loop for async tests."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
-    Scope: session (one pool shared across all tests)
-    """
-    pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
-    yield pool
-    await pool.close()
-
+# =============================================================================
+# API Fixtures
+# =============================================================================
 
 @pytest.fixture
-async def cleanup_mental_models(db_pool):
-    """
-    Cleanup mental model test data before and after each test.
-
-    Uses test-prefixed UUIDs to avoid deleting production data.
-    """
-    test_uuid_prefix = "00000000-0000-0000-0000"
-
-    async def cleanup():
-        async with db_pool.acquire() as conn:
-            # Clean up in dependency order
-            await conn.execute(
-                """
-                DELETE FROM worldview_prediction_errors
-                WHERE model_id IN (
-                    SELECT id FROM mental_models
-                    WHERE name LIKE 'Test%' OR name LIKE 'test%'
-                )
-                """
-            )
-            await conn.execute(
-                """
-                DELETE FROM model_worldview_links
-                WHERE model_id IN (
-                    SELECT id FROM mental_models
-                    WHERE name LIKE 'Test%' OR name LIKE 'test%'
-                )
-                """
-            )
-            await conn.execute(
-                """
-                DELETE FROM model_identity_links
-                WHERE model_id IN (
-                    SELECT id FROM mental_models
-                    WHERE name LIKE 'Test%' OR name LIKE 'test%'
-                )
-                """
-            )
-            await conn.execute(
-                """
-                DELETE FROM model_revisions
-                WHERE model_id IN (
-                    SELECT id FROM mental_models
-                    WHERE name LIKE 'Test%' OR name LIKE 'test%'
-                )
-                """
-            )
-            await conn.execute(
-                """
-                DELETE FROM model_predictions
-                WHERE model_id IN (
-                    SELECT id FROM mental_models
-                    WHERE name LIKE 'Test%' OR name LIKE 'test%'
-                )
-                """
-            )
-            await conn.execute(
-                """
-                DELETE FROM mental_models
-                WHERE name LIKE 'Test%' OR name LIKE 'test%'
-                """
-            )
-            await conn.execute(
-                """
-                DELETE FROM worldview_primitives
-                WHERE category LIKE 'test%' OR category LIKE 'Test%'
-                """
-            )
-            await conn.execute(
-                """
-                DELETE FROM identity_aspects
-                WHERE content LIKE 'Test%' OR content LIKE 'test%'
-                """
-            )
-
-    # Cleanup before test
-    await cleanup()
-    yield
-    # Cleanup after test
-    await cleanup()
+async def client():
+    """Async client for integration testing."""
+    from httpx import AsyncClient
+    from api.main import app
+    
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac

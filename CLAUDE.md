@@ -1,189 +1,32 @@
-# dionysus3-core Development Guidelines
+# Dionysus Development Guide
 
-Auto-generated from all feature plans. Last updated: 2025-12-13
+VPS-native cognitive system with Neo4j-only persistence.
 
-## Active Technologies
-- Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, neo4j-driver, httpx (webhooks), pydantic (002-remote-persistence-safety)
-- PostgreSQL (local, existing) + Neo4j 5 (remote VPS 72.61.78.89:7687) (002-remote-persistence-safety)
-- Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, pydantic (matches 002-remote-persistence-safety) (001-session-continuity)
-- PostgreSQL (local, via DATABASE_URL) (001-session-continuity)
-- Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, pydantic, anthropic (for LLM prediction generation) (005-mental-models)
-- PostgreSQL (local, existing schema) - adds 3 tables + 1 ALTER (005-mental-models)
+## Architecture
+- **API:** FastAPI on VPS (port 8000)
+- **Memory:** Neo4j via n8n webhooks (port 5678)
+- **Orchestration:** smolagents multi-agent framework
+- **Extraction:** Graphiti (direct Neo4j access exception)
+- **Local:** Archon task management (port 8181)
 
-- Python 3.11+ + FastAPI, asyncpg, pydantic (001-session-continuity)
+## Environment Setup
+- Deploy using `docker compose up -d --build` on VPS.
+- Core configuration in `.env` (copied into image).
+- Webhook communication secured via HMAC-SHA256.
 
-## Project Structure
-
-```text
-backend/
-frontend/
-tests/
-```
-
-## Commands
-
-cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
+## VPS Test Commands
+Execute inside the API container:
+- `docker exec dionysus-api python3 /app/scripts/test_memevolve_recall.py`
+- `docker exec dionysus-api python3 /app/scripts/test_memevolve_ingest.py`
+- `docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py`
 
 ## Code Style
-
-Python 3.11+: Follow standard conventions
-
-## Recent Changes
-- 005-mental-models: Added Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, pydantic, anthropic (for LLM prediction generation)
-- 001-session-continuity: Added Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, pydantic (matches 002-remote-persistence-safety)
-- 002-remote-persistence-safety: Added Python 3.11+ (matches existing dionysus3-core) + FastAPI, asyncpg, neo4j-driver, httpx (webhooks), pydantic
-
-
-<!-- MANUAL ADDITIONS START -->
-
-## Engineering Practices
-
-This project follows practices prescribed by Context-Engineering:
-- Reference: `/Volumes/Asylum/repos/Context-Engineering`
-- **SpecKit**: Use `/speckit.*` commands for specification-driven development
-- **Serena MCP**: Semantic code analysis (preferred over Explore agent)
-- **Archon MCP**: Task management (no TodoWrite)
-- **Neo4j access**: Only via n8n webhooks (never direct)
-
-## Context Resumption Protocol
-
-**CRITICAL: When resuming from a context summary, NEVER trust the summary blindly.**
-
-Before ANY action after context resumption:
-1. **Verify state first** - run `git status -s`, `ls <dirs>`, `git log --oneline -3`
-2. **If summary says "files missing"** - CHECK with `ls` and `git show HEAD:<path>` before recovering
-3. **Read before Write** - always `Read` existing files before using `Write` or `Edit`
-4. **Check Archon tasks** - `find_tasks(filter_by="status", filter_value="doing")` for active work
-5. **Verify changes** - use `git diff` to confirm actual changes before reporting success
-
-See memory: `context-resumption-protocol.md` for full protocol.
-
-## Security
-
-- **NEVER display .env contents** - Use `grep` for specific non-secret keys only, never `cat .env`
-- **API keys in shell environment** - Prefer `export ANTHROPIC_API_KEY=...` in ~/.zshrc over .env files
-- **.env is gitignored** - Safe for local secrets, but avoid displaying in tool output
-
-## Feature: Mental Models (005-mental-models)
-
-Mental Models are structured combinations of memory basins (attractor basins) that generate
-predictions about user behavior, self-state, world state, or tasks. Based on Yufik's
-neuronal packet theory.
-
-### Key Concepts
-
-- **ModelDomain**: `user`, `self`, `world`, `task_specific`
-- **ModelStatus**: `draft` → `active` → `deprecated`
-- **Predictions**: Generated from templates or domain defaults, tracked with confidence scores
-- **Revisions**: Models auto-flagged for revision when prediction accuracy drops below 50%
-
-### REST API Endpoints (`/api/models`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/models/` | Create mental model |
-| GET | `/api/models/` | List models (filter by domain, status) |
-| GET | `/api/models/{id}` | Get model details |
-| PUT | `/api/models/{id}` | Update model |
-| DELETE | `/api/models/{id}` | Deprecate model (soft-delete) |
-| GET | `/api/models/{id}/predictions` | Get model predictions |
-| POST | `/api/models/{id}/revisions` | Create model revision |
-| GET | `/api/models/{id}/revisions` | Get revision history |
-
-### MCP Tools
-
-- `create_mental_model` - Create model from constituent basins
-- `get_mental_model` - Get model by ID
-- `list_mental_models` - List/filter models
-- `generate_prediction` - Generate prediction from model + context
-- `resolve_prediction` - Resolve prediction with observation
-- `flag_for_revision` - Flag model for revision
-- `apply_revision` - Apply basin changes to model
-
-### Heartbeat Integration
-
-- **OBSERVE**: Generates predictions from relevant active models
-- **ORIENT**: Resolves predictions against observations
-- **DECIDE**: Flags models for revision if accuracy < 50%, adds REVISE_MODEL action
-- **ACT**: Executes REVISE_MODEL with ReviseModelHandler (cost: 3 energy)
-
-### Configuration
-
-```python
-MAX_MODELS_PER_CONTEXT = 5      # Max models per prediction context
-PREDICTION_TTL_HOURS = 24       # TTL for unresolved predictions
-REVISION_ERROR_THRESHOLD = 0.5  # Accuracy threshold for revision flagging
-```
-
-### Service Methods
-
-```python
-from api.services.model_service import get_model_service
-
-service = get_model_service()
-
-# CRUD
-model = await service.create_model(request)
-model = await service.get_model(model_id)
-models = await service.list_models(domain=ModelDomain.USER, status=ModelStatus.ACTIVE)
-model = await service.update_model(model_id, request)
-model = await service.deprecate_model(model_id)
-
-# Predictions
-relevant = await service.get_relevant_models(context)
-prediction = await service.generate_prediction(model, context)
-prediction = await service.resolve_prediction(prediction_id, observation)
-unresolved = await service.get_unresolved_predictions(model_id)
-stale = await service.get_stale_predictions(ttl_hours=24)
-count = await service.expire_stale_predictions()
-
-# Revisions
-revision = await service.flag_for_revision(model_id, trigger, description)
-revision = await service.apply_revision(model_id, request)
-needing_revision = await service.get_models_needing_revision()
-
-# Health
-is_healthy, missing = await service.check_model_health(model_id)
-degraded = await service.get_degraded_models()
-deprecated_ids = await service.deprecate_degraded_models()
-```
-
-## Git Workflow
-
-- **Commit frequently**: Commit after each logical unit of work
-- **Push after feature completion**: Always `git push origin main` after completing a feature
-- **Keep remote in sync**: Never leave commits unpushed at end of session
-- **Commit message format**: Use conventional commits (feat:, fix:, refactor:, docs:, test:)
+- **Python:** 3.11+ async/await, Pydantic v2 models.
+- **Database:** All queries must be Cypher (via WebhookNeo4jDriver).
+- **Naming:** snake_case for functions/vars, PascalCase for classes.
 
 ## Architecture Constraints
-
-### Data Architecture
-- **Neo4j = Source of Truth**: Neo4j is the authoritative store for all memory and graph data
-- **PostgreSQL = Working Memory**: PostgreSQL handles only transactional/working data (predictions, sync queue, session state) - minimal footprint
-- **NEVER contact Neo4j directly**: All Neo4j reads/writes MUST go through n8n webhooks. No direct Cypher, no neo4j-driver connections from the application. This is non-negotiable.
-  - **EXCEPTION: Graphiti** - The `graphiti-core` library is approved for direct Neo4j access as a trusted infrastructure component for temporal entity extraction and knowledge graph management. This exception was approved 2025-12-21.
-- **Context Engineering**: Follow Context Engineering best practices in `/Volumes/Asylum/repos/Context-Engineering` for all prompts, tool contracts, and context assembly.
-
-### Procedural Memory
-- **Procedural = Skills**: Procedural memory is represented as `(:Skill)` nodes (not ThoughtSeeds). ThoughtSeeds remain ideation/germination only.
-
-### Why n8n-only Neo4j access?
-1. **Safety**: Prevents LLM-driven data destruction
-2. **Central control**: All graph mutations auditable in one place
-3. **Consistency**: Single point of schema enforcement
-4. **Recovery**: n8n workflows can implement retry/rollback logic
-
-### Files that violate this constraint (need removal):
-- Any file importing `neo4j` driver directly (not allowed)
-
-### n8n webhook endpoints:
-  - `/webhook/memory/v1/ingest/message` - memory creation
-  - `/webhook/memory/v1/recall` - memory queries/recovery
-  - `/webhook/memory/v1/traverse` - vetted graph traversal queries
-  - `/webhook/memory/v1/entity/upsert` - entity creation
-  - `/webhook/memory/v1/entity/revise` - entity updates
-  - `/webhook/memory/v1/journey/upsert` - journey tracking
-  - `/webhook/memory/v1/journey/resolve` - journey resolution
-  - `/webhook/neo4j/v1/cypher` - cypher execution (must be gated/validated in n8n)
-
-<!-- MANUAL ADDITIONS END -->
+- **Neo4j-Only**: ALL database access must go through n8n webhooks. Direct Bolt connections are forbidden.
+  - **EXCEPTION: Graphiti** - The `graphiti-core` library is approved for direct Neo4j access as a trusted infrastructure component.
+- **HMAC Verification**: All webhook endpoints must use `verify_memevolve_signature` dependency.
+- **Archon-First**: Archon remains local. Dionysus receives tasks via prefetched payloads in hooks.
