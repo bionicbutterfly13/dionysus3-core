@@ -259,24 +259,26 @@ class ReconstructionService:
     async def reconstruct(
         self,
         context: ReconstructionContext,
+        prefetched_tasks: Optional[list[dict]] = None,
     ) -> ReconstructedMemory:
         """
         Execute the full reconstruction pipeline.
-        
+
         Args:
             context: Reconstruction context with project info and cues
-            
+            prefetched_tasks: Pre-fetched tasks from caller (bypasses Archon call)
+
         Returns:
             ReconstructedMemory with coherent context for injection
         """
         import time
         start_time = time.time()
-        
+
         warnings = []
-        
+
         # Step 1: SCAN - Gather fragments from all sources
         logger.info(f"Reconstructing context for project: {context.project_name}")
-        await self._scan_fragments(context)
+        await self._scan_fragments(context, prefetched_tasks=prefetched_tasks)
         
         if not self._fragments:
             warnings.append("No fragments found for reconstruction")
@@ -324,16 +326,24 @@ class ReconstructionService:
     # Step 1: Fragment Scanning
     # =========================================================================
     
-    async def _scan_fragments(self, context: ReconstructionContext) -> None:
+    async def _scan_fragments(
+        self,
+        context: ReconstructionContext,
+        prefetched_tasks: Optional[list[dict]] = None,
+    ) -> None:
         """Scan all sources for memory fragments."""
         self._fragments = []
-        
+
         # Scan sessions from PostgreSQL/n8n
         await self._scan_sessions(context)
-        
-        # Scan tasks from Archon
-        await self._scan_tasks(context)
-        
+
+        # Scan tasks - use prefetched if provided, else fetch from Archon
+        if prefetched_tasks is not None:
+            logger.info(f"Using {len(prefetched_tasks)} prefetched tasks")
+            self._load_prefetched_tasks(prefetched_tasks)
+        else:
+            await self._scan_tasks(context)
+
         # Scan entities from Graphiti (if enabled)
         if self.graphiti_enabled:
             await self._scan_entities(context)
@@ -448,7 +458,37 @@ class ReconstructionService:
                         
         except Exception as e:
             logger.warning(f"Failed to scan tasks from Archon: {e}")
-    
+
+    def _load_prefetched_tasks(self, tasks: list[dict]) -> None:
+        """Load pre-fetched tasks as fragments."""
+        for task in tasks:
+            # Determine strength based on status and priority
+            status = task.get("status", "todo")
+            task_order = task.get("task_order", 50)
+
+            if status == "doing":
+                strength = 0.95  # Highest priority for in-progress
+            elif status == "todo":
+                strength = self._task_priority_to_strength(task_order)
+            else:
+                strength = 0.3  # Lower for done/review
+
+            fragment = Fragment(
+                fragment_id=task.get("id", ""),
+                fragment_type=FragmentType.TASK,
+                content=task.get("title", ""),
+                summary=task.get("description", ""),
+                strength=strength,
+                source="archon-prefetched",
+                metadata={
+                    "status": status,
+                    "feature": task.get("feature", ""),
+                    "project_id": task.get("project_id", ""),
+                    "project_title": task.get("project_title", ""),
+                },
+            )
+            self._fragments.append(fragment)
+
     async def _scan_entities(self, context: ReconstructionContext) -> None:
         """Scan key entities from Graphiti."""
         try:
