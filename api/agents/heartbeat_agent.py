@@ -71,6 +71,9 @@ class HeartbeatAgent:
         ## Recent Memories
         {json.dumps(context.get('recent_memories', []), indent=2)}
         
+        ## New Agent Trajectories
+        {json.dumps(context.get('recent_trajectories', []), indent=2)}
+        
         ## Task
         You have a limited energy budget (max 5 steps).
         Use your tools to:

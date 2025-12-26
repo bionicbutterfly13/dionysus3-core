@@ -96,6 +96,9 @@ HEARTBEAT_USER_PROMPT = """## Current Environment
 ## Recent Memories
 {recent_memories}
 
+## New Agent Trajectories
+{trajectories}
+
 ## Identity Context
 {identity_context}
 
@@ -118,6 +121,7 @@ class HeartbeatContext:
     goals: GoalsSnapshot
     goal_assessment: GoalAssessment
     recent_memories: list[dict[str, Any]] = field(default_factory=list)
+    recent_trajectories: list[dict[str, Any]] = field(default_factory=list) # Added for MemEvolve
     identity_context: str = ""
     last_heartbeat_summary: str = ""
     activated_clusters: list[str] = field(default_factory=list)
@@ -163,7 +167,7 @@ class ContextBuilder:
             stale=[g.id for g in goal_assessment.stale_goals],
         )
 
-        # Get recent memories
+        # Get recent memories and trajectories
         async with driver.session() as session:
             memory_result = await session.run(
                 """
@@ -176,6 +180,18 @@ class ContextBuilder:
                 """
             )
             recent_memories = await memory_result.data()
+
+            # T018: Fetch recent MemEvolve trajectories (MemEvolve Phase 4)
+            trajectory_result = await session.run(
+                """
+                MATCH (t:Trajectory)
+                WHERE t.processed_at IS NULL
+                RETURN t.id as id, t.summary as summary, t.metadata as metadata
+                ORDER BY t.created_at DESC
+                LIMIT 5
+                """
+            )
+            recent_trajectories = await trajectory_result.data()
 
             # Get identity context (core beliefs, values)
             identity_result = await session.run(
@@ -207,9 +223,11 @@ class ContextBuilder:
             goals=goals,
             goal_assessment=goal_assessment,
             recent_memories=recent_memories,
+            recent_trajectories=recent_trajectories,
             identity_context=identity_context,
             last_heartbeat_summary=last_summary,
         )
+
 
     def format_prompt(
         self,
@@ -247,6 +265,12 @@ class ContextBuilder:
             for m in context.recent_memories[:5]
         ) or "No recent memories"
 
+        # T018: Format recent agent trajectories (MemEvolve Phase 4)
+        trajectories_text = "\n".join(
+            f"- [trajectory] {t.get('summary', 'No summary')} (id: {t.get('id')})"
+            for t in context.recent_trajectories
+        ) or "No new agent trajectories."
+
         # Time since user
         time_since_user = "Unknown"
         if context.environment.time_since_user_hours is not None:
@@ -274,11 +298,13 @@ class ContextBuilder:
             queued_goals=queued_goals_text,
             goal_issues=issues_text,
             recent_memories=memories_text,
+            trajectories=trajectories_text,
             identity_context=context.environment.heartbeat_number,
             last_heartbeat=context.last_heartbeat_summary,
         )
 
         return system_prompt, user_prompt
+
 
 
 # =============================================================================
@@ -406,6 +432,12 @@ class HeartbeatService:
             goal_assessment=goal_assessment,
         )
 
+        # T019: Detect patterns in agent trajectories (Phase 4)
+        trajectory_insights = await self._detect_trajectory_patterns(context.recent_trajectories)
+        if trajectory_insights:
+            logger.info(f"Detected {len(trajectory_insights)} trajectory insights")
+            # We could add these to the context or goals
+
         # =====================================================================
         # Phase 4: Decide
         # =====================================================================
@@ -426,10 +458,21 @@ class HeartbeatService:
 
         # Trim actions to budget
         trimmed_plan = decision.action_plan.trim_to_budget(energy_start)
+        
+        # T020: Check for strategic memory generation (Phase 4)
+        # In a real implementation, the LLM would explicitly choose this action.
+        # For now, we'll simulate it if there are insights.
+        if trajectory_insights:
+            await self._generate_strategic_memory(trajectory_insights)
+
         results = await self._action_executor.execute_plan(
             [ActionRequest(action_type=ActionType(a.action_type), params=a.params)
              for a in trimmed_plan.actions]
         )
+
+        # T018: Mark trajectories as consumed (Phase 4)
+        await self._consume_trajectories(context.recent_trajectories)
+
 
         # Get final energy
         final_state = await self._energy_service.get_state()
@@ -692,9 +735,9 @@ class HeartbeatService:
 
             model_service = get_model_service()
 
-            # Check if service has database pool configured
-            if model_service._db_pool is None:
-                logger.debug("Model service not configured with database pool, skipping predictions")
+            # Check if service has driver configured
+            if model_service._driver is None:
+                logger.debug("Model service not configured with driver, skipping predictions")
                 return []
 
             # Get relevant models
@@ -735,6 +778,176 @@ class HeartbeatService:
         except Exception as e:
             logger.error(f"Error in model prediction generation: {e}")
             return []
+
+    async def _consume_trajectories(self, trajectories: list[dict[str, Any]]) -> None:
+        """
+        Mark consumed trajectories as processed in Neo4j.
+        
+        Phase 4: Consumption.
+        """
+        if not trajectories:
+            return
+            
+        driver = self._get_driver()
+        ids = [t["id"] for t in trajectories]
+        
+        async with driver.session() as session:
+            await session.run(
+                """
+                UNWIND $ids as id
+                MATCH (t:Trajectory {id: id})
+                SET t.processed_at = datetime()
+                """,
+                ids=ids
+            )
+        logger.info(f"Marked {len(ids)} trajectories as processed.")
+
+    async def _detect_trajectory_patterns(self, trajectories: list[dict[str, Any]]) -> list[str]:
+        """
+        Analyze agent trajectories for recurring patterns/failures using LLM.
+        
+        Phase 4: Pattern Detection.
+        """
+        if not trajectories:
+            return []
+            
+        logger.info(f"Analyzing {len(trajectories)} trajectories for patterns...")
+        
+        # Format trajectories for the LLM
+        trajectories_text = "\n---\n".join([
+            f"ID: {t.get('id')}\nSummary: {t.get('summary')}\nMetadata: {json.dumps(t.get('metadata', {}))}"
+            for t in trajectories
+        ])
+        
+        prompt = f"""
+        Analyze the following agent trajectories and identify any recurring patterns, common failure modes, or significant insights.
+        Focus on identifying issues that could be resolved through better strategic guidance or tool updates.
+        
+        AGENT TRAJECTORIES:
+        {trajectories_text}
+        
+        Return a list of specific, actionable insights or patterns detected. 
+        Format your response as a JSON list of strings. If no patterns are found, return an empty list [].
+        """
+        
+        try:
+            # We use the model service or direct LiteLLM call if available
+            # For simplicity and consistency with the agent evolution, we'll use LiteLLM via a helper or direct call
+            from litellm import completion
+            
+            response = await completion(
+                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-4o-mini"),
+                messages=[
+                    {"role": "system", "content": "You are a cognitive analyst identifying patterns in agent behaviors."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"}
+            )
+            
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            insights = data.get("insights", []) or data.get("patterns", []) or []
+            
+            if not isinstance(insights, list):
+                insights = [str(insights)]
+                
+            return insights
+            
+        except Exception as e:
+            logger.error(f"Error in LLM pattern detection: {e}")
+            # Fallback to simple keyword detection
+            fallback_insights = []
+            for t in trajectories:
+                summary = t.get("summary", "").lower()
+                if "error" in summary or "fail" in summary:
+                    fallback_insights.append(f"Potential failure in trajectory {t.get('id')}: {summary[:100]}...")
+            return fallback_insights
+
+    async def _generate_strategic_memory(self, insights: list[str]) -> None:
+        """
+        Synthesize long-term strategic lessons from detected patterns.
+        
+        Phase 4: Strategic Memory.
+        """
+        if not insights:
+            return
+            
+        driver = self._get_driver()
+        
+        # Use LLM to synthesize a high-quality strategic lesson from multiple insights
+        prompt = f"""
+        Synthesize the following behavioral insights from agent trajectories into a single, high-impact strategic lesson for a cognitive system.
+        The lesson should be prescriptive, helping the system avoid future failures or capitalize on successful patterns.
+        
+        INSIGHTS:
+        {chr(10).join(f"- {i}" for i in insights)}
+        
+        Return a JSON object with:
+        - "lesson": A clear, concise strategic lesson.
+        - "importance": A value from 0.0 to 1.0.
+        - "tags": A list of relevant tags (e.g., "tool_usage", "reliability", "planning").
+        """
+        
+        try:
+            from litellm import completion
+            
+            response = await completion(
+                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-4o-mini"),
+                messages=[
+                    {"role": "system", "content": "You are a strategic synthesis engine for an autonomous agent."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"}
+            )
+            
+            data = json.loads(response.choices[0].message.content)
+            lesson = data.get("lesson", "Multiple trajectory patterns observed.")
+            importance = float(data.get("importance", 0.7))
+            tags = data.get("tags", ["strategic", "memevolve"])
+            
+            memory_id = str(uuid4())
+            
+            async with driver.session() as session:
+                await session.run(
+                    """
+                    CREATE (m:Memory {
+                        id: $id,
+                        content: $content,
+                        memory_type: 'strategic',
+                        source: 'heartbeat_synthesis',
+                        importance: $importance,
+                        tags: $tags,
+                        created_at: datetime()
+                    })
+                    """,
+                    id=memory_id,
+                    content=lesson,
+                    importance=importance,
+                    tags=tags
+                )
+            logger.info(f"Generated high-quality strategic memory: {memory_id}")
+            
+        except Exception as e:
+            logger.error(f"Error synthesizing strategic memory: {e}")
+            # Fallback to simple creation
+            memory_id = str(uuid4())
+            async with driver.session() as session:
+                await session.run(
+                    """
+                    CREATE (m:Memory {
+                        id: $id,
+                        content: $content,
+                        memory_type: 'strategic',
+                        source: 'heartbeat_fallback',
+                        importance: 0.5,
+                        created_at: datetime()
+                    })
+                    """,
+                    id=memory_id,
+                    content=f"Strategic Insights: {'; '.join(insights)}"
+                )
+
+
 
     async def _generate_narrative(self, summary: HeartbeatSummary) -> str:
         """
