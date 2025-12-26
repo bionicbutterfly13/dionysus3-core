@@ -393,110 +393,110 @@ async def assess_coherence() -> dict:
 @app.tool()
 async def activate_basin(basin_id: str, strength: float = 0.5) -> dict:
     """
-    Activate an attractor basin with given strength.
-
-    Applies CLAUSE strengthening (+0.2 per activation, 2.0 cap).
-
-    Args:
-        basin_id: UUID of the basin (memory_cluster)
-        strength: Activation strength 0.0 to 1.0
-
-    Returns:
-        Updated basin state
+    Activate an attractor basin with given strength via n8n webhook.
     """
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM activate_basin($1, $2)",
-            basin_id, strength
-        )
+    driver = get_neo4j_driver()
+    cypher = """
+        MATCH (c:MemoryCluster {id: $basin_id})
+        SET c.current_activation = c.current_activation + $strength,
+            c.basin_state = 'activating',
+            c.clause_strength = coalesce(c.clause_strength, 1.0) + 0.2
+        // Cap clause_strength at 2.0
+        SET c.clause_strength = CASE WHEN c.clause_strength > 2.0 THEN 2.0 ELSE c.clause_strength END
+        RETURN c.basin_state as new_state,
+               c.current_activation as new_activation,
+               c.clause_strength as new_clause_strength
+    """
+    params = {"basin_id": basin_id, "strength": strength}
+    
+    async with driver.session() as session:
+        result = await session.run(cypher, params)
+        row = await result.single()
 
-        return {
-            "basin_id": basin_id,
-            "new_state": row["new_state"],
-            "new_activation": float(row["new_activation"]),
-            "clause_strength": float(row["new_clause_strength"])
-        }
+    if not row:
+        raise ValueError(f"Basin with id {basin_id} not found.")
+
+    return {
+        "basin_id": basin_id,
+        "new_state": row["new_state"],
+        "new_activation": float(row["new_activation"]),
+        "clause_strength": float(row["new_clause_strength"])
+    }
+
 
 
 @app.tool()
 async def get_active_basins(limit: int = 10) -> list[dict]:
     """
-    Get currently active attractor basins.
-
-    Args:
-        limit: Maximum basins to return
-
-    Returns:
-        List of active basins with their states
+    Get currently active attractor basins via n8n webhook.
     """
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT id, name, basin_type, basin_state,
-                   current_activation, clause_strength, stability, depth
-            FROM memory_clusters
-            WHERE basin_state IN ('active', 'activating', 'saturated')
-            ORDER BY current_activation DESC
-            LIMIT $1
-            """,
-            limit
-        )
+    driver = get_neo4j_driver()
+    cypher = """
+        MATCH (c:MemoryCluster)
+        WHERE c.basin_state IN ['active', 'activating', 'saturated']
+        RETURN c.id as id, c.name as name, c.basin_type as basin_type,
+               c.basin_state as basin_state, c.current_activation as current_activation,
+               c.clause_strength as clause_strength, c.stability as stability, c.depth as depth
+        ORDER BY c.current_activation DESC
+        LIMIT $limit
+    """
+    params = {"limit": limit}
+    
+    async with driver.session() as session:
+        result = await session.run(cypher, params)
+        rows = await result.data()
 
-        return [
-            {
-                "id": str(row["id"]),
-                "name": row["name"],
-                "type": row["basin_type"],
-                "state": row["basin_state"],
-                "activation": float(row["current_activation"]),
-                "clause_strength": float(row["clause_strength"]),
-                "stability": float(row["stability"]),
-                "depth": float(row["depth"])
-            }
-            for row in rows
-        ]
+    return [
+        {
+            "id": str(row["id"]),
+            "name": row["name"],
+            "type": row["basin_type"],
+            "state": row["basin_state"],
+            "activation": float(row["current_activation"]),
+            "clause_strength": float(row["clause_strength"]),
+            "stability": float(row["stability"]),
+            "depth": float(row["depth"])
+        }
+        for row in rows
+    ]
+
 
 
 @app.tool()
 async def query_basin_landscape() -> dict:
     """
-    Query the overall attractor basin landscape.
-
-    Returns:
-        Summary of basin states and energy distribution
+    Query the overall attractor basin landscape via n8n webhook.
     """
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        # Count basins by state
-        state_counts = await conn.fetch(
-            """
-            SELECT basin_state, COUNT(*) as count,
-                   AVG(current_activation) as avg_activation,
-                   AVG(clause_strength) as avg_strength
-            FROM memory_clusters
-            GROUP BY basin_state
-            """
-        )
+    driver = get_neo4j_driver()
+    cypher_counts = """
+        MATCH (c:MemoryCluster)
+        RETURN c.basin_state as basin_state, COUNT(c) as count,
+               avg(c.current_activation) as avg_activation,
+               avg(c.clause_strength) as avg_strength
+    """
+    cypher_total_energy = "MATCH (c:MemoryCluster) RETURN sum(c.current_activation) as total_energy"
+    
+    async with driver.session() as session:
+        result_counts = await session.run(cypher_counts)
+        state_counts = await result_counts.data()
+        
+        result_energy = await session.run(cypher_total_energy)
+        total_energy_record = await result_energy.single()
+        total_energy = total_energy_record["total_energy"] if total_energy_record else 0
 
-        # Get total energy
-        total_energy = await conn.fetchval(
-            "SELECT SUM(current_activation) FROM memory_clusters"
-        )
-
-        return {
-            "total_basins": sum(row["count"] for row in state_counts),
-            "total_energy": float(total_energy or 0),
-            "states": {
-                row["basin_state"]: {
-                    "count": row["count"],
-                    "avg_activation": float(row["avg_activation"] or 0),
-                    "avg_strength": float(row["avg_strength"] or 1.0)
-                }
-                for row in state_counts
+    return {
+        "total_basins": sum(row["count"] for row in state_counts),
+        "total_energy": float(total_energy or 0),
+        "states": {
+            row["basin_state"]: {
+                "count": row["count"],
+                "avg_activation": float(row["avg_activation"] or 0),
+                "avg_strength": float(row["avg_strength"] or 1.0)
             }
+            for row in state_counts
         }
+    }
+
 
 
 # =============================================================================
@@ -510,103 +510,114 @@ async def create_thoughtseed(
     memory_id: Optional[str] = None
 ) -> dict:
     """
-    Create a new thoughtseed in the cognitive hierarchy.
-
-    Args:
-        layer: One of sensorimotor, perceptual, conceptual, abstract, metacognitive
-        neuronal_packet: Cognitive content as JSON
-        memory_id: Optional linked memory
-
-    Returns:
-        Created thoughtseed record
+    Create a new thoughtseed in the cognitive hierarchy via n8n webhook.
     """
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            INSERT INTO thoughtseeds (layer, neuronal_packet, memory_id, activation_level)
-            VALUES ($1::thoughtseed_layer, $2, $3, 0.5)
-            RETURNING id, layer, activation_level, competition_status
-            """,
-            layer, json.dumps(neuronal_packet), memory_id
-        )
+    driver = get_neo4j_driver()
+    cypher = """
+        CREATE (t:ThoughtSeed {
+            id: randomUUID(),
+            layer: $layer,
+            neuronal_packet: $neuronal_packet,
+            memory_id: $memory_id,
+            activation_level: 0.5,
+            competition_status: 'pending',
+            created_at: datetime()
+        })
+        RETURN t.id as id, t.layer as layer,
+               t.activation_level as activation_level,
+               t.competition_status as competition_status
+    """
+    params = {
+        "layer": layer,
+        "neuronal_packet": json.dumps(neuronal_packet),
+        "memory_id": memory_id
+    }
+    
+    async with driver.session() as session:
+        result = await session.run(cypher, params)
+        row = await result.single()
 
-        return {
-            "id": str(row["id"]),
-            "layer": row["layer"],
-            "activation_level": float(row["activation_level"]),
-            "competition_status": row["competition_status"]
-        }
+    return {
+        "id": str(row["id"]),
+        "layer": row["layer"],
+        "activation_level": float(row["activation_level"]),
+        "competition_status": row["competition_status"]
+    }
+
 
 
 @app.tool()
 async def run_thoughtseed_competition(layer: str) -> dict:
     """
-    Run winner selection among thoughtseeds at a given layer.
-
-    Args:
-        layer: Layer to run competition in
-
-    Returns:
-        Competition result with winner
+    Run winner selection among thoughtseeds at a given layer via n8n webhook.
     """
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        # Get competing thoughtseeds
-        competitors = await conn.fetch(
-            """
-            SELECT id, activation_level
-            FROM thoughtseeds
-            WHERE layer = $1::thoughtseed_layer
-              AND competition_status IN ('pending', 'competing')
-            ORDER BY activation_level DESC
-            """,
-            layer
-        )
+    driver = get_neo4j_driver()
+    # This logic is complex and better handled by a single n8n workflow/Cypher query
+    # if it were more than just selection. Here, we can do it in parts.
+    
+    get_competitors_cypher = """
+        MATCH (t:ThoughtSeed)
+        WHERE t.layer = $layer
+          AND t.competition_status IN ['pending', 'competing']
+        RETURN t.id as id, t.activation_level as activation_level
+        ORDER BY t.activation_level DESC
+    """
+    
+    async with driver.session() as session:
+        result = await session.run(get_competitors_cypher, {"layer": layer})
+        competitors = await result.data()
 
         if not competitors:
             return {"message": "No competitors at this layer", "winner": None}
 
-        # Winner is highest activation
         winner = competitors[0]
         loser_ids = [c["id"] for c in competitors[1:]]
 
-        # Update statuses
-        await conn.execute(
-            "UPDATE thoughtseeds SET competition_status = 'won' WHERE id = $1",
-            winner["id"]
+        # Update winner
+        await session.run(
+            "MATCH (t:ThoughtSeed {id: $id}) SET t.competition_status = 'won'",
+            {"id": winner["id"]}
         )
 
+        # Update losers
         if loser_ids:
-            await conn.execute(
-                "UPDATE thoughtseeds SET competition_status = 'lost' WHERE id = ANY($1)",
-                loser_ids
+            await session.run(
+                "MATCH (t:ThoughtSeed) WHERE t.id IN $ids SET t.competition_status = 'lost'",
+                {"ids": loser_ids}
             )
 
         # Record competition
-        competition_id = await conn.fetchval(
+        competition_result = await session.run(
             """
-            INSERT INTO thoughtseed_competitions (
-                competitor_ids, winner_id, layer, competition_energy
-            )
-            VALUES ($1, $2, $3::thoughtseed_layer, $4)
-            RETURNING id
+            CREATE (c:ThoughtSeedCompetition {
+                id: randomUUID(),
+                competitor_ids: $competitor_ids,
+                winner_id: $winner_id,
+                layer: $layer,
+                competition_energy: $energy,
+                created_at: datetime()
+            })
+            RETURN c.id as id
             """,
-            [c["id"] for c in competitors],
-            winner["id"],
-            layer,
-            sum(c["activation_level"] for c in competitors)
-        )
-
-        return {
-            "competition_id": str(competition_id),
-            "layer": layer,
-            "competitors": len(competitors),
-            "winner": {
-                "id": str(winner["id"]),
-                "activation_level": float(winner["activation_level"])
+            {
+                "competitor_ids": [c["id"] for c in competitors],
+                "winner_id": winner["id"],
+                "layer": layer,
+                "energy": sum(c["activation_level"] for c in competitors)
             }
+        )
+        competition_record = await competition_result.single()
+
+    return {
+        "competition_id": str(competition_record["id"]),
+        "layer": layer,
+        "competitors": len(competitors),
+        "winner": {
+            "id": str(winner["id"]),
+            "activation_level": float(winner["activation_level"])
         }
+    }
+
 
 
 # =============================================================================
