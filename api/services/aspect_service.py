@@ -139,6 +139,12 @@ class AspectService:
         result = await self._driver.execute_query(cypher, {"limit": limit})
         return [row["c"] for row in result]
 
+    async def delete_review_item(self, item_id: str) -> bool:
+        """Remove an item from the review queue."""
+        cypher = "MATCH (c:HumanReviewCandidate {id: $id}) DETACH DELETE c RETURN count(c) as deleted"
+        result = await self._driver.execute_query(cypher, {"id": item_id})
+        return result[0]["deleted"] > 0
+
 # Factory
 _instance = None
 def get_aspect_service() -> AspectService:

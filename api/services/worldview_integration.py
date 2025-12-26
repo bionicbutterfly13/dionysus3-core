@@ -63,8 +63,20 @@ class WorldviewIntegrationService:
         }
 
     async def _calculate_alignment(self, prediction: dict, worldview_belief: str) -> float:
-        # Simplified heuristic fallback
-        return 0.5
+        """
+        Calculate semantic alignment using real embeddings.
+        """
+        from api.services.embedding import get_embedding_service
+        
+        # Extract text content for comparison
+        pred_text = str(prediction.get("prediction", ""))
+        
+        try:
+            service = get_embedding_service()
+            return await service.calculate_similarity(pred_text, worldview_belief)
+        except Exception as e:
+            logger.warning(f"Semantic alignment failed, using fallback: {e}")
+            return 0.5
 
     # FR-016: Record Prediction Errors with Precision-Weighted updates
     async def record_prediction_error(

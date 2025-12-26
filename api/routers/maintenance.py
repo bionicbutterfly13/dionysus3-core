@@ -5,6 +5,7 @@ Feature: 012-historical-reconstruction, 007-memory-consolidation
 Endpoints for system cleanup, data migration, and memory consolidation.
 """
 
+import json
 from typing import Any, Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
@@ -47,6 +48,20 @@ async def get_review_queue(limit: int = 20):
         )
         for i in items
     ]
+
+@router.delete("/review-queue/{item_id}")
+async def resolve_review_item(item_id: str):
+    """
+    Mark a low-confidence item as resolved/reviewed.
+    """
+    from api.services.aspect_service import get_aspect_service
+    service = get_aspect_service()
+    
+    success = await service.delete_review_item(item_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    return {"success": True, "message": f"Item {item_id} resolved"}
 
 @router.post("/reconstruct-tasks", response_model=ReconstructionResponse)
 async def reconstruct_tasks(limit: int = 1000):
