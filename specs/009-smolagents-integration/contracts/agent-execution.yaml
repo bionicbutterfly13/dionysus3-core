@@ -1,0 +1,514 @@
+openapi: 3.0.3
+info:
+  title: Dionysus Agent Execution API
+  description: REST API for cognitive agent execution and management
+  version: 1.0.0
+
+paths:
+  /api/agents:
+    get:
+      summary: List cognitive agents
+      operationId: listAgents
+      parameters:
+        - name: layer
+          in: query
+          schema:
+            $ref: '#/components/schemas/CognitiveLayer'
+        - name: is_manager
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CognitiveAgent'
+
+    post:
+      summary: Create cognitive agent
+      operationId: createAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgentRequest'
+      responses:
+        '201':
+          description: Agent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CognitiveAgent'
+        '400':
+          description: Invalid request
+
+  /api/agents/{agent_id}:
+    get:
+      summary: Get agent by ID
+      operationId: getAgent
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CognitiveAgent'
+        '404':
+          description: Agent not found
+
+  /api/agents/{agent_id}/run:
+    post:
+      summary: Execute agent with task
+      operationId: runAgent
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunAgentRequest'
+      responses:
+        '200':
+          description: Execution result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentExecution'
+        '408':
+          description: Execution timeout
+        '500':
+          description: Execution failed
+
+  /api/agents/executions:
+    get:
+      summary: List agent executions
+      operationId: listExecutions
+      parameters:
+        - name: agent_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: heartbeat_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ExecutionStatus'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Execution history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentExecution'
+
+  /api/agents/executions/{execution_id}:
+    get:
+      summary: Get execution details
+      operationId: getExecution
+      parameters:
+        - name: execution_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Execution details with steps
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentExecution'
+
+  /api/agents/sandbox:
+    get:
+      summary: List sandbox configurations
+      operationId: listSandboxConfigs
+      responses:
+        '200':
+          description: Sandbox configurations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SandboxConfiguration'
+
+    post:
+      summary: Create sandbox configuration
+      operationId: createSandboxConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSandboxRequest'
+      responses:
+        '201':
+          description: Configuration created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxConfiguration'
+
+  /api/agents/metrics:
+    get:
+      summary: Get agent execution metrics
+      operationId: getMetrics
+      parameters:
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Execution metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMetrics'
+
+components:
+  schemas:
+    CognitiveLayer:
+      type: string
+      enum:
+        - perceptual
+        - conceptual
+        - abstract
+        - metacognitive
+        - consciousness
+
+    AgentType:
+      type: string
+      enum:
+        - code_agent
+        - tool_calling_agent
+
+    ExecutionStatus:
+      type: string
+      enum:
+        - running
+        - completed
+        - failed
+        - timeout
+
+    CognitiveAgent:
+      type: object
+      required:
+        - id
+        - name
+        - layer
+        - agent_type
+        - model_id
+        - tools
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        layer:
+          $ref: '#/components/schemas/CognitiveLayer'
+        agent_type:
+          $ref: '#/components/schemas/AgentType'
+        model_id:
+          type: string
+          example: "anthropic/claude-sonnet-4-20250514"
+        temperature:
+          type: number
+          default: 0.2
+        max_steps:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 50
+        tools:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+        is_manager:
+          type: boolean
+          default: false
+        managed_agent_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateAgentRequest:
+      type: object
+      required:
+        - name
+        - layer
+        - agent_type
+        - model_id
+        - tools
+        - description
+      properties:
+        name:
+          type: string
+        layer:
+          $ref: '#/components/schemas/CognitiveLayer'
+        agent_type:
+          $ref: '#/components/schemas/AgentType'
+        model_id:
+          type: string
+        temperature:
+          type: number
+          default: 0.2
+        max_steps:
+          type: integer
+          default: 10
+        tools:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+        is_manager:
+          type: boolean
+        managed_agent_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    RunAgentRequest:
+      type: object
+      required:
+        - task
+      properties:
+        task:
+          type: string
+          description: Task/prompt to execute
+        context:
+          type: object
+          description: Additional context for the agent
+        sandbox_config_id:
+          type: string
+          format: uuid
+          description: Override default sandbox configuration
+
+    AgentExecution:
+      type: object
+      required:
+        - id
+        - agent_id
+        - task
+        - status
+        - started_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        heartbeat_id:
+          type: string
+          format: uuid
+        task:
+          type: string
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutionStep'
+        final_answer:
+          type: string
+        error:
+          type: string
+        duration_ms:
+          type: integer
+        tokens_used:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    ExecutionStep:
+      type: object
+      required:
+        - step_number
+        - step_type
+        - content
+        - timestamp
+      properties:
+        step_number:
+          type: integer
+        step_type:
+          type: string
+          enum:
+            - thought
+            - code
+            - tool_call
+            - observation
+            - error
+        content:
+          type: string
+        tool_name:
+          type: string
+        tool_input:
+          type: object
+        tool_output:
+          type: string
+        duration_ms:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    SandboxConfiguration:
+      type: object
+      required:
+        - id
+        - name
+        - executor_type
+        - timeout_seconds
+        - step_limit
+        - allowed_imports
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        executor_type:
+          type: string
+          enum:
+            - docker
+            - local
+            - e2b
+        timeout_seconds:
+          type: integer
+          default: 30
+          minimum: 5
+          maximum: 120
+        step_limit:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 50
+        memory_limit_mb:
+          type: integer
+          default: 512
+        cpu_quota:
+          type: integer
+          default: 50000
+        allowed_imports:
+          type: array
+          items:
+            type: string
+        network_enabled:
+          type: boolean
+          default: false
+        is_default:
+          type: boolean
+          default: false
+        created_at:
+          type: string
+          format: date-time
+
+    CreateSandboxRequest:
+      type: object
+      required:
+        - name
+        - executor_type
+      properties:
+        name:
+          type: string
+        executor_type:
+          type: string
+          enum:
+            - docker
+            - local
+            - e2b
+        timeout_seconds:
+          type: integer
+          default: 30
+        step_limit:
+          type: integer
+          default: 10
+        memory_limit_mb:
+          type: integer
+          default: 512
+        allowed_imports:
+          type: array
+          items:
+            type: string
+        network_enabled:
+          type: boolean
+          default: false
+        is_default:
+          type: boolean
+          default: false
+
+    AgentMetrics:
+      type: object
+      properties:
+        total_executions:
+          type: integer
+        successful_executions:
+          type: integer
+        failed_executions:
+          type: integer
+        timeout_executions:
+          type: integer
+        avg_duration_ms:
+          type: number
+        avg_tokens_used:
+          type: number
+        avg_steps_per_execution:
+          type: number
+        executions_by_layer:
+          type: object
+          additionalProperties:
+            type: integer
+        fallback_rate:
+          type: number
+          description: Percentage of executions that fell back to ActionHandler

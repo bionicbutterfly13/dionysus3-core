@@ -23,6 +23,9 @@ dependencies = [
     # Knowledge Graph (Neo4j via Graphiti)
     "neo4j>=5.14.0",
     "graphiti-core>=0.24.3",
+
+    # Agents
+    "smolagents>=1.0.0",
 ]
 
 [project.optional-dependencies]

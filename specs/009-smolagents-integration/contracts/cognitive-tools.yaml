@@ -1,0 +1,306 @@
+# Cognitive Tools Contract
+# Defines the smolagents Tool interface for dionysus cognitive capabilities
+
+tools:
+  # =============================================================================
+  # Memory Tools (from dionysus_mcp)
+  # =============================================================================
+
+  semantic_recall:
+    name: semantic_recall
+    description: |
+      Search memories using semantic similarity. Returns memories most relevant
+      to the query, ranked by semantic distance. Use when you need to find
+      related past experiences, knowledge, or context.
+    inputs:
+      query:
+        type: string
+        description: Natural language search query
+        required: true
+      limit:
+        type: integer
+        description: Maximum memories to return (default 10)
+        required: false
+      memory_type:
+        type: string
+        description: Filter by memory type (episodic, semantic, procedural)
+        required: false
+    output_type: string
+    energy_cost: 1
+    source: mcp
+    mcp_tool_name: semantic_recall
+
+  create_memory:
+    name: create_memory
+    description: |
+      Store a new memory in the system. The memory will be embedded and indexed
+      for semantic search. Use to persist important insights, learnings, or
+      observations that should be available in future cognitive cycles.
+    inputs:
+      content:
+        type: string
+        description: Memory content to store
+        required: true
+      memory_type:
+        type: string
+        description: Type of memory (episodic, semantic, procedural)
+        required: true
+      importance:
+        type: number
+        description: Importance score 0-1 (affects decay rate)
+        required: false
+      metadata:
+        type: object
+        description: Additional metadata tags
+        required: false
+    output_type: string
+    energy_cost: 2
+    source: mcp
+    mcp_tool_name: create_memory
+
+  # =============================================================================
+  # Consciousness Tools (from dionysus_mcp)
+  # =============================================================================
+
+  get_consciousness_state:
+    name: get_consciousness_state
+    description: |
+      Get the current consciousness state including active basins, energy level,
+      recent thoughts, and cognitive mode. Use to understand current mental state
+      before making decisions.
+    inputs: {}
+    output_type: dict
+    energy_cost: 0
+    source: mcp
+    mcp_tool_name: get_consciousness_state
+
+  trigger_heartbeat:
+    name: trigger_heartbeat
+    description: |
+      Manually trigger a heartbeat cognitive cycle. Use sparingly as this
+      consumes energy and should normally be scheduled automatically.
+    inputs:
+      force:
+        type: boolean
+        description: Force even if energy is low
+        required: false
+    output_type: string
+    energy_cost: 5
+    source: mcp
+    mcp_tool_name: trigger_heartbeat
+
+  # =============================================================================
+  # Basin Tools (from dionysus_mcp)
+  # =============================================================================
+
+  get_active_basins:
+    name: get_active_basins
+    description: |
+      Get currently active attractor basins in consciousness. Basins represent
+      clusters of related thoughts/memories that form stable attractors.
+    inputs:
+      include_memories:
+        type: boolean
+        description: Include associated memories
+        required: false
+    output_type: dict
+    energy_cost: 0
+    source: mcp
+    mcp_tool_name: get_active_basins
+
+  activate_basin:
+    name: activate_basin
+    description: |
+      Activate a specific basin, bringing its associated memories and patterns
+      into working consciousness. Use to focus attention on a topic.
+    inputs:
+      basin_id:
+        type: string
+        description: UUID of basin to activate
+        required: true
+    output_type: string
+    energy_cost: 1
+    source: mcp
+    mcp_tool_name: activate_basin
+
+  # =============================================================================
+  # Model Tools (from dionysus_mcp)
+  # =============================================================================
+
+  generate_prediction:
+    name: generate_prediction
+    description: |
+      Generate a prediction from a mental model given current context. The
+      prediction can later be resolved against observation to update model
+      accuracy. Use when anticipating future states or outcomes.
+    inputs:
+      model_id:
+        type: string
+        description: UUID of mental model
+        required: true
+      context:
+        type: string
+        description: Current context for prediction
+        required: true
+    output_type: string
+    energy_cost: 2
+    source: mcp
+    mcp_tool_name: generate_prediction
+
+  resolve_prediction:
+    name: resolve_prediction
+    description: |
+      Resolve a pending prediction against an observation. This updates the
+      source model's accuracy score and may flag it for revision if accuracy
+      drops below threshold. Use when outcome is known.
+    inputs:
+      prediction_id:
+        type: string
+        description: UUID of prediction to resolve
+        required: true
+      observation:
+        type: string
+        description: What was actually observed
+        required: true
+      confidence:
+        type: number
+        description: Confidence in observation accuracy (0-1)
+        required: false
+    output_type: string
+    energy_cost: 1
+    source: mcp
+    mcp_tool_name: resolve_prediction
+
+  revise_model:
+    name: revise_model
+    description: |
+      Revise a mental model by adjusting its constituent basins. Use when a
+      model has been flagged for revision due to poor prediction accuracy.
+      Requires specifying which basins to add, remove, or adjust.
+    inputs:
+      model_id:
+        type: string
+        description: UUID of model to revise
+        required: true
+      add_basins:
+        type: array
+        description: Basin IDs to add to model
+        required: false
+      remove_basins:
+        type: array
+        description: Basin IDs to remove from model
+        required: false
+      adjust_weights:
+        type: object
+        description: Basin ID to weight adjustment mapping
+        required: false
+      rationale:
+        type: string
+        description: Explanation for revision
+        required: true
+    output_type: string
+    energy_cost: 3
+    source: mcp
+    mcp_tool_name: revise_model
+
+  # =============================================================================
+  # Cognitive Action Tools (converted from ActionHandlers)
+  # =============================================================================
+
+  reflect:
+    name: reflect
+    description: |
+      Perform deep reflection on a topic, connecting disparate memories and
+      generating insights. Use for metacognitive analysis and self-understanding.
+      Returns synthesized reflection.
+    inputs:
+      topic:
+        type: string
+        description: Topic or question to reflect on
+        required: true
+      depth:
+        type: string
+        description: Reflection depth (shallow, medium, deep)
+        required: false
+    output_type: string
+    energy_cost: 3
+    source: handler
+    handler_class: ReflectHandler
+
+  synthesize:
+    name: synthesize
+    description: |
+      Synthesize multiple pieces of information into a coherent whole. Use to
+      combine observations, memories, and reasoning into structured insights.
+    inputs:
+      inputs:
+        type: array
+        description: List of text/observations to synthesize
+        required: true
+      goal:
+        type: string
+        description: Goal of synthesis (summarize, conclude, analyze)
+        required: false
+    output_type: string
+    energy_cost: 2
+    source: handler
+    handler_class: SynthesizeHandler
+
+  inquire_deep:
+    name: inquire_deep
+    description: |
+      Perform deep inquiry on a topic, exploring multiple perspectives and
+      generating questions. Use for thorough understanding of complex topics.
+    inputs:
+      question:
+        type: string
+        description: Core question to explore
+        required: true
+      perspectives:
+        type: array
+        description: Perspectives to consider
+        required: false
+    output_type: string
+    energy_cost: 4
+    source: handler
+    handler_class: InquireDeepHandler
+
+  # =============================================================================
+  # Tool Bridge Configuration
+  # =============================================================================
+
+bridge_config:
+  # How to load MCP tools
+  mcp_server:
+    command: python
+    args: ["-m", "dionysus_mcp.server"]
+    transport: stdio
+
+  # Default tool sets per cognitive layer
+  layer_tools:
+    perceptual:
+      - semantic_recall
+      - get_active_basins
+    conceptual:
+      - semantic_recall
+      - synthesize
+      - get_consciousness_state
+    abstract:
+      - semantic_recall
+      - synthesize
+      - reflect
+      - generate_prediction
+    metacognitive:
+      - reflect
+      - revise_model
+      - resolve_prediction
+      - get_consciousness_state
+    consciousness:
+      - create_memory
+      - trigger_heartbeat
+      # Plus all managed agent tools
+
+  # Tools that should use ToolCallingAgent (safer) vs CodeAgent (flexible)
+  tool_calling_only:
+    - revise_model  # Destructive operation, needs strict validation
+    - create_memory  # Persistence operation
