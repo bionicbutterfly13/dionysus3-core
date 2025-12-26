@@ -12,11 +12,13 @@ Reference:
 """
 
 import os
+import httpx
 from typing import Optional
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 
+from api.models.journey import SessionEvent
 from api.services.reconstruction_service import (
     ReconstructionService,
     ReconstructionContext,
@@ -343,3 +345,42 @@ async def session_health() -> dict:
             health["graphiti"] = {"status": "error", "error": str(e)}
     
     return health
+
+
+@router.post(
+    "/event",
+    summary="Log a session event",
+    description="""
+    Log a granular session event (e.g., decision, commitment, task completion).
+    Forwards the event to the n8n ingestion webhook for processing and storage.
+    """,
+    status_code=202,
+)
+async def log_session_event(
+    event: SessionEvent,
+    background_tasks: BackgroundTasks,
+) -> dict:
+    """
+    Log a session event to n8n.
+    """
+    # Get service to access config URLs
+    service = get_reconstruction_service()
+    
+    # Construct n8n webhook URL
+    # Assuming standard n8n pattern: base_url + /webhook/session-event
+    # We'll use the recall URL to derive the base if needed, or a configured env var
+    n8n_base = service.n8n_recall_url.rsplit("/webhook", 1)[0]
+    webhook_url = os.getenv("N8N_EVENT_URL", f"{n8n_base}/webhook/session-event")
+
+    async def forward_event(payload: dict, url: str):
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(url, json=payload)
+        except Exception as e:
+            # We log error but don't crash since this is background
+            print(f"Failed to forward session event to n8n: {e}")
+
+    # Forward in background to avoid blocking
+    background_tasks.add_task(forward_event, event.dict(), webhook_url)
+
+    return {"status": "accepted", "event_id": str(event.id)}
