@@ -64,14 +64,8 @@ class MemEvolveAdapter:
         """
         ingest_id = str(uuid4())
         try:
-            # graphiti = await get_graphiti_service()
-            # structured = await graphiti.extract_and_structure_from_trajectory(request.trajectory)
-            # Fallback for now
-            structured = {
-                "summary": request.trajectory.summary or "Trajectory summary (extraction disabled).",
-                "entities": [],
-                "relationships": []
-            }
+            graphiti = await get_graphiti_service()
+            structured = await graphiti.extract_and_structure_from_trajectory(request.trajectory)
         except Exception as exc:
             logger.error(f"Graphiti extraction failed: {exc}")
             # Fallback to just using the summary
@@ -81,21 +75,22 @@ class MemEvolveAdapter:
                 "relationships": []
             }
 
-            metadata = (
-                request.trajectory.metadata.model_dump(exclude_none=True)
-                if request.trajectory.metadata
-                else {}
-            )
+        metadata = (
+            request.trajectory.metadata.model_dump(exclude_none=True)
+            if request.trajectory.metadata
+            else {}
+        )
 
-            payload: Dict[str, Any] = {
-                "operation": "memevolve_ingest",
-                "ingest_id": ingest_id,
-                "summary": structured.get("summary"),
-                "entities": structured.get("entities", []),
-                "relationships": structured.get("relationships", []),
-                "metadata": metadata,
-            }
+        payload: Dict[str, Any] = {
+            "operation": "memevolve_ingest",
+            "ingest_id": ingest_id,
+            "summary": structured.get("summary"),
+            "entities": structured.get("entities", []),
+            "relationships": structured.get("relationships", []),
+            "metadata": metadata,
+        }
 
+        try:
             webhook_result = await self._sync_service._send_to_webhook(
                 payload,
                 webhook_url=self._sync_service.config.webhook_url,

@@ -21,7 +21,7 @@ logger = logging.getLogger("dionysus.embedding")
 # Configuration
 # =============================================================================
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
 OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 EMBEDDING_DIMENSIONS = 768
 DEFAULT_TIMEOUT = 30.0
