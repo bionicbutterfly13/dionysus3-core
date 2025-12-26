@@ -45,6 +45,19 @@ This project follows practices prescribed by Context-Engineering:
 - **Archon MCP**: Task management (no TodoWrite)
 - **Neo4j access**: Only via n8n webhooks (never direct)
 
+## Context Resumption Protocol
+
+**CRITICAL: When resuming from a context summary, NEVER trust the summary blindly.**
+
+Before ANY action after context resumption:
+1. **Verify state first** - run `git status -s`, `ls <dirs>`, `git log --oneline -3`
+2. **If summary says "files missing"** - CHECK with `ls` and `git show HEAD:<path>` before recovering
+3. **Read before Write** - always `Read` existing files before using `Write` or `Edit`
+4. **Check Archon tasks** - `find_tasks(filter_by="status", filter_value="doing")` for active work
+5. **Verify changes** - use `git diff` to confirm actual changes before reporting success
+
+See memory: `context-resumption-protocol.md` for full protocol.
+
 ## Security
 
 - **NEVER display .env contents** - Use `grep` for specific non-secret keys only, never `cat .env`
