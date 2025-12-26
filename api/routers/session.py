@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/session", tags=["session"])
 
 class ReconstructRequest(BaseModel):
     """Request model for session reconstruction."""
-    
+
     project_path: str = Field(
         ...,
         description="Absolute path to the project directory",
@@ -57,6 +57,11 @@ class ReconstructRequest(BaseModel):
         default_factory=list,
         description="Explicit retrieval cues (keywords, topics)",
         example=["mental models", "heartbeat"]
+    )
+    prefetched_tasks: Optional[list[dict]] = Field(
+        None,
+        description="Pre-fetched tasks from Archon (bypasses VPS→Archon call)",
+        example=[{"id": "abc", "title": "Task 1", "status": "todo"}]
     )
 
 
@@ -178,10 +183,13 @@ async def reconstruct_session(request: ReconstructRequest) -> ReconstructRespons
     
     # Get reconstruction service
     service = get_reconstruction_service()
-    
+
     try:
         # Run reconstruction pipeline
-        result = await service.reconstruct(context)
+        result = await service.reconstruct(
+            context,
+            prefetched_tasks=request.prefetched_tasks,
+        )
         
         return ReconstructResponse(
             success=True,
