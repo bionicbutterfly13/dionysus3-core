@@ -5,15 +5,15 @@
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verify `smolagents` and `mcp` connectivity in the environment
-- [ ] T002 Configure agent prompt templates in `api/agents/heartbeat_agent.py`
+- [x] T001 Verify `smolagents` and `mcp` connectivity in the environment ✅ (verified in consolidation)
+- [x] T002 Configure agent prompt templates in `api/agents/heartbeat_agent.py` ✅ (updated with trajectories)
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T003 Implement `ContextBuilder` to gather Energy, Goals, and Trajectories into a single JSON snapshot
-- [ ] T004 Update `HeartbeatAgent` to load tools via `ToolCollection.from_mcp`
+- [x] T003 Implement `ContextBuilder` to gather Energy, Goals, and Trajectories into a single JSON snapshot ✅ (already existed, verified)
+- [x] T004 Update `HeartbeatAgent` to load tools via `ToolCollection.from_mcp` ✅ (already implemented)
 
 ---
 
@@ -25,10 +25,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T005 Refactor `HeartbeatService._make_decision` to call `HeartbeatAgent.decide()`
-- [ ] T006 DELETE legacy `_make_default_decision` and `_make_decision` procedural code
+- [x] T005 Refactor `HeartbeatService._make_decision` to call `HeartbeatAgent.decide()` ✅ (via AgentDecisionAdapter)
+- [x] T006 DELETE legacy `_make_default_decision` and `_make_decision` procedural code ✅ (removed)
 - [ ] T007 Implement `_execute_agent_plan` to process tool outputs back into system state
-- [ ] T008 Move hardcoded model IDs to environment variable config in all agents
+- [x] T008 Move hardcoded model IDs to environment variable config in all agents ✅ (SMOLAGENTS_MODEL env var)
 
 ---
 
@@ -38,8 +38,8 @@
 
 ### Implementation for User Story 2
 
-- [ ] T008 Add `get_unconsumed_trajectories` to `MemEvolveAdapter`
-- [ ] T009 Update `ContextBuilder` to include unconsumed trajectories
+- [x] T008 Add `get_unconsumed_trajectories` to `MemEvolveAdapter` ✅ (already in ContextBuilder)
+- [x] T009 Update `ContextBuilder` to include unconsumed trajectories ✅ (added to _context_to_dict)
 - [ ] T010 Implement trajectory "marking" (processed_at) after agent reasoning
 - [ ] T011 [P] Implement transactional 'read-and-lock' for trajectories to prevent race conditions between heartbeat cycles
 

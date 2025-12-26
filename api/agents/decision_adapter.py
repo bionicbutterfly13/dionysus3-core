@@ -67,25 +67,24 @@ class AgentDecisionAdapter:
 
     def _context_to_dict(self, context: "HeartbeatContext", energy_config: Dict) -> Dict[str, Any]:
         """Convert HeartbeatContext to agent-friendly dictionary."""
+        # Access environment snapshot for core metrics
+        env = context.environment
+        
         return {
-            "heartbeat_number": context.heartbeat_number,
-            "current_energy": context.current_energy,
+            "heartbeat_number": env.heartbeat_number,
+            "current_energy": env.current_energy,
             "max_energy": energy_config.get("max_energy", 20),
             "base_regeneration": energy_config.get("base_regeneration", 2),
-            "user_present": context.user_present,
-            "time_since_user": str(context.time_since_user) if context.time_since_user else "unknown",
+            "user_present": env.user_present,
+            "time_since_user": f"{env.time_since_user_hours:.1f} hours" if env.time_since_user_hours else "unknown",
             "active_goals": [
-                {"id": str(g.goal_id), "description": g.description, "priority": g.priority}
-                for g in context.active_goals
+                {"id": str(g.id), "title": g.title, "priority": g.priority}
+                for g in context.goal_assessment.active_goals
             ],
-            "recent_memories": [
-                {"id": str(m.memory_id), "content": m.content[:200], "importance": m.importance}
-                for m in context.recent_memories[:10]
-            ],
-            "pending_actions": [
-                {"type": a.action_type, "payload": a.payload}
-                for a in context.pending_actions
-            ],
+            "recent_memories": context.recent_memories[:10],
+            "pending_actions": env.pending_events,
+            # T009: Include unconsumed trajectories for trajectory-aware reasoning
+            "recent_trajectories": context.recent_trajectories,
         }
 
     def _parse_action_type(self, type_str: str) -> ActionType:

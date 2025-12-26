@@ -527,7 +527,10 @@ class HeartbeatService:
 
     async def _make_decision(self, context: HeartbeatContext) -> HeartbeatDecision:
         """
-        Make the heartbeat decision using agent or LLM.
+        Make the heartbeat decision using agent-based reasoning.
+        
+        FR-001: DECIDE and ACT phases MUST be delegated to smolagents.CodeAgent.
+        Legacy procedural fallback has been removed per spec 010-heartbeat-handoff.
 
         Args:
             context: Full context for decision
@@ -540,125 +543,29 @@ class HeartbeatService:
             "base_regeneration": self._energy_service.get_config().base_regeneration,
         }
 
-        # Check if agent-based decisions are enabled
-        use_agent = os.getenv("USE_AGENT_DECISIONS", "false").lower() == "true"
-
-        if use_agent:
-            try:
-                from api.agents.decision_adapter import (
-                    AgentDecisionConfig,
-                    get_agent_decision_adapter,
-                )
-
-                config = AgentDecisionConfig(
-                    use_multi_agent=os.getenv("USE_MULTI_AGENT", "false").lower() == "true",
-                    model_id=os.getenv("SMOLAGENTS_MODEL", ""),
-                    max_steps=int(os.getenv("SMOLAGENTS_MAX_STEPS", "5")),
-                    fallback_on_failure=True,
-                )
-
-                adapter = get_agent_decision_adapter(config)
-                decision = await adapter.make_decision(context, energy_config)
-
-                logger.info(
-                    f"Agent decision: {len(decision.action_plan.actions)} actions, "
-                    f"confidence: {decision.confidence}"
-                )
-                return decision
-
-            except Exception as e:
-                logger.error(f"Agent decision failed, using default: {e}")
-
-        # Legacy path
-        system_prompt, user_prompt = self._context_builder.format_prompt(
-            context, energy_config
+        from api.agents.decision_adapter import (
+            AgentDecisionConfig,
+            get_agent_decision_adapter,
         )
 
-        # TODO: Call LLM here
-        return await self._make_default_decision(context)
-
-    async def _make_default_decision(self, context: HeartbeatContext) -> HeartbeatDecision:
-        """
-        Make a default decision without LLM.
-
-        Used as fallback or for testing.
-        """
-        actions = []
-        reasoning_parts = []
-
-        # If no goals, suggest brainstorming
-        if context.goal_assessment.needs_brainstorm:
-            actions.append(ActionRequest(
-                action_type=ActionType.BRAINSTORM_GOALS,
-                params={"context": "starting fresh", "count": 3},
-                reason="No goals exist",
-            ))
-            reasoning_parts.append("I have no goals, so I should brainstorm some.")
-
-        # If stale goals, consider reviewing
-        if context.goal_assessment.stale_goals:
-            actions.append(ActionRequest(
-                action_type=ActionType.REPRIORITIZE,
-                params={"changes": [
-                    {"goal_id": str(g.id), "new_priority": "backburner"}
-                    for g in context.goal_assessment.stale_goals[:2]
-                ]},
-                reason="Moving stale goals to backburner",
-            ))
-            reasoning_parts.append(f"I have {len(context.goal_assessment.stale_goals)} stale goals to address.")
-
-        # If active goals, reflect on progress
-        if context.goal_assessment.active_goals:
-            goal = context.goal_assessment.active_goals[0]
-            actions.append(ActionRequest(
-                action_type=ActionType.REFLECT,
-                params={"topic": f"Progress on: {goal.title}"},
-                reason=f"Reflecting on active goal",
-            ))
-            reasoning_parts.append(f"I'm working on '{goal.title}'.")
-
-        # T052: Check for models needing revision
-        try:
-            from api.services.model_service import get_model_service
-
-            model_service = get_model_service()
-            models_needing_revision = await model_service.get_models_needing_revision(
-                accuracy_threshold=0.5,
-                limit=2,
-            )
-
-            for model in models_needing_revision:
-                actions.append(ActionRequest(
-                    action_type=ActionType.REVISE_MODEL,
-                    params={
-                        "model_id": str(model.id),
-                        "trigger_description": f"Automatic revision due to low accuracy ({model.prediction_accuracy:.2f})",
-                    },
-                    reason=f"Model '{model.name}' has low prediction accuracy",
-                ))
-                reasoning_parts.append(
-                    f"Model '{model.name}' needs revision (accuracy: {model.prediction_accuracy:.2f})."
-                )
-        except Exception as e:
-            logger.warning(f"Failed to check models for revision: {e}")
-
-        # Default: rest if nothing to do
-        if not actions:
-            actions.append(ActionRequest(
-                action_type=ActionType.REST,
-                reason="Nothing pressing to do",
-            ))
-            reasoning_parts.append("Nothing urgent, conserving energy.")
-
-        reasoning = " ".join(reasoning_parts) if reasoning_parts else "Default heartbeat cycle."
-
-        return HeartbeatDecision(
-            action_plan=ActionPlan(actions=actions, reasoning=reasoning),
-            reasoning=reasoning,
-            focus_goal_id=context.goal_assessment.active_goals[0].id if context.goal_assessment.active_goals else None,
-            emotional_state=0.0,
-            confidence=0.5,
+        config = AgentDecisionConfig(
+            use_multi_agent=os.getenv("USE_MULTI_AGENT", "false").lower() == "true",
+            model_id=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano-2025-08-07"),
+            max_steps=int(os.getenv("SMOLAGENTS_MAX_STEPS", "5")),
+            fallback_on_failure=False,  # No fallback - agent is authoritative
         )
+
+        adapter = get_agent_decision_adapter(config)
+        decision = await adapter.make_decision(context, energy_config)
+
+        logger.info(
+            f"Agent decision: {len(decision.action_plan.actions)} actions, "
+            f"confidence: {decision.confidence}"
+        )
+        return decision
+
+    # _make_default_decision REMOVED per FR-001 (spec 010-heartbeat-handoff)
+    # All decisions are now made by HeartbeatAgent via AgentDecisionAdapter
 
     async def _resolve_pending_predictions(
         self,

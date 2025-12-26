@@ -56,13 +56,28 @@ class HeartbeatAgent:
         Execute the decision cycle.
         
         Args:
-            context: Dictionary containing environment, goals, energy, etc.
+            context: Dictionary containing environment, goals, energy, trajectories, etc.
         
         Returns:
             A string summary of the decision and actions taken.
         """
         # Construct the prompt from the context
-        # We simplify the legacy prompt to focus on the CodeAgent's strengths
+        # Enhanced to include trajectory-aware reasoning (T009)
+        
+        trajectories_section = ""
+        if context.get('recent_trajectories'):
+            traj_list = "\n".join([
+                f"- [{t.get('id', 'unknown')}] {t.get('summary', 'No summary')}"
+                for t in context['recent_trajectories']
+            ])
+            trajectories_section = f"""
+        ## New Agent Trajectories (Unconsumed Experiences)
+        These are recent agent experiences that haven't been processed yet.
+        Consider what you learned from these outcomes:
+        {traj_list}
+        """
+        else:
+            trajectories_section = "## Recent Trajectories\nNo new experiences to process."
         
         prompt = f"""
         You are Dionysus, an autonomous cognitive system.
@@ -79,24 +94,21 @@ class HeartbeatAgent:
         ## Recent Memories
         {json.dumps(context.get('recent_memories', []), indent=2)}
         
-        ## New Agent Trajectories
-        {json.dumps(context.get('recent_trajectories', []), indent=2)}
+        {trajectories_section}
         
         ## Task
         You have a limited energy budget (max 5 steps).
         Use your tools to:
         1. Recall any specific information needed to advance your goals.
         2. Reflect on your current progress or any obstacles.
-        3. Decide on the most impactful actions to take right now.
+        3. If there are unconsumed trajectories, reason about what you learned from them.
+        4. Decide on the most impactful actions to take right now.
         
         If you take actions using tools (like recalling or reflecting), those count as part of your "Action Phase" for this heartbeat.
         
         Return a final summary of what you did and why, and what your plan is for the next cycle.
+        Include any insights from processing the trajectories.
         """
-        
-        # Run the agent (CodeAgent.run is sync, so we wrap if needed, but here we can just call it
-        # since we are likely in a thread pool or it handles it. 
-        # Actually, smolagents.run IS sync. We should ideally run this in an executor if called from async code.)
         
         import asyncio
         loop = asyncio.get_event_loop()
