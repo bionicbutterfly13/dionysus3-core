@@ -37,4 +37,6 @@ pytest-cov>=4.1.0
 smolagents
 litellm
 mcp
+mcpadapt
+
 
