@@ -13,7 +13,7 @@ class ConsciousnessManager:
     using smolagents hierarchical managed_agents architecture.
     """
 
-    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
+    def __init__(self, model_id: str = "openai/gpt-4o"):
         """
         Initialize the Consciousness Manager and its managed sub-agents.
         """

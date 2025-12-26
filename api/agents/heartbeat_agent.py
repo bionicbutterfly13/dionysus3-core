@@ -11,7 +11,7 @@ class HeartbeatAgent:
     Uses smolagents CodeAgent with bridged MCP tools to reason about state.
     """
 
-    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
+    def __init__(self, model_id: str = "openai/gpt-4o-mini"):
         """
         Initialize the Heartbeat Agent with bridged MCP tools.
         """
@@ -31,10 +31,9 @@ class HeartbeatAgent:
             self.tool_collection = ToolCollection.from_mcp(server_params, trust_remote_code=True)
             self.tools = [*self.tool_collection.tools]
         except Exception as e:
-            # Fallback if bridge fails (e.g. during testing)
-            from api.agents.tools.recall_tool import RecallTool
-            self.tools = [RecallTool()]
-            print(f"Warning: MCP Bridge failed, using local fallback: {e}")
+            # Emergency fallback: minimal toolset or empty
+            self.tools = []
+            print(f"Warning: HeartbeatAgent MCP Bridge failed: {e}")
         
         self.agent = CodeAgent(
             tools=self.tools,

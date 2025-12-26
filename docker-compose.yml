@@ -11,9 +11,9 @@ services:
     env_file:
       - .env
     networks:
-      - dionysus_default
+      - dionysus3-core_default
     restart: unless-stopped
 
 networks:
-  dionysus_default:
+  dionysus3-core_default:
     external: true

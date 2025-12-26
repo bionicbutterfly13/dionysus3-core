@@ -257,6 +257,20 @@ class EmbeddingService:
             }
 
 
+    async def calculate_similarity(self, text1: str, text2: str) -> float:
+        """
+        Calculate semantic similarity between two texts.
+        """
+        if text1 == text2:
+            return 1.0
+            
+        embeddings = await self.generate_embeddings_batch([text1, text2])
+        v1, v2 = embeddings[0], embeddings[1]
+        
+        # Simple dot product for normalized vectors
+        import numpy as np
+        return float(np.dot(v1, v2))
+
 # =============================================================================
 # Exceptions
 # =============================================================================
