@@ -6,8 +6,13 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy configuration
+COPY .env .
+
 # Copy application
 COPY api/ ./api/
+COPY scripts/ ./scripts/
+
 
 # Expose port
 EXPOSE 8000
