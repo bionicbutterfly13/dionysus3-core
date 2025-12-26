@@ -69,13 +69,17 @@ class ReconstructRequest(BaseModel):
 
 class ReconstructResponse(BaseModel):
     """Response model for session reconstruction."""
-    
+
     success: bool = True
     project_summary: str
     recent_sessions: list[dict] = Field(default_factory=list)
     active_tasks: list[dict] = Field(default_factory=list)
     key_entities: list[dict] = Field(default_factory=list)
     recent_decisions: list[dict] = Field(default_factory=list)
+    episodic_memories: list[dict] = Field(
+        default_factory=list,
+        description="Episodic memories from Neo4j retrieved by attractor resonance"
+    )
     
     coherence_score: float = Field(
         ...,
@@ -200,6 +204,7 @@ async def reconstruct_session(request: ReconstructRequest) -> ReconstructRespons
             active_tasks=result.active_tasks,
             key_entities=result.key_entities,
             recent_decisions=result.recent_decisions,
+            episodic_memories=result.episodic_memories,
             coherence_score=result.coherence_score,
             fragment_count=result.fragment_count,
             reconstruction_time_ms=result.reconstruction_time_ms,
