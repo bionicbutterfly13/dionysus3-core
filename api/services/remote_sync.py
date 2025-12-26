@@ -68,56 +68,56 @@ class SyncConfig(BaseModel):
 
     webhook_url: str = Field(
         default_factory=lambda: os.getenv(
-            "N8N_WEBHOOK_URL", "http://localhost:5678/webhook/memory/v1/ingest/message"
+            "N8N_WEBHOOK_URL", "http://n8n:5678/webhook/memory/v1/ingest/message"
         ),
         description="n8n webhook URL for memory sync (ingest)",
     )
     recall_webhook_url: str = Field(
         default_factory=lambda: os.getenv(
-            "N8N_RECALL_URL", "http://localhost:5678/webhook/memory/v1/recall"
+            "N8N_RECALL_URL", "http://n8n:5678/webhook/memory/v1/recall"
         ),
         description="n8n webhook URL for memory recall (query)",
     )
     traverse_webhook_url: str = Field(
         default_factory=lambda: os.getenv(
-            "N8N_TRAVERSE_URL", "http://localhost:5678/webhook/memory/v1/traverse"
+            "N8N_TRAVERSE_URL", "http://n8n:5678/webhook/memory/v1/traverse"
         ),
         description="n8n webhook URL for graph traversal queries (read-only)",
     )
     cypher_webhook_url: str = Field(
         default_factory=lambda: os.getenv(
-            "N8N_CYPHER_URL", "http://localhost:5678/webhook/neo4j/v1/cypher"
+            "N8N_CYPHER_URL", "http://n8n:5678/webhook/neo4j/v1/cypher"
         ),
         description="n8n webhook URL for executing vetted Cypher (read/write).",
     )
     skill_upsert_webhook_url: str = Field(
         default_factory=lambda: os.getenv(
-            "N8N_SKILL_UPSERT_URL", "http://localhost:5678/webhook/memory/v1/skill/upsert"
+            "N8N_SKILL_UPSERT_URL", "http://n8n:5678/webhook/memory/v1/skill/upsert"
         ),
         description="n8n webhook URL for Skill upsert (write).",
     )
     skill_practice_webhook_url: str = Field(
         default_factory=lambda: os.getenv(
-            "N8N_SKILL_PRACTICE_URL", "http://localhost:5678/webhook/memory/v1/skill/practice"
+            "N8N_SKILL_PRACTICE_URL", "http://n8n:5678/webhook/memory/v1/skill/practice"
         ),
         description="n8n webhook URL for Skill practice updates (write).",
     )
     # MoSAEIC Protocol webhooks (Neo4j-Only Architecture)
     mosaeic_capture_webhook_url: str = Field(
         default_factory=lambda: os.getenv(
-            "N8N_MOSAEIC_CAPTURE_URL", "http://localhost:5678/webhook/mosaeic/v1/capture/create"
+            "N8N_MOSAEIC_CAPTURE_URL", "http://n8n:5678/webhook/mosaeic/v1/capture/create"
         ),
         description="n8n webhook URL for MoSAEIC capture creation.",
     )
     mosaeic_profile_webhook_url: str = Field(
         default_factory=lambda: os.getenv(
-            "N8N_MOSAEIC_PROFILE_URL", "http://localhost:5678/webhook/mosaeic/v1/profile/initialize"
+            "N8N_MOSAEIC_PROFILE_URL", "http://n8n:5678/webhook/mosaeic/v1/profile/initialize"
         ),
         description="n8n webhook URL for MoSAEIC profile initialization.",
     )
     mosaeic_pattern_webhook_url: str = Field(
         default_factory=lambda: os.getenv(
-            "N8N_MOSAEIC_PATTERN_URL", "http://localhost:5678/webhook/mosaeic/v1/pattern/detect"
+            "N8N_MOSAEIC_PATTERN_URL", "http://n8n:5678/webhook/mosaeic/v1/pattern/detect"
         ),
         description="n8n webhook URL for MoSAEIC pattern detection.",
     )

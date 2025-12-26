@@ -22,7 +22,7 @@ from enum import Enum
 
 import httpx
 
-from api.services.hmac_utils import sign_request
+from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ class ReconstructedMemory:
     # Fields with defaults
     episodic_memories: list[dict] = field(default_factory=list)
     gap_fills: list[dict] = field(default_factory=list)
-    warnings: list[dict] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     
     def to_compact_context(self) -> str:
@@ -257,9 +257,8 @@ class ReconstructionService:
             "ARCHON_API_URL", "http://localhost:8100"
         )
         self.n8n_recall_url = n8n_recall_url or os.getenv(
-            "N8N_RECALL_URL", "http://localhost:5678/webhook/memory/v1/recall"
+            "N8N_RECALL_URL", "http://n8n:5678/webhook/memory/v1/recall"
         )
-        self.webhook_token = os.getenv("MEMORY_WEBHOOK_TOKEN", "")
         self.graphiti_enabled = graphiti_enabled
         self.config = ReconstructionConfig()
 
@@ -368,95 +367,68 @@ class ReconstructionService:
 
     async def _scan_episodic_memories(self, context: ReconstructionContext) -> None:
         """
-        Scan episodic memories from Neo4j via n8n recall webhook.
+        Scan episodic memories from Neo4j via Graphiti.
 
-        Uses attractor-based semantic search to find relevant memories
-        based on project context and explicit cues.
+        Uses Graphiti's hybrid search (semantic + keyword + graph) to find
+        relevant memories based on project context and explicit cues.
+
+        Note: Graphiti is approved for direct Neo4j access as a trusted
+        infrastructure component (exception to n8n-only rule).
         """
-        if not self.webhook_token:
-            logger.warning("No MEMORY_WEBHOOK_TOKEN configured, skipping episodic memory scan")
-            return
-
         try:
-            import json
-
             # Build query from project name and cues
             query_parts = [context.project_name]
             if context.cues:
                 query_parts.extend(context.cues)
             query = " ".join(query_parts)
 
-            # Build recall request payload
-            payload = {
-                "operation": "vector_search",
-                "query": query,
-                "k": self.config.MAX_EPISODIC,
-                "threshold": 0.3,  # Lower threshold for broader recall
-                "filters": {
-                    "memory_types": ["episodic", "semantic", "conversation"],
-                },
-            }
+            logger.info(f"Searching episodic memories via Graphiti: {query}")
 
-            # Add project filter if available
-            if context.project_id:
-                payload["filters"]["project_id"] = context.project_id
+            # Get Graphiti service instance
+            graphiti = await get_graphiti_service()
 
-            # Sign the request
-            payload_bytes = json.dumps(payload).encode("utf-8")
-            headers = sign_request(payload_bytes, self.webhook_token)
+            # Search using Graphiti's hybrid search
+            results = await graphiti.search(
+                query=query,
+                limit=self.config.MAX_EPISODIC,
+            )
 
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                response = await client.post(
-                    self.n8n_recall_url,
-                    content=payload_bytes,
-                    headers=headers,
+            edges = results.get("edges", [])
+            logger.info(f"Retrieved {len(edges)} episodic memories from Graphiti")
+
+            for idx, edge in enumerate(edges):
+                if not isinstance(edge, dict):
+                    continue
+
+                # Calculate strength based on position in results
+                # (Graphiti returns results ordered by relevance)
+                # First result gets highest strength, decreasing for later results
+                position_score = 1.0 - (idx / max(len(edges), 1)) * 0.5
+                strength = min(position_score, 1.0)
+
+                # Use fact as primary content, name as fallback
+                content = edge.get("fact") or edge.get("name") or ""
+
+                fragment = Fragment(
+                    fragment_id=str(edge.get("uuid", "")),
+                    fragment_type=FragmentType.EPISODIC,
+                    content=content,
+                    summary=edge.get("fact"),
+                    strength=strength,
+                    created_at=self._parse_datetime(edge.get("valid_at")),
+                    source="graphiti",
+                    metadata={
+                        "memory_type": "episodic",
+                        "name": edge.get("name"),
+                        "valid_at": edge.get("valid_at"),
+                        "invalid_at": edge.get("invalid_at"),
+                        "position_score": position_score,
+                    },
                 )
-
-                if response.status_code == 200:
-                    result = response.json()
-                    memories = result.get("results") or result.get("memories") or []
-
-                    logger.info(f"Retrieved {len(memories)} episodic memories from Neo4j")
-
-                    for memory in memories:
-                        if not isinstance(memory, dict):
-                            continue
-
-                        # Calculate initial strength based on similarity score
-                        similarity = float(
-                            memory.get("similarity_score")
-                            or memory.get("similarity")
-                            or memory.get("score")
-                            or 0.5
-                        )
-
-                        # Higher similarity = stronger attractor
-                        strength = min(similarity * 1.2, 1.0)
-
-                        fragment = Fragment(
-                            fragment_id=str(memory.get("id") or memory.get("memory_id") or ""),
-                            fragment_type=FragmentType.EPISODIC,
-                            content=str(memory.get("content", "")),
-                            summary=memory.get("summary"),
-                            strength=strength,
-                            created_at=self._parse_datetime(memory.get("created_at")),
-                            source="neo4j-episodic",
-                            metadata={
-                                "memory_type": memory.get("type") or memory.get("memory_type"),
-                                "importance": memory.get("importance", 0.5),
-                                "similarity": similarity,
-                                "session_id": memory.get("session_id"),
-                                "tags": memory.get("tags", []),
-                            },
-                        )
-                        self._fragments.append(fragment)
-                else:
-                    logger.warning(
-                        f"Episodic memory scan returned {response.status_code}: {response.text[:200]}"
-                    )
+                self._fragments.append(fragment)
 
         except Exception as e:
-            logger.warning(f"Failed to scan episodic memories: {e}")
+            logger.warning(f"Failed to scan episodic memories via Graphiti: {e}")
 
     async def _scan_sessions(self, context: ReconstructionContext) -> None:
         """Scan recent sessions from memory system."""

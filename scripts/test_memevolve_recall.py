@@ -16,28 +16,38 @@ from dotenv import dotenv_values
 async def main():
     print("--- Testing MemEvolve /recall Endpoint ---")
     
-    # 1. Load environment variables from .env
-    config = dotenv_values(".env")
+    # Debugging .env loading
+    env_path = "/app/.env"
+    print(f"DEBUG: Attempting to load .env from: {env_path}")
+    if os.path.exists(env_path):
+        print(f"DEBUG: .env file found at {env_path}")
+        with open(env_path, 'r') as f:
+            print("DEBUG: .env file content:\n---")
+            print(f.read())
+            print("---")
+    else:
+        print(f"DEBUG: .env file NOT found at {env_path}")
+
+    # Load environment variables from .env
+    config = dotenv_values(env_path)
+    print(f"DEBUG: Loaded config from .env: {config}")
+
     secret = config.get("MEMEVOLVE_HMAC_SECRET")
+    
+    # Configuration
+    base_url = "http://localhost:8000"
+    endpoint = "/webhook/memevolve/v1/recall"
 
     if not secret:
         print("Error: MEMEVOLVE_HMAC_SECRET not found in .env file.")
         return
 
     # 2. Start server as a subprocess with the loaded environment
-    server_env = {**os.environ, **config}
-    server_process = subprocess.Popen(
-        ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"],
-        env=server_env
-    )
-    print(f"Started server with PID: {server_process.pid}. Waiting for it to initialize...")
-    time.sleep(5) # Wait for server to start
+    # Note: This is now managed by the shell executing the tests.
+    # The container itself is already running the API server.
+    # We only need the config for the test client.
 
-    try:
-        # 3. Prepare and run the test
-        base_url = "http://localhost:8000"
-        endpoint = "/webhook/memevolve/v1/recall"
-        
+
         body = {
             "query": "smolagents integration",
             "limit": 5,
