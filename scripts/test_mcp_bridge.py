@@ -24,8 +24,9 @@ async def main():
     server_params = StdioServerParameters(
         command="python3",
         args=["-m", "dionysus_mcp.server"],
-        env={**os.environ}
+        env={**os.environ, **config, "PYTHONPATH": "."} # Set PYTHONPATH
     )
+
     
     print(f"Connecting to MCP server and bridging tools...")
     
