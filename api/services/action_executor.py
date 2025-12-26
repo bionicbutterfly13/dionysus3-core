@@ -579,18 +579,25 @@ class ReflectHandler(ActionHandler):
             topic = request.params.get("topic", "recent experiences")
             memories = request.params.get("memories", [])
 
-            # Build reflection prompt
-            reflection_prompt = f"Reflect on: {topic}"
-            if memories:
-                reflection_prompt += f"\n\nRelated memories:\n" + "\n".join(
-                    f"- {m}" for m in memories[:5]
-                )
+            # 1. Generate actual reflection via LLM
+            from api.services.claude import chat_completion, SONNET
+            
+            system_prompt = """You are Dionysus's reflective faculty. 
+            Analyze the provided memories and topic to find root causes, hidden implications, 
+            and systemic connections. Connect them to broader patterns and potential future actions.
+            """
+            
+            user_content = f"Topic to reflect on: {topic}\n\nRelated memories:\n"
+            user_content += "\n".join(f"- {m}" for m in memories[:10])
+            
+            reflection = await chat_completion(
+                messages=[{"role": "user", "content": user_content}],
+                system_prompt=system_prompt,
+                model=SONNET,
+                max_tokens=1000
+            )
 
-            # TODO: Call LLM for actual reflection
-            # For now, return a placeholder
-            reflection = f"Reflection on '{topic}': Based on {len(memories)} memories, I notice patterns emerging..."
-
-            # Store reflection as memory
+            # 2. Store reflection as memory
             driver = self._get_driver()
             async with driver.session() as session:
                 result = await session.run(
@@ -664,8 +671,25 @@ class InquireShallowHandler(ActionHandler):
                     ended_at=datetime.utcnow(),
                 )
 
-            # TODO: Integrate with LLM or search
-            answer = f"Quick answer to: {question}"
+            # 1. Quick search via vector store
+            from api.services.vector_search import get_vector_search_service
+            from api.services.claude import chat_completion, HAIKU
+            
+            search_service = get_vector_search_service()
+            results = await search_service.semantic_search(question, top_k=3)
+            
+            context = "\n".join([r.content for r in results.results])
+            
+            # 2. Quick answer via Haiku
+            system_prompt = "You are a quick factual lookup service. Answer the question based ONLY on the provided context."
+            user_content = f"Question: {question}\n\nContext:\n{context}"
+            
+            answer = await chat_completion(
+                messages=[{"role": "user", "content": user_content}],
+                system_prompt=system_prompt,
+                model=HAIKU,
+                max_tokens=200
+            )
 
             return ActionResult(
                 action_type=self.action_type,
@@ -710,7 +734,6 @@ class InquireDeepHandler(ActionHandler):
 
         try:
             question = request.params.get("question", "")
-            sources = request.params.get("sources", [])
 
             if not question:
                 return ActionResult(
@@ -722,9 +745,40 @@ class InquireDeepHandler(ActionHandler):
                     ended_at=datetime.utcnow(),
                 )
 
-            # TODO: Integrate with LLM, RAG, web search
-            answer = f"Deep analysis of: {question}"
-            sources_used = sources or ["internal knowledge"]
+            # 1. Deep search via vector store + Graphiti
+            from api.services.vector_search import get_vector_search_service
+            from api.services.graphiti_service import get_graphiti_service
+            from api.services.claude import chat_completion, SONNET
+            
+            search_service = get_vector_search_service()
+            graphiti = await get_graphiti_service()
+            
+            # Parallel search
+            import asyncio
+            vector_task = search_service.semantic_search(question, top_k=10)
+            graph_task = graphiti.search(question, limit=10)
+            
+            vector_results, graph_results = await asyncio.gather(vector_task, graph_task)
+            
+            # Combine context
+            context_blocks = []
+            for r in vector_results.results: context_blocks.append(f"[Memory]: {r.content}")
+            for e in graph_results.get("edges", []): context_blocks.append(f"[Graph Fact]: {e.get('fact')}")
+            
+            context = "\n".join(context_blocks)
+            
+            # 2. Comprehensive analysis via Sonnet
+            system_prompt = """You are a deep research faculty. Analyze all provided context to answer the complex question. 
+            Identify contradictions, weight evidence by relevance, and provide a nuanced, detailed synthesis.
+            """
+            user_content = f"Complex Question: {question}\n\nContext Pool:\n{context}"
+            
+            answer = await chat_completion(
+                messages=[{"role": "user", "content": user_content}],
+                system_prompt=system_prompt,
+                model=SONNET,
+                max_tokens=1500
+            )
 
             return ActionResult(
                 action_type=self.action_type,
@@ -734,7 +788,7 @@ class InquireDeepHandler(ActionHandler):
                     "question": question,
                     "answer": answer,
                     "depth": "deep",
-                    "sources_used": sources_used,
+                    "sources_count": len(context_blocks),
                 },
                 started_at=started_at,
                 ended_at=datetime.utcnow(),
@@ -782,10 +836,25 @@ class SynthesizeHandler(ActionHandler):
                     ended_at=datetime.utcnow(),
                 )
 
-            # TODO: Integrate with LLM for actual synthesis
-            synthesis = f"Synthesis ({goal}): Combining {len(inputs)} inputs reveals..."
+            # 1. Generate synthesis via LLM
+            from api.services.claude import chat_completion, SONNET
+            
+            system_prompt = f"""You are Dionysus's synthesis faculty.
+            Your task is to take disparate data points and weave them into a high-level, 
+            actionable, and coherent narrative or plan. Goal: {goal}
+            """
+            
+            user_content = "Inputs for synthesis:\n"
+            user_content += "\n".join(f"- {i}" for i in inputs[:15])
+            
+            synthesis = await chat_completion(
+                messages=[{"role": "user", "content": user_content}],
+                system_prompt=system_prompt,
+                model=SONNET,
+                max_tokens=1000
+            )
 
-            # Store as memory
+            # 2. Store as memory
             driver = self._get_driver()
             async with driver.session() as session:
                 result = await session.run(
@@ -926,14 +995,32 @@ class BrainstormGoalsHandler(ActionHandler):
         cost = self.energy_service.get_action_cost(self.action_type)
 
         try:
-            context = request.params.get("context", "")
+            context = request.params.get("context", "current state")
             count = request.params.get("count", 3)
 
-            # TODO: Integrate with LLM for actual brainstorming
-            suggestions = [
-                {"title": f"Goal idea {i+1}", "source": "curiosity"}
-                for i in range(count)
-            ]
+            # 1. Generate goal ideas via LLM
+            from api.services.claude import chat_completion, HAIKU
+            import json
+            
+            system_prompt = f"""You are Dionysus's creative goal-setting faculty.
+            Generate {count} new goal ideas for the cognitive system based on the provided context.
+            Respond ONLY with a JSON list of objects: [{{"title": "...", "description": "...", "priority": "queued", "source": "curiosity"}}]
+            """
+            
+            response = await chat_completion(
+                messages=[{"role": "user", "content": f"Context for brainstorming: {context}"}],
+                system_prompt=system_prompt,
+                model=HAIKU,
+                max_tokens=500
+            )
+            
+            try:
+                # Clean JSON response
+                cleaned = response.strip()
+                if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
+                suggestions = json.loads(cleaned)
+            except:
+                suggestions = [{"title": f"Explore {context}", "source": "curiosity"}]
 
             return ActionResult(
                 action_type=self.action_type,

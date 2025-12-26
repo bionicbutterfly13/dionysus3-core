@@ -390,9 +390,185 @@ class ModelService:
             updated_at=model.updated_at,
         )
 
-    # Simplified mock versions of remaining methods
+    # =========================================================================
+    # Revisions & Error Tracking
+    # =========================================================================
+
+    async def get_unresolved_predictions(
+        self,
+        model_id: UUID | None = None,
+        limit: int = 50,
+    ) -> list[ModelPrediction]:
+        """
+        Get unresolved predictions (no observation).
+        """
+        cypher = """
+        MATCH (p:ModelPrediction)
+        WHERE p.observation IS NULL
+          AND ($model_id IS NULL OR p.model_id = $model_id)
+        RETURN p
+        ORDER BY p.created_at ASC
+        LIMIT $limit
+        """
+        
+        try:
+            result = await self._driver.execute_query(cypher, {
+                "model_id": str(model_id) if model_id else None,
+                "limit": limit
+            })
+            return [self._node_to_prediction(row["p"]) for row in result]
+        except Exception as e:
+            logger.error(f"Error getting unresolved predictions: {e}")
+            return []
+
+    async def apply_revision(
+        self,
+        model_id: UUID,
+        request: ReviseModelRequest,
+    ) -> ModelRevision:
+        """
+        Apply a structural revision to a mental model.
+        """
+        revision_id = str(uuid4())
+        
+        # Get current model to get accuracy_before and revision_count
+        model = await self.get_model(model_id)
+        if not model:
+            raise ValueError(f"Model not found: {model_id})")
+            
+        new_revision_number = model.revision_count + 1
+        
+        # Update model basins and revision count
+        new_basins = set(model.constituent_basins)
+        for bid in request.add_basins:
+            new_basins.add(bid)
+        for bid in request.remove_basins:
+            if bid in new_basins:
+                new_basins.remove(bid)
+                
+        cypher = """
+        MATCH (m:MentalModel {id: $model_id})
+        SET m.constituent_basins = $new_basins,
+            m.revision_count = $rev_count,
+            m.updated_at = datetime()
+        CREATE (r:ModelRevision {
+            id: $rev_id,
+            model_id: $model_id,
+            revision_number: $rev_count,
+            trigger: 'manual',
+            trigger_description: $description,
+            basins_added: $added,
+            basins_removed: $removed,
+            accuracy_before: $acc_before,
+            created_at: datetime()
+        })
+        CREATE (m)-[:REVISED_BY]->(r)
+        RETURN r
+        """
+        
+        try:
+            result = await self._driver.execute_query(cypher, {
+                "model_id": str(model_id),
+                "rev_id": revision_id,
+                "rev_count": new_revision_number,
+                "new_basins": [str(bid) for bid in new_basins],
+                "description": request.trigger_description,
+                "added": [str(bid) for bid in request.add_basins],
+                "removed": [str(bid) for bid in request.remove_basins],
+                "acc_before": model.prediction_accuracy
+            })
+            
+            if not result:
+                raise RuntimeError("Failed to apply model revision")
+                
+            row = result[0]["r"]
+            logger.info(f"Applied revision {new_revision_number} to model {model_id}")
+            return self._node_to_revision(row)
+        except Exception as e:
+            logger.error(f"Error applying model revision: {e}")
+            raise
+
+    async def get_revisions(self, model_id: UUID, limit: int = 20, offset: int = 0) -> list[ModelRevision]:
+        """
+        Get revision history for a model.
+        """
+        cypher = """
+        MATCH (r:ModelRevision {model_id: $model_id})
+        RETURN r
+        ORDER BY r.revision_number DESC
+        SKIP $offset
+        LIMIT $limit
+        """
+        
+        try:
+            result = await self._driver.execute_query(cypher, {
+                "model_id": str(model_id),
+                "offset": offset,
+                "limit": limit
+            })
+            return [self._node_to_revision(row["r"]) for row in result]
+        except Exception as e:
+            logger.error(f"Error getting model revisions: {e}")
+            return []
+
+    async def update_model(self, model_id: UUID, request: UpdateModelRequest) -> MentalModel:
+        """
+        Update model metadata or status.
+        """
+        # Build SET clauses dynamically
+        sets = ["m.updated_at = datetime()"]
+        params = {"id": str(model_id)}
+        
+        if request.name is not None:
+            sets.append("m.name = $name")
+            params["name"] = request.name
+        if request.description is not None:
+            sets.append("m.description = $description")
+            params["description"] = request.description
+        if request.status is not None:
+            sets.append("m.status = $status")
+            params["status"] = request.status.value
+        if request.prediction_templates is not None:
+            sets.append("m.prediction_templates = $templates")
+            params["templates"] = [t.model_dump_json() for t in request.prediction_templates]
+            
+        cypher = f"MATCH (m:MentalModel {{id: $id}}) SET {', '.join(sets)} RETURN m"
+        
+        try:
+            result = await self._driver.execute_query(cypher, params)
+            if not result:
+                raise ValueError(f"Model not found: {model_id})")
+            return self._node_to_model(result[0]["m"])
+        except Exception as e:
+            logger.error(f"Error updating mental model: {e}")
+            raise
+
+    async def deprecate_model(self, model_id: UUID) -> MentalModel:
+        """
+        Soft-delete a model by setting status to 'deprecated'.
+        """
+        return await self.update_model(model_id, UpdateModelRequest(status=ModelStatus.DEPRECATED))
+
+    # =========================================================================
+    # Node Converters
+    # =========================================================================
+
+    def _node_to_revision(self, node) -> ModelRevision:
+        """Convert Neo4j node to ModelRevision."""
+        return ModelRevision(
+            id=UUID(node["id"]),
+            model_id=UUID(node["model_id"]),
+            revision_number=int(node["revision_number"]),
+            trigger=RevisionTrigger(node.get("trigger", "manual")),
+            trigger_description=node.get("trigger_description"),
+            basins_added=[UUID(bid) for bid in node.get("basins_added", [])],
+            basins_removed=[UUID(bid) for bid in node.get("basins_removed", [])],
+            accuracy_before=float(node["accuracy_before"]) if node.get("accuracy_before") is not None else None,
+            accuracy_after=float(node["accuracy_after"]) if node.get("accuracy_after") is not None else None,
+            created_at=datetime.fromisoformat(node["created_at"].replace('Z', '+00:00')) if isinstance(node["created_at"], str) else node["created_at"],
+        )
+
     async def validate_basin_ids(self, basin_ids: list[UUID]) -> list[UUID]:
-        return []
 
 # Singleton factory
 _model_service_instance: Optional[ModelService] = None

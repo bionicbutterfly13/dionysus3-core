@@ -120,16 +120,46 @@ class RecallResponse(BaseModel):
 
 
 # =============================================================================
-# SESSION STORAGE (In-memory for MVP, move to dionysus memory later)
+# PERSISTENT SESSION STORAGE (Using SessionManager + Neo4j)
 # =============================================================================
 
-sessions: dict[str, dict] = {}
-
-
-def get_session(session_id: str) -> dict:
-    if session_id not in sessions:
+async def get_persistent_session(session_id: str) -> dict:
+    """Helper to get session data from Neo4j."""
+    manager = get_session_manager()
+    session = await manager.get_session(uuid.UUID(session_id))
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    return sessions[session_id]
+    
+    # Adapt Model to dict for legacy compatibility in router
+    return {
+        "id": str(session.id),
+        "journey_id": str(session.journey_id),
+        "messages": session.messages,
+        "confidence_score": session.confidence_score,
+        "diagnosis": session.diagnosis
+    }
+
+async def update_persistent_session(session_id: str, updates: dict):
+    """Helper to update session data in Neo4j."""
+    manager = get_session_manager()
+    cypher = "MATCH (s:Session {id: $id}) SET "
+    sets = []
+    params = {"id": session_id}
+    
+    if "messages" in updates:
+        sets.append("s.messages = $messages")
+        params["messages"] = json.dumps(updates["messages"])
+    if "confidence_score" in updates:
+        sets.append("s.confidence_score = $score")
+        params["score"] = updates["confidence_score"]
+    if "diagnosis" in updates:
+        sets.append("s.diagnosis = $diagnosis")
+        params["diagnosis"] = json.dumps(updates["diagnosis"])
+        
+    if not sets: return
+    
+    cypher += ", ".join(sets)
+    await manager._driver.execute_query(cypher, params)
 
 
 # =============================================================================
@@ -255,7 +285,7 @@ async def create_session(
 @router.get("/session/{session_id}")
 async def get_session_state(session_id: str):
     """Get current session state."""
-    session = get_session(session_id)
+    session = await get_persistent_session(session_id)
     return {
         "session_id": session["id"],
         "message_count": len(session["messages"]),
@@ -316,7 +346,7 @@ async def chat(request: ChatRequest):
             )
 
     # Session mode - original behavior
-    session = get_session(request.session_id)
+    session = await get_persistent_session(request.session_id)
 
     # Add user message to history
     session["messages"].append({
@@ -349,6 +379,12 @@ async def chat(request: ChatRequest):
         base_confidence += 20
 
     session["confidence_score"] = min(base_confidence, 95)
+
+    # PERSIST UPDATES
+    await update_persistent_session(request.session_id, {
+        "messages": session["messages"],
+        "confidence_score": session["confidence_score"]
+    })
 
     status = "ready_to_diagnose" if session["confidence_score"] >= 85 else "gathering_info"
 
@@ -401,7 +437,7 @@ async def chat_stream_endpoint(request: ChatRequest):
 @router.post("/diagnose", response_model=DiagnosisResponse)
 async def diagnose(request: DiagnoseRequest):
     """Analyze conversation and produce diagnosis."""
-    session = get_session(request.session_id)
+    session = await get_persistent_session(request.session_id)
 
     if session["confidence_score"] < 50:
         raise HTTPException(
@@ -429,7 +465,10 @@ async def diagnose(request: DiagnoseRequest):
                     obstacle_text = action["obstacles"][diagnosis["obstacle_id"]]
                 break
 
-    session["diagnosis"] = diagnosis
+    # PERSIST UPDATES
+    await update_persistent_session(request.session_id, {
+        "diagnosis": diagnosis
+    })
 
     return DiagnosisResponse(
         step_id=diagnosis["step_id"],
@@ -468,7 +507,7 @@ async def create_woop_plan(
     # If session_id provided, try to get context from session
     if request.session_id and not diagnosis_context:
         try:
-            session = get_session(request.session_id)
+            session = await get_persistent_session(request.session_id)
             if session.get("diagnosis"):
                 diagnosis_context = session["diagnosis"].get("explanation", "")
         except HTTPException:

@@ -49,41 +49,67 @@ async def chat_stream(
             yield text
 
 
+from smolagents import CodeAgent, LiteLLMModel
+
+class CoachingAgent:
+    """
+    Agentic wrapper for IAS coaching logic.
+    """
+    def __init__(self, model_id: str = SONNET):
+        self.model = LiteLLMModel(
+            model_id=model_id,
+            api_key=os.getenv("ANTHROPIC_API_KEY")
+        )
+        self.agent = CodeAgent(
+            tools=[],
+            model=self.model,
+            name="coaching_agent"
+        )
+
+    async def diagnose(self, conversation: list[dict], framework: list[dict]) -> dict:
+        prompt = f"""Review the conversation and identify the specific IAS framework position.
+        Framework: {json.dumps(framework, indent=2)}
+        Conversation: {json.dumps(conversation, indent=2)}
+        Respond ONLY with a JSON object:
+        {{
+            "step_id": <1-9>,
+            "action_id": <1-3>,
+            "obstacle_id": <0-2>,
+            "explanation": "...",
+            "contrarian_insight": "..."
+        }}
+        """
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        try:
+            cleaned = result.strip()
+            if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
+            return json.loads(cleaned)
+        except:
+            return {"error": "Failed to parse diagnosis", "raw": result}
+
+    async def generate_woop(self, wish: str, outcome: str, obstacle: str, context: str) -> list[str]:
+        prompt = f"""Generate 3 specific WOOP If-Then plans.
+        Wish: {wish} | Outcome: {outcome} | Obstacle: {obstacle} | Context: {context}
+        Respond ONLY with a JSON list of 3 strings.
+        """
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        try:
+            cleaned = result.strip()
+            if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
+            return json.loads(cleaned)
+        except:
+            return [result]
+
 async def analyze_for_diagnosis(
     conversation: list[dict],
     framework: list[dict]
 ) -> dict:
-    """Use Sonnet to analyze conversation and produce diagnosis."""
-    system_prompt = f"""You are an expert coach trained in the Inner Architect System (IAS).
-Analyze the conversation and determine which specific step, action, and obstacle the user is facing.
-
-THE IAS FRAMEWORK:
-{framework}
-
-Your task:
-1. Review the conversation history
-2. Identify the specific IAS position (step_id 1-9, action_id 1-3, obstacle_id 0-2)
-3. Provide an explanation of why this is their block
-4. Provide a contrarian insight that reframes their situation
-
-Respond with JSON:
-{{
-    "step_id": <1-9>,
-    "action_id": <1-3>,
-    "obstacle_id": <0-2>,
-    "explanation": "<why this specific block applies>",
-    "contrarian_insight": "<reframing insight>"
-}}"""
-
-    response = await client.messages.create(
-        model=SONNET,
-        max_tokens=1024,
-        system=system_prompt,
-        messages=[{"role": "user", "content": f"Conversation to analyze:\n{conversation}"}]
-    )
-
-    import json
-    return json.loads(response.content[0].text)
+    agent = CoachingAgent()
+    return await agent.diagnose(conversation, framework)
 
 
 async def generate_woop_plans(
@@ -92,25 +118,5 @@ async def generate_woop_plans(
     obstacle: str,
     diagnosis_context: str
 ) -> list[str]:
-    """Generate If-Then implementation plans."""
-    system_prompt = """You are a WOOP methodology expert. Generate exactly 3 specific If-Then implementation plans.
-
-Format each plan as: "If [specific obstacle situation], then I will [specific action grounded in mindfulness/awareness]."
-
-Return as JSON array of 3 strings."""
-
-    prompt = f"""Create WOOP plans for:
-- Wish: {wish}
-- Desired Outcome: {outcome}
-- Inner Obstacle: {obstacle}
-- Diagnosis Context: {diagnosis_context}"""
-
-    response = await client.messages.create(
-        model=HAIKU,
-        max_tokens=512,
-        system=system_prompt,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    import json
-    return json.loads(response.content[0].text)
+    agent = CoachingAgent()
+    return await agent.generate_woop(wish, outcome, obstacle, diagnosis_context)

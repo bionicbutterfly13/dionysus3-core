@@ -2,44 +2,45 @@ import json
 import os
 from typing import Any, Dict
 
-from smolagents import CodeAgent, LiteLLMModel
-
-from api.agents.tools.recall_tool import RecallTool
-from api.agents.tools.reflect_tool import ReflectTool
-from api.agents.tools.synthesize_tool import SynthesizeTool
-from api.agents.tools.update_energy_tool import UpdateEnergyTool
+from smolagents import CodeAgent, LiteLLMModel, ToolCollection
+from mcp import StdioServerParameters
 
 class HeartbeatAgent:
     """
     Agent wrapper for the Heartbeat DECIDE phase.
-    Uses smolagents CodeAgent to reason about state and decide on actions.
+    Uses smolagents CodeAgent with bridged MCP tools to reason about state.
     """
 
     def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
         """
-        Initialize the Heartbeat Agent.
-        
-        Args:
-            model_id: The LiteLLM model identifier to use.
+        Initialize the Heartbeat Agent with bridged MCP tools.
         """
         self.model = LiteLLMModel(
             model_id=model_id,
             api_key=os.getenv("OPENAI_API_KEY"),
         )
         
-        self.tools = [
-            RecallTool(),
-            ReflectTool(),
-            SynthesizeTool(),
-            UpdateEnergyTool(),
-            # TODO: Add ReviseModelTool when implemented
-        ]
+        # Bridge tools from local MCP server
+        server_params = StdioServerParameters(
+            command="python3",
+            args=["-m", "dionysus_mcp.server"],
+            env={**os.environ, "PYTHONPATH": "."}
+        )
+        
+        try:
+            self.tool_collection = ToolCollection.from_mcp(server_params, trust_remote_code=True)
+            self.tools = [*self.tool_collection.tools]
+        except Exception as e:
+            # Fallback if bridge fails (e.g. during testing)
+            from api.agents.tools.recall_tool import RecallTool
+            self.tools = [RecallTool()]
+            print(f"Warning: MCP Bridge failed, using local fallback: {e}")
         
         self.agent = CodeAgent(
             tools=self.tools,
             model=self.model,
-            max_steps=5, # Energy budget equivalent for now
-            executor_type="local", # Switch to "e2b" for production later
+            max_steps=5,
+            executor_type="local",
             verbosity_level=1
         )
 
