@@ -35,6 +35,14 @@ class MetacognitionAgent:
             description="Specialized in self-reflection, goal management, and mental model revision."
         )
 
+    def close(self):
+        """Terminate the MCP bridge session."""
+        if hasattr(self, 'tool_collection'):
+            try:
+                self.tool_collection.__exit__(None, None, None)
+            except:
+                pass
+
     def run(self, task: str):
         """
         Run the metacognition cycle.
