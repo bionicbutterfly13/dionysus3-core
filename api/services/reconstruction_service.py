@@ -22,6 +22,8 @@ from enum import Enum
 
 import httpx
 
+from api.services.hmac_utils import sign_request
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,6 +48,7 @@ class ReconstructionConfig:
     MAX_SESSIONS = 10
     MAX_TASKS = 15
     MAX_ENTITIES = 20
+    MAX_EPISODIC = 15  # Max episodic memories from Neo4j
     MAX_OUTPUT_TOKENS = 4000  # Target compact output
     
     # Time windows
@@ -63,6 +66,7 @@ class FragmentType(str, Enum):
     ENTITY = "entity"
     DECISION = "decision"
     COMMITMENT = "commitment"
+    EPISODIC = "episodic"  # Episodic memories from Neo4j
 
 
 @dataclass
@@ -118,24 +122,22 @@ class ReconstructionContext:
 @dataclass
 class ReconstructedMemory:
     """The output of reconstruction - coherent context for injection."""
-    
-    # Summary sections
+
+    # Fields without defaults must come first
     project_summary: str
     recent_sessions: list[dict]
     active_tasks: list[dict]
     key_entities: list[dict]
     recent_decisions: list[dict]
-    
-    # Metadata
     coherence_score: float
     fragment_count: int
     reconstruction_time_ms: float
-    
-    # Gap fills (if any)
+
+    # Fields with defaults
+    episodic_memories: list[dict] = field(default_factory=list)
     gap_fills: list[dict] = field(default_factory=list)
-    
-    # Warnings
-    warnings: list[str] = field(default_factory=list)
+    warnings: list[dict] = field(default_factory=list)
+
     
     def to_compact_context(self) -> str:
         """Convert to compact text for context injection."""
@@ -186,7 +188,17 @@ class ReconstructedMemory:
                 content = decision.get('content', '')
                 lines.append(f"- {content}")
             lines.append("")
-        
+
+        # Episodic memories (from Neo4j attractors)
+        if self.episodic_memories:
+            lines.append("## Relevant Memories")
+            for memory in self.episodic_memories[:5]:
+                content = memory.get('content', '')[:150]
+                mem_type = memory.get('memory_type', 'memory')
+                similarity = memory.get('similarity', 0)
+                lines.append(f"- [{mem_type}] {content}... (relevance: {similarity:.0%})")
+            lines.append("")
+
         # Warnings
         if self.warnings:
             lines.append("## Warnings")
@@ -204,6 +216,7 @@ class ReconstructedMemory:
             "active_tasks": self.active_tasks,
             "key_entities": self.key_entities,
             "recent_decisions": self.recent_decisions,
+            "episodic_memories": self.episodic_memories,
             "coherence_score": self.coherence_score,
             "fragment_count": self.fragment_count,
             "reconstruction_time_ms": self.reconstruction_time_ms,
@@ -246,9 +259,10 @@ class ReconstructionService:
         self.n8n_recall_url = n8n_recall_url or os.getenv(
             "N8N_RECALL_URL", "http://localhost:5678/webhook/memory/v1/recall"
         )
+        self.webhook_token = os.getenv("MEMORY_WEBHOOK_TOKEN", "")
         self.graphiti_enabled = graphiti_enabled
         self.config = ReconstructionConfig()
-        
+
         # Fragment field (populated during reconstruction)
         self._fragments: list[Fragment] = []
     
@@ -315,6 +329,7 @@ class ReconstructionService:
             active_tasks=extracted.get("tasks", []),
             key_entities=extracted.get("entities", []),
             recent_decisions=extracted.get("decisions", []),
+            episodic_memories=extracted.get("episodic", []),
             coherence_score=coherence_score,
             fragment_count=len(self._fragments),
             reconstruction_time_ms=elapsed_ms,
@@ -334,6 +349,9 @@ class ReconstructionService:
         """Scan all sources for memory fragments."""
         self._fragments = []
 
+        # Scan episodic memories from Neo4j via n8n webhook
+        await self._scan_episodic_memories(context)
+
         # Scan sessions from PostgreSQL/n8n
         await self._scan_sessions(context)
 
@@ -347,7 +365,99 @@ class ReconstructionService:
         # Scan entities from Graphiti (if enabled)
         if self.graphiti_enabled:
             await self._scan_entities(context)
-    
+
+    async def _scan_episodic_memories(self, context: ReconstructionContext) -> None:
+        """
+        Scan episodic memories from Neo4j via n8n recall webhook.
+
+        Uses attractor-based semantic search to find relevant memories
+        based on project context and explicit cues.
+        """
+        if not self.webhook_token:
+            logger.warning("No MEMORY_WEBHOOK_TOKEN configured, skipping episodic memory scan")
+            return
+
+        try:
+            import json
+
+            # Build query from project name and cues
+            query_parts = [context.project_name]
+            if context.cues:
+                query_parts.extend(context.cues)
+            query = " ".join(query_parts)
+
+            # Build recall request payload
+            payload = {
+                "operation": "vector_search",
+                "query": query,
+                "k": self.config.MAX_EPISODIC,
+                "threshold": 0.3,  # Lower threshold for broader recall
+                "filters": {
+                    "memory_types": ["episodic", "semantic", "conversation"],
+                },
+            }
+
+            # Add project filter if available
+            if context.project_id:
+                payload["filters"]["project_id"] = context.project_id
+
+            # Sign the request
+            payload_bytes = json.dumps(payload).encode("utf-8")
+            headers = sign_request(payload_bytes, self.webhook_token)
+
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    self.n8n_recall_url,
+                    content=payload_bytes,
+                    headers=headers,
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    memories = result.get("results") or result.get("memories") or []
+
+                    logger.info(f"Retrieved {len(memories)} episodic memories from Neo4j")
+
+                    for memory in memories:
+                        if not isinstance(memory, dict):
+                            continue
+
+                        # Calculate initial strength based on similarity score
+                        similarity = float(
+                            memory.get("similarity_score")
+                            or memory.get("similarity")
+                            or memory.get("score")
+                            or 0.5
+                        )
+
+                        # Higher similarity = stronger attractor
+                        strength = min(similarity * 1.2, 1.0)
+
+                        fragment = Fragment(
+                            fragment_id=str(memory.get("id") or memory.get("memory_id") or ""),
+                            fragment_type=FragmentType.EPISODIC,
+                            content=str(memory.get("content", "")),
+                            summary=memory.get("summary"),
+                            strength=strength,
+                            created_at=self._parse_datetime(memory.get("created_at")),
+                            source="neo4j-episodic",
+                            metadata={
+                                "memory_type": memory.get("type") or memory.get("memory_type"),
+                                "importance": memory.get("importance", 0.5),
+                                "similarity": similarity,
+                                "session_id": memory.get("session_id"),
+                                "tags": memory.get("tags", []),
+                            },
+                        )
+                        self._fragments.append(fragment)
+                else:
+                    logger.warning(
+                        f"Episodic memory scan returned {response.status_code}: {response.text[:200]}"
+                    )
+
+        except Exception as e:
+            logger.warning(f"Failed to scan episodic memories: {e}")
+
     async def _scan_sessions(self, context: ReconstructionContext) -> None:
         """Scan recent sessions from memory system."""
         try:
@@ -636,6 +746,7 @@ class ReconstructionService:
             "tasks": [],
             "entities": [],
             "decisions": [],
+            "episodic": [],
         }
         
         for fragment in self._fragments:
@@ -674,12 +785,25 @@ class ReconstructionService:
                     "date": fragment.created_at.strftime("%Y-%m-%d") if fragment.created_at else "Unknown",
                     "resonance": fragment.resonance_score,
                 })
-        
+
+            elif fragment.fragment_type == FragmentType.EPISODIC:
+                extracted["episodic"].append({
+                    "id": fragment.fragment_id,
+                    "content": fragment.content[:300],  # Truncate for context
+                    "summary": fragment.summary,
+                    "memory_type": fragment.metadata.get("memory_type", "episodic"),
+                    "similarity": fragment.metadata.get("similarity", 0.0),
+                    "importance": fragment.metadata.get("importance", 0.5),
+                    "resonance": fragment.resonance_score,
+                    "date": fragment.created_at.strftime("%Y-%m-%d") if fragment.created_at else "Unknown",
+                })
+
         # Limit each category
         extracted["sessions"] = extracted["sessions"][:self.config.MAX_SESSIONS]
         extracted["tasks"] = extracted["tasks"][:self.config.MAX_TASKS]
         extracted["entities"] = extracted["entities"][:self.config.MAX_ENTITIES]
         extracted["decisions"] = extracted["decisions"][:5]
+        extracted["episodic"] = extracted["episodic"][:self.config.MAX_EPISODIC]
         
         return extracted
     
@@ -720,7 +844,7 @@ class ReconstructionService:
     def _validate_coherence(self, extracted: dict[str, list[dict]]) -> float:
         """Calculate coherence score for extracted patterns."""
         scores = []
-        
+
         # Check if we have content in each category
         if extracted["sessions"]:
             scores.append(0.8)
@@ -728,6 +852,8 @@ class ReconstructionService:
             scores.append(0.9)
         if extracted["entities"]:
             scores.append(0.7)
+        if extracted.get("episodic"):
+            scores.append(0.85)  # Episodic memories are highly valuable
         
         # Check resonance distribution
         all_resonances = []
