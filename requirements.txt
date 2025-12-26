@@ -4,21 +4,15 @@ uvicorn>=0.24.0
 pydantic>=2.4.2
 asyncio>=3.4.3
 
-# Database
-asyncpg>=0.29.0
-psycopg2-binary>=2.9.9
-
 # AI/ML
 openai>=1.3.0
 anthropic>=0.39.0
 numpy>=1.24.0
 tiktoken>=0.5.1
 
-# Vector operations
-pgvector>=0.2.0
-
-# Remote Persistence (Neo4j, n8n integration)
+# Knowledge Graph (Neo4j via Graphiti)
 neo4j>=5.14.0
+graphiti-core>=0.24.3
 
 # Testing
 pytest>=7.4.3
