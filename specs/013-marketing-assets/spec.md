@@ -29,9 +29,10 @@ As a professional, I want to see testimonials from people like me, so that I can
 
 ### Functional Requirements
 
-- **FR-001**: System MUST output sales page copy to `/Volumes/Arkham/Marketing/stefan/assets/`.
-- **FR-002**: Sales page MUST use the "Blueprint Bundle" positioning.
-- **FR-003**: Testimonials MUST be integrated into a dedicated social proof section.
+- **FR-001**: System MUST generate Emails 5-10 using the `MarketingAgent` (CodeAgent).
+- **FR-002**: System MUST generate the $97 Tripwire Sales Page copy.
+- **FR-003**: System MUST implement a `FileExportService` to write generated content to `/Volumes/Arkham/Marketing/stefan/assets/`.
+- **FR-004**: System MUST handle volume mounting/permission errors for the export directory gracefully.
 
 ## Success Criteria
 

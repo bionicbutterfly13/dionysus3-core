@@ -26,8 +26,9 @@
 ### Implementation for User Story 1
 
 - [ ] T005 Refactor `HeartbeatService._make_decision` to call `HeartbeatAgent.decide()`
-- [ ] T006 Remove legacy `_make_default_decision` procedural logic
+- [ ] T006 DELETE legacy `_make_default_decision` and `_make_decision` procedural code
 - [ ] T007 Implement `_execute_agent_plan` to process tool outputs back into system state
+- [ ] T008 Move hardcoded model IDs to environment variable config in all agents
 
 ---
 
