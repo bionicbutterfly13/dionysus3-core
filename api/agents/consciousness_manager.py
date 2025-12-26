@@ -23,9 +23,13 @@ class ConsciousnessManager:
         )
         
         # Instantiate sub-agents (these are ToolCallingAgent or CodeAgent internally)
-        self.perception = PerceptionAgent().agent
-        self.reasoning = ReasoningAgent().agent
-        self.metacognition = MetacognitionAgent().agent
+        self.perception_agent_wrapper = PerceptionAgent()
+        self.reasoning_agent_wrapper = ReasoningAgent()
+        self.metacognition_agent_wrapper = MetacognitionAgent()
+        
+        self.perception = self.perception_agent_wrapper.agent
+        self.reasoning = self.reasoning_agent_wrapper.agent
+        self.metacognition = self.metacognition_agent_wrapper.agent
 
         # The orchestrator agent manages the specialized agents
         self.orchestrator = CodeAgent(
@@ -66,3 +70,9 @@ class ConsciousnessManager:
             "final_plan": str(result),
             "orchestrator_log": self.orchestrator.logs
         }
+
+    def close(self):
+        """Cascade close to all managed sub-agents."""
+        for agent_wrapper in [self.perception_agent_wrapper, self.reasoning_agent_wrapper, self.metacognition_agent_wrapper]:
+            if hasattr(agent_wrapper, 'close'):
+                agent_wrapper.close()

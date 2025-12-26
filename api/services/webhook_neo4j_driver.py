@@ -78,6 +78,15 @@ class WebhookNeo4jDriver:
     def session(self) -> WebhookNeo4jSession:
         return WebhookNeo4jSession(self._sync)
 
+    async def execute_query(self, statement: str, parameters: Optional[dict[str, Any]] = None, **kwargs):
+        """
+        Execute a Cypher query and return the results directly.
+        Matches the modern neo4j-driver API.
+        """
+        async with self.session() as session:
+            result = await session.run(statement, parameters, **kwargs)
+            return await result.data()
+
     async def close(self) -> None:
         return None
 

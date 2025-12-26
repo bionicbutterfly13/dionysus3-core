@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Archon MCP server configuration
-ARCHON_MCP_URL = os.getenv("ARCHON_MCP_URL", "http://localhost:3001")
+ARCHON_MCP_URL = os.getenv("ARCHON_MCP_URL", "http://archon-mcp:8051")
 ARCHON_TIMEOUT = float(os.getenv("ARCHON_TIMEOUT", "10.0"))
 
 

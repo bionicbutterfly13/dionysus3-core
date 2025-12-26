@@ -43,6 +43,14 @@ class HeartbeatAgent:
             verbosity_level=1
         )
 
+    def close(self):
+        """Terminate the MCP bridge session."""
+        if hasattr(self, 'tool_collection'):
+            try:
+                self.tool_collection.__exit__(None, None, None)
+            except:
+                pass
+
     async def decide(self, context: Dict[str, Any]) -> str:
         """
         Execute the decision cycle.

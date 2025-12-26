@@ -117,8 +117,6 @@ class AspectService:
             
         return False
 
-    async def delete_review_item(self, item_id: str) -> bool:
-
     async def remove_aspect(self, user_id: str, name: str) -> bool:
         """Archive an aspect (detach from user)."""
         timestamp = datetime.utcnow()
