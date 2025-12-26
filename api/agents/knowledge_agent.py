@@ -22,18 +22,34 @@ class KnowledgeAgent:
             description="Expert in IAS conceptual content, audiobook production, and avatar research."
         )
 
-    def review_manuscript(self, text: str, target_word_count: int = 13500) -> str:
+    async def review_manuscript(self, text: str, target_word_count: int = 13500) -> Dict[str, Any]:
         """
-        Review and suggest updates for the audiobook manuscript.
+        Review and suggest updates for the audiobook manuscript with self-reported confidence.
         """
         prompt = f"""
-        Review the following manuscript section. Current target word count: {target_word_count}.
-        Ensure consistency with IAS principles and maintain an authoritative tone.
+        Review this manuscript section. Target: {target_word_count} words.
+        Ensure IAS consistency and authoritative tone.
         
         Manuscript:
-        {text[:5000]}...
+        {text[:5000]}
+        
+        Respond with a JSON object:
+        {{
+            "suggestions": "...",
+            "word_count_estimate": <int>,
+            "confidence": <float>,
+            "reasoning": "..."
+        }}
         """
-        return self.agent.run(prompt)
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        try:
+            cleaned = result.strip()
+            if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
+            return json.loads(cleaned)
+        except:
+            return {"raw_result": result, "confidence": 0.5}
 
     async def map_avatar_data(self, raw_data: str) -> dict:
         """

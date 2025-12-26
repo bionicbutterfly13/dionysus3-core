@@ -47,15 +47,27 @@ As a system, I want to flag low-confidence outputs for human review, so that I d
 
 ---
 
+## Clarifications
+
+### Session 2025-12-26
+- Q: How should the system handle a HumanReviewCandidate after a human provides the correction? → A: Auto-Execute (System automatically executes the corrected logic and archives the candidate).
+- Q: Should Graphiti history record the exact delta or a full snapshot of the aspect state? → A: Full Snapshot (Allows instant retrieval of complete historical states).
+- Q: Should Marketing/KB agents see a filtered subset of aspects? → A: Global Visibility (All agents see every aspect to ensure maximum system coherence).
+- Q: What is the fallback if file export to /Volumes/Arkham/ fails? → A: Divert to Review (Generate a HumanReviewCandidate with the content to prevent data loss).
+- Q: Who is responsible for calculating the confidence score? → A: Agent Self-Reports (The CodeAgent evaluates its own confidence field in the output).
+
 ## Requirements
 
 ### Functional Requirements
 
 - **FR-001**: System MUST implement `MarketingAgent` and `KnowledgeAgent` as `smolagents.CodeAgent` subclasses.
-- **FR-002**: All agents MUST use `AspectService` as the single source of truth for inner state.
-- **FR-003**: `AspectService` MUST record every addition, modification, or removal of an aspect in the Graphiti temporal graph.
+- **FR-002**: All agents MUST use `AspectService` as the single source of truth for inner state, with global visibility of all aspects.
+- **FR-003**: `AspectService` MUST record a full snapshot of every addition, modification, or removal of an aspect in the Graphiti temporal graph.
 - **FR-004**: System MUST provide a `HumanReviewCandidate` mechanism for any agent task with confidence < 0.7.
-- **FR-005**: All core cognitive loop tools MUST be accessible via the MCP bridge.
+- **FR-005**: System MUST automatically execute the corrected logic for human-reviewed items and archive the candidate node upon completion.
+- **FR-006**: Agents MUST self-report a confidence score (0.0-1.0) for every autonomous reasoning task.
+- **FR-007**: Upon filesystem export failure, the system MUST divert the generated content to the `HumanReviewCandidate` queue.
+- **FR-008**: All core cognitive loop tools MUST be accessible via the MCP bridge.
 
 ### Key Entities
 
