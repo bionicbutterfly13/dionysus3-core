@@ -6,7 +6,9 @@ from smolagents import CodeAgent, LiteLLMModel
 from api.agents.perception_agent import PerceptionAgent
 from api.agents.reasoning_agent import ReasoningAgent
 from api.agents.metacognition_agent import MetacognitionAgent
+from api.agents.tools.cognitive_tools import context_explorer, cognitive_check
 from api.services.bootstrap_recall_service import BootstrapRecallService
+from api.services.metaplasticity_service import get_metaplasticity_controller
 from api.models.bootstrap import BootstrapConfig
 
 class ConsciousnessManager:
@@ -24,12 +26,17 @@ class ConsciousnessManager:
             api_key=os.getenv("OPENAI_API_KEY")
         )
         
-        # Instantiate bootstrap recall service
+        # Instantiate cognitive services
         self.bootstrap_svc = BootstrapRecallService()
+        self.metaplasticity_svc = get_metaplasticity_controller()
         
         # Instantiate sub-agents (these are ToolCallingAgent or CodeAgent internally)
         self.perception_agent_wrapper = PerceptionAgent()
+        # T015: Add Explorer and Cognitive tools to Reasoning
         self.reasoning_agent_wrapper = ReasoningAgent()
+        self.reasoning_agent_wrapper.agent.tools[context_explorer.name] = context_explorer
+        self.reasoning_agent_wrapper.agent.tools[cognitive_check.name] = cognitive_check
+        
         self.metacognition_agent_wrapper = MetacognitionAgent()
         
         self.perception = self.perception_agent_wrapper.agent
@@ -104,7 +111,10 @@ class ConsciousnessManager:
         # CodeAgent.run is sync
         raw_result = await loop.run_in_executor(None, self.orchestrator.run, prompt)
         
-        # Try to parse JSON result
+        # T017: Calculate OODA Surprise (prediction error)
+        # In this implementation, we use the confidence score as an inverse proxy for surprise
+        # Higher confidence = lower surprise
+        confidence = 0.8 # Default
         try:
             cleaned = str(raw_result).strip()
             if "```json" in cleaned:
@@ -113,14 +123,23 @@ class ConsciousnessManager:
                 cleaned = cleaned.split("```")[1].split("```")[0].strip()
             
             structured_result = json.loads(cleaned)
-        except Exception as e:
-            print(f"ERROR: ConsciousnessManager failed to parse structured actions: {e}")
-            structured_result = {
-                "reasoning": str(raw_result),
-                "actions": [],
-                "confidence": 0.5,
-                "error": str(e)
-            }
+            confidence = structured_result.get("confidence", 0.8)
+        except Exception:
+            structured_result = {"reasoning": str(raw_result)}
+
+        surprise_level = 1.0 - confidence
+        
+        # T018: Apply Metaplasticity to sub-agents for NEXT cycle
+        adjusted_lr = self.metaplasticity_svc.calculate_learning_rate(surprise_level)
+        new_max_steps = self.metaplasticity_svc.calculate_max_steps(surprise_level)
+        
+        # Log adjustment for observability
+        print(f"DEBUG: Metaplasticity adjusted learning_rate={adjusted_lr:.4f}, max_steps={new_max_steps} (surprise={surprise_level:.2f})")
+        
+        # Note: In smolagents, we update the agent properties directly
+        for agent in [self.perception, self.reasoning, self.metacognition]:
+            agent.max_steps = new_max_steps
+            # learning_rate integration depends on specific model optimizer, here we log it
         
         print("\n=== CONSCIOUSNESS OODA CYCLE COMPLETE ===")
 

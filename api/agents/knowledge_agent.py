@@ -99,9 +99,35 @@ class KnowledgeAgent:
             "confidence": 0.9
         }
 
-    async def review_manuscript(self, text: str, target_word_count: int = 13500) -> Dict[str, Any]:
-        prompt = f"Review this manuscript for IAS consistency and target {target_word_count} words:\n\n{text[:5000]}"
+    async def extract_wisdom_from_archive(self, content: str, session_id: str) -> dict:
+        """
+        T002: Use the /research.agent protocol to extract structured wisdom.
+        """
+        prompt = f"""
+        You are a /research.agent performing WISDOM EXTRACTION from a historical conversation.
+        
+        SESSION_ID: {session_id}
+        
+        TASK:
+        1. Extract recurring principles or 'Mental Models'.
+        2. Identify successful OODA loop patterns.
+        3. Map 'Attractor Basins' (Energy Wells) for the project or avatar.
+        4. Preserve provenance metadata.
+        
+        CONTENT:
+        {content}
+        
+        OUTPUT:
+        Respond with a JSON object containing 'wisdom_insights', 'attractors', and 'reasoning'.
+        """
         import asyncio
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, self.agent.run, prompt)
-        return {"result": str(result)}
+        
+        # Parse and return structured data
+        try:
+            cleaned = str(result).strip()
+            if "```json" in cleaned: cleaned = cleaned.split("```json")[1].split("```")[0].strip()
+            return json.loads(cleaned)
+        except:
+            return {"raw_output": str(result), "session_id": session_id}
