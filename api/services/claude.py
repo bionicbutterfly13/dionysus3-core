@@ -3,7 +3,8 @@ Claude API Service for IAS
 """
 
 import os
-from typing import AsyncGenerator
+import json
+from typing import AsyncGenerator, Optional
 import anthropic
 
 # Initialize client
@@ -12,8 +13,8 @@ client = anthropic.AsyncAnthropic(
 )
 
 # Models
-HAIKU = "claude-3-5-haiku-20241022"
-SONNET = "claude-3-7-sonnet-20250219"
+HAIKU = "claude-haiku-4-5-20251001"
+SONNET = "claude-opus-4-5-20251101"
 
 
 async def chat_completion(
@@ -55,10 +56,13 @@ class CoachingAgent:
     """
     Agentic wrapper for IAS coaching logic.
     """
-    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
+    def __init__(self, model_id: Optional[str] = None):
+        if model_id is None:
+            model_id = HAIKU # Use the cheap gpt-5-mini
+            
         self.model = LiteLLMModel(
             model_id=model_id,
-            api_key=os.getenv("ANTHROPIC_API_KEY")
+            api_key=os.getenv("OPENAI_API_KEY")
         )
         self.agent = CodeAgent(
             tools=[],
