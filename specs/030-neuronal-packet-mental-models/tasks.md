@@ -38,7 +38,7 @@
 **Goal**: Stable mental models and prevention of context bleed via boundary energy.
 
 - [X] T009 [US1] Update `ModelService` to fetch and respect `boundary_energy` when selecting active basins in `api/services/model_service.py`
-- [X] T010 [US1] Implement `NeuronalPacket` logic to enforce mutual constraints between grouped ThoughtSeeds in `api/services/model_service.py`
+- [X] T010 [X] [US1] Implement `NeuronalPacket` logic to enforce mutual constraints between grouped ThoughtSeeds in `api/services/model_service.py`
 - [X] T011 [US1] [FR-030-008] Map Avatar Mental Model (Analytical Empath) to the new Energy Well properties in Neo4j (Run one-time migration script `scripts/migrate_avatar_basins.py`)
 - [X] T012 [US1] Contract test for n8n-backed energy property updates in `tests/contract/test_neo4j_schema.py`
 
@@ -73,27 +73,3 @@
 - [X] T021 Run final integration test `tests/integration/test_cognitive_upgrade.py` verifying EFE-driven research behavior
 - [X] T022 Verify `quickstart.md` scenarios on VPS and update documentation
 - [X] T023 [P] Benchmark EFE calculation latency to ensure NFR-030-001 compliance (<50ms per seed)
-
----
-
-## Dependencies & Execution Order
-
-1. **Phase 1 & 2** [P] can run simultaneously (Foundation).
-2. **Phase 3** depends on Phase 1 completion (Energy-Well schema ready).
-3. **Phase 4** depends on Phase 2 (EFE logic ready) and Phase 3 (Stability grounding).
-4. **Phase 5** depends on Phase 4 (Unitary OODA loop must be active).
-5. **Phase 6** depends on all previous phases.
-
----
-
-## Implementation Strategy
-
-### MVP First (User Stories 1 & 2)
-1. Complete Foundation (Phases 1 & 2).
-2. Implement US1 (Energy Wells) and US2 (EFE Competition).
-3. **STOP and VALIDATE**: Verify that agents can autonomously pivot to "Recall" mode when EFE is high.
-
-### Incremental Delivery
-1. Add US4 (Context Explorer) to prevent graph pollution.
-2. Add US3 (Metaplasticity) for long-term strategic efficiency.
-3. Polish and integrate into monitoring.
