@@ -12,6 +12,13 @@
 
 ## Phase 2: Avatar Research Graph
 
-- [ ] T003 [US2] Implement avatar data extraction from raw research text in `KnowledgeAgent`
-- [ ] T004 [US2] Map pain points and objections to Neo4j nodes
+- [x] T003 [US2] Implement avatar data extraction from raw research text in `KnowledgeAgent`
+- [x] T004 [US2] Map pain points and objections to Neo4j nodes (via Graphiti tools)
 - [ ] T005 [US2] Link avatar entities to relevant IAS framework steps
+
+---
+
+## Phase 3: Advanced Agentic Orchestration
+
+- [ ] T006 Implement specialized sub-agents (PainAnalyst, ObjectionHandler, VoiceExtractor)
+- [ ] T007 Integrate sub-agents into KnowledgeAgent hierarchy

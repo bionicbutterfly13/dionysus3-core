@@ -12,8 +12,8 @@ client = anthropic.AsyncAnthropic(
 )
 
 # Models
-HAIKU = "openai/gpt-5-nano-2025-08-07"
-SONNET = "openai/gpt-5-nano-2025-08-07"
+HAIKU = "claude-3-5-haiku-20241022"
+SONNET = "claude-3-7-sonnet-20250219"
 
 
 async def chat_completion(

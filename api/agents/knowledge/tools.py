@@ -7,6 +7,7 @@ Feature: 019-avatar-knowledge-graph
 
 import json
 import logging
+import asyncio
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
@@ -18,6 +19,20 @@ from api.services.claude import chat_completion, HAIKU
 
 logger = logging.getLogger(__name__)
 
+def run_sync(coro):
+    """Helper to run async coroutines in a synchronous context."""
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+    if loop.is_running():
+        import nest_asyncio
+        nest_asyncio.apply()
+        return loop.run_until_complete(coro)
+    else:
+        return loop.run_until_complete(coro)
 
 @tool
 def ingest_avatar_insight(
@@ -36,8 +51,6 @@ def ingest_avatar_insight(
     Returns:
         Dict with extracted insight data and graph storage confirmation
     """
-    import asyncio
-
     # Validate insight type
     valid_types = [t.value for t in InsightType]
     if insight_type not in valid_types:
@@ -106,7 +119,7 @@ Be precise. Use exact quotes when available. Infer intensity/strength from langu
             logger.error(f"Avatar insight extraction failed: {e}")
             return {"success": False, "error": str(e)}
 
-    return asyncio.get_event_loop().run_until_complete(_extract_and_store())
+    return run_sync(_extract_and_store())
 
 
 @tool
@@ -122,8 +135,6 @@ def query_avatar_graph(query: str, insight_types: Optional[str] = None, limit: i
     Returns:
         Dict with matching insights from the knowledge graph
     """
-    import asyncio
-
     async def _search():
         try:
             graphiti = await get_graphiti_service()
@@ -155,7 +166,7 @@ def query_avatar_graph(query: str, insight_types: Optional[str] = None, limit: i
             logger.error(f"Avatar graph query failed: {e}")
             return {"query": query, "results": [], "count": 0, "error": str(e)}
 
-    return asyncio.get_event_loop().run_until_complete(_search())
+    return run_sync(_search())
 
 
 @tool
@@ -170,8 +181,6 @@ def synthesize_avatar_profile(dimensions: str = "all") -> dict:
     Returns:
         Dict with synthesized avatar profile organized by dimension
     """
-    import asyncio
-
     async def _synthesize():
         try:
             graphiti = await get_graphiti_service()
@@ -219,7 +228,7 @@ def synthesize_avatar_profile(dimensions: str = "all") -> dict:
             logger.error(f"Avatar profile synthesis failed: {e}")
             return {"error": str(e)}
 
-    return asyncio.get_event_loop().run_until_complete(_synthesize())
+    return run_sync(_synthesize())
 
 
 @tool
@@ -237,8 +246,6 @@ def bulk_ingest_document(
     Returns:
         Dict with extraction summary and counts by insight type
     """
-    import asyncio
-
     async def _bulk_ingest():
         try:
             # Read the document
@@ -305,4 +312,4 @@ Extract as many insights as you can find. Be thorough."""
             logger.error(f"Bulk ingest failed: {e}")
             return {"success": False, "error": str(e)}
 
-    return asyncio.get_event_loop().run_until_complete(_bulk_ingest())
+    return run_sync(_bulk_ingest())
