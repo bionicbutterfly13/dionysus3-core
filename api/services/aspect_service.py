@@ -100,22 +100,51 @@ class AspectService:
         cypher = "MATCH (c:HumanReviewCandidate {id: $id}) RETURN c"
         result = await self._driver.execute_query(cypher, {"id": item_id})
         if not result:
+            logger.warning(f"Review item {item_id} not found for re-injection.")
             return False
             
         candidate = result[0]["c"]
         reason = candidate.get("reason", "")
         
-        # Logic depends on what failed
-        if "Avatar Extraction" in reason:
-            # Re-process avatar data with corrected text
-            from api.agents.knowledge_agent import KnowledgeAgent
-            agent = KnowledgeAgent()
-            # In a real scenario, we'd call the extraction logic again or just upsert the corrected JSON
-            # For now, we archive the candidate
+        logger.info(f"Re-injecting reviewed item: {reason} ({item_id})")
+
+        try:
+            # Logic depends on what failed
+            if "Avatar" in reason or "Extraction" in reason:
+                # Corrected avatar data should be ingested into Graphiti
+                from api.services.graphiti_service import get_graphiti_service
+                graphiti = await get_graphiti_service()
+                
+                # Ingest the corrected data
+                await graphiti.ingest_message(
+                    content=f"CORRECTED AVATAR INSIGHT: {json.dumps(corrected_data)}",
+                    source_description="human_reviewed_avatar_correction",
+                    group_id="ias_avatar"
+                )
+                logger.info(f"Successfully re-injected corrected avatar data for {item_id}")
+                
+            elif "Aspect" in reason or "Boardroom" in reason:
+                # Corrected boardroom aspect
+                await self.upsert_aspect(
+                    user_id=corrected_data.get("user_id", "dionysus_system"),
+                    name=corrected_data.get("name"),
+                    role=corrected_data.get("role"),
+                    status=corrected_data.get("status", "Active"),
+                    metadata=corrected_data.get("metadata")
+                )
+                logger.info(f"Successfully re-injected corrected aspect for {item_id}")
+                
+            else:
+                logger.warning(f"No specific re-injection logic found for reason: {reason}")
+                # We still archive it if the user provided data
+                
+            # Archive the candidate after successful re-injection
             await self.delete_review_item(item_id)
             return True
             
-        return False
+        except Exception as e:
+            logger.error(f"Failed to re-inject reviewed item {item_id}: {e}")
+            return False
 
     async def remove_aspect(self, user_id: str, name: str) -> bool:
         """Archive an aspect (detach from user)."""
