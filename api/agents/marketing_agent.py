@@ -3,6 +3,8 @@ import json
 from typing import Any, Dict, List, Optional
 from smolagents import CodeAgent, LiteLLMModel
 
+from api.agents.knowledge.wisdom_tools import query_wisdom_graph
+
 class MarketingAgent:
     """
     Specialized agent for generating marketing assets (emails, sales pages).
@@ -11,7 +13,7 @@ class MarketingAgent:
 
     def __init__(self, model_id: Optional[str] = None):
         if model_id is None:
-            model_id = os.getenv("ANTHROPIC_MODEL", "claude-3-7-sonnet-20250219")
+            model_id = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5-20251101")
             
         self.model = LiteLLMModel(
             model_id=model_id,
@@ -19,10 +21,10 @@ class MarketingAgent:
         )
         
         self.agent = CodeAgent(
-            tools=[],
+            tools=[query_wisdom_graph],
             model=self.model,
             name="marketing_agent",
-            description="Expert in IAS marketing and copy generation. Can generate nurture sequences and sales pages."
+            description="Expert in IAS marketing and copy generation. Can generate nurture sequences and sales pages. Can query wisdom_graph for MOSAEIC richness."
         )
 
     async def generate_email(self, topic: str, framework: str, target_audience: str = "analytical professional") -> Dict[str, Any]:

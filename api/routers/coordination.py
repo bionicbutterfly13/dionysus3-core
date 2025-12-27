@@ -40,6 +40,7 @@ class MetricsResponse(BaseModel):
     tasks_total: int
     tasks_in_progress: int
     queue_length: int
+    avg_task_duration: float
 
 
 @router.post("/agents", response_model=SpawnAgentResponse)
@@ -86,4 +87,3 @@ async def metrics() -> MetricsResponse:
     service = get_coordination_service()
     m = service.metrics()
     return MetricsResponse(**m)
-

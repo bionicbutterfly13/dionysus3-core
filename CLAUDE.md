@@ -29,4 +29,5 @@ Execute inside the API container:
 - **Neo4j-Only**: ALL database access must go through n8n webhooks. Direct Bolt connections are forbidden.
   - **EXCEPTION: Graphiti** - The `graphiti-core` library is approved for direct Neo4j access as a trusted infrastructure component.
 - **HMAC Verification**: All webhook endpoints must use `verify_memevolve_signature` dependency.
+- **Shell Safety**: The shell parser is sensitive to nested code (e.g., `python -c`). Use script files (`scripts/`) and sync via `git` instead of inline shell pipes.
 - **Archon-First**: Archon remains local. Dionysus receives tasks via prefetched payloads in hooks.
