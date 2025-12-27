@@ -10,7 +10,12 @@ from api.services.discovery_service import DiscoveryService, DiscoveryConfig
 
 @tool
 def discover_components(codebase_path: str, top_n: int = 10) -> dict:
-    """Scan a codebase for legacy components and return top-N by composite score."""
+    """Scan a codebase for legacy components and return top-N by composite score.
+    
+    Args:
+        codebase_path: Path to legacy codebase to scan.
+        top_n: Number of results to return (default: 10).
+    """
     service = DiscoveryService(DiscoveryConfig())
     assessments = service.discover_components(codebase_path)
     subset = assessments[: max(top_n, 0)]

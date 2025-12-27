@@ -13,14 +13,14 @@
 - [x] T006 Add CLI wrapper (scripts or `api/cli`) to run discovery against a path and emit JSON/table`
 
 ## Phase 3: Insights & Logging (P2)
-- [ ] T007 Surface enhancement opportunities and risk factors in responses
-- [ ] T008 Add structured logging with trace ids for discovery runs
-- [ ] T009 Wire config (weights, thresholds, max files) via env/settings
+- [x] T007 Surface enhancement opportunities and risk factors in responses
+- [x] T008 Add structured logging with trace ids for discovery runs
+- [x] T009 Wire config (weights, thresholds, max files) via env/settings
 
 ## Phase 4: Testing (P1)
-- [ ] T010 Add pytest fixture repo and golden output assertions
-- [ ] T011 Test threshold gating (migration_recommended toggles)
-- [ ] T012 Test tool/endpoint contract shapes
+- [x] T010 Add pytest fixture repo and golden output assertions
+- [x] T011 Test threshold gating (migration_recommended toggles)
+- [x] T012 Test tool/endpoint contract shapes
 
 ## Phase 5: Docs (P3)
-- [ ] T013 Add README/docs snippet showing smolagent tool + API usage
+- [x] T013 Add README/docs snippet showing smolagent tool + API usage

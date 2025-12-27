@@ -11,6 +11,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import logging
+import os
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -84,10 +85,10 @@ class ComponentAssessment:
 
 @dataclass
 class DiscoveryConfig:
-    quality_threshold: float = 0.55
-    consciousness_weight: float = 0.7
-    strategic_weight: float = 0.3
-    max_files: int = 800  # safeguard against runaway scans
+    quality_threshold: float = field(default_factory=lambda: float(os.getenv("DISCOVERY_QUALITY_THRESHOLD", "0.55")))
+    consciousness_weight: float = field(default_factory=lambda: float(os.getenv("DISCOVERY_CONSCIOUSNESS_WEIGHT", "0.7")))
+    strategic_weight: float = field(default_factory=lambda: float(os.getenv("DISCOVERY_STRATEGIC_WEIGHT", "0.3")))
+    max_files: int = field(default_factory=lambda: int(os.getenv("DISCOVERY_MAX_FILES", "800")))
 
 
 def _hash_component(file_path: str, source: str) -> str:
@@ -118,8 +119,17 @@ class DiscoveryService:
         python_files = list(base.rglob("*.py"))[: self.config.max_files]
 
         self.logger.info(
-            "discovery_start",
-            extra={"trace_id": trace_id, "codebase": str(base), "file_count": len(python_files)},
+            f"Discovery started for {codebase_path}",
+            extra={
+                "event": "discovery_start",
+                "trace_id": trace_id,
+                "codebase": str(base),
+                "file_count": len(python_files),
+                "config": {
+                    "threshold": self.config.quality_threshold,
+                    "weights": [self.config.consciousness_weight, self.config.strategic_weight]
+                }
+            },
         )
 
         for file_path in python_files:
@@ -129,8 +139,9 @@ class DiscoveryService:
         assessments.sort(key=lambda a: a.composite_score, reverse=True)
 
         self.logger.info(
-            "discovery_complete",
+            f"Discovery complete for {codebase_path}. Found {len(assessments)} components.",
             extra={
+                "event": "discovery_complete",
                 "trace_id": trace_id,
                 "codebase": str(base),
                 "components": len(assessments),
@@ -235,11 +246,11 @@ class DiscoveryService:
 
     def _derive_enhancements(self, consciousness: ConsciousnessFunctionality) -> List[str]:
         opportunities: List[str] = []
-        if consciousness.awareness_score > 0.4:
+        if consciousness.awareness_score >= 0.4:
             opportunities.append("awareness_amplification")
-        if consciousness.inference_score > 0.4:
+        if consciousness.inference_score >= 0.4:
             opportunities.append("active_inference_integration")
-        if consciousness.memory_score > 0.4:
+        if consciousness.memory_score >= 0.4:
             opportunities.append("memory_system_enhancement")
         return opportunities
 
