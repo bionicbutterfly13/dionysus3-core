@@ -15,6 +15,7 @@ Reference: /Volumes/Asylum/repos/Context-Engineering/60_protocols/shells/memory.
 import logging
 import os
 import hashlib
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Dict, List
 from dataclasses import dataclass, field
@@ -286,7 +287,6 @@ class ReconstructionService:
         Returns:
             ReconstructedMemory with coherent context for injection
         """
-        import time
         start_time = time.time()
 
         warnings = []
