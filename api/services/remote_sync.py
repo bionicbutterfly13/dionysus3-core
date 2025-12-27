@@ -131,7 +131,7 @@ class SyncConfig(BaseModel):
     max_backoff_seconds: float = Field(default=300.0, ge=1.0)  # 5 minutes
     backoff_multiplier: float = Field(default=2.0, ge=1.0)
     queue_batch_size: int = Field(default=10, ge=1, le=100)
-    request_timeout_seconds: float = Field(default=30.0, ge=5.0)
+    request_timeout_seconds: float = Field(default=120.0, ge=5.0)
 
 
 # =========================================================================

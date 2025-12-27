@@ -13,9 +13,17 @@ client = anthropic.AsyncAnthropic(
 )
 
 # Models
-HAIKU = "claude-haiku-4-5-20251001"
-SONNET = "claude-opus-4-5-20251101"
+HAIKU = "gpt-5-mini"
+SONNET = "gpt-5-nano"
 
+
+from smolagents import CodeAgent, LiteLLMModel
+
+# Shared model for completion
+_openai_model = LiteLLMModel(
+    model_id=HAIKU,
+    api_key=os.getenv("OPENAI_API_KEY")
+)
 
 async def chat_completion(
     messages: list[dict],
@@ -23,14 +31,12 @@ async def chat_completion(
     model: str = HAIKU,
     max_tokens: int = 1024
 ) -> str:
-    """Non-streaming chat completion."""
-    response = await client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=messages
+    """Non-streaming chat completion using LiteLLM."""
+    response = _openai_model(
+        messages=[{"role": "system", "content": system_prompt}] + messages,
+        max_tokens=max_tokens
     )
-    return response.content[0].text
+    return response.content
 
 
 async def chat_stream(
@@ -39,18 +45,10 @@ async def chat_stream(
     model: str = HAIKU,
     max_tokens: int = 1024
 ) -> AsyncGenerator[str, None]:
-    """Streaming chat completion."""
-    async with client.messages.stream(
-        model=model,
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=messages
-    ) as stream:
-        async for text in stream.text_stream:
-            yield text
-
-
-from smolagents import CodeAgent, LiteLLMModel
+    """Streaming chat completion using LiteLLM (falls back to non-streaming if needed)."""
+    # Note: smolagents.LiteLLMModel call is currently non-streaming in our usage
+    content = await chat_completion(messages, system_prompt, model, max_tokens)
+    yield content
 
 class CoachingAgent:
     """
