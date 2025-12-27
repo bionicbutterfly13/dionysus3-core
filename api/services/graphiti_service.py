@@ -34,7 +34,12 @@ class GraphitiConfig:
         openai_api_key: Optional[str] = None,
         group_id: str = "dionysus",
     ):
+        # Force VPS IP if not explicitly provided
         self.neo4j_uri = neo4j_uri or os.getenv("NEO4J_URI", "bolt://72.61.78.89:7687")
+        
+        if "neo4j" in self.neo4j_uri and not os.path.exists("/.dockerenv"):
+            self.neo4j_uri = self.neo4j_uri.replace("neo4j", "72.61.78.89")
+
         self.neo4j_user = neo4j_user or os.getenv("NEO4J_USER", "neo4j")
         self.neo4j_password = neo4j_password or os.getenv("NEO4J_PASSWORD")
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")

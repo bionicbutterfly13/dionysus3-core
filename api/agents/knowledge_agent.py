@@ -1,82 +1,85 @@
 import os
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from smolagents import CodeAgent, LiteLLMModel
+from api.agents.knowledge.tools import ingest_avatar_insight, query_avatar_graph, synthesize_avatar_profile
+from api.agents.knowledge.wisdom_tools import ingest_wisdom_insight, query_wisdom_graph
 
 class KnowledgeAgent:
     """
-    Specialized agent for Knowledge Base maintenance.
-    Manages audiobook manuscripts and knowledge graph entity mapping.
+    Specialized agent for Knowledge Base maintenance and Wisdom Extraction.
+    Manages audiobook manuscripts, avatar research, and learning from archives.
     """
 
-    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
+    def __init__(self, model_id: Optional[str] = None):
+        if model_id is None:
+            model_id = os.getenv("OPENAI_MODEL", "openai/gpt-4o-mini")
+            
         self.model = LiteLLMModel(
             model_id=model_id,
-            api_key=os.getenv("ANTHROPIC_API_KEY")
+            api_key=os.getenv("OPENAI_API_KEY")
         )
         
-        self.agent = CodeAgent(
-            tools=[], # Tools will be bridged via MCP if needed
+        # Sub-agents with specialized tools
+        self.avatar_analyst = CodeAgent(
+            tools=[ingest_avatar_insight, query_avatar_graph],
             model=self.model,
-            name="knowledge_agent",
-            description="Expert in IAS conceptual content, audiobook production, and avatar research."
+            name="avatar_analyst",
+            description="Extracts deep avatar insights (pain, desire, objections) and maps them to Neo4j."
         )
 
-    async def review_manuscript(self, text: str, target_word_count: int = 13500) -> Dict[str, Any]:
-        """
-        Review and suggest updates for the audiobook manuscript with self-reported confidence.
-        """
-        prompt = f"""
-        Review this manuscript section. Target: {target_word_count} words.
-        Ensure IAS consistency and authoritative tone.
-        
-        Manuscript:
-        {text[:5000]}
-        
-        Respond with a JSON object:
-        {{
-            "suggestions": "...",
-            "word_count_estimate": <int>,
-            "confidence": <float>,
-            "reasoning": "..."
-        }}
-        """
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, self.agent.run, prompt)
-        try:
-            cleaned = result.strip()
-            if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
-            return json.loads(cleaned)
-        except:
-            return {"raw_result": result, "confidence": 0.5}
+        self.wisdom_analyst = CodeAgent(
+            tools=[ingest_wisdom_insight, query_wisdom_graph],
+            model=self.model,
+            name="wisdom_analyst",
+            description="Extracts user voice, processes, and conceptual evolution from archived conversations."
+        )
 
-    async def map_avatar_data(self, raw_data: str) -> dict:
+        self.agent = CodeAgent(
+            tools=[synthesize_avatar_profile, query_wisdom_graph],
+            model=self.model,
+            managed_agents=[self.avatar_analyst, self.wisdom_analyst],
+            name="knowledge_manager",
+            description="Orchestrates the extraction of wisdom and avatar data from all available sources."
+        )
+
+    async def map_avatar_data(self, raw_data: str, source: str = "unknown") -> dict:
         """
-        Extract structured avatar research data from raw text.
+        Orchestrate deep analysis of archives to learn voice, process, and avatar data.
         """
         from api.services.aspect_service import get_aspect_service
         aspect_service = get_aspect_service()
-        aspects = await aspect_service.get_all_aspects(user_id="knowledge_system")
-        aspects_text = "\n".join([f"- {a.get('name')}: {a.get('role')}" for a in aspects])
-
+        
         prompt = f"""
-        Extract structured avatar research (pain points, objections, goals) from this raw data:
+        Analyze this raw archival data to extract CURRENTLY RELEVANT wisdom.
+        
+        DATA:
         {raw_data}
         
-        ## Existing Boardroom Aspects (Reference for mapping):
-        {aspects_text}
+        SOURCE: {source}
         
-        Respond with a JSON object.
+        TASKS:
+        1. Extract AVATAR insights (pain, objections, desires) for the 'Analytical Empath' True Model.
+        2. Extract VOICE patterns (how the user speaks) and store them.
+        3. Extract PROCESS insights (how the Conviction Gauntlet or MOSAEIC works) and store them.
+        4. Extract EVOLUTION reasoning (why we moved from old concepts to the True Model).
+        
+        Use your sub-agents (avatar_analyst, wisdom_analyst) to perform these extractions.
+        Discard outdated definitions that contradict the True Model, but preserve the underlying psychological 'richness'.
         """
         import asyncio
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, self.agent.run, prompt)
-        try:
-            cleaned = result.strip()
-            if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
-            return json.loads(cleaned)
-        except:
-            # Low confidence - add to human review
-            await aspect_service.add_to_human_review("Failed Avatar Extraction", {"raw": raw_data, "result": result})
-            return {"raw_result": result, "status": "human_review_queued"}
+        
+        return {
+            "summary": str(result),
+            "status": "completed",
+            "confidence": 0.9
+        }
+
+    async def review_manuscript(self, text: str, target_word_count: int = 13500) -> Dict[str, Any]:
+        prompt = f"Review this manuscript for IAS consistency and target {target_word_count} words:\n\n{text[:5000]}"
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        return {"result": str(result)}

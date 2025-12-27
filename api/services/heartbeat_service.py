@@ -550,12 +550,12 @@ class HeartbeatService:
                     get_agent_decision_adapter,
                 )
 
-                config = AgentDecisionConfig(
-                    use_multi_agent=os.getenv("USE_MULTI_AGENT", "false").lower() == "true",
-                    model_id=os.getenv("SMOLAGENTS_MODEL", ""),
-                    max_steps=int(os.getenv("SMOLAGENTS_MAX_STEPS", "5")),
-                    fallback_on_failure=True,
-                )
+        config = AgentDecisionConfig(
+            use_multi_agent=os.getenv("USE_MULTI_AGENT", "false").lower() == "true",
+            model_id=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-4o-mini"),
+            max_steps=int(os.getenv("SMOLAGENTS_MAX_STEPS", "5")),
+            fallback_on_failure=False,  # No fallback - agent is authoritative
+        )
 
                 adapter = get_agent_decision_adapter(config)
                 decision = await adapter.make_decision(context, energy_config)

@@ -9,10 +9,13 @@ class MarketingAgent:
     Uses smolagents CodeAgent for creative content generation.
     """
 
-    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
+    def __init__(self, model_id: Optional[str] = None):
+        if model_id is None:
+            model_id = os.getenv("OPENAI_MODEL", "openai/gpt-4o-mini")
+            
         self.model = LiteLLMModel(
             model_id=model_id,
-            api_key=os.getenv("ANTHROPIC_API_KEY")
+            api_key=os.getenv("OPENAI_API_KEY")
         )
         
         self.agent = CodeAgent(
