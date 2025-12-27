@@ -13,11 +13,11 @@ class KnowledgeAgent:
 
     def __init__(self, model_id: Optional[str] = None):
         if model_id is None:
-            model_id = os.getenv("OPENAI_MODEL", "openai/gpt-4o-mini")
+            model_id = os.getenv("ANTHROPIC_MODEL", "claude-3-7-sonnet-20250219")
             
         self.model = LiteLLMModel(
             model_id=model_id,
-            api_key=os.getenv("OPENAI_API_KEY")
+            api_key=os.getenv("ANTHROPIC_API_KEY")
         )
         
         # Sub-agents with specialized tools

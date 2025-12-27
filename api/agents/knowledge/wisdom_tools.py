@@ -6,6 +6,7 @@ smolagents tools that use Graphiti for learning voice, processes, and evolution.
 
 import json
 import logging
+import asyncio
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
@@ -14,6 +15,21 @@ from api.services.graphiti_service import get_graphiti_service
 from api.services.claude import chat_completion, HAIKU
 
 logger = logging.getLogger(__name__)
+
+def run_sync(coro):
+    """Helper to run async coroutines in a synchronous context."""
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+    if loop.is_running():
+        import nest_asyncio
+        nest_asyncio.apply()
+        return loop.run_until_complete(coro)
+    else:
+        return loop.run_until_complete(coro)
 
 @tool
 def ingest_wisdom_insight(
@@ -32,8 +48,6 @@ def ingest_wisdom_insight(
     Returns:
         Dict with extracted wisdom data and graph storage confirmation
     """
-    import asyncio
-
     valid_types = ["voice_pattern", "process_insight", "evolution_reasoning", "strategic_idea"]
     if insight_type not in valid_types:
         return {"error": f"Invalid insight_type. Must be one of: {valid_types}"}
@@ -96,7 +110,8 @@ def ingest_wisdom_insight(
             logger.error(f"Wisdom insight extraction failed: {e}")
             return {"success": False, "error": str(e)}
 
-    return asyncio.get_event_loop().run_until_complete(_extract_and_store())
+    return run_sync(_extract_and_store())
+
 
 @tool
 def query_wisdom_graph(query: str, insight_types: Optional[str] = None, limit: int = 10) -> dict:
@@ -111,8 +126,6 @@ def query_wisdom_graph(query: str, insight_types: Optional[str] = None, limit: i
     Returns:
         Dict with matching insights
     """
-    import asyncio
-
     async def _search():
         try:
             graphiti = await get_graphiti_service()
@@ -130,4 +143,5 @@ def query_wisdom_graph(query: str, insight_types: Optional[str] = None, limit: i
             logger.error(f"Wisdom graph query failed: {e}")
             return {"query": query, "results": [], "count": 0, "error": str(e)}
 
-    return asyncio.get_event_loop().run_until_complete(_search())
+    return run_sync(_search())
+
