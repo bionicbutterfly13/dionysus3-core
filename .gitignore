@@ -36,7 +36,10 @@ ENV/
 # Environment variables
 .env
 .env.*
-!.env.local
+vps.env
+
+# Checkpoints
+.checkpoints/
 
 # PostgreSQL
 *.sql.gz
