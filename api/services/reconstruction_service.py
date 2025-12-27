@@ -15,7 +15,7 @@ Reference: /Volumes/Asylum/repos/Context-Engineering/60_protocols/shells/memory.
 import logging
 import os
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Dict, List
 from dataclasses import dataclass, field
 from enum import Enum
@@ -470,7 +470,7 @@ class ReconstructionService:
     async def _scan_sessions(self, context: ReconstructionContext) -> None:
         """Scan recent sessions from memory system."""
         try:
-            cutoff = datetime.utcnow() - timedelta(hours=self.config.RECENT_SESSION_HOURS)
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=self.config.RECENT_SESSION_HOURS)
             payload = {
                 "operation": "query",
                 "filters": {
@@ -578,7 +578,7 @@ class ReconstructionService:
         if fragment.metadata.get("project_id") == context.project_id: score += 0.5
         if context.project_name.lower() in fragment.content.lower(): score += 0.3
         if fragment.created_at:
-            hours_ago = (datetime.utcnow() - fragment.created_at).total_seconds() / 3600
+            hours_ago = (datetime.now(timezone.utc) - fragment.created_at).total_seconds() / 3600
             if hours_ago < 24: score += 0.2
             elif hours_ago < 72: score += 0.1
         return min(score, 1.0)
