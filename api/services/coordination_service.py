@@ -42,10 +42,14 @@ class Agent:
         "tasks_failed": 0,
         "average_task_time": 0.0,
         "context_switches": 0,
-    })
+    }) 
     health: Dict = field(default_factory=lambda: {
         "memory_usage": 0.1,
         "cpu_usage": 0.1,
+    })
+    isolation: Dict = field(default_factory=lambda: {
+        "shared_state_detected": False,
+        "notes": [],
     })
 
 
@@ -66,6 +70,7 @@ class CoordinationService:
         self.agents: Dict[str, Agent] = {}
         self.tasks: Dict[str, Task] = {}
         self.queue: List[str] = []
+        self.last_context_snapshot: Dict[str, str] = {}  # agent_id -> context_window_id
 
     # ------------------------------------------------------------------
     # Agent lifecycle
@@ -75,6 +80,7 @@ class CoordinationService:
         context_id = str(uuid.uuid4())
         agent = Agent(agent_id=agent_id, context_window_id=context_id)
         self.agents[agent_id] = agent
+        self.last_context_snapshot[agent_id] = context_id
         self.logger.info("agent_spawned", extra={"agent_id": agent_id, "context_id": context_id})
         return agent_id
 
@@ -111,6 +117,7 @@ class CoordinationService:
         agent.current_task_id = task.task_id
         agent.status = AgentStatus.ANALYZING
         agent.performance["context_switches"] += 1
+        self._check_isolation(agent)
 
         task.assigned_agent_id = agent.agent_id
         task.status = TaskStatus.IN_PROGRESS
@@ -146,16 +153,53 @@ class CoordinationService:
             next_task = self.tasks[next_task_id]
             self._assign_task(next_task)
 
+    def _check_isolation(self, agent: Agent) -> None:
+        """Detect unexpected context reuse across agents."""
+        prior = self.last_context_snapshot.get(agent.agent_id)
+        if prior and prior != agent.context_window_id:
+            # Agent context changed; update snapshot
+            self.last_context_snapshot[agent.agent_id] = agent.context_window_id
+
+        # Detect if any other agent shares the same context_window_id
+        for other_id, other in self.agents.items():
+            if other_id == agent.agent_id:
+                continue
+            if other.context_window_id == agent.context_window_id:
+                agent.isolation["shared_state_detected"] = True
+                agent.isolation["notes"].append(
+                    f"Context collision with agent {other_id}"
+                )
+                self.logger.warning(
+                    "context_collision",
+                    extra={
+                        "agent_id": agent.agent_id,
+                        "other_agent_id": other_id,
+                        "context_window_id": agent.context_window_id,
+                    },
+                )
+                break
+
     # ------------------------------------------------------------------
     # Metrics
     # ------------------------------------------------------------------
     def metrics(self) -> Dict:
         active_tasks = [t for t in self.tasks.values() if t.status == TaskStatus.IN_PROGRESS]
+        completed = [t for t in self.tasks.values() if t.status == TaskStatus.COMPLETED]
+        avg_duration = 0.0
+        if completed:
+            durations = [
+                (t.completed_at - t.started_at)
+                for t in completed
+                if t.completed_at and t.started_at
+            ]
+            if durations:
+                avg_duration = sum(durations) / len(durations)
         return {
             "agents": len(self.agents),
             "tasks_total": len(self.tasks),
             "tasks_in_progress": len(active_tasks),
             "queue_length": len(self.queue),
+            "avg_task_duration": avg_duration,
         }
 
     def agent_health_report(self) -> List[Dict]:
@@ -168,6 +212,7 @@ class CoordinationService:
                 },
                 "health": a.health,
                 "performance": a.performance,
+                "isolation": a.isolation,
             }
             for a in self.agents.values()
         ]
@@ -181,4 +226,3 @@ def get_coordination_service() -> CoordinationService:
     if _coordination_service is None:
         _coordination_service = CoordinationService()
     return _coordination_service
-

@@ -42,6 +42,7 @@ async def ingest_wisdom():
             - Discard old offer names or outdated avatar definitions if they contradict the 'Analytical Empath' profile.
             - Focus on finding the 'lost work'—specific descriptions of pain or desired outcomes that make the model richer.
             - Use your sub-agents (Pain, Objection, Voice) to map these into the knowledge graph.
+            - Use the 'mosaeic_capture' tool to record any deep experiential states (Senses, Actions, Emotions, Impulses, Cognitions) found in the text.
             """
             
             # We use the agent's multi-agent mapping logic

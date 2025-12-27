@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 from smolagents import CodeAgent, LiteLLMModel
 from api.agents.knowledge.tools import ingest_avatar_insight, query_avatar_graph, synthesize_avatar_profile
 from api.agents.knowledge.wisdom_tools import ingest_wisdom_insight, query_wisdom_graph
+from api.agents.tools.mosaeic_tools import mosaeic_capture
 
 class KnowledgeAgent:
     """
@@ -14,7 +15,7 @@ class KnowledgeAgent:
     def __init__(self, model_id: Optional[str] = None):
         # Default model for management/writing tasks
         if model_id is None:
-            model_id = os.getenv("ANTHROPIC_MODEL", "claude-3-7-sonnet-20250219")
+            model_id = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5-20251101")
             
         self.model = LiteLLMModel(
             model_id=model_id,
@@ -36,14 +37,14 @@ class KnowledgeAgent:
         )
 
         self.wisdom_analyst = CodeAgent(
-            tools=[ingest_wisdom_insight, query_wisdom_graph],
+            tools=[ingest_wisdom_insight, query_wisdom_graph, mosaeic_capture],
             model=self.cheap_model,
             name="wisdom_analyst",
-            description="Extracts user voice, processes, and conceptual evolution from archived conversations."
+            description="Extracts user voice, processes, and conceptual evolution from archived conversations. Use mosaeic_capture for deep experiential states."
         )
 
         self.agent = CodeAgent(
-            tools=[synthesize_avatar_profile, query_wisdom_graph],
+            tools=[synthesize_avatar_profile, query_wisdom_graph, mosaeic_capture],
             model=self.model,
             managed_agents=[self.avatar_analyst, self.wisdom_analyst],
             name="knowledge_manager",
