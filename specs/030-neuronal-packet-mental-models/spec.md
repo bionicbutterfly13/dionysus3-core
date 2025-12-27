@@ -33,10 +33,8 @@ As the ConsciousnessManager, I want to adjust the learning rate of my specialize
 
 **Why this priority**: Provides the "Second-Order Adaptation" required for long-term strategic evolution and efficiency.
 
-### User Story 4 - Context Pollution Prevention (Priority: P1) [NEW]
+### User Story 4 - Context Pollution Prevention (Priority: P1)
 As the system, I want to use "Explorer Agents" to scan the knowledge graph and identify semantic attractors, so that context pollution is minimized and agents are focused on the most relevant synergistic whole.
-
-**Why this priority**: Prevents LLM confusion by filtering out irrelevant historical or project data that doesn't fit the current task's attractor field.
 
 ## Requirements
 
@@ -57,6 +55,6 @@ As the system, I want to use "Explorer Agents" to scan the knowledge graph and i
 ## Success Criteria
 
 ### Measurable Outcomes
-- **SC-030-001**: 30% reduction in agent hallucinations (measured via validation failures) due to EFE-driven curiosity and Context-Engineering attractors.
-- **SC-030-002**: Stable OODA cycle duration even as the knowledge graph grows (complexity collapse via synergistic grouping).
-- **SC-030-003**: 100% of agent learning rates are dynamically adjusted by the Metaplasticity controller within 5 OODA cycles.
+- **SC-030-001**: 30% reduction in agent hallucinations due to EFE-driven curiosity.
+- **SC-030-002**: Stable OODA cycle duration via synergistic grouping.
+- **SC-030-003**: 100% of agent learning rates are dynamically adjusted.

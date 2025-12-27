@@ -49,7 +49,7 @@ specs/030-neuronal-packet-mental-models/
 ├── quickstart.md        # Phase 1 output
 ├── contracts/           # Phase 1 output
 │   └── cognitive-upgrade-api.yaml
-└── tasks.md             # Phase 2 output (/speckit.tasks command)
+└── tasks.md             # Phase 2 output
 ```
 
 ### Source Code (repository root)
