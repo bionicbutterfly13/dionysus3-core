@@ -1401,6 +1401,41 @@ async def get_models_by_winners(
 
 
 # =============================================================================
+# ARCHON TOOLS (Feature 012)
+# =============================================================================
+
+@app.tool()
+async def fetch_archon_tasks() -> list[dict]:
+    """
+    Fetch historical tasks from the local Archon environment.
+    Used for historical reconstruction and longitudinal memory.
+    """
+    # This tool acts as a proxy to the local filesystem/Archon state.
+    # In this environment, we can read from the specs/ directory to simulate task history.
+    import glob
+    import os
+    
+    tasks = []
+    specs_path = "specs/*"
+    for spec_dir in glob.glob(specs_path):
+        tasks_file = os.path.join(spec_dir, "tasks.md")
+        if os.path.exists(tasks_file):
+            with open(tasks_file, "r") as f:
+                content = f.read()
+                # Simple parser for [X] or [ ] tasks
+                for line in content.split("\n"):
+                    if "[" in line and "]" in line and "-" in line:
+                        status = "completed" if "[X]" in line or "[x]" in line else "pending"
+                        tasks.append({
+                            "project": os.path.basename(spec_dir),
+                            "description": line.split("]", 1)[1].strip(),
+                            "status": status,
+                            "source": "markdown_spec"
+                        })
+    return tasks
+
+
+# =============================================================================
 # SERVER LIFECYCLE
 # =============================================================================
 

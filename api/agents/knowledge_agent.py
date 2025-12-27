@@ -5,6 +5,8 @@ from smolagents import CodeAgent, LiteLLMModel
 from api.agents.knowledge.tools import ingest_avatar_insight, query_avatar_graph, synthesize_avatar_profile
 from api.agents.knowledge.wisdom_tools import ingest_wisdom_insight, query_wisdom_graph
 from api.agents.tools.mosaeic_tools import mosaeic_capture
+from api.services.bootstrap_recall_service import BootstrapRecallService
+from api.models.bootstrap import BootstrapConfig
 
 class KnowledgeAgent:
     """
@@ -21,6 +23,9 @@ class KnowledgeAgent:
             model_id=model_id,
             api_key=os.getenv("ANTHROPIC_API_KEY")
         )
+        
+        # T011: Initialize bootstrap recall service
+        self.bootstrap_svc = BootstrapRecallService()
         
         # Use the cheap model for heavy analytical extraction tasks
         self.cheap_model = LiteLLMModel(
@@ -51,16 +56,25 @@ class KnowledgeAgent:
             description="Orchestrates the extraction of wisdom and avatar data from all available sources."
         )
 
-    async def map_avatar_data(self, raw_data: str, source: str = "unknown") -> dict:
+    async def map_avatar_data(self, raw_data: str, source: str = "unknown", project_id: str = "ias-knowledge-base") -> dict:
         """
         Orchestrate deep analysis of archives to learn voice, process, and avatar data.
         """
+        # T012: Perform Bootstrap Recall
+        bootstrap_result = await self.bootstrap_svc.recall_context(
+            query=f"Avatar wisdom voice extraction from {source}",
+            project_id=project_id,
+            config=BootstrapConfig(project_id=project_id)
+        )
+
         from api.services.aspect_service import get_aspect_service
         aspect_service = get_aspect_service()
         
         prompt = f"""
         Analyze this raw archival data to extract CURRENTLY RELEVANT wisdom.
         
+        {bootstrap_result.formatted_context}
+
         DATA:
         {raw_data}
         

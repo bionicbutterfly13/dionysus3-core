@@ -1,0 +1,61 @@
+openapi: 3.0.0
+info:
+  title: Cognitive Upgrade API
+  version: 1.0.0
+  description: Internal API for Neuronal Packet dynamics and EFE competition.
+
+paths:
+  /api/v1/cognitive/efe:
+    post:
+      summary: Calculate EFE for a set of candidate ThoughtSeeds [P]
+      operationId: calculateEFE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EFERequest'
+      responses:
+        '200':
+          description: Ranked ThoughtSeeds with EFE scores
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFEResponse'
+
+  /api/v1/cognitive/metaplasticity:
+    post:
+      summary: Adjust agent learning rates based on OODA surprise [P]
+      operationId: adjustLearningRate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetaplasticityRequest'
+      responses:
+        '200':
+          description: Updated learning rates
+
+components:
+  schemas:
+    EFERequest:
+      type: object
+      required: [query, goal_vector, thoughtseeds]
+      properties:
+        query: {type: string}
+        goal_vector: {type: array, items: {type: number}}
+        thoughtseeds: {type: array, items: {type: object}}
+
+    EFEResponse:
+      type: object
+      properties:
+        dominant_seed_id: {type: string}
+        scores: {type: object} # seed_id -> efe_score
+
+    MetaplasticityRequest:
+      type: object
+      required: [agent_id, prediction_error]
+      properties:
+        agent_id: {type: string}
+        prediction_error: {type: number}
