@@ -89,3 +89,7 @@ docker exec dionysus-api pytest
 docker exec dionysus-api python3 /app/scripts/test_memevolve_recall.py
 docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py
 ```
+
+## Recent Changes
+- 029-agent-bootstrap-recall: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+- 019-avatar-knowledge-graph: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]

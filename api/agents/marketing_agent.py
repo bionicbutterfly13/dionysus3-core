@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional
 from smolagents import CodeAgent, LiteLLMModel
 
 from api.agents.knowledge.wisdom_tools import query_wisdom_graph
+from api.services.bootstrap_recall_service import BootstrapRecallService
+from api.models.bootstrap import BootstrapConfig
 
 class MarketingAgent:
     """
@@ -20,6 +22,9 @@ class MarketingAgent:
             api_key=os.getenv("ANTHROPIC_API_KEY")
         )
         
+        # T011: Initialize bootstrap recall service
+        self.bootstrap_svc = BootstrapRecallService()
+        
         self.agent = CodeAgent(
             tools=[query_wisdom_graph],
             model=self.model,
@@ -27,10 +32,17 @@ class MarketingAgent:
             description="Expert in IAS marketing and copy generation. Can generate nurture sequences and sales pages. Can query wisdom_graph for MOSAEIC richness."
         )
 
-    async def generate_email(self, topic: str, framework: str, target_audience: str = "analytical professional") -> Dict[str, Any]:
+    async def generate_email(self, topic: str, framework: str, target_audience: str = "analytical professional", project_id: str = "ias-marketing") -> Dict[str, Any]:
         """
         Generate a high-converting nurture email with self-reported confidence.
         """
+        # T012: Perform Bootstrap Recall
+        bootstrap_result = await self.bootstrap_svc.recall_context(
+            query=f"{topic} {framework}",
+            project_id=project_id,
+            config=BootstrapConfig(project_id=project_id)
+        )
+
         from api.services.aspect_service import get_aspect_service
         aspect_service = get_aspect_service()
         aspects = await aspect_service.get_all_aspects(user_id="marketing_system")
@@ -39,6 +51,9 @@ class MarketingAgent:
 
         prompt = f"""
         Generate a high-converting nurture email.
+        
+        {bootstrap_result.formatted_context}
+
         - Topic: {topic}
         - Framework: {framework}
         - Target: {target_audience}

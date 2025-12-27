@@ -21,6 +21,14 @@ As a potential customer, I want to see a clear value proposition for the Bluepri
 
 ---
 
+### User Story 3 - Analytical Testimonial Integration (Priority: P2)
+
+As a professional, I want to see testimonials from people like me, so that I can trust the IAS method works for analytical minds.
+
+**Why this priority**: Critical for building social proof among the target audience.
+
+---
+
 ## Requirements
 
 ### Functional Requirements
@@ -28,6 +36,8 @@ As a potential customer, I want to see a clear value proposition for the Bluepri
 - **FR-001**: System MUST generate Emails 5-10 using the `MarketingAgent` (CodeAgent).
 - **FR-002**: System MUST generate the $97 Tripwire Sales Page copy.
 - **FR-003**: System MUST implement a `FileExportService` to write all generated assets to `/Volumes/Arkham/Marketing/stefan/assets/`.
+- **FR-004**: System MUST integrate testimonial blurbs optimized for analytical professional archetypes.
+- **FR-005**: System MUST handle volume mounting/permission errors for the export directory gracefully.
 
 ## Success Criteria
 
