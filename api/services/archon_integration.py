@@ -258,7 +258,7 @@ class ArchonIntegrationService:
 
     async def fetch_all_historical_tasks(self, limit: int = 1000) -> list[dict[str, Any]]:
         """
-        Fetch all historical tasks from Archon for reconstruction.
+        Fetch all historical tasks from Archon via unified MCP bridge.
         
         Args:
             limit: Maximum tasks to fetch
@@ -270,27 +270,14 @@ class ArchonIntegrationService:
             return []
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                # Call Archon's find_tasks without filters to get all
-                response = await client.post(
-                    f"{self.base_url}/tools/find_tasks",
-                    json={
-                        "per_page": limit,
-                        "include_closed": True
-                    }
-                )
-
-                if response.status_code == 200:
-                    result = response.json()
-                    # Archon response might be {"tasks": [...]} or [...]
-                    if isinstance(result, dict):
-                        return result.get("tasks", [])
-                    return result if isinstance(result, list) else []
-
-                return []
+            # We use the MCP tool directly since we are running in the MCP context
+            # or proxying through the bridge.
+            from dionysus_mcp.server import fetch_archon_tasks
+            tasks = await fetch_archon_tasks()
+            return tasks[:limit]
 
         except Exception as e:
-            logger.error(f"Failed to fetch historical tasks from Archon: {e}")
+            logger.error(f"Failed to fetch historical tasks from Archon via MCP: {e}")
             return []
 
     # =========================================================================

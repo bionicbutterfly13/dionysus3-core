@@ -15,7 +15,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from api.services.remote_sync import RemoteSyncService
-from api.models.memevolve import MemoryRecallRequest, MemoryIngestRequest
+from api.models.memevolve import MemoryRecallRequest, MemoryIngestRequest, TrajectoryType
 from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger(__name__)
@@ -80,6 +80,8 @@ class MemEvolveAdapter:
             if request.trajectory.metadata
             else {}
         )
+        
+        trajectory_type = metadata.get("trajectory_type", TrajectoryType.EPISODIC)
 
         payload: Dict[str, Any] = {
             "operation": "memevolve_ingest",
@@ -88,6 +90,7 @@ class MemEvolveAdapter:
             "entities": structured.get("entities", []),
             "relationships": structured.get("relationships", []),
             "metadata": metadata,
+            "trajectory_type": trajectory_type
         }
 
         try:

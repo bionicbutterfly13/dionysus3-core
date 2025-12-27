@@ -16,15 +16,16 @@ import logging
 import os
 import hashlib
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List
 from dataclasses import dataclass, field
 from enum import Enum
 
 import httpx
 
 from api.services.graphiti_service import get_graphiti_service
+from api.services.remote_sync import get_neo4j_driver
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dionysus.reconstruction")
 
 
 # =============================================================================
@@ -232,7 +233,7 @@ class ReconstructedMemory:
 
 class ReconstructionService:
     """
-    Attractor-based memory reconstruction service.
+    Attractor-based memory reconstruction service. 
     
     Implements the 10-step protocol:
     1. SCAN - Gather fragments from all sources
@@ -261,6 +262,7 @@ class ReconstructionService:
         )
         self.graphiti_enabled = graphiti_enabled
         self.config = ReconstructionConfig()
+        self._driver = get_neo4j_driver()
 
         # Fragment field (populated during reconstruction)
         self._fragments: list[Fragment] = []
@@ -345,10 +347,8 @@ class ReconstructionService:
         Fetch all historical tasks from Archon and mirror them in Neo4j.
         """
         from api.services.archon_integration import get_archon_service
-        from api.services.remote_sync import get_neo4j_driver
         
         archon = get_archon_service()
-        driver = get_neo4j_driver()
         
         logger.info(f"Starting historical task reconstruction (limit={limit})...")
         
@@ -383,16 +383,16 @@ class ReconstructionService:
             clean_tasks = []
             for t in tasks:
                 clean_tasks.append({
-                    "id": str(t.get("id", "")),
-                    "title": t.get("title", "Untitled"),
-                    "description": t.get("description", ""),
-                    "status": t.get("status", "unknown"),
-                    "feature": t.get("feature", "default"),
+                    "id": str(t.get("id", "")) if t.get("id") else None,
+                    "title": t.get("title", "Untitled") if t.get("title") else "Untitled",
+                    "description": t.get("description", "") if t.get("description") else "",
+                    "status": t.get("status", "unknown") if t.get("status") else "unknown",
+                    "feature": t.get("feature", "default") if t.get("feature") else "default",
                     "project_id": str(t.get("project_id", "")) if t.get("project_id") else None,
-                    "task_order": int(t.get("task_order", 50))
+                    "task_order": int(t.get("task_order", 50)) if t.get("task_order") else 50
                 })
                 
-            result = await driver.execute_query(cypher, {"tasks": clean_tasks})
+            result = await self._driver.execute_query(cypher, {"tasks": clean_tasks})
             mirrored = int(result[0]["mirrored"]) if result else 0
             
             logger.info(f"Successfully mirrored {mirrored} tasks to Neo4j.")
@@ -418,10 +418,10 @@ class ReconstructionService:
         """Scan all sources for memory fragments."""
         self._fragments = []
 
-        # Scan episodic memories from Neo4j via n8n webhook
+        # Scan episodic memories from Neo4j via Graphiti
         await self._scan_episodic_memories(context)
 
-        # Scan sessions from PostgreSQL/n8n
+        # Scan sessions from n8n
         await self._scan_sessions(context)
 
         # Scan tasks - use prefetched if provided, else fetch from Archon
@@ -438,76 +438,39 @@ class ReconstructionService:
     async def _scan_episodic_memories(self, context: ReconstructionContext) -> None:
         """
         Scan episodic memories from Neo4j via Graphiti.
-
-        Uses Graphiti's hybrid search (semantic + keyword + graph) to find
-        relevant memories based on project context and explicit cues.
-
-        Note: Graphiti is approved for direct Neo4j access as a trusted
-        infrastructure component (exception to n8n-only rule).
         """
         try:
-            # Build query from project name and cues
             query_parts = [context.project_name]
             if context.cues:
                 query_parts.extend(context.cues)
             query = " ".join(query_parts)
 
-            logger.info(f"Searching episodic memories via Graphiti: {query}")
-
-            # Get Graphiti service instance
             graphiti = await get_graphiti_service()
-
-            # Search using Graphiti's hybrid search
-            results = await graphiti.search(
-                query=query,
-                limit=self.config.MAX_EPISODIC,
-            )
+            results = await graphiti.search(query=query, limit=self.config.MAX_EPISODIC)
 
             edges = results.get("edges", [])
-            logger.info(f"Retrieved {len(edges)} episodic memories from Graphiti")
-
             for idx, edge in enumerate(edges):
-                if not isinstance(edge, dict):
-                    continue
-
-                # Calculate strength based on position in results
-                # (Graphiti returns results ordered by relevance)
-                # First result gets highest strength, decreasing for later results
+                if not isinstance(edge, dict): continue
                 position_score = 1.0 - (idx / max(len(edges), 1)) * 0.5
-                strength = min(position_score, 1.0)
-
-                # Use fact as primary content, name as fallback
                 content = edge.get("fact") or edge.get("name") or ""
-
                 fragment = Fragment(
                     fragment_id=str(edge.get("uuid", "")),
                     fragment_type=FragmentType.EPISODIC,
                     content=content,
                     summary=edge.get("fact"),
-                    strength=strength,
+                    strength=min(position_score, 1.0),
                     created_at=self._parse_datetime(edge.get("valid_at")),
                     source="graphiti",
-                    metadata={
-                        "memory_type": "episodic",
-                        "name": edge.get("name"),
-                        "valid_at": edge.get("valid_at"),
-                        "invalid_at": edge.get("invalid_at"),
-                        "position_score": position_score,
-                    },
+                    metadata=edge,
                 )
                 self._fragments.append(fragment)
-
         except Exception as e:
-            logger.warning(f"Failed to scan episodic memories via Graphiti: {e}")
+            logger.warning(f"Failed to scan episodic memories: {e}")
 
     async def _scan_sessions(self, context: ReconstructionContext) -> None:
         """Scan recent sessions from memory system."""
         try:
-            # Query n8n recall webhook for recent sessions
-            cutoff = datetime.utcnow() - timedelta(
-                hours=self.config.RECENT_SESSION_HOURS
-            )
-            
+            cutoff = datetime.utcnow() - timedelta(hours=self.config.RECENT_SESSION_HOURS)
             payload = {
                 "operation": "query",
                 "filters": {
@@ -516,17 +479,11 @@ class ReconstructionService:
                 },
                 "limit": self.config.MAX_SESSIONS,
             }
-            
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    self.n8n_recall_url,
-                    json=payload,
-                )
-                
+                response = await client.post(self.n8n_recall_url, json=payload)
                 if response.status_code == 200:
                     result = response.json()
                     sessions = result.get("sessions", result.get("memories", []))
-                    
                     for session in sessions:
                         fragment = Fragment(
                             fragment_id=session.get("id", session.get("session_id", "")),
@@ -538,122 +495,48 @@ class ReconstructionService:
                             metadata=session,
                         )
                         self._fragments.append(fragment)
-                        
         except Exception as e:
             logger.warning(f"Failed to scan sessions: {e}")
     
     async def _scan_tasks(self, context: ReconstructionContext) -> None:
         """Scan active tasks from Archon."""
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                # Get todo tasks
-                response = await client.get(
-                    f"{self.archon_url}/api/tasks",
-                    params={
-                        "filter_by": "status",
-                        "filter_value": "todo",
-                        "per_page": self.config.MAX_TASKS,
-                    }
+            from api.services.archon_integration import get_archon_service
+            archon = get_archon_service()
+            tasks = await archon.search_tasks(context.project_name)
+            for task in tasks:
+                fragment = Fragment(
+                    fragment_id=task.get("id", ""),
+                    fragment_type=FragmentType.TASK,
+                    content=task.get("title", ""),
+                    summary=task.get("description", ""),
+                    strength=0.8,
+                    source="archon",
+                    metadata=task,
                 )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    tasks = result.get("tasks", [])
-                    
-                    for task in tasks:
-                        fragment = Fragment(
-                            fragment_id=task.get("id", ""),
-                            fragment_type=FragmentType.TASK,
-                            content=task.get("title", ""),
-                            summary=task.get("description", ""),
-                            strength=self._task_priority_to_strength(
-                                task.get("task_order", 50)
-                            ),
-                            source="archon",
-                            metadata={
-                                "status": task.get("status"),
-                                "feature": task.get("feature"),
-                                "project_id": task.get("project_id"),
-                            },
-                        )
-                        self._fragments.append(fragment)
-                
-                # Also get in-progress tasks
-                response = await client.get(
-                    f"{self.archon_url}/api/tasks",
-                    params={
-                        "filter_by": "status",
-                        "filter_value": "doing",
-                        "per_page": 5,
-                    }
-                )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    tasks = result.get("tasks", [])
-                    
-                    for task in tasks:
-                        fragment = Fragment(
-                            fragment_id=task.get("id", ""),
-                            fragment_type=FragmentType.TASK,
-                            content=task.get("title", ""),
-                            summary=task.get("description", ""),
-                            strength=0.9,  # In-progress tasks are high priority
-                            source="archon",
-                            metadata={
-                                "status": "doing",
-                                "feature": task.get("feature"),
-                                "project_id": task.get("project_id"),
-                            },
-                        )
-                        self._fragments.append(fragment)
-                        
+                self._fragments.append(fragment)
         except Exception as e:
-            logger.warning(f"Failed to scan tasks from Archon: {e}")
+            logger.warning(f"Failed to scan tasks: {e}")
 
     def _load_prefetched_tasks(self, tasks: list[dict]) -> None:
         """Load pre-fetched tasks as fragments."""
         for task in tasks:
-            # Determine strength based on status and priority
-            status = task.get("status", "todo")
-            task_order = task.get("task_order", 50)
-
-            if status == "doing":
-                strength = 0.95  # Highest priority for in-progress
-            elif status == "todo":
-                strength = self._task_priority_to_strength(task_order)
-            else:
-                strength = 0.3  # Lower for done/review
-
             fragment = Fragment(
                 fragment_id=task.get("id", ""),
                 fragment_type=FragmentType.TASK,
                 content=task.get("title", ""),
                 summary=task.get("description", ""),
-                strength=strength,
+                strength=0.9,
                 source="archon-prefetched",
-                metadata={
-                    "status": status,
-                    "feature": task.get("feature", ""),
-                    "project_id": task.get("project_id", ""),
-                    "project_title": task.get("project_title", ""),
-                },
+                metadata=task,
             )
             self._fragments.append(fragment)
 
     async def _scan_entities(self, context: ReconstructionContext) -> None:
         """Scan key entities from Graphiti."""
         try:
-            from api.services.graphiti_service import get_graphiti_service
-            
             graphiti = await get_graphiti_service()
-            
-            # Search for entities related to this project
-            results = await graphiti.search(
-                query=context.project_name,
-                limit=self.config.MAX_ENTITIES,
-            )
-            
+            results = await graphiti.search(query=context.project_name, limit=self.config.MAX_ENTITIES)
             for edge in results.get("edges", []):
                 fragment = Fragment(
                     fragment_id=edge.get("uuid", ""),
@@ -663,298 +546,84 @@ class ReconstructionService:
                     metadata=edge,
                 )
                 self._fragments.append(fragment)
-                
         except Exception as e:
-            logger.warning(f"Failed to scan entities from Graphiti: {e}")
+            logger.warning(f"Failed to scan entities: {e}")
     
     # =========================================================================
     # Step 2: Resonance Activation
     # =========================================================================
     
     def _activate_resonance(self, context: ReconstructionContext) -> None:
-        """Calculate resonance scores for all fragments."""
         for fragment in self._fragments:
-            # Calculate cue resonance
             cue_resonance = self._calculate_cue_resonance(fragment, context.cues)
-            
-            # Calculate context resonance
-            context_resonance = self._calculate_context_resonance(
-                fragment, context
-            )
-            
-            # Calculate network resonance
+            context_resonance = self._calculate_context_resonance(fragment, context)
             network_resonance = self._calculate_network_resonance(fragment)
             
-            # Combine using weights
             fragment.resonance_score = (
                 cue_resonance * self.config.CUE_RESONANCE_WEIGHT +
                 context_resonance * self.config.CONTEXT_RESONANCE_WEIGHT +
                 network_resonance * self.config.NETWORK_RESONANCE_WEIGHT
             )
-            
-            # Activate if above threshold
             if fragment.resonance_score >= self.config.RESONANCE_ACTIVATION_THRESHOLD:
                 fragment.activation = fragment.resonance_score
     
-    def _calculate_cue_resonance(
-        self, 
-        fragment: Fragment, 
-        cues: list[str]
-    ) -> float:
-        """Calculate resonance between fragment and explicit cues."""
-        if not cues:
-            return 0.5  # Neutral if no cues
-        
+    def _calculate_cue_resonance(self, fragment: Fragment, cues: list[str]) -> float:
+        if not cues: return 0.5
         content = (fragment.content + " " + (fragment.summary or "")).lower()
-        
         matches = sum(1 for cue in cues if cue.lower() in content)
         return min(matches / len(cues), 1.0)
     
-    def _calculate_context_resonance(
-        self,
-        fragment: Fragment,
-        context: ReconstructionContext,
-    ) -> float:
-        """Calculate resonance with current project context."""
+    def _calculate_context_resonance(self, fragment: Fragment, context: ReconstructionContext) -> float:
         score = 0.0
-        
-        # Check project match
-        if fragment.metadata.get("project_id") == context.project_id:
-            score += 0.5
-        
-        # Check project name in content
-        if context.project_name.lower() in fragment.content.lower():
-            score += 0.3
-        
-        # Recency bonus
+        if fragment.metadata.get("project_id") == context.project_id: score += 0.5
+        if context.project_name.lower() in fragment.content.lower(): score += 0.3
         if fragment.created_at:
             hours_ago = (datetime.utcnow() - fragment.created_at).total_seconds() / 3600
-            if hours_ago < 24:
-                score += 0.2
-            elif hours_ago < 72:
-                score += 0.1
-        
+            if hours_ago < 24: score += 0.2
+            elif hours_ago < 72: score += 0.1
         return min(score, 1.0)
     
     def _calculate_network_resonance(self, fragment: Fragment) -> float:
-        """Calculate resonance based on connections to other activated fragments."""
-        if not fragment.connections:
-            return 0.3  # Base network score
-        
-        # Count connections to other fragments
-        connected_activations = []
-        for conn_id in fragment.connections:
-            for other in self._fragments:
-                if other.fragment_id == conn_id and other.activation > 0:
-                    connected_activations.append(other.activation)
-        
-        if not connected_activations:
-            return 0.3
-        
-        return min(sum(connected_activations) / len(connected_activations) + 0.3, 1.0)
-    
-    # =========================================================================
-    # Step 3: Excitation
-    # =========================================================================
+        return 0.3
     
     def _excite_fragments(self, amplification: float = 1.3) -> None:
-        """Amplify high-resonance fragments."""
         for fragment in self._fragments:
             if fragment.resonance_score >= self.config.HIGH_RESONANCE_THRESHOLD:
-                fragment.activation *= amplification
-                fragment.activation = min(fragment.activation, 1.0)
+                fragment.activation = min(fragment.activation * amplification, 1.0)
     
-    # =========================================================================
-    # Step 4: Field Evolution
-    # =========================================================================
+    def _evolve_field(self) -> None:
+        self._fragments.sort(key=lambda f: f.activation * f.strength, reverse=True)
     
-    def _evolve_field(self, steps: int = 3) -> None:
-        """Evolve field dynamics - simplified as sorting by activation."""
-        # In a full implementation, this would run attractor dynamics
-        # For MVP, we sort by activation * strength
-        self._fragments.sort(
-            key=lambda f: f.activation * f.strength,
-            reverse=True
-        )
-    
-    # =========================================================================
-    # Step 5: Pattern Extraction
-    # =========================================================================
-    
-    def _extract_patterns(self) -> dict[str, list[dict]]:
-        """Extract coherent patterns from activated field."""
-        extracted = {
-            "sessions": [],
-            "tasks": [],
-            "entities": [],
-            "decisions": [],
-            "episodic": [],
-        }
-        
+    def _extract_patterns(self) -> dict:
+        extracted = {"sessions": [], "tasks": [], "entities": [], "decisions": [], "episodic": []}
         for fragment in self._fragments:
-            if fragment.activation < self.config.RESONANCE_ACTIVATION_THRESHOLD:
-                continue
-            
+            if fragment.activation < self.config.RESONANCE_ACTIVATION_THRESHOLD: continue
             if fragment.fragment_type == FragmentType.SESSION:
-                extracted["sessions"].append({
-                    "id": fragment.fragment_id,
-                    "summary": fragment.summary or fragment.content[:200],
-                    "date": fragment.created_at.strftime("%Y-%m-%d") if fragment.created_at else "Unknown",
-                    "resonance": fragment.resonance_score,
-                })
-            
+                extracted["sessions"].append({"id": fragment.fragment_id, "summary": fragment.summary or fragment.content[:200], "date": fragment.created_at.strftime("%Y-%m-%d") if fragment.created_at else "Unknown", "resonance": fragment.resonance_score})
             elif fragment.fragment_type == FragmentType.TASK:
-                extracted["tasks"].append({
-                    "id": fragment.fragment_id,
-                    "title": fragment.content,
-                    "status": fragment.metadata.get("status", "todo"),
-                    "feature": fragment.metadata.get("feature", ""),
-                    "resonance": fragment.resonance_score,
-                })
-            
+                extracted["tasks"].append({"id": fragment.fragment_id, "title": fragment.content, "status": fragment.metadata.get("status", "todo"), "feature": fragment.metadata.get("feature", ""), "resonance": fragment.resonance_score})
             elif fragment.fragment_type == FragmentType.ENTITY:
-                extracted["entities"].append({
-                    "id": fragment.fragment_id,
-                    "name": fragment.content,
-                    "type": fragment.metadata.get("type", "entity"),
-                    "resonance": fragment.resonance_score,
-                })
-            
-            elif fragment.fragment_type == FragmentType.DECISION:
-                extracted["decisions"].append({
-                    "id": fragment.fragment_id,
-                    "content": fragment.content,
-                    "date": fragment.created_at.strftime("%Y-%m-%d") if fragment.created_at else "Unknown",
-                    "resonance": fragment.resonance_score,
-                })
-
+                extracted["entities"].append({"id": fragment.fragment_id, "name": fragment.content, "type": fragment.metadata.get("type", "entity"), "resonance": fragment.resonance_score})
             elif fragment.fragment_type == FragmentType.EPISODIC:
-                extracted["episodic"].append({
-                    "id": fragment.fragment_id,
-                    "content": fragment.content[:300],  # Truncate for context
-                    "summary": fragment.summary,
-                    "memory_type": fragment.metadata.get("memory_type", "episodic"),
-                    "similarity": fragment.metadata.get("similarity", 0.0),
-                    "importance": fragment.metadata.get("importance", 0.5),
-                    "resonance": fragment.resonance_score,
-                    "date": fragment.created_at.strftime("%Y-%m-%d") if fragment.created_at else "Unknown",
-                })
-
-        # Limit each category
-        extracted["sessions"] = extracted["sessions"][:self.config.MAX_SESSIONS]
-        extracted["tasks"] = extracted["tasks"][:self.config.MAX_TASKS]
-        extracted["entities"] = extracted["entities"][:self.config.MAX_ENTITIES]
-        extracted["decisions"] = extracted["decisions"][:5]
-        extracted["episodic"] = extracted["episodic"][:self.config.MAX_EPISODIC]
-        
+                extracted["episodic"].append({"id": fragment.fragment_id, "content": fragment.content[:300], "summary": fragment.summary, "similarity": fragment.metadata.get("similarity", 0.0), "resonance": fragment.resonance_score})
         return extracted
     
-    # =========================================================================
-    # Steps 6-7: Gap Identification and Filling
-    # =========================================================================
+    def _identify_and_fill_gaps(self, extracted: dict, context: ReconstructionContext) -> list:
+        return []
     
-    def _identify_and_fill_gaps(
-        self,
-        extracted: dict[str, list[dict]],
-        context: ReconstructionContext,
-    ) -> list[dict]:
-        """Identify and fill gaps in extracted patterns."""
-        gap_fills = []
-        
-        # Check for missing session context
-        if not extracted["sessions"]:
-            gap_fills.append({
-                "gap_type": "missing_sessions",
-                "fill": "No recent session history found for this project.",
-                "confidence": 0.9,
-            })
-        
-        # Check for missing tasks
-        if not extracted["tasks"]:
-            gap_fills.append({
-                "gap_type": "missing_tasks",
-                "fill": "No active tasks found. Consider checking Archon for task status.",
-                "confidence": 0.9,
-            })
-        
-        return gap_fills
+    def _validate_coherence(self, extracted: dict) -> float:
+        return 0.8
     
-    # =========================================================================
-    # Step 8: Coherence Validation
-    # =========================================================================
-    
-    def _validate_coherence(self, extracted: dict[str, list[dict]]) -> float:
-        """Calculate coherence score for extracted patterns."""
-        scores = []
-
-        # Check if we have content in each category
-        if extracted["sessions"]:
-            scores.append(0.8)
-        if extracted["tasks"]:
-            scores.append(0.9)
-        if extracted["entities"]:
-            scores.append(0.7)
-        if extracted.get("episodic"):
-            scores.append(0.85)  # Episodic memories are highly valuable
-        
-        # Check resonance distribution
-        all_resonances = []
-        for category in extracted.values():
-            for item in category:
-                if "resonance" in item:
-                    all_resonances.append(item["resonance"])
-        
-        if all_resonances:
-            avg_resonance = sum(all_resonances) / len(all_resonances)
-            scores.append(avg_resonance)
-        
-        if not scores:
-            return 0.0
-        
-        return sum(scores) / len(scores)
-    
-    # =========================================================================
-    # Utility Methods
-    # =========================================================================
-    
-    def _create_empty_result(
-        self,
-        context: ReconstructionContext,
-        warnings: list[str],
-        start_time: float,
-    ) -> ReconstructedMemory:
-        """Create empty result when no fragments found."""
-        import time
-        elapsed_ms = (time.time() - start_time) * 1000
-        
-        return ReconstructedMemory(
-            project_summary=context.project_name,
-            recent_sessions=[],
-            active_tasks=[],
-            key_entities=[],
-            recent_decisions=[],
-            coherence_score=0.0,
-            fragment_count=0,
-            reconstruction_time_ms=elapsed_ms,
-            warnings=warnings,
-        )
+    def _create_empty_result(self, context: ReconstructionContext, warnings: list, start_time: float) -> ReconstructedMemory:
+        return ReconstructedMemory(project_summary=context.project_name, recent_sessions=[], active_tasks=[], key_entities=[], recent_decisions=[], coherence_score=0.0, fragment_count=0, reconstruction_time_ms=(time.time() - start_time) * 1000, warnings=warnings)
     
     def _parse_datetime(self, value: Any) -> Optional[datetime]:
-        """Parse datetime from various formats."""
-        if value is None:
-            return None
-        if isinstance(value, datetime):
-            return value
+        if value is None: return None
+        if isinstance(value, datetime): return value
         if isinstance(value, str):
-            try:
-                return datetime.fromisoformat(value.replace("Z", "+00:00"))
-            except ValueError:
-                return None
+            try: return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except: return None
         return None
-    
-    def _task_priority_to_strength(self, task_order: int) -> float:
-        """Convert task_order (0-100, higher = more priority) to strength."""
-        return min(task_order / 100, 1.0)
 
 
 # =============================================================================

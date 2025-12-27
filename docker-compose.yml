@@ -10,13 +10,16 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    volumes:
+      - .:/app
+      - /Volumes/Asylum:/Volumes/Asylum
     networks:
       - dionysus3-core_default
-      - dionysus_default
+      # - dionysus_default
     restart: unless-stopped
 
 networks:
   dionysus3-core_default:
     external: true
-  dionysus_default:
-    external: true
+  # dionysus_default:
+  #   external: true

@@ -164,6 +164,11 @@ class MentalModel(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # Energy-Well Properties (Feature 030)
+    boundary_energy: float = Field(default=0.5, ge=0.0, le=1.0)
+    cohesion_ratio: float = Field(default=1.0, ge=0.0)
+    stability: float = Field(default=0.5, ge=0.0, le=1.0)
+
     @field_validator("constituent_basins")
     @classmethod
     def validate_basins_not_empty(cls, v: list[UUID]) -> list[UUID]:

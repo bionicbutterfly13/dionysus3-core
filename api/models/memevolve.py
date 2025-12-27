@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 from uuid import UUID
 from datetime import datetime
+from enum import Enum
 
 
 class HealthCheckResponse(BaseModel):
@@ -17,6 +18,12 @@ class HealthCheckResponse(BaseModel):
     status: str = "ok"
     service: str = "dionysus-memevolve-adapter"
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TrajectoryType(str, Enum):
+    """Classification for trajectory data."""
+    EPISODIC = "episodic"
+    STRUCTURAL = "structural"
 
 
 class TrajectoryStep(BaseModel):
@@ -33,6 +40,7 @@ class TrajectoryMetadata(BaseModel):
     agent_id: Optional[str] = Field(None, description="Identifier for the agent")
     session_id: Optional[str] = Field(None, description="Session identifier")
     project_id: Optional[str] = Field(None, description="Project identifier")
+    trajectory_type: TrajectoryType = Field(default=TrajectoryType.EPISODIC, description="Type of trajectory")
 
     model_config = {"extra": "allow"}
 

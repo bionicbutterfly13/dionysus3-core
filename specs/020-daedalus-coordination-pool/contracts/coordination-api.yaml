@@ -1,0 +1,389 @@
+openapi: 3.1.0
+info:
+  title: DAEDALUS Coordination Pool API
+  version: 1.0.0
+  description: |
+    API for managing the DAEDALUS distributed agent coordination pool.
+    Feature: 020-daedalus-coordination-pool
+
+servers:
+  - url: /api/coordination
+    description: Coordination API base path
+
+paths:
+  /agents:
+    post:
+      operationId: spawnAgent
+      summary: Spawn a new agent in the pool
+      responses:
+        '200':
+          description: Agent spawned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpawnAgentResponse'
+        '503':
+          description: Pool at maximum capacity (16 agents)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      operationId: listAgents
+      summary: List all agents with health status
+      responses:
+        '200':
+          description: Agent health report
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentHealthReport'
+
+  /pool/initialize:
+    post:
+      operationId: initializePool
+      summary: Initialize the agent pool with specified size
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitializePoolRequest'
+      responses:
+        '200':
+          description: Pool initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitializePoolResponse'
+
+  /tasks:
+    post:
+      operationId: submitTask
+      summary: Submit a task to the coordination pool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitTaskRequest'
+      responses:
+        '200':
+          description: Task submitted (assigned or queued)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitTaskResponse'
+        '429':
+          description: Queue full (100 pending tasks)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tasks/{task_id}:
+    get:
+      operationId: getTask
+      summary: Get task status
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetails'
+        '404':
+          description: Task not found
+
+  /tasks/{task_id}/complete:
+    post:
+      operationId: completeTask
+      summary: Mark a task as completed
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: success
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Task completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatusResponse'
+        '404':
+          description: Task not found
+
+  /agents/{agent_id}/fail:
+    post:
+      operationId: failAgent
+      summary: Mark an agent as failed (triggers task retry)
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent marked as failed, task reassigned if applicable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentFailResponse'
+        '404':
+          description: Agent not found
+
+  /metrics:
+    get:
+      operationId: getMetrics
+      summary: Get coordination metrics
+      responses:
+        '200':
+          description: Current metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+
+  /isolation-report:
+    get:
+      operationId: getIsolationReport
+      summary: Get agent isolation status report
+      responses:
+        '200':
+          description: Isolation report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IsolationReport'
+
+components:
+  schemas:
+    SpawnAgentResponse:
+      type: object
+      required: [agent_id, context_window_id, status]
+      properties:
+        agent_id:
+          type: string
+        context_window_id:
+          type: string
+        status:
+          type: string
+          enum: [idle, analyzing, executing, degraded]
+
+    InitializePoolRequest:
+      type: object
+      properties:
+        size:
+          type: integer
+          minimum: 1
+          maximum: 16
+          default: 4
+
+    InitializePoolResponse:
+      type: object
+      required: [agent_ids, pool_size]
+      properties:
+        agent_ids:
+          type: array
+          items:
+            type: string
+        pool_size:
+          type: integer
+
+    SubmitTaskRequest:
+      type: object
+      required: [payload]
+      properties:
+        payload:
+          type: object
+        task_type:
+          type: string
+          enum: [discovery, migration, heartbeat, ingest, research, general]
+          default: general
+        preferred_agent_id:
+          type: string
+          nullable: true
+
+    SubmitTaskResponse:
+      type: object
+      required: [task_id, status]
+      properties:
+        task_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed, cancelled]
+        assigned_agent_id:
+          type: string
+          nullable: true
+
+    TaskDetails:
+      type: object
+      required: [task_id, task_type, status, attempt_count, created_at]
+      properties:
+        task_id:
+          type: string
+        task_type:
+          type: string
+        payload:
+          type: object
+        status:
+          type: string
+        assigned_agent_id:
+          type: string
+          nullable: true
+        attempt_count:
+          type: integer
+        failed_agent_ids:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: number
+        started_at:
+          type: number
+          nullable: true
+        completed_at:
+          type: number
+          nullable: true
+
+    TaskStatusResponse:
+      type: object
+      required: [task_id, status]
+      properties:
+        task_id:
+          type: string
+        status:
+          type: string
+
+    AgentFailResponse:
+      type: object
+      required: [agent_id, task_reassigned]
+      properties:
+        agent_id:
+          type: string
+        task_reassigned:
+          type: boolean
+        reassigned_task_id:
+          type: string
+          nullable: true
+        task_failed_permanently:
+          type: boolean
+
+    AgentHealthReport:
+      type: object
+      properties:
+        agent:
+          type: object
+          properties:
+            agent_id:
+              type: string
+            context_window_id:
+              type: string
+            status:
+              type: string
+        health:
+          type: object
+          properties:
+            memory_usage:
+              type: number
+            cpu_usage:
+              type: number
+        performance:
+          type: object
+          properties:
+            tasks_completed:
+              type: integer
+            tasks_failed:
+              type: integer
+            average_task_time:
+              type: number
+            context_switches:
+              type: integer
+        isolation:
+          type: object
+          properties:
+            shared_state_detected:
+              type: boolean
+            notes:
+              type: array
+              items:
+                type: string
+
+    MetricsResponse:
+      type: object
+      required: [agents, tasks_total, tasks_in_progress, queue_length, avg_task_duration]
+      properties:
+        agents:
+          type: integer
+        tasks_total:
+          type: integer
+        tasks_in_progress:
+          type: integer
+        tasks_pending:
+          type: integer
+        tasks_completed:
+          type: integer
+        tasks_failed:
+          type: integer
+        queue_length:
+          type: integer
+        avg_task_duration:
+          type: number
+        avg_assignment_latency_ms:
+          type: number
+        utilization:
+          type: number
+          description: Ratio of busy agents to total agents
+
+    IsolationReport:
+      type: object
+      required: [timestamp, total_agents, breaches_detected, details]
+      properties:
+        timestamp:
+          type: number
+        total_agents:
+          type: integer
+        breaches_detected:
+          type: integer
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              agent_id:
+                type: string
+              context_window_id:
+                type: string
+              tool_session_id:
+                type: string
+              memory_handle_id:
+                type: string
+              isolated:
+                type: boolean
+              issues:
+                type: array
+                items:
+                  type: string
+
+    ErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
