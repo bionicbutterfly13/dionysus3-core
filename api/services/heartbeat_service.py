@@ -527,138 +527,60 @@ class HeartbeatService:
 
     async def _make_decision(self, context: HeartbeatContext) -> HeartbeatDecision:
         """
-        Make the heartbeat decision using agent or LLM.
-
-        Args:
-            context: Full context for decision
-
-        Returns:
-            HeartbeatDecision with chosen actions
+        Make the heartbeat decision using ConsciousnessManager.
         """
-        energy_config = {
-            "max_energy": self._energy_service.get_config().max_energy,
-            "base_regeneration": self._energy_service.get_config().base_regeneration,
-        }
-
-        # Check if agent-based decisions are enabled
-        use_agent = os.getenv("USE_AGENT_DECISIONS", "false").lower() == "true"
-
-        if use_agent:
-            try:
-                from api.agents.decision_adapter import (
-                    AgentDecisionConfig,
-                    get_agent_decision_adapter,
-                )
-
-        config = AgentDecisionConfig(
-            use_multi_agent=os.getenv("USE_MULTI_AGENT", "false").lower() == "true",
-            model_id=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
-            max_steps=int(os.getenv("SMOLAGENTS_MAX_STEPS", "5")),
-            fallback_on_failure=False,  # No fallback - agent is authoritative
-        )
-
-                adapter = get_agent_decision_adapter(config)
-                decision = await adapter.make_decision(context, energy_config)
-
-                logger.info(
-                    f"Agent decision: {len(decision.action_plan.actions)} actions, "
-                    f"confidence: {decision.confidence}"
-                )
-                return decision
-
-            except Exception as e:
-                logger.error(f"Agent decision failed, using default: {e}")
-
-        # Legacy path
-        system_prompt, user_prompt = self._context_builder.format_prompt(
-            context, energy_config
-        )
-
-        # TODO: Call LLM here
-        return await self._make_default_decision(context)
-
-    async def _make_default_decision(self, context: HeartbeatContext) -> HeartbeatDecision:
-        """
-        Make a default decision without LLM.
-
-        Used as fallback or for testing.
-        """
-        actions = []
-        reasoning_parts = []
-
-        # If no goals, suggest brainstorming
-        if context.goal_assessment.needs_brainstorm:
-            actions.append(ActionRequest(
-                action_type=ActionType.BRAINSTORM_GOALS,
-                params={"context": "starting fresh", "count": 3},
-                reason="No goals exist",
-            ))
-            reasoning_parts.append("I have no goals, so I should brainstorm some.")
-
-        # If stale goals, consider reviewing
-        if context.goal_assessment.stale_goals:
-            actions.append(ActionRequest(
-                action_type=ActionType.REPRIORITIZE,
-                params={"changes": [
-                    {"goal_id": str(g.id), "new_priority": "backburner"}
-                    for g in context.goal_assessment.stale_goals[:2]
-                ]},
-                reason="Moving stale goals to backburner",
-            ))
-            reasoning_parts.append(f"I have {len(context.goal_assessment.stale_goals)} stale goals to address.")
-
-        # If active goals, reflect on progress
-        if context.goal_assessment.active_goals:
-            goal = context.goal_assessment.active_goals[0]
-            actions.append(ActionRequest(
-                action_type=ActionType.REFLECT,
-                params={"topic": f"Progress on: {goal.title}"},
-                reason=f"Reflecting on active goal",
-            ))
-            reasoning_parts.append(f"I'm working on '{goal.title}'.")
-
-        # T052: Check for models needing revision
         try:
-            from api.services.model_service import get_model_service
+            from api.agents.consciousness_manager import ConsciousnessManager
+            
+            # Convert HeartbeatContext to initial_context dict for the manager
+            initial_context = {
+                "heartbeat_number": context.environment.heartbeat_number,
+                "energy": context.environment.current_energy,
+                "user_present": context.environment.user_present,
+                "active_goals": [g.title for g in context.goal_assessment.active_goals],
+                "recent_memories": [m.get("content") for m in context.recent_memories[:3]],
+                "identity": context.identity_context,
+                "project_id": "dionysus-core", # Default project for heartbeat
+                "bootstrap_recall": True
+            }
 
-            model_service = get_model_service()
-            models_needing_revision = await model_service.get_models_needing_revision(
-                accuracy_threshold=0.5,
-                limit=2,
+            manager = ConsciousnessManager()
+            result = await manager.run_ooda_cycle(initial_context)
+            
+            # Map structured actions from manager to HeartbeatDecision
+            structured_actions = []
+            for a in result.get("actions", []):
+                try:
+                    structured_actions.append(ActionRequest(
+                        action_type=ActionType(a["action"]),
+                        params=a.get("params", {}),
+                        reason="Agentic decision from ConsciousnessManager"
+                    ))
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Skipping invalid agent action {a}: {e}")
+
+            return HeartbeatDecision(
+                action_plan=ActionPlan(actions=structured_actions, reasoning=result["final_plan"]),
+                reasoning=result["final_plan"],
+                focus_goal_id=context.goal_assessment.active_goals[0].id if context.goal_assessment.active_goals else None,
+                emotional_state=0.0,
+                confidence=result.get("confidence", 0.8),
             )
 
-            for model in models_needing_revision:
-                actions.append(ActionRequest(
-                    action_type=ActionType.REVISE_MODEL,
-                    params={
-                        "model_id": str(model.id),
-                        "trigger_description": f"Automatic revision due to low accuracy ({model.prediction_accuracy:.2f})",
-                    },
-                    reason=f"Model '{model.name}' has low prediction accuracy",
-                ))
-                reasoning_parts.append(
-                    f"Model '{model.name}' needs revision (accuracy: {model.prediction_accuracy:.2f})."
-                )
         except Exception as e:
-            logger.warning(f"Failed to check models for revision: {e}")
+            logger.error(f"ConsciousnessManager decision failed: {e}")
+            # Absolute minimal fallback to REST if orchestrator fails
+            return HeartbeatDecision(
+                action_plan=ActionPlan(actions=[ActionRequest(action_type=ActionType.REST, reason="Fallback")], reasoning=f"Error: {e}"),
+                reasoning=f"System error in consciousness manager: {e}",
+                focus_goal_id=None,
+                emotional_state=-0.5,
+                confidence=0.1,
+            )
 
-        # Default: rest if nothing to do
-        if not actions:
-            actions.append(ActionRequest(
-                action_type=ActionType.REST,
-                reason="Nothing pressing to do",
-            ))
-            reasoning_parts.append("Nothing urgent, conserving energy.")
-
-        reasoning = " ".join(reasoning_parts) if reasoning_parts else "Default heartbeat cycle."
-
-        return HeartbeatDecision(
-            action_plan=ActionPlan(actions=actions, reasoning=reasoning),
-            reasoning=reasoning,
-            focus_goal_id=context.goal_assessment.active_goals[0].id if context.goal_assessment.active_goals else None,
-            emotional_state=0.0,
-            confidence=0.5,
-        )
+    async def _make_default_decision(self, context: HeartbeatContext) -> HeartbeatDecision:
+        # Legacy method kept for interface but logic moved to _make_decision
+        return await self._make_decision(context)
 
     async def _resolve_pending_predictions(
         self,
@@ -679,11 +601,6 @@ class HeartbeatService:
             from api.services.model_service import get_model_service
 
             model_service = get_model_service()
-
-            # Check if service has database pool configured
-            if model_service._db_pool is None:
-                logger.debug("Model service not configured with database pool, skipping resolution")
-                return []
 
             # Get unresolved predictions (limit to recent ones from last 24 hours)
             unresolved = await model_service.get_unresolved_predictions(limit=10)

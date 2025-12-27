@@ -31,3 +31,10 @@ Execute inside the API container:
 - **HMAC Verification**: All webhook endpoints must use `verify_memevolve_signature` dependency.
 - **Shell Safety**: The shell parser is sensitive to nested code (e.g., `python -c`). Use script files (`scripts/`) and sync via `git` instead of inline shell pipes.
 - **Archon-First**: Archon remains local. Dionysus receives tasks via prefetched payloads in hooks.
+
+## Active Technologies
+- Python 3.11 + FastAPI, smolagents, Pydantic v2 (020-daedalus-coordination-pool)
+- In-memory (Dict-based registry) - no persistence required (020-daedalus-coordination-pool)
+
+## Recent Changes
+- 020-daedalus-coordination-pool: Added Python 3.11 + FastAPI, smolagents, Pydantic v2

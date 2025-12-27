@@ -12,6 +12,7 @@ COPY .env .
 # Copy application
 COPY api/ ./api/
 COPY scripts/ ./scripts/
+COPY tests/ ./tests/
 
 
 # Expose port
