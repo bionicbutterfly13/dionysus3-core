@@ -31,10 +31,38 @@ class TaskStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
+class TaskType(str, enum.Enum):
+    DISCOVERY = "discovery"
+    MIGRATION = "migration"
+    HEARTBEAT = "heartbeat"
+    INGEST = "ingest"
+    RESEARCH = "research"
+    GENERAL = "general"
+
+
+class PoolFullError(Exception):
+    """Raised when the coordination pool has reached MAX_POOL_SIZE."""
+    pass
+
+
+class QueueFullError(Exception):
+    """Raised when the task queue has reached MAX_QUEUE_DEPTH."""
+    pass
+
+
+DEFAULT_POOL_SIZE = 4
+MAX_POOL_SIZE = 16
+MAX_QUEUE_DEPTH = 100
+MAX_RETRIES = 3
+ASSIGNMENT_LATENCY_TARGET_MS = 500
+
+
 @dataclass
 class Agent:
     agent_id: str
     context_window_id: str
+    tool_session_id: str
+    memory_handle_id: str
     status: AgentStatus = AgentStatus.IDLE
     current_task_id: Optional[str] = None
     performance: Dict = field(default_factory=lambda: {
@@ -57,11 +85,15 @@ class Agent:
 class Task:
     task_id: str
     payload: Dict
+    task_type: TaskType = TaskType.GENERAL
     status: TaskStatus = TaskStatus.PENDING
     assigned_agent_id: Optional[str] = None
+    attempt_count: int = 0
+    failed_agent_ids: List[str] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
     started_at: Optional[float] = None
     completed_at: Optional[float] = None
+    assignment_latency_ms: Optional[float] = None
 
 
 class CoordinationService:
@@ -71,17 +103,73 @@ class CoordinationService:
         self.tasks: Dict[str, Task] = {}
         self.queue: List[str] = []
         self.last_context_snapshot: Dict[str, str] = {}  # agent_id -> context_window_id
+        self._current_trace_id: Optional[str] = None
+
+    @property
+    def trace_id(self) -> str:
+        return self._current_trace_id or "no-trace"
+
+    @trace_id.setter
+    def trace_id(self, value: str):
+        self._current_trace_id = value
+
+    def _log(self, level: int, event: str, **kwargs):
+        extra = kwargs
+        extra["trace_id"] = self.trace_id
+        self.logger.log(level, event, extra=extra)
 
     # ------------------------------------------------------------------
     # Agent lifecycle
     # ------------------------------------------------------------------
+    def initialize_pool(self, size: int = DEFAULT_POOL_SIZE) -> List[str]:
+        """Initialize the pool with a specific number of agents."""
+        if size > MAX_POOL_SIZE:
+            self._log(logging.WARNING, f"Requested pool size {size} exceeds MAX_POOL_SIZE {MAX_POOL_SIZE}. Capping.")
+            size = MAX_POOL_SIZE
+        
+        spawned_ids = []
+        for _ in range(size):
+            try:
+                agent_id = self.spawn_agent()
+                spawned_ids.append(agent_id)
+            except PoolFullError:
+                break
+        
+        self._log(logging.INFO, "pool_initialized", size=len(spawned_ids), requested=size)
+        return spawned_ids
+
+    def shutdown_pool(self) -> None:
+        """Gracefully shut down the coordination pool."""
+        self._log(logging.INFO, "pool_shutdown_initiated", agents=len(self.agents), queue=len(self.queue))
+        self.agents.clear()
+        self.tasks.clear()
+        self.queue.clear()
+        self.last_context_snapshot.clear()
+        self._log(logging.INFO, "pool_shutdown_completed")
+
     def spawn_agent(self) -> str:
+        if len(self.agents) >= MAX_POOL_SIZE:
+            self._log(logging.ERROR, "pool_full_error", current_size=len(self.agents))
+            raise PoolFullError(f"Coordination pool is full (MAX_POOL_SIZE={MAX_POOL_SIZE})")
+
         agent_id = str(uuid.uuid4())
         context_id = str(uuid.uuid4())
-        agent = Agent(agent_id=agent_id, context_window_id=context_id)
+        tool_session_id = str(uuid.uuid4())
+        memory_handle_id = str(uuid.uuid4())
+        
+        agent = Agent(
+            agent_id=agent_id, 
+            context_window_id=context_id,
+            tool_session_id=tool_session_id,
+            memory_handle_id=memory_handle_id
+        )
         self.agents[agent_id] = agent
         self.last_context_snapshot[agent_id] = context_id
-        self.logger.info("agent_spawned", extra={"agent_id": agent_id, "context_id": context_id})
+        self._log(logging.INFO, "agent_spawned", agent_id=agent_id, context_id=context_id)
+        
+        # Initial isolation check
+        self._check_isolation(agent)
+        
         return agent_id
 
     def list_agents(self) -> List[Agent]:
@@ -90,27 +178,131 @@ class CoordinationService:
     # ------------------------------------------------------------------
     # Task lifecycle
     # ------------------------------------------------------------------
-    def submit_task(self, payload: Dict, preferred_agent_id: Optional[str] = None) -> str:
+    def submit_task(self, payload: Dict, preferred_agent_id: Optional[str] = None, task_type: TaskType | str = TaskType.GENERAL) -> str:
+        if isinstance(task_type, str):
+            try:
+                task_type = TaskType(task_type)
+            except ValueError:
+                task_type = TaskType.GENERAL
+
+        if len(self.queue) >= MAX_QUEUE_DEPTH:
+            self._log(logging.ERROR, "queue_full_error", current_depth=len(self.queue))
+            raise QueueFullError(f"Task queue is full (MAX_QUEUE_DEPTH={MAX_QUEUE_DEPTH})")
+
         task_id = str(uuid.uuid4())
-        task = Task(task_id=task_id, payload=payload)
+        task = Task(task_id=task_id, payload=payload, task_type=task_type)
         self.tasks[task_id] = task
+        
         assigned = self._assign_task(task, preferred_agent_id)
         if not assigned:
             self.queue.append(task_id)
-            self.logger.info("task_queued", extra={"task_id": task_id})
+            self._log(logging.INFO, "task_queued", task_id=task_id, task_type=task_type.value)
+        
         return task_id
 
+    def handle_agent_failure(self, agent_id: str) -> None:
+        """Handle an agent failure by retrying its current task if possible."""
+        agent = self.agents.get(agent_id)
+        if not agent:
+            return
+
+        agent.status = AgentStatus.DEGRADED
+        
+        if not agent.current_task_id:
+            self._log(logging.WARNING, "agent_failure_detected_idle", agent_id=agent_id)
+            return
+
+        task_id = agent.current_task_id
+        task = self.tasks[task_id]
+        
+        agent.status = AgentStatus.DEGRADED
+        agent.performance["tasks_failed"] += 1
+        agent.current_task_id = None
+        
+        task.attempt_count += 1
+        task.failed_agent_ids.append(agent_id)
+        task.status = TaskStatus.PENDING
+        task.assigned_agent_id = None
+        
+        self._log(
+            logging.WARNING,
+            "agent_failure_detected",
+            agent_id=agent_id,
+            task_id=task_id,
+            attempt_count=task.attempt_count
+        )
+
+        if task.attempt_count < MAX_RETRIES:
+            # Reassign immediately if an agent is free, else queue (it's already removed from active, so we just try to assign)
+            assigned = self._reassign_task(task)
+            if not assigned:
+                # Put it at the FRONT of the queue for priority retry
+                self.queue.insert(0, task_id)
+                self._log(logging.INFO, "task_requeued_for_retry", task_id=task_id)
+        else:
+            task.status = TaskStatus.FAILED
+            task.completed_at = time.time()
+            self._log(logging.ERROR, "task_permanently_failed", task_id=task_id, attempts=task.attempt_count)
+
+    def _reassign_task(self, task: Task) -> bool:
+        """Try to assign a task to an agent it hasn't failed on yet."""
+        for agent in self.agents.values():
+            if agent.status == AgentStatus.IDLE and agent.agent_id not in task.failed_agent_ids:
+                return self._assign_task(task, preferred_agent_id=agent.agent_id)
+        return False
+
+    def _is_discovery_service_available(self) -> bool:
+        """Check if Spec 019 discovery/migration service is available."""
+        # This would usually call a health check on discovery_service.
+        # For now, we'll try to get the service and check a property, 
+        # or assume it's available unless we've detected failures.
+        try:
+            from api.services.discovery_service import get_discovery_service
+            # If we can get it, assume it's up for this mockup
+            return True
+        except (ImportError, Exception):
+            return False
+
+    def _should_process_task(self, task: Task) -> bool:
+        """Determine if a task should be processed based on system state."""
+        if task.task_type in [TaskType.DISCOVERY, TaskType.MIGRATION]:
+            if not self._is_discovery_service_available():
+                self._log(
+                    logging.WARNING,
+                    "skipping_discovery_task_service_unavailable", 
+                    task_id=task.task_id, 
+                    type=task.task_type.value
+                )
+                return False
+        return True
+
     def _assign_task(self, task: Task, preferred_agent_id: Optional[str] = None) -> bool:
+        if not self._should_process_task(task):
+            return False
+
         agent = None
+        
+        # Preferred logic (T025a): task_type affinity
         if preferred_agent_id and preferred_agent_id in self.agents:
             cand = self.agents[preferred_agent_id]
             if cand.status == AgentStatus.IDLE:
                 agent = cand
+        
         if agent is None:
+            # Find best IDLE agent based on affinity if possible
+            best_cand = None
+            min_latency = float('inf')
+            
             for cand in self.agents.values():
-                if cand.status == AgentStatus.IDLE:
-                    agent = cand
-                    break
+                if cand.status == AgentStatus.IDLE and cand.agent_id not in task.failed_agent_ids:
+                    # Very simple affinity: if they have average_task_time, they've done work.
+                    # In a real system we'd track per-task-type metrics.
+                    # For now, just pick any IDLE one, but prioritize the first found.
+                    if best_cand is None:
+                        best_cand = cand
+            
+            agent = best_cand
+
         if agent is None:
             return False
 
@@ -121,11 +313,16 @@ class CoordinationService:
 
         task.assigned_agent_id = agent.agent_id
         task.status = TaskStatus.IN_PROGRESS
-        task.started_at = time.time()
+        if task.started_at is None:
+            task.started_at = time.time()
+            task.assignment_latency_ms = (task.started_at - task.created_at) * 1000
 
-        self.logger.info(
+        self._log(
+            logging.INFO,
             "task_assigned",
-            extra={"task_id": task.task_id, "agent_id": agent.agent_id},
+            task_id=task.task_id, 
+            agent_id=agent.agent_id,
+            latency_ms=task.assignment_latency_ms
         )
         return True
 
@@ -133,10 +330,19 @@ class CoordinationService:
         task = self.tasks.get(task_id)
         if not task:
             return
+        
+        if not success:
+            # If explicit fail call via complete_task, we could also trigger retry
+            # but usually complete_task is for terminal states.
+            # Let's assume handle_agent_failure is for crashes, 
+            # and complete_task(success=False) is for logic failure.
+            pass
+
         agent = self.agents.get(task.assigned_agent_id or "")
         now = time.time()
         task.status = TaskStatus.COMPLETED if success else TaskStatus.FAILED
         task.completed_at = now
+        
         if agent:
             agent.status = AgentStatus.IDLE
             agent.current_task_id = None
@@ -151,6 +357,7 @@ class CoordinationService:
         if self.queue:
             next_task_id = self.queue.pop(0)
             next_task = self.tasks[next_task_id]
+            # Try to re-assign
             self._assign_task(next_task)
 
     def _check_isolation(self, agent: Agent) -> None:
@@ -160,46 +367,91 @@ class CoordinationService:
             # Agent context changed; update snapshot
             self.last_context_snapshot[agent.agent_id] = agent.context_window_id
 
-        # Detect if any other agent shares the same context_window_id
+        # Detect if any other agent shares the same resources
         for other_id, other in self.agents.items():
             if other_id == agent.agent_id:
                 continue
+            
+            collisions = []
             if other.context_window_id == agent.context_window_id:
+                collisions.append("context_window_id")
+            if other.tool_session_id == agent.tool_session_id:
+                collisions.append("tool_session_id")
+            if other.memory_handle_id == agent.memory_handle_id:
+                collisions.append("memory_handle_id")
+                
+            if collisions:
                 agent.isolation["shared_state_detected"] = True
-                agent.isolation["notes"].append(
-                    f"Context collision with agent {other_id}"
+                note = f"Collision with {other_id} on: {', '.join(collisions)}"
+                if note not in agent.isolation["notes"]:
+                    agent.isolation["notes"].append(note)
+                
+                self._log(
+                    logging.WARNING,
+                    "isolation_breach",
+                    agent_id=agent.agent_id,
+                    other_agent_id=other_id,
+                    collisions=collisions,
                 )
-                self.logger.warning(
-                    "context_collision",
-                    extra={
-                        "agent_id": agent.agent_id,
-                        "other_agent_id": other_id,
-                        "context_window_id": agent.context_window_id,
-                    },
-                )
-                break
+
+    def generate_isolation_report(self) -> Dict:
+        """Generate a comprehensive report on agent isolation status."""
+        report = {
+            "timestamp": time.time(),
+            "total_agents": len(self.agents),
+            "breaches_detected": 0,
+            "details": []
+        }
+        
+        for agent in self.agents.values():
+            # Run a fresh check
+            self._check_isolation(agent)
+            
+            status = {
+                "agent_id": agent.agent_id,
+                "context_window_id": agent.context_window_id,
+                "tool_session_id": agent.tool_session_id,
+                "memory_handle_id": agent.memory_handle_id,
+                "isolated": not agent.isolation["shared_state_detected"],
+                "issues": agent.isolation["notes"]
+            }
+            
+            if not status["isolated"]:
+                report["breaches_detected"] += 1
+                
+            report["details"].append(status)
+            
+        return report
 
     # ------------------------------------------------------------------
     # Metrics
     # ------------------------------------------------------------------
     def metrics(self) -> Dict:
-        active_tasks = [t for t in self.tasks.values() if t.status == TaskStatus.IN_PROGRESS]
+        pending = [t for t in self.tasks.values() if t.status == TaskStatus.PENDING]
+        in_progress = [t for t in self.tasks.values() if t.status == TaskStatus.IN_PROGRESS]
         completed = [t for t in self.tasks.values() if t.status == TaskStatus.COMPLETED]
-        avg_duration = 0.0
-        if completed:
-            durations = [
-                (t.completed_at - t.started_at)
-                for t in completed
-                if t.completed_at and t.started_at
-            ]
-            if durations:
-                avg_duration = sum(durations) / len(durations)
+        failed = [t for t in self.tasks.values() if t.status == TaskStatus.FAILED]
+        
+        avg_latency = 0.0
+        started_tasks = [t for t in self.tasks.values() if t.assignment_latency_ms is not None]
+        if started_tasks:
+            avg_latency = sum(t.assignment_latency_ms for t in started_tasks) / len(started_tasks)
+
+        utilization = 0.0
+        if self.agents:
+            busy_agents = [a for a in self.agents.values() if a.status in [AgentStatus.ANALYZING, AgentStatus.EXECUTING]]
+            utilization = len(busy_agents) / len(self.agents)
+
         return {
             "agents": len(self.agents),
             "tasks_total": len(self.tasks),
-            "tasks_in_progress": len(active_tasks),
+            "tasks_pending": len(pending),
+            "tasks_in_progress": len(in_progress),
+            "tasks_completed": len(completed),
+            "tasks_failed": len(failed),
             "queue_length": len(self.queue),
-            "avg_task_duration": avg_duration,
+            "avg_assignment_latency_ms": avg_latency,
+            "utilization": utilization,
         }
 
     def agent_health_report(self) -> List[Dict]:
