@@ -13,6 +13,8 @@ services:
     volumes:
       - .:/app
       - /Volumes/Asylum:/Volumes/Asylum
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - dionysus3-core_default
       # - dionysus_default

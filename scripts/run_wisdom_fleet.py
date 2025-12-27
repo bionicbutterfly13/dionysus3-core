@@ -16,7 +16,7 @@ from api.agents.knowledge_agent import KnowledgeAgent
 logger = logging.getLogger("dionysus.wisdom_fleet")
 
 ARCHIVE_PATH = "/Volumes/Asylum/repos/claude-conversation-extractor/Claude Conversations/*.md"
-BATCH_SIZE = 10
+BATCH_SIZE = 2 # Tiny batch for maximum stability
 
 async def process_batch(file_paths, agent_id):
     """Process a batch of conversation files using a specific agent."""
@@ -49,11 +49,15 @@ async def main():
     batches = [all_files[i:i + BATCH_SIZE] for i in range(0, total_files, BATCH_SIZE)]
     
     all_results = []
-    # Process only 2 batches sequentially to save memory
-    for i, batch in enumerate(batches[:2]):
-        print(f"Processing batch {i+1}/2...")
+    # Process ALL batches sequentially to save memory
+    for i, batch in enumerate(batches):
+        print(f"Processing batch {i+1}/{len(batches)}...")
         batch_results = await process_batch(batch, f"agent-{i}")
         all_results.extend(batch_results)
+        
+        # Incremental save to prevent data loss
+        with open("wisdom_extraction_raw.json", "w") as f:
+            json.dump(all_results, f, indent=2)
         
     # Save results for consolidation
     with open("wisdom_extraction_raw.json", "w") as f:

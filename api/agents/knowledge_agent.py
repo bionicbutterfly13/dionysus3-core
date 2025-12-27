@@ -6,7 +6,7 @@ from api.agents.knowledge.tools import ingest_avatar_insight, query_avatar_graph
 from api.agents.knowledge.wisdom_tools import ingest_wisdom_insight, query_wisdom_graph
 from api.agents.tools.mosaeic_tools import mosaeic_capture
 from api.services.bootstrap_recall_service import BootstrapRecallService
-from api.models.bootstrap import BootstrapConfig
+from api.services.claude import chat_completion, HAIKU, SONNET
 
 class KnowledgeAgent:
     """
@@ -17,11 +17,14 @@ class KnowledgeAgent:
     def __init__(self, model_id: Optional[str] = None):
         # Default model for management/writing tasks
         if model_id is None:
-            model_id = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5-20251101")
+            model_id = SONNET # Use GPT-5 Nano
             
+        # Select key based on model provider
+        api_key = os.getenv("OPENAI_API_KEY") if "gpt" in model_id.lower() else os.getenv("ANTHROPIC_API_KEY")
+
         self.model = LiteLLMModel(
             model_id=model_id,
-            api_key=os.getenv("ANTHROPIC_API_KEY")
+            api_key=api_key
         )
         
         # T011: Initialize bootstrap recall service
@@ -29,7 +32,7 @@ class KnowledgeAgent:
         
         # Use the cheap model for heavy analytical extraction tasks
         self.cheap_model = LiteLLMModel(
-            model_id=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
+            model_id=HAIKU,
             api_key=os.getenv("OPENAI_API_KEY")
         )
         
