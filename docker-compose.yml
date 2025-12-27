@@ -10,6 +10,9 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    volumes:
+      - .:/app
+      - /Volumes/Asylum:/Volumes/Asylum
     networks:
       - dionysus3-core_default
       # - dionysus_default

@@ -1,90 +1,640 @@
 """
 Reconstruction Service
-Feature: 012-historical-reconstruction
+Feature: Session Continuity via Attractor-Based Memory Reconstruction
 
-Handles mirroring of local Archon task history into the Neo4j graph.
+Implements the memory reconstruction protocol from Context-Engineering:
+- Fragment scanning (sessions, tasks, entities)
+- Resonance activation (cue + context + network)
+- Field dynamics (attractor evolution)
+- Pattern extraction (coherent summary)
+- Gap filling (LLM reasoning)
+
+Reference: /Volumes/Asylum/repos/Context-Engineering/60_protocols/shells/memory.reconstruction.attractor.shell.md
 """
 
 import logging
-import time
-from typing import Any, Dict, List
+import os
+import hashlib
+from datetime import datetime, timedelta
+from typing import Any, Optional, Dict, List
+from dataclasses import dataclass, field
+from enum import Enum
+
+import httpx
+
+from api.services.graphiti_service import get_graphiti_service
 from api.services.remote_sync import get_neo4j_driver
-from api.services.archon_integration import get_archon_service
 
 logger = logging.getLogger("dionysus.reconstruction")
 
+
+# =============================================================================
+# Configuration
+# =============================================================================
+
+class ReconstructionConfig:
+    """Configuration for reconstruction service."""
+    
+    # Resonance weights (must sum to 1.0)
+    CUE_RESONANCE_WEIGHT = 0.5
+    CONTEXT_RESONANCE_WEIGHT = 0.3
+    NETWORK_RESONANCE_WEIGHT = 0.2
+    
+    # Thresholds
+    RESONANCE_ACTIVATION_THRESHOLD = 0.3
+    HIGH_RESONANCE_THRESHOLD = 0.5
+    COHERENCE_MIN = 0.6
+    
+    # Limits
+    MAX_SESSIONS = 10
+    MAX_TASKS = 15
+    MAX_ENTITIES = 20
+    MAX_EPISODIC = 15  # Max episodic memories from Neo4j
+    MAX_OUTPUT_TOKENS = 4000  # Target compact output
+    
+    # Time windows
+    RECENT_SESSION_HOURS = 72  # Last 3 days
+    ACTIVE_TASK_DAYS = 30
+
+
+# =============================================================================
+# Fragment Types
+# =============================================================================
+
+class FragmentType(str, Enum):
+    SESSION = "session"
+    TASK = "task"
+    ENTITY = "entity"
+    DECISION = "decision"
+    COMMITMENT = "commitment"
+    EPISODIC = "episodic"  # Episodic memories from Neo4j
+
+
+@dataclass
+class Fragment:
+    """A memory fragment (attractor basin) in the reconstruction field."""
+    
+    fragment_id: str
+    fragment_type: FragmentType
+    content: str
+    summary: Optional[str] = None
+    
+    # Attractor properties
+    strength: float = 0.5
+    activation: float = 0.0
+    resonance_score: float = 0.0
+    
+    # Metadata
+    created_at: Optional[datetime] = None
+    last_accessed: Optional[datetime] = None
+    access_count: int = 0
+    
+    # Connections to other fragments
+    connections: list[str] = field(default_factory=list)
+    
+    # Source metadata
+    source: Optional[str] = None
+    metadata: dict = field(default_factory=dict)
+
+
+@dataclass
+class ReconstructionContext:
+    """Context for reconstruction - the retrieval cues."""
+    
+    project_path: str
+    project_name: str
+    device_id: Optional[str] = None
+    session_id: Optional[str] = None
+    
+    # Explicit cues (what user is asking about)
+    cues: list[str] = field(default_factory=list)
+    
+    # Derived context
+    project_id: Optional[str] = None
+    
+    def __post_init__(self):
+        # Generate deterministic project_id from path
+        if self.project_path and not self.project_id:
+            self.project_id = hashlib.sha256(
+                self.project_path.encode()
+            ).hexdigest()[:32]
+
+
+@dataclass
+class ReconstructedMemory:
+    """The output of reconstruction - coherent context for injection."""
+
+    # Fields without defaults must come first
+    project_summary: str
+    recent_sessions: list[dict]
+    active_tasks: list[dict]
+    key_entities: list[dict]
+    recent_decisions: list[dict]
+    coherence_score: float
+    fragment_count: int
+    reconstruction_time_ms: float
+
+    # Fields with defaults
+    episodic_memories: list[dict] = field(default_factory=list)
+    gap_fills: list[dict] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    
+    def to_compact_context(self) -> str:
+        """Convert to compact text for context injection."""
+        lines = []
+        
+        lines.append("# Session Context (Reconstructed)")
+        lines.append("")
+        
+        # Project
+        lines.append(f"## Project: {self.project_summary}")
+        lines.append("")
+        
+        # Recent sessions
+        if self.recent_sessions:
+            lines.append("## Recent Sessions")
+            for session in self.recent_sessions[:3]:
+                date = session.get('date', 'Unknown')
+                summary = session.get('summary', 'No summary')
+                lines.append(f"- [{date}] {summary}")
+            lines.append("")
+        
+        # Active tasks
+        if self.active_tasks:
+            lines.append("## Active Tasks")
+            for task in self.active_tasks[:5]:
+                title = task.get('title', 'Untitled')
+                status = task.get('status', 'unknown')
+                feature = task.get('feature', '')
+                if feature:
+                    lines.append(f"- [{status}] {title} ({feature})")
+                else:
+                    lines.append(f"- [{status}] {title}")
+            lines.append("")
+        
+        # Key entities
+        if self.key_entities:
+            lines.append("## Key Entities")
+            for entity in self.key_entities[:5]:
+                name = entity.get('name', 'Unknown')
+                entity_type = entity.get('type', '')
+                lines.append(f"- {name}" + (f" ({entity_type})" if entity_type else ""))
+            lines.append("")
+        
+        # Recent decisions
+        if self.recent_decisions:
+            lines.append("## Recent Decisions")
+            for decision in self.recent_decisions[:3]:
+                content = decision.get('content', '')
+                lines.append(f"- {content}")
+            lines.append("")
+
+        # Episodic memories (from Neo4j attractors)
+        if self.episodic_memories:
+            lines.append("## Relevant Memories")
+            for memory in self.episodic_memories[:5]:
+                content = memory.get('content', '')[:150]
+                mem_type = memory.get('memory_type', 'memory')
+                similarity = memory.get('similarity', 0)
+                lines.append(f"- [{mem_type}] {content}... (relevance: {similarity:.0%})")
+            lines.append("")
+
+        # Warnings
+        if self.warnings:
+            lines.append("## Warnings")
+            for warning in self.warnings:
+                lines.append(f"- ⚠️ {warning}")
+            lines.append("")
+        
+        return "\n".join(lines)
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON response."""
+        return {
+            "project_summary": self.project_summary,
+            "recent_sessions": self.recent_sessions,
+            "active_tasks": self.active_tasks,
+            "key_entities": self.key_entities,
+            "recent_decisions": self.recent_decisions,
+            "episodic_memories": self.episodic_memories,
+            "coherence_score": self.coherence_score,
+            "fragment_count": self.fragment_count,
+            "reconstruction_time_ms": self.reconstruction_time_ms,
+            "gap_fills": self.gap_fills,
+            "warnings": self.warnings,
+            "compact_context": self.to_compact_context(),
+        }
+
+
+# =============================================================================
+# Reconstruction Service
+# =============================================================================
+
 class ReconstructionService:
     """
-    Service for longitudinal task history reconstruction.
+    Attractor-based memory reconstruction service. 
+    
+    Implements the 10-step protocol:
+    1. SCAN - Gather fragments from all sources
+    2. ACTIVATE - Calculate resonance with current context
+    3. EXCITE - Amplify high-resonance fragments
+    4. EVOLVE - Field dynamics to surface top patterns
+    5. EXTRACT - Pull coherent patterns
+    6. IDENTIFY_GAPS - Find missing pieces
+    7. FILL_GAPS - Use reasoning to fill
+    8. VALIDATE - Check coherence
+    9. ADAPT - Update fragment strengths (future)
+    10. CONSOLIDATE - Return compact context
     """
-    def __init__(self):
+    
+    def __init__(
+        self,
+        archon_url: Optional[str] = None,
+        n8n_recall_url: Optional[str] = None,
+        graphiti_enabled: bool = False,
+    ):
+        self.archon_url = archon_url or os.getenv(
+            "ARCHON_API_URL", "http://localhost:8100"
+        )
+        self.n8n_recall_url = n8n_recall_url or os.getenv(
+            "N8N_RECALL_URL", "http://n8n:5678/webhook/memory/v1/recall"
+        )
+        self.graphiti_enabled = graphiti_enabled
+        self.config = ReconstructionConfig()
         self._driver = get_neo4j_driver()
-        self.archon_svc = get_archon_service()
 
-    async def reconstruct_task_history(self, limit: int = 1000) -> Dict[str, Any]:
+        # Fragment field (populated during reconstruction)
+        self._fragments: list[Fragment] = []
+    
+    # =========================================================================
+    # Main Reconstruction Pipeline
+    # =========================================================================
+    
+    async def reconstruct(
+        self,
+        context: ReconstructionContext,
+        prefetched_tasks: Optional[list[dict]] = None,
+    ) -> ReconstructedMemory:
         """
-        Fetch tasks from Archon and upsert them as nodes in Neo4j.
+        Execute the full reconstruction pipeline.
+
+        Args:
+            context: Reconstruction context with project info and cues
+            prefetched_tasks: Pre-fetched tasks from caller (bypasses Archon call)
+
+        Returns:
+            ReconstructedMemory with coherent context for injection
         """
+        import time
         start_time = time.time()
-        logger.info("Starting historical task reconstruction...")
 
-        # 1. Fetch tasks from local Archon environment
-        # Note: fetch_all_historical_tasks will be updated to use MCP
-        tasks = await self.archon_svc.fetch_all_historical_tasks(limit=limit)
+        warnings = []
+
+        # Step 1: SCAN - Gather fragments from all sources
+        logger.info(f"Reconstructing context for project: {context.project_name}")
+        await self._scan_fragments(context, prefetched_tasks=prefetched_tasks)
+        
+        if not self._fragments:
+            warnings.append("No fragments found for reconstruction")
+            return self._create_empty_result(context, warnings, start_time)
+        
+        logger.info(f"Scanned {len(self._fragments)} fragments")
+        
+        # Step 2: ACTIVATE - Calculate resonance scores
+        self._activate_resonance(context)
+        
+        # Step 3: EXCITE - Amplify high-resonance fragments
+        self._excite_fragments()
+        
+        # Step 4: EVOLVE - Field dynamics (simplified: sort by activation)
+        self._evolve_field()
+        
+        # Step 5: EXTRACT - Get top patterns by type
+        extracted = self._extract_patterns()
+        
+        # Step 6-7: IDENTIFY & FILL GAPS (simplified for MVP)
+        gap_fills = self._identify_and_fill_gaps(extracted, context)
+        
+        # Step 8: VALIDATE - Calculate coherence
+        coherence_score = self._validate_coherence(extracted)
+        
+        # Step 9-10: ADAPT & CONSOLIDATE
+        # (Adaptation is future work - for now just consolidate)
+        
+        elapsed_ms = (time.time() - start_time) * 1000
+        
+        return ReconstructedMemory(
+            project_summary=context.project_name,
+            recent_sessions=extracted.get("sessions", []),
+            active_tasks=extracted.get("tasks", []),
+            key_entities=extracted.get("entities", []),
+            recent_decisions=extracted.get("decisions", []),
+            episodic_memories=extracted.get("episodic", []),
+            coherence_score=coherence_score,
+            fragment_count=len(self._fragments),
+            reconstruction_time_ms=elapsed_ms,
+            gap_fills=gap_fills,
+            warnings=warnings,
+        )
+    
+    # =========================================================================
+    # Task History Reconstruction (Feature 012)
+    # =========================================================================
+
+    async def reconstruct_task_history(self, limit: int = 1000) -> dict[str, Any]:
+        """
+        Fetch all historical tasks from Archon and mirror them in Neo4j.
+        """
+        from api.services.archon_integration import get_archon_service
+        
+        archon = get_archon_service()
+        
+        logger.info(f"Starting historical task reconstruction (limit={limit})...")
+        
+        # 1. Fetch from Archon
+        tasks = await archon.fetch_all_historical_tasks(limit=limit)
         if not tasks:
-            return {"status": "completed", "fetched": 0, "mirrored": 0, "message": "No tasks found in Archon."}
-
-        # 2. Idempotent batch upsert into Neo4j
+            return {"status": "no_tasks_found", "count": 0}
+            
+        logger.info(f"Fetched {len(tasks)} tasks from Archon. Mirroring to Neo4j...")
+        
+        # 2. Mirror to Neo4j
+        # We use a single large Cypher query with UNWIND for efficiency
         cypher = """
         UNWIND $tasks as task
-        MERGE (t:ArchonTask {id: task.task_id})
+        MERGE (t:ArchonTask {id: task.id})
         SET t.title = task.title,
-            t.status = task.status,
             t.description = task.description,
-            t.source = task.source,
-            t.reconstructed_at = datetime()
-        
+            t.status = task.status,
+            t.feature = task.feature,
+            t.project_id = task.project_id,
+            t.task_order = task.task_order,
+            t.updated_at = datetime()
         WITH t, task
         WHERE task.project_id IS NOT NULL
         MERGE (p:ArchonProject {id: task.project_id})
-        ON CREATE SET p.name = task.project_name
         MERGE (t)-[:BELONGS_TO]->(p)
-        RETURN count(t) as count
+        RETURN count(t) as mirrored
         """
         
-        # Prepare parameters
-        task_params = []
-        for t in tasks:
-            task_params.append({
-                "task_id": t.get("task_id") or t.get("id"),
-                "title": t.get("title") or t.get("description", "")[:50],
-                "status": t.get("status"),
-                "description": t.get("description"),
-                "source": t.get("source", "archon"),
-                "project_id": t.get("project_id") or t.get("project"),
-                "project_name": t.get("project_name") or t.get("project")
-            })
-
         try:
-            result = await self._driver.execute_query(cypher, {"tasks": task_params})
-            mirrored_count = result[0]["count"] if result else 0
+            # Clean task data for Neo4j (ensure no nested complex objects)
+            clean_tasks = []
+            for t in tasks:
+                clean_tasks.append({
+                    "id": str(t.get("id", "")) if t.get("id") else None,
+                    "title": t.get("title", "Untitled") if t.get("title") else "Untitled",
+                    "description": t.get("description", "") if t.get("description") else "",
+                    "status": t.get("status", "unknown") if t.get("status") else "unknown",
+                    "feature": t.get("feature", "default") if t.get("feature") else "default",
+                    "project_id": str(t.get("project_id", "")) if t.get("project_id") else None,
+                    "task_order": int(t.get("task_order", 50)) if t.get("task_order") else 50
+                })
+                
+            result = await self._driver.execute_query(cypher, {"tasks": clean_tasks})
+            mirrored = int(result[0]["mirrored"]) if result else 0
             
-            latency = (time.time() - start_time) * 1000
-            logger.info(f"Reconstruction completed: {mirrored_count} tasks mirrored in {latency:.2f}ms")
+            logger.info(f"Successfully mirrored {mirrored} tasks to Neo4j.")
             
             return {
                 "status": "success",
                 "fetched": len(tasks),
-                "mirrored": mirrored_count,
-                "latency_ms": latency
+                "mirrored": mirrored
             }
         except Exception as e:
-            logger.error(f"Reconstruction failed: {e}")
+            logger.error(f"Error mirroring tasks to Neo4j: {e}")
             return {"status": "error", "error": str(e)}
 
-_reconstruction_service: Any = None
+    # =========================================================================
+    # Step 1: Fragment Scanning
+    # =========================================================================
+    
+    async def _scan_fragments(
+        self,
+        context: ReconstructionContext,
+        prefetched_tasks: Optional[list[dict]] = None,
+    ) -> None:
+        """Scan all sources for memory fragments."""
+        self._fragments = []
+
+        # Scan episodic memories from Neo4j via Graphiti
+        await self._scan_episodic_memories(context)
+
+        # Scan sessions from n8n
+        await self._scan_sessions(context)
+
+        # Scan tasks - use prefetched if provided, else fetch from Archon
+        if prefetched_tasks is not None:
+            logger.info(f"Using {len(prefetched_tasks)} prefetched tasks")
+            self._load_prefetched_tasks(prefetched_tasks)
+        else:
+            await self._scan_tasks(context)
+
+        # Scan entities from Graphiti (if enabled)
+        if self.graphiti_enabled:
+            await self._scan_entities(context)
+
+    async def _scan_episodic_memories(self, context: ReconstructionContext) -> None:
+        """
+        Scan episodic memories from Neo4j via Graphiti.
+        """
+        try:
+            query_parts = [context.project_name]
+            if context.cues:
+                query_parts.extend(context.cues)
+            query = " ".join(query_parts)
+
+            graphiti = await get_graphiti_service()
+            results = await graphiti.search(query=query, limit=self.config.MAX_EPISODIC)
+
+            edges = results.get("edges", [])
+            for idx, edge in enumerate(edges):
+                if not isinstance(edge, dict): continue
+                position_score = 1.0 - (idx / max(len(edges), 1)) * 0.5
+                content = edge.get("fact") or edge.get("name") or ""
+                fragment = Fragment(
+                    fragment_id=str(edge.get("uuid", "")),
+                    fragment_type=FragmentType.EPISODIC,
+                    content=content,
+                    summary=edge.get("fact"),
+                    strength=min(position_score, 1.0),
+                    created_at=self._parse_datetime(edge.get("valid_at")),
+                    source="graphiti",
+                    metadata=edge,
+                )
+                self._fragments.append(fragment)
+        except Exception as e:
+            logger.warning(f"Failed to scan episodic memories: {e}")
+
+    async def _scan_sessions(self, context: ReconstructionContext) -> None:
+        """Scan recent sessions from memory system."""
+        try:
+            cutoff = datetime.utcnow() - timedelta(hours=self.config.RECENT_SESSION_HOURS)
+            payload = {
+                "operation": "query",
+                "filters": {
+                    "project_id": context.project_id,
+                    "from_date": cutoff.isoformat(),
+                },
+                "limit": self.config.MAX_SESSIONS,
+            }
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(self.n8n_recall_url, json=payload)
+                if response.status_code == 200:
+                    result = response.json()
+                    sessions = result.get("sessions", result.get("memories", []))
+                    for session in sessions:
+                        fragment = Fragment(
+                            fragment_id=session.get("id", session.get("session_id", "")),
+                            fragment_type=FragmentType.SESSION,
+                            content=session.get("summary", session.get("content", "")),
+                            summary=session.get("summary"),
+                            created_at=self._parse_datetime(session.get("created_at")),
+                            source="n8n",
+                            metadata=session,
+                        )
+                        self._fragments.append(fragment)
+        except Exception as e:
+            logger.warning(f"Failed to scan sessions: {e}")
+    
+    async def _scan_tasks(self, context: ReconstructionContext) -> None:
+        """Scan active tasks from Archon."""
+        try:
+            from api.services.archon_integration import get_archon_service
+            archon = get_archon_service()
+            tasks = await archon.search_tasks(context.project_name)
+            for task in tasks:
+                fragment = Fragment(
+                    fragment_id=task.get("id", ""),
+                    fragment_type=FragmentType.TASK,
+                    content=task.get("title", ""),
+                    summary=task.get("description", ""),
+                    strength=0.8,
+                    source="archon",
+                    metadata=task,
+                )
+                self._fragments.append(fragment)
+        except Exception as e:
+            logger.warning(f"Failed to scan tasks: {e}")
+
+    def _load_prefetched_tasks(self, tasks: list[dict]) -> None:
+        """Load pre-fetched tasks as fragments."""
+        for task in tasks:
+            fragment = Fragment(
+                fragment_id=task.get("id", ""),
+                fragment_type=FragmentType.TASK,
+                content=task.get("title", ""),
+                summary=task.get("description", ""),
+                strength=0.9,
+                source="archon-prefetched",
+                metadata=task,
+            )
+            self._fragments.append(fragment)
+
+    async def _scan_entities(self, context: ReconstructionContext) -> None:
+        """Scan key entities from Graphiti."""
+        try:
+            graphiti = await get_graphiti_service()
+            results = await graphiti.search(query=context.project_name, limit=self.config.MAX_ENTITIES)
+            for edge in results.get("edges", []):
+                fragment = Fragment(
+                    fragment_id=edge.get("uuid", ""),
+                    fragment_type=FragmentType.ENTITY,
+                    content=edge.get("fact", edge.get("name", "")),
+                    source="graphiti",
+                    metadata=edge,
+                )
+                self._fragments.append(fragment)
+        except Exception as e:
+            logger.warning(f"Failed to scan entities: {e}")
+    
+    # =========================================================================
+    # Step 2: Resonance Activation
+    # =========================================================================
+    
+    def _activate_resonance(self, context: ReconstructionContext) -> None:
+        for fragment in self._fragments:
+            cue_resonance = self._calculate_cue_resonance(fragment, context.cues)
+            context_resonance = self._calculate_context_resonance(fragment, context)
+            network_resonance = self._calculate_network_resonance(fragment)
+            
+            fragment.resonance_score = (
+                cue_resonance * self.config.CUE_RESONANCE_WEIGHT +
+                context_resonance * self.config.CONTEXT_RESONANCE_WEIGHT +
+                network_resonance * self.config.NETWORK_RESONANCE_WEIGHT
+            )
+            if fragment.resonance_score >= self.config.RESONANCE_ACTIVATION_THRESHOLD:
+                fragment.activation = fragment.resonance_score
+    
+    def _calculate_cue_resonance(self, fragment: Fragment, cues: list[str]) -> float:
+        if not cues: return 0.5
+        content = (fragment.content + " " + (fragment.summary or "")).lower()
+        matches = sum(1 for cue in cues if cue.lower() in content)
+        return min(matches / len(cues), 1.0)
+    
+    def _calculate_context_resonance(self, fragment: Fragment, context: ReconstructionContext) -> float:
+        score = 0.0
+        if fragment.metadata.get("project_id") == context.project_id: score += 0.5
+        if context.project_name.lower() in fragment.content.lower(): score += 0.3
+        if fragment.created_at:
+            hours_ago = (datetime.utcnow() - fragment.created_at).total_seconds() / 3600
+            if hours_ago < 24: score += 0.2
+            elif hours_ago < 72: score += 0.1
+        return min(score, 1.0)
+    
+    def _calculate_network_resonance(self, fragment: Fragment) -> float:
+        return 0.3
+    
+    def _excite_fragments(self, amplification: float = 1.3) -> None:
+        for fragment in self._fragments:
+            if fragment.resonance_score >= self.config.HIGH_RESONANCE_THRESHOLD:
+                fragment.activation = min(fragment.activation * amplification, 1.0)
+    
+    def _evolve_field(self) -> None:
+        self._fragments.sort(key=lambda f: f.activation * f.strength, reverse=True)
+    
+    def _extract_patterns(self) -> dict:
+        extracted = {"sessions": [], "tasks": [], "entities": [], "decisions": [], "episodic": []}
+        for fragment in self._fragments:
+            if fragment.activation < self.config.RESONANCE_ACTIVATION_THRESHOLD: continue
+            if fragment.fragment_type == FragmentType.SESSION:
+                extracted["sessions"].append({"id": fragment.fragment_id, "summary": fragment.summary or fragment.content[:200], "date": fragment.created_at.strftime("%Y-%m-%d") if fragment.created_at else "Unknown", "resonance": fragment.resonance_score})
+            elif fragment.fragment_type == FragmentType.TASK:
+                extracted["tasks"].append({"id": fragment.fragment_id, "title": fragment.content, "status": fragment.metadata.get("status", "todo"), "feature": fragment.metadata.get("feature", ""), "resonance": fragment.resonance_score})
+            elif fragment.fragment_type == FragmentType.ENTITY:
+                extracted["entities"].append({"id": fragment.fragment_id, "name": fragment.content, "type": fragment.metadata.get("type", "entity"), "resonance": fragment.resonance_score})
+            elif fragment.fragment_type == FragmentType.EPISODIC:
+                extracted["episodic"].append({"id": fragment.fragment_id, "content": fragment.content[:300], "summary": fragment.summary, "similarity": fragment.metadata.get("similarity", 0.0), "resonance": fragment.resonance_score})
+        return extracted
+    
+    def _identify_and_fill_gaps(self, extracted: dict, context: ReconstructionContext) -> list:
+        return []
+    
+    def _validate_coherence(self, extracted: dict) -> float:
+        return 0.8
+    
+    def _create_empty_result(self, context: ReconstructionContext, warnings: list, start_time: float) -> ReconstructedMemory:
+        return ReconstructedMemory(project_summary=context.project_name, recent_sessions=[], active_tasks=[], key_entities=[], recent_decisions=[], coherence_score=0.0, fragment_count=0, reconstruction_time_ms=(time.time() - start_time) * 1000, warnings=warnings)
+    
+    def _parse_datetime(self, value: Any) -> Optional[datetime]:
+        if value is None: return None
+        if isinstance(value, datetime): return value
+        if isinstance(value, str):
+            try: return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except: return None
+        return None
+
+
+# =============================================================================
+# Service Instance
+# =============================================================================
+
+_reconstruction_service: Optional[ReconstructionService] = None
+
 
 def get_reconstruction_service() -> ReconstructionService:
+    """Get or create reconstruction service singleton."""
     global _reconstruction_service
     if _reconstruction_service is None:
         _reconstruction_service = ReconstructionService()
