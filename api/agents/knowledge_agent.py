@@ -12,6 +12,7 @@ class KnowledgeAgent:
     """
 
     def __init__(self, model_id: Optional[str] = None):
+        # Default model for management/writing tasks
         if model_id is None:
             model_id = os.getenv("ANTHROPIC_MODEL", "claude-3-7-sonnet-20250219")
             
@@ -20,17 +21,23 @@ class KnowledgeAgent:
             api_key=os.getenv("ANTHROPIC_API_KEY")
         )
         
-        # Sub-agents with specialized tools
+        # Use the cheap model for heavy analytical extraction tasks
+        self.cheap_model = LiteLLMModel(
+            model_id=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
+            api_key=os.getenv("OPENAI_API_KEY")
+        )
+        
+        # Sub-agents with specialized tools use the cheap model
         self.avatar_analyst = CodeAgent(
             tools=[ingest_avatar_insight, query_avatar_graph],
-            model=self.model,
+            model=self.cheap_model,
             name="avatar_analyst",
             description="Extracts deep avatar insights (pain, desire, objections) and maps them to Neo4j."
         )
 
         self.wisdom_analyst = CodeAgent(
             tools=[ingest_wisdom_insight, query_wisdom_graph],
-            model=self.model,
+            model=self.cheap_model,
             name="wisdom_analyst",
             description="Extracts user voice, processes, and conceptual evolution from archived conversations."
         )

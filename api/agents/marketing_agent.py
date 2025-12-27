@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from smolagents import CodeAgent, LiteLLMModel
 
 class MarketingAgent:

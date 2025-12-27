@@ -90,3 +90,13 @@ class WebhookNeo4jDriver:
     async def close(self) -> None:
         return None
 
+
+_driver: Optional[WebhookNeo4jDriver] = None
+
+
+def get_neo4j_driver() -> WebhookNeo4jDriver:
+    global _driver
+    if _driver is None:
+        _driver = WebhookNeo4jDriver()
+    return _driver
+
