@@ -3,25 +3,25 @@
 **Input**: spec.md, plan.md
 
 ## Phase 1: Checkpointing (P1)
-- [ ] T001 Implement checkpoint creation (primary file + related files + metadata + optional DB snapshot hook)
-- [ ] T002 Calculate and store checksums, sizes, retention timestamps
+- [x] T001 Implement checkpoint creation (primary file + related files + metadata + optional DB snapshot hook)
+- [x] T002 Calculate and store checksums, sizes, retention timestamps
 
 ## Phase 2: Rollback (P1)
-- [ ] T003 Implement rollback restore with status/history recording and duration capture
-- [ ] T004 Add confirmation/guardrails for destructive actions
+- [x] T003 Implement rollback restore with status/history recording and duration capture
+- [x] T004 Add confirmation/guardrails for destructive actions
 
 ## Phase 3: Interfaces (P1)
-- [ ] T005 Add FastAPI routes: create checkpoint, list, rollback, cleanup expired
-- [ ] T006 Add smolagent tool/CLI wrapper to trigger checkpoint/rollback
+- [x] T005 Add FastAPI routes: create checkpoint, list, rollback, cleanup expired
+- [x] T006 Add smolagent tool/CLI wrapper to trigger checkpoint/rollback
 
 ## Phase 4: Retention & Audit (P2)
-- [ ] T007 Implement retention cleanup respecting active checkpoints
-- [ ] T008 Provide audit listing with outcomes and timestamps
+- [x] T007 Implement retention cleanup respecting active checkpoints
+- [x] T008 Provide audit listing with outcomes and timestamps
 
 ## Phase 5: Testing (P1)
-- [ ] T009 Round-trip test: checkpoint → mutate file → rollback → checksum match
-- [ ] T010 Timeout test: rollback completes <30s in controlled scenario
-- [ ] T011 Retention cleanup test
+- [x] T009 Round-trip test: checkpoint → mutate file → rollback → checksum match
+- [x] T010 Timeout test: rollback completes <30s in controlled scenario
+- [x] T011 Retention cleanup test
 
 ## Phase 6: Docs (P3)
-- [ ] T012 Add usage doc snippet for API/CLI/tool
+- [x] T012 Add usage doc snippet for API/CLI/tool

@@ -14,6 +14,7 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -107,6 +108,16 @@ class DiscoveryService:
     def __init__(self, config: Optional[DiscoveryConfig] = None):
         self.config = config or DiscoveryConfig()
         self.logger = logging.getLogger(__name__)
+        self.last_run: Dict = {}
+
+    def metrics(self) -> Dict:
+        """Expose discovery metrics for monitoring."""
+        return {
+            "last_run_timestamp": self.last_run.get("timestamp"),
+            "last_run_components": self.last_run.get("components", 0),
+            "last_run_top_score": self.last_run.get("top_score", 0.0),
+            "config_threshold": self.config.quality_threshold
+        }
 
     def discover_components(self, codebase_path: str) -> List[ComponentAssessment]:
         """Scan a codebase for components with consciousness/strategic signals."""
@@ -137,6 +148,12 @@ class DiscoveryService:
 
         # Sort high-score first
         assessments.sort(key=lambda a: a.composite_score, reverse=True)
+
+        self.last_run = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "components": len(assessments),
+            "top_score": assessments[0].composite_score if assessments else 0.0,
+        }
 
         self.logger.info(
             f"Discovery complete for {codebase_path}. Found {len(assessments)} components.",
