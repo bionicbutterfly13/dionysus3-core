@@ -10,7 +10,7 @@ from typing import Any, Optional
 from uuid import UUID
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # =============================================================================
@@ -50,12 +50,11 @@ class JourneyCreate(JourneyBase):
 
 class Journey(JourneyBase):
     """Full journey model with all fields."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID = Field(..., description="Journey UUID")
     created_at: datetime = Field(..., description="Journey creation time")
     updated_at: datetime = Field(..., description="Last modification time")
-
-    class Config:
-        from_attributes = True
 
 
 class JourneyWithStats(Journey):
@@ -81,15 +80,14 @@ class SessionCreate(SessionBase):
 
 class Session(SessionBase):
     """Full session model with all fields."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID = Field(..., description="Session UUID")
     created_at: datetime = Field(..., description="Session start time")
     updated_at: datetime = Field(..., description="Last message time")
     summary: Optional[str] = Field(None, description="Auto-generated summary for search")
     diagnosis: Optional[Diagnosis] = Field(None, description="IAS diagnosis if completed")
     confidence_score: int = Field(0, ge=0, le=100, description="Diagnosis confidence 0-100")
-
-    class Config:
-        from_attributes = True
 
 
 class SessionSummary(BaseModel):
@@ -117,15 +115,14 @@ class SessionEventType(str, Enum):
 
 class SessionEvent(BaseModel):
     """A granular event within a session (decisions, actions, etc.)."""
+    model_config = ConfigDict(use_enum_values=True)
+
     id: UUID = Field(default_factory=lambda: UUID(int=0), description="Event UUID")
     session_id: Optional[UUID] = Field(None, description="FK to sessions.id")
     event_type: SessionEventType = Field(..., description="Type of event")
     content: str = Field(..., description="Event description or payload")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Context metadata")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="When event occurred")
-
-    class Config:
-        use_enum_values = True
 
 
 # =============================================================================
@@ -148,11 +145,10 @@ class JourneyDocumentCreate(JourneyDocumentBase):
 
 class JourneyDocument(JourneyDocumentBase):
     """Full journey document model with all fields."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID = Field(..., description="Document UUID")
     created_at: datetime = Field(..., description="Creation time")
-
-    class Config:
-        from_attributes = True
 
 
 class DocumentSummary(BaseModel):

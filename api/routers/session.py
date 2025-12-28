@@ -40,12 +40,12 @@ class ReconstructRequest(BaseModel):
     project_path: str = Field(
         ...,
         description="Absolute path to the project directory",
-        example="/Volumes/Asylum/dev/dionysus3-core"
+        json_schema_extra={"examples": ["/Volumes/Asylum/dev/dionysus3-core"]}
     )
     project_name: Optional[str] = Field(
         None,
         description="Project name (derived from path if not provided)",
-        example="dionysus3-core"
+        json_schema_extra={"examples": ["dionysus3-core"]}
     )
     device_id: Optional[str] = Field(
         None,
@@ -58,12 +58,12 @@ class ReconstructRequest(BaseModel):
     cues: list[str] = Field(
         default_factory=list,
         description="Explicit retrieval cues (keywords, topics)",
-        example=["mental models", "heartbeat"]
+        json_schema_extra={"examples": [["mental models", "heartbeat"]]}
     )
     prefetched_tasks: Optional[list[dict]] = Field(
         None,
         description="Pre-fetched tasks from Archon (bypasses VPS→Archon call)",
-        example=[{"id": "abc", "title": "Task 1", "status": "todo"}]
+        json_schema_extra={"examples": [[{"id": "abc", "title": "Task 1", "status": "todo"}]]}
     )
 
 
@@ -386,6 +386,6 @@ async def log_session_event(
             print(f"Failed to forward session event to n8n: {e}")
 
     # Forward in background to avoid blocking
-    background_tasks.add_task(forward_event, event.dict(), webhook_url)
+    background_tasks.add_task(forward_event, event.model_dump(), webhook_url)
 
     return {"status": "accepted", "event_id": str(event.id)}

@@ -6,7 +6,7 @@ Feature: 009-memevolve-integration
 Phase: 1 - Foundation
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, Any, List, Optional
 from uuid import UUID
 from datetime import datetime
@@ -28,21 +28,21 @@ class TrajectoryType(str, Enum):
 
 class TrajectoryStep(BaseModel):
     """Individual step in a MemEvolve trajectory."""
+    model_config = ConfigDict(extra="allow")
+
     observation: Optional[str] = Field(None, description="Observed state or event")
     thought: Optional[str] = Field(None, description="Agent thought or reasoning")
     action: Optional[str] = Field(None, description="Action taken by the agent")
 
-    model_config = {"extra": "allow"}
-
 
 class TrajectoryMetadata(BaseModel):
     """Metadata associated with a MemEvolve trajectory."""
+    model_config = ConfigDict(extra="allow")
+
     agent_id: Optional[str] = Field(None, description="Identifier for the agent")
     session_id: Optional[str] = Field(None, description="Session identifier")
     project_id: Optional[str] = Field(None, description="Project identifier")
     trajectory_type: TrajectoryType = Field(default=TrajectoryType.EPISODIC, description="Type of trajectory")
-
-    model_config = {"extra": "allow"}
 
 
 class TrajectoryData(BaseModel):
@@ -85,6 +85,8 @@ class MemoryRecallItem(BaseModel):
 
 class MemoryRecallRequest(BaseModel):
     """Request model for recalling memories for MemEvolve."""
+    model_config = ConfigDict(populate_by_name=True)
+
     query: str = Field(
         ...,
         description="Query string for semantic memory recall"
@@ -116,9 +118,6 @@ class MemoryRecallRequest(BaseModel):
         default_factory=dict,
         description="Additional context for recall filtering"
     )
-
-    class Config:
-        populate_by_name = True
 
 
 class MemoryRecallResponse(BaseModel):
