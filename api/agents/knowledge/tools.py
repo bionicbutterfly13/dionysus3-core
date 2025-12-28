@@ -41,7 +41,7 @@ async def openai_chat_completion(
     client = get_openai_client()
     response = await client.chat.completions.create(
         model=model,
-        max_tokens=max_tokens,
+        max_completion_tokens=max_tokens,  # gpt-5 uses max_completion_tokens
         messages=[{"role": "system", "content": system_prompt}] + messages,
     )
     return response.choices[0].message.content
