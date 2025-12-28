@@ -45,10 +45,17 @@ class AvatarResearcher:
         """
         model_id = model_id or os.getenv("SMOLAGENTS_MODEL", "openai/gpt-4o-mini")
 
-        self.model = LiteLLMModel(
-            model_id=model_id,
-            api_key=os.getenv("OPENAI_API_KEY"),
-        )
+        # Configure LiteLLMModel with appropriate settings
+        model_kwargs = {"model_id": model_id}
+
+        if model_id.startswith("ollama/"):
+            # Ollama needs api_base, no api_key
+            model_kwargs["api_base"] = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+        else:
+            # OpenAI/Anthropic need api_key
+            model_kwargs["api_key"] = os.getenv("OPENAI_API_KEY")
+
+        self.model = LiteLLMModel(**model_kwargs)
 
         # Initialize sub-agents
         self.pain_analyst = PainAnalyst(model_id=model_id)
