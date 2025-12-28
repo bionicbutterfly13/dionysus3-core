@@ -18,7 +18,7 @@ from graphiti_core import Graphiti
 from graphiti_core.nodes import EpisodeType
 # Note: search_config_recipes not available in graphiti-core 0.24.3
 from api.models.memevolve import TrajectoryData
-from api.services.claude import chat_completion, HAIKU
+from api.services.claude import chat_completion, GPT5_NANO
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +206,8 @@ class GraphitiService:
             return await chat_completion(
                 messages=[{"role": "user", "content": trajectory_text}],
                 system_prompt=system_prompt,
-                model=HAIKU,
-                max_tokens=256,
+                model=GPT5_NANO,
+                max_tokens=1024,
             )
         except Exception as exc:
             logger.warning(f"Trajectory summarization failed: {exc}")
@@ -218,11 +218,24 @@ class GraphitiService:
     def _parse_json_response(text: str) -> dict[str, Any]:
         cleaned = text.strip()
         if cleaned.startswith("```"):
-            cleaned = cleaned.strip("`")
+            # Remove opening/closing backticks and potential "json" tag
+            lines = cleaned.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned = "\n".join(lines).strip()
+            if cleaned.startswith("json"):
+                cleaned = cleaned[4:].strip()
+                
         start = cleaned.find("{")
         end = cleaned.rfind("}")
-        if start != -1 and end != -1 and end > start:
+        if start != -1 and end != -1 and end >= start:
             cleaned = cleaned[start:end + 1]
+        
+        if not cleaned:
+            return {}
+            
         return json.loads(cleaned)
 
     @staticmethod
@@ -296,8 +309,8 @@ class GraphitiService:
             response = await chat_completion(
                 messages=[{"role": "user", "content": extraction_text}],
                 system_prompt=system_prompt,
-                model=HAIKU,
-                max_tokens=512,
+                model=GPT5_NANO,
+                max_tokens=4096,
             )
             parsed = self._parse_json_response(response)
             entities, relationships = self._normalize_extraction(parsed)

@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from api.models.bootstrap import BootstrapConfig, BootstrapResult
 from api.services.vector_search import get_vector_search_service, SearchFilters
 from api.services.graphiti_service import get_graphiti_service
-from api.services.claude import chat_completion, HAIKU
+from api.services.claude import chat_completion, GPT5_NANO
 
 class BootstrapRecallService:
     """
@@ -141,6 +141,6 @@ Context:
 """
         summary = await chat_completion(
             messages=[{"role": "user", "content": prompt}],
-            model=HAIKU
+            model=GPT5_NANO
         )
         return f"## Past Context (Summarized)\n\n{summary}"

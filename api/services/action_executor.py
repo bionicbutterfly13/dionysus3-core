@@ -687,7 +687,7 @@ class InquireShallowHandler(ActionHandler):
             answer = await chat_completion(
                 messages=[{"role": "user", "content": user_content}],
                 system_prompt=system_prompt,
-                model=HAIKU,
+                model=GPT5_NANO,
                 max_tokens=200
             )
 
@@ -1010,7 +1010,7 @@ class BrainstormGoalsHandler(ActionHandler):
             response = await chat_completion(
                 messages=[{"role": "user", "content": f"Context for brainstorming: {context}"}],
                 system_prompt=system_prompt,
-                model=HAIKU,
+                model=GPT5_NANO,
                 max_tokens=500
             )
             
