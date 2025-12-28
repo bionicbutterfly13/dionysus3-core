@@ -43,6 +43,33 @@ They need to be **heard**, not mislabeled.
 
 ---
 
+## QUALIFICATION CRITERIA (Must Have All)
+
+### Financial Qualification
+- **Discretionary Budget:** $20,000+/year allocated for self-improvement
+- **Spending Habit:** Regular, established pattern of investing in programs
+- **Price Insensitivity:** Cost is not the barrier; results are
+
+### Behavioral Qualification
+- **Program History:** Has tried multiple programs that haven't worked
+- **Active Search:** Currently pursuing solutions (not passive)
+- **Feverish Intent:** Urgency in their search, not casual browsing
+- **Belief in Solution:** Conviction that "my program is out there somewhere"
+
+### Mindset Qualification
+- **Investment Mindset:** "This will be worth it when it works"
+- **Persistence Despite Failure:** Keeps looking because they believe change is possible
+- **Ready to Commit:** Not just curious—ready to act when they find the right fit
+
+### Disqualifiers (Not Our Avatar)
+- Price shoppers or discount seekers
+- First-time self-improvement buyers
+- Skeptics who don't believe change is possible
+- Those looking for quick fixes or magic bullets
+- Anyone who needs convincing that investment in self is worthwhile
+
+---
+
 ## DEMOGRAPHICS
 
 ### Primary Profile
@@ -51,6 +78,7 @@ They need to be **heard**, not mislabeled.
 |-----------|-------|
 | Net Worth | $1M-$5M+ liquid assets |
 | Income | $250K-$1M+ annually |
+| Discretionary | $20K+/year on self-improvement |
 | Age | 35-55 (Modern Elder / Midlife Transition) |
 | Gender | Skews female (42% vs 35% burnout rates) |
 | Education | Advanced degrees common |
