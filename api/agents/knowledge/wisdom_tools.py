@@ -12,7 +12,7 @@ from datetime import datetime
 
 from smolagents import tool
 from api.services.graphiti_service import get_graphiti_service
-from api.services.claude import chat_completion, HAIKU
+from api.services.claude import chat_completion, GPT5_NANO
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ def ingest_wisdom_insight(
             response = await chat_completion(
                 messages=[{"role": "user", "content": f"Extract {insight_type} from:\n\n{content}"}],
                 system_prompt=system_prompt,
-                model=HAIKU,
+                model=GPT5_NANO,
                 max_tokens=512,
             )
 

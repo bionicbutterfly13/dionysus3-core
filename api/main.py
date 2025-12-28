@@ -19,7 +19,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from api.routers import ias, heartbeat, models, memory, skills, sync, session, memevolve, maintenance, avatar, discovery, coordination, rollback, kg_learning, monitoring, mosaeic
+from api.routers import ias, heartbeat, models, memory, skills, sync, session, memevolve, maintenance, avatar, discovery, coordination, rollback, kg_learning, monitoring, mosaeic, graphiti
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -85,6 +85,7 @@ app.include_router(rollback.router)
 app.include_router(kg_learning.router)
 app.include_router(monitoring.router)
 app.include_router(mosaeic.router)
+app.include_router(graphiti.router)
 
 # Global error handler
 @app.exception_handler(Exception)
