@@ -34,7 +34,7 @@ def get_openai_client() -> AsyncOpenAI:
 async def openai_chat_completion(
     messages: list[dict],
     system_prompt: str,
-    model: str = "gpt-4o-mini",
+    model: str = "gpt-5-nano",
     max_tokens: int = 1024
 ) -> str:
     """OpenAI-based completion for extraction."""
@@ -102,7 +102,7 @@ Be precise. Use exact quotes when available. Infer intensity/strength from langu
             response = await openai_chat_completion(
                 messages=[{"role": "user", "content": f"Extract {insight_type} from:\n\n{content}"}],
                 system_prompt=system_prompt,
-                model="gpt-4o-mini",
+                model="gpt-5-nano",
                 max_tokens=512,
             )
 
@@ -302,7 +302,7 @@ Extract as many insights as you can find. Be thorough."""
             response = await openai_chat_completion(
                 messages=[{"role": "user", "content": f"Document ({document_type}):\n\n{content}"}],
                 system_prompt=system_prompt,
-                model="gpt-4o-mini",
+                model="gpt-5-nano",
                 max_tokens=4096,
             )
 
