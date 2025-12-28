@@ -18,27 +18,32 @@ client = anthropic.AsyncAnthropic(
 )
 
 # Provider config
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "anthropic")
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ollama/qwen2.5:7b")
 
 # Anthropic Models
-HAIKU = "claude-haiku-4-5-20251001"
-SONNET = "claude-opus-4-5-20251101"
+# Remapped to gpt-5-nano for bill protection
+HAIKU = "openai/gpt-5-nano"
+SONNET = "openai/gpt-5-nano"
+
+# OpenAI / Unified Models
+GPT5_NANO = "openai/gpt-4o-mini"
 
 
 async def chat_completion(
     messages: list[dict],
     system_prompt: str,
-    model: str = HAIKU,
+    model: str = GPT5_NANO,
     max_tokens: int = 1024
 ) -> str:
     """
     Non-streaming chat completion.
 
     Uses LLM_PROVIDER env var to select backend:
-    - "anthropic": Claude API (default)
+    - "anthropic": Claude API
     - "ollama": Local Ollama with qwen2.5:7b
+    - "openai": OpenAI API or LiteLLM compatible
     """
     if LLM_PROVIDER == "ollama":
         # Use LiteLLM with Ollama
@@ -50,6 +55,31 @@ async def chat_completion(
             api_base=OLLAMA_BASE_URL,
         )
         return response.choices[0].message.content
+    elif LLM_PROVIDER == "openai" or model.startswith("openai/"):
+        # Use LiteLLM for OpenAI models
+        openai_messages = [{"role": "system", "content": system_prompt}] + messages
+        
+        # Ensure model has openai/ prefix for LiteLLM if not present
+        llm_model = model if model.startswith("openai/") else f"openai/{model}"
+        
+        print(f"DEBUG: LiteLLM Calling {llm_model} with {len(openai_messages)} messages")
+        
+        try:
+            response = await acompletion(
+                model=llm_model,
+                messages=openai_messages,
+                max_tokens=max_tokens,
+                api_key=os.getenv("OPENAI_API_KEY"),
+                timeout=60,
+            )
+            print(f"DEBUG: LiteLLM Response Object: {response}")
+            content = response.choices[0].message.content
+            if not content:
+                print("DEBUG: LiteLLM returned empty content!")
+            return content or ""
+        except Exception as e:
+            print(f"DEBUG: LiteLLM EXCEPTION: {e}")
+            return ""
     else:
         # Default: Anthropic
         response = await client.messages.create(
@@ -86,7 +116,7 @@ class CoachingAgent:
     """
     def __init__(self, model_id: Optional[str] = None):
         if model_id is None:
-            model_id = HAIKU # Use the cheap gpt-5-mini
+            model_id = GPT5_NANO # Use the cheap gpt-5-nano
             
         self.model = LiteLLMModel(
             model_id=model_id,
