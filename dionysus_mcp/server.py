@@ -191,7 +191,7 @@ async def reflect_on_topic(topic: str, context: Optional[str] = None) -> str:
     """
     Deep reflection on a specific topic to gain new insights.
     """
-    from api.services.claude import chat_completion, SONNET
+    from api.services.llm_service import chat_completion, SONNET
     
     system_prompt = "You are Dionysus's reflective faculty. Analyze for root causes and systemic connections."
     user_content = f"Topic: {topic}\n\nContext: {context or 'None'}"
@@ -209,7 +209,7 @@ async def synthesize_information(objective: str, data_points: str) -> str:
     """
     Synthesize multiple data points into a coherent analysis or plan.
     """
-    from api.services.claude import chat_completion, SONNET
+    from api.services.llm_service import chat_completion, SONNET
     
     system_prompt = "You are Dionysus's synthesis faculty. Weave disparate data into a high-level actionable plan."
     user_content = f"Objective: {objective}\n\nData Points: {data_points}"

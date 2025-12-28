@@ -12,7 +12,7 @@ from datetime import datetime
 
 from smolagents import tool
 from api.services.graphiti_service import get_graphiti_service
-from api.services.claude import chat_completion, GPT5_NANO
+from api.services.llm_service import chat_completion, GPT5_NANO
 
 logger = logging.getLogger(__name__)
 

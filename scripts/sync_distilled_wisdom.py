@@ -30,11 +30,11 @@ async def main():
 
     logger.info(f"Loaded {len(insights)} insights for Graphiti sync.")
     
-    # Initialize Graphiti service
+    # Initialize Graphiti service (uses env vars)
     from api.services.graphiti_service import GraphitiConfig
     config = GraphitiConfig(
-        neo4j_uri="bolt://localhost:7687",
-        neo4j_password="Mmsm2280",
+        neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+        neo4j_password=os.getenv("NEO4J_PASSWORD"),
         openai_api_key=os.getenv("OPENAI_API_KEY")
     )
     graphiti_svc = await get_graphiti_service(config)

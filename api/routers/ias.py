@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from api.services.session_manager import SessionManager
-from api.services.claude import (
+from api.services.llm_service import (
     chat_completion,
     chat_stream,
     analyze_for_diagnosis,

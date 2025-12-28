@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from api.models.bootstrap import BootstrapConfig, BootstrapResult
 from api.services.vector_search import get_vector_search_service, SearchFilters
 from api.services.graphiti_service import get_graphiti_service
-from api.services.claude import chat_completion, GPT5_NANO
+from api.services.llm_service import chat_completion, GPT5_NANO
 
 class BootstrapRecallService:
     """

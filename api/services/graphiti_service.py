@@ -18,7 +18,7 @@ from graphiti_core import Graphiti
 from graphiti_core.nodes import EpisodeType
 # Note: search_config_recipes not available in graphiti-core 0.24.3
 from api.models.memevolve import TrajectoryData
-from api.services.claude import chat_completion, GPT5_NANO
+from api.services.llm_service import chat_completion, GPT5_NANO
 
 logger = logging.getLogger(__name__)
 

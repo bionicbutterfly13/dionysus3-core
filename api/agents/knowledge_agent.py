@@ -6,7 +6,7 @@ from api.agents.knowledge.tools import ingest_avatar_insight, query_avatar_graph
 from api.agents.knowledge.wisdom_tools import ingest_wisdom_insight, query_wisdom_graph
 from api.agents.tools.mosaeic_tools import mosaeic_capture
 from api.services.bootstrap_recall_service import BootstrapRecallService
-from api.services.claude import chat_completion, HAIKU, SONNET
+from api.services.llm_service import chat_completion, HAIKU, SONNET
 
 class KnowledgeAgent:
     """

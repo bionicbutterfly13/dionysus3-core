@@ -30,10 +30,10 @@
 
 ## Phase 4: Ground Truth & Testing (P1)
 
-- [ ] T015 Ingest IAS-copy-brief.md as ground truth document
-- [ ] T016 Verify entities created in Neo4j knowledge graph
-- [ ] T017 Test research queries against populated graph
-- [ ] T018 Merge PR #3
+- [x] T015 Ingest IAS-copy-brief.md as ground truth document
+- [x] T016 Verify entities created in Neo4j knowledge graph
+- [x] T017 Test research queries against populated graph
+- [x] T018 Merge PR #3
 
 ## Phase 5: Docs (P3)
 
@@ -41,4 +41,4 @@
 
 ---
 
-**Total**: 19 tasks | **Status**: 14 done, 5 todo
+**Total**: 19 tasks | **Status**: 18 done, 1 todo

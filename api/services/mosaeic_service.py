@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Optional
 
 from api.models.mosaeic import MOSAEICCapture, MOSAEICWindow
-from api.services.claude import chat_completion, GPT5_NANO
+from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger(__name__)
