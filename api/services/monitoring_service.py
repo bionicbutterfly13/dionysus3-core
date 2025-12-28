@@ -5,7 +5,9 @@ Feature: 023-migration-observability
 Aggregates metrics from Discovery, Coordination, and Rollback services.
 """
 
+import logging
 import time
+import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -16,21 +18,36 @@ from api.services.rollback_service import get_rollback_service
 
 class MonitoringService:
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
         self.start_time = datetime.utcnow()
+        self._current_trace_id: Optional[str] = None
+
+    @property
+    def trace_id(self) -> str:
+        return self._current_trace_id or "no-trace"
+
+    @trace_id.setter
+    def trace_id(self, value: str):
+        self._current_trace_id = value
+
+    def _log(self, level: int, event: str, **kwargs):
+        extra = kwargs
+        extra["trace_id"] = self.trace_id
+        self.logger.log(level, event, extra=extra)
 
     async def get_system_metrics(self) -> Dict:
         coordination = get_coordination_service()
         rollback = get_rollback_service()
+        discovery = get_discovery_service()
+        
+        self._log(logging.INFO, "fetching_system_metrics")
         
         return {
             "timestamp": datetime.utcnow().isoformat(),
             "uptime_seconds": (datetime.utcnow() - self.start_time).total_seconds(),
             "coordination": coordination.metrics(),
-            "rollback": {
-                "total_checkpoints": len(rollback.checkpoints),
-                "history_count": len(rollback.history),
-                "last_rollback_success": rollback.history[0].success if rollback.history else None
-            },
+            "discovery": discovery.metrics(),
+            "rollback": rollback.metrics(),
             "agents": coordination.agent_health_report()
         }
 

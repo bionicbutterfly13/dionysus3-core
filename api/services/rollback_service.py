@@ -199,6 +199,17 @@ class RollbackService:
             self._save_local_state()
         return count
 
+    def metrics(self) -> Dict:
+        """Expose rollback metrics for monitoring."""
+        failed = [r for r in self.history if not r.success]
+        return {
+            "total_checkpoints": len(self.checkpoints),
+            "history_count": len(self.history),
+            "failed_rollbacks": len(failed),
+            "last_rollback_success": self.history[-1].success if self.history else None,
+            "last_rollback_at": self.history[-1].rollback_id if self.history else None, # Using ID as proxy if no timestamp in record
+        }
+
 
 _rollback_service: Optional[RollbackService] = None
 

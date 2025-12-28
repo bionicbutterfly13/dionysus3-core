@@ -73,6 +73,9 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 4.  **System Consolidation (Completed)**: Standardized smolagents usage, moved tools to MCP server, and purged legacy PostgreSQL stubs.
 5.  **Agentic Unified Model (Completed)**: Unified all 3 pillars (Engine, Marketing, KB) under smolagents. Hierarchical OODA loop implemented. Unified Aspect Service with Graphiti temporal snapshots active. Human-in-the-loop review queue operational.
 6.  **System Integrity Stabilized (Completed)**: Fixed MCP bridge resource leaks, standardized model IDs to GPT-5 Nano, and unified Archon networking. Initialization scripts for boardroom identity implemented.
+7.  **Daedalus Coordination Pool (Feature 020) (Completed)**: Implemented smolagents-backed background worker pool with task routing, context isolation, and automatic retry logic.
+8.  **Rollback Safety Net (Feature 021) (Completed)**: Implemented checkpointing and fast rollback for agentic changes with checksum verification.
+9.  **Migration & Coordination Observability (Feature 023) (Completed)**: Implemented unified metrics, performance tracking, and alerting across discovery, coordination, and rollback services.
 
 **Current Focus**: Fleet deployment of parallel implementation agents.
 
@@ -91,5 +94,8 @@ docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py
 ```
 
 ## Recent Changes
+- 023-migration-observability: Implemented unified metrics aggregator, performance monitoring, and system alerts. Added contract tests.
+- 021-rollback-safety-net: Verified checkpointing and rollback logic with unit tests.
+- 020-daedalus-coordination-pool: Completed context isolation, task routing, and retry implementation.
 - 029-agent-bootstrap-recall: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 019-avatar-knowledge-graph: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
