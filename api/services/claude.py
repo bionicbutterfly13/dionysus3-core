@@ -28,7 +28,7 @@ HAIKU = "openai/gpt-5-nano"
 SONNET = "openai/gpt-5-nano"
 
 # OpenAI / Unified Models
-GPT5_NANO = "openai/gpt-4o-mini"
+GPT5_NANO = "openai/gpt-5-nano"
 
 
 async def chat_completion(
