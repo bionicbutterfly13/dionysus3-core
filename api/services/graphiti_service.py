@@ -404,3 +404,8 @@ class GraphitiService:
 async def get_graphiti_service(config: Optional[GraphitiConfig] = None) -> GraphitiService:
     """Get the GraphitiService singleton."""
     return await GraphitiService.get_instance(config)
+
+
+async def get_graphiti_dependency() -> GraphitiService:
+    """Dependency for FastAPI that doesn't require arguments."""
+    return await get_graphiti_service()

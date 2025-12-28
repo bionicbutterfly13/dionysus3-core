@@ -16,8 +16,9 @@ logger = logging.getLogger(__name__)
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ollama/phi3:mini")
+OLLAMA_FLEET_MODEL = os.getenv("OLLAMA_FLEET_MODEL", "deepseek-v3")
 
-# Model constants - all route to GPT-5 Nano
+# Model constants - all route to GPT-5 Nano by default
 GPT5_NANO = "openai/gpt-5-nano"
 HAIKU = GPT5_NANO
 SONNET = GPT5_NANO
@@ -36,29 +37,42 @@ async def chat_completion(
     - "openai": GPT-5 Nano (default)
     - "ollama": Local Ollama
     """
-    if LLM_PROVIDER == "ollama":
+    # If model is an ollama model, force provider
+    current_provider = LLM_PROVIDER
+    if model.startswith("ollama/"):
+        current_provider = "ollama"
+        model = model.replace("ollama/", "")
+
+    if current_provider == "ollama":
+        # Use LiteLLM with Ollama
         ollama_messages = [{"role": "system", "content": system_prompt}] + messages
         response = await acompletion(
-            model=OLLAMA_MODEL,
+            model=f"ollama/{model}",
             messages=ollama_messages,
             max_tokens=max_tokens,
             api_base=OLLAMA_BASE_URL,
+            drop_params=True # Ollama doesn't like some OpenAI params
         )
-        return response.choices[0].message.content
+        return response.choices[0].message.content or ""
     else:
         # OpenAI / GPT-5 Nano
         openai_messages = [{"role": "system", "content": system_prompt}] + messages
         llm_model = model if model.startswith("openai/") else f"openai/{model}"
 
         try:
-            response = await acompletion(
-                model=llm_model,
-                messages=openai_messages,
-                max_tokens=max_tokens,
-                api_key=os.getenv("OPENAI_API_KEY"),
-                timeout=60,
-            )
-            return response.choices[0].message.content or ""
+            # T004: Explicitly omit max_tokens for gpt-5-nano if needed
+            kwargs = {
+                "model": llm_model,
+                "messages": openai_messages,
+                "api_key": os.getenv("OPENAI_API_KEY"),
+                "timeout": 60,
+            }
+            if "gpt-5" not in llm_model:
+                kwargs["max_tokens"] = max_tokens
+                
+            response = await acompletion(**kwargs)
+            content = response.choices[0].message.content
+            return content if content is not None else ""
         except Exception as e:
             logger.error(f"LiteLLM error ({llm_model}): {e}")
             return ""

@@ -53,6 +53,7 @@ def ingest_wisdom_insight(
         return {"error": f"Invalid insight_type. Must be one of: {valid_types}"}
 
     async def _extract_and_store():
+        import os
         schema_hints = {
             "voice_pattern": '{"phrase": "...", "emotional_tone": "...", "context": "...", "style_notes": "..."}',
             "process_insight": '{"name": "...", "steps": ["...", "..."], "goal": "...", "why_it_works": "..."}',
@@ -88,7 +89,13 @@ def ingest_wisdom_insight(
             extracted = json.loads(cleaned)
 
             # Store in Graphiti
-            graphiti = await get_graphiti_service()
+            from api.services.graphiti_service import GraphitiConfig
+            config = GraphitiConfig(
+                neo4j_uri="bolt://127.0.0.1:7687",
+                neo4j_password="Mmsm2280",
+                openai_api_key=os.getenv("OPENAI_API_KEY")
+            )
+            graphiti = await get_graphiti_service(config)
             episode_content = f"Wisdom Insight ({insight_type}): {json.dumps(extracted)}\nSource: {source}"
 
             result = await graphiti.ingest_message(

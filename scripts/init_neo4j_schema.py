@@ -39,7 +39,7 @@ FOR (p:Project) REQUIRE p.id IS UNIQUE""",
     """CREATE VECTOR INDEX memory_embedding IF NOT EXISTS
 FOR (m:Memory) ON (m.embedding)
 OPTIONS {indexConfig: {
-    `vector.dimensions`: 768,
+    `vector.dimensions`: 1536,
     `vector.similarity_function`: 'cosine'
 }}""",
     # Full-text search on memory content

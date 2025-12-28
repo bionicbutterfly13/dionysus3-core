@@ -23,7 +23,7 @@ logger = logging.getLogger("dionysus.embedding")
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
 OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-EMBEDDING_DIMENSIONS = 768
+EMBEDDING_DIMENSIONS = int(os.getenv("EMBEDDING_DIM", "1536"))
 DEFAULT_TIMEOUT = 30.0
 
 

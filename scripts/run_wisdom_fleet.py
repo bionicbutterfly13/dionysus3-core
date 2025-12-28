@@ -15,12 +15,14 @@ from api.agents.knowledge_agent import KnowledgeAgent
 
 logger = logging.getLogger("dionysus.wisdom_fleet")
 
-ARCHIVE_PATH = "/Volumes/Asylum/repos/claude-conversation-extractor/Claude Conversations/*.md"
-BATCH_SIZE = 2 # Tiny batch for maximum stability
+# VPS settings
+ARCHIVE_PATH = "/app/data/archives/*.md"
+BATCH_SIZE = 5 # Parallel batches for speed
+FLEET_MODEL = "openai/gpt-5-nano"
 
 async def process_batch(file_paths, agent_id):
     """Process a batch of conversation files using a specific agent."""
-    knowledge_agent = KnowledgeAgent()
+    knowledge_agent = KnowledgeAgent(model_id=FLEET_MODEL)
     results = []
     
     for path in file_paths:
@@ -40,30 +42,47 @@ async def process_batch(file_paths, agent_id):
 
 async def main():
     coord_svc = get_coordination_service()
-    all_files = glob.glob(ARCHIVE_PATH)
+    all_files = sorted(glob.glob(ARCHIVE_PATH))
     total_files = len(all_files)
     
-    print(f"Starting Wisdom Fleet: {total_files} files found.")
+    output_file = "wisdom_extraction_raw.json"
+    
+    # 1. Load existing results for resumption
+    all_results = []
+    processed_ids = set()
+    if os.path.exists(output_file):
+        try:
+            with open(output_file, "r") as f:
+                all_results = json.load(f)
+                processed_ids = {r.get("session_id") for r in all_results if r.get("session_id")}
+            print(f"Resuming: {len(processed_ids)} files already processed.")
+        except Exception as e:
+            print(f"Warning: Could not load existing results: {e}")
+
+    # 2. Filter remaining files
+    remaining_files = [f for f in all_files if os.path.basename(f).replace(".md", "") not in processed_ids]
+    print(f"Starting Wisdom Fleet: {len(remaining_files)} remaining of {total_files} total files.")
     
     # Partition files into batches
-    batches = [all_files[i:i + BATCH_SIZE] for i in range(0, total_files, BATCH_SIZE)]
+    batches = [remaining_files[i:i + BATCH_SIZE] for i in range(0, len(remaining_files), BATCH_SIZE)]
     
-    all_results = []
-    # Process ALL batches sequentially to save memory
+    # Point the internal sync service to the local tunnel
+    os.environ["N8N_WEBHOOK_URL"] = "http://localhost:8000/webhook/memevolve/v1/ingest"
+    
+    # Process remaining batches sequentially
     for i, batch in enumerate(batches):
-        print(f"Processing batch {i+1}/{len(batches)}...")
+        print(f"Processing batch {i+1}/{len(batches)} (Remaining)...")
         batch_results = await process_batch(batch, f"agent-{i}")
-        all_results.extend(batch_results)
+        
+        # Valid results only
+        valid_results = [r for r in batch_results if r]
+        all_results.extend(valid_results)
         
         # Incremental save to prevent data loss
-        with open("wisdom_extraction_raw.json", "w") as f:
+        with open(output_file, "w") as f:
             json.dump(all_results, f, indent=2)
         
-    # Save results for consolidation
-    with open("wisdom_extraction_raw.json", "w") as f:
-        json.dump(all_results, f, indent=2)
-        
-    print(f"Initial wisdom extraction complete. {len(all_results)} insights saved.")
+    print(f"Wisdom extraction session complete. Total insights now: {len(all_results)}")
 
 if __name__ == "__main__":
     asyncio.run(main())

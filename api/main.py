@@ -19,10 +19,8 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from api.routers import ias, heartbeat, models, memory, skills, sync, session, memevolve, maintenance, avatar, discovery, coordination, rollback, kg_learning, monitoring, mosaeic, graphiti
-# TODO: Fix monitoring_pulse and journal_service imports (get_graphiti_dependency doesn't exist)
-# from api.routers import monitoring_pulse
-# from api.services.journal_service import start_journal_scheduler
+from api.routers import ias, heartbeat, models, memory, skills, sync, session, memevolve, maintenance, avatar, discovery, coordination, rollback, kg_learning, monitoring, mosaeic, graphiti, monitoring_pulse
+from api.services.journal_service import start_journal_scheduler
 import asyncio
 
 # Rate limiter
@@ -37,8 +35,8 @@ async def lifespan(app: FastAPI):
     # Startup
     print("Starting Dionysus API server...")
     
-    # Start Background Journaler (disabled - needs fix)
-    # asyncio.create_task(start_journal_scheduler())
+    # Start Background Journaler
+    asyncio.create_task(start_journal_scheduler())
     
     # Note: PostgreSQL removed. Using Graphiti/Neo4j for persistence.
     # Services requiring db_pool need migration to Graphiti.
@@ -93,6 +91,7 @@ app.include_router(rollback.router)
 app.include_router(kg_learning.router)
 app.include_router(monitoring.router)
 app.include_router(mosaeic.router)
+app.include_router(monitoring_pulse.router)
 app.include_router(graphiti.router)
 
 # Global error handler

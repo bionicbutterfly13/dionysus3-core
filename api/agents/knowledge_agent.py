@@ -6,7 +6,8 @@ from api.agents.knowledge.tools import ingest_avatar_insight, query_avatar_graph
 from api.agents.knowledge.wisdom_tools import ingest_wisdom_insight, query_wisdom_graph
 from api.agents.tools.mosaeic_tools import mosaeic_capture
 from api.services.bootstrap_recall_service import BootstrapRecallService
-from api.services.llm_service import chat_completion, HAIKU, SONNET
+from api.services.llm_service import chat_completion, HAIKU, SONNET, GPT5_NANO
+from api.models.bootstrap import BootstrapConfig
 
 class KnowledgeAgent:
     """
@@ -17,22 +18,29 @@ class KnowledgeAgent:
     def __init__(self, model_id: Optional[str] = None):
         # Default model for management/writing tasks
         if model_id is None:
-            model_id = SONNET # Use GPT-5 Nano
+            model_id = GPT5_NANO # Use GPT-5 Nano
             
         # Select key based on model provider
-        api_key = os.getenv("OPENAI_API_KEY") if "gpt" in model_id.lower() else os.getenv("ANTHROPIC_API_KEY")
+        if "gpt" in model_id.lower():
+            api_key = os.getenv("OPENAI_API_KEY")
+        elif "claude" in model_id.lower():
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+        else:
+            api_key = "ollama" # No key needed for local
 
         self.model = LiteLLMModel(
             model_id=model_id,
-            api_key=api_key
+            api_key=api_key,
+            api_base=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434") if api_key == "ollama" else None
         )
         
         # T011: Initialize bootstrap recall service
         self.bootstrap_svc = BootstrapRecallService()
         
         # Use the cheap model for heavy analytical extraction tasks
-        self.cheap_model = LiteLLMModel(
-            model_id=HAIKU,
+        # Can be remapped to local Ollama via model_id
+        self.cheap_model = self.model if api_key == "ollama" else LiteLLMModel(
+            model_id=GPT5_NANO,
             api_key=os.getenv("OPENAI_API_KEY")
         )
         
@@ -105,26 +113,33 @@ class KnowledgeAgent:
     async def extract_wisdom_from_archive(self, content: str, session_id: str) -> dict:
         """
         T002: Use the /research.agent protocol to extract structured wisdom.
+        Utilizes specialized tools for deep experiential and structural mapping.
         """
         prompt = f"""
-        You are a /research.agent performing WISDOM EXTRACTION from a historical conversation.
+        You are the Dionysus /research.agent. Your mission is to perform DEEP WISDOM EXTRACTION from historical archives.
         
         SESSION_ID: {session_id}
         
-        TASK:
-        1. Extract recurring principles or 'Mental Models'.
-        2. Identify successful OODA loop patterns.
-        3. Map 'Attractor Basins' (Energy Wells) for the project or avatar.
-        4. Preserve provenance metadata.
-        
+        CRITICAL INSTRUCTIONS:
+        1. MENTAL MODELS: Identify recurring principles, decision-making frameworks, and contrarian insights.
+        2. OODA LOOPS: Identify successful strategies where Observation led to an effective Decision/Action.
+        3. MOSAEIC MAPPING: Use your tools to capture deep experiential states (Senses, Actions, Emotions, Impulses, Cognitions) found in the text.
+        4. ATTRACTOR BASINS: Map 'Energy Wells'—states of high momentum or recurring psychological patterns.
+        5. PROVENANCE: Every insight must be tied to its origin in the CONTENT below.
+
         CONTENT:
         {content}
         
         OUTPUT:
-        Respond with a JSON object containing 'wisdom_insights', 'attractors', and 'reasoning'.
+        Respond with a JSON object containing:
+        - 'wisdom_insights': list of [model, summary, importance]
+        - 'attractors': list of [name, description, energy_level]
+        - 'experiential_captures': output from your mosaeic_capture tool
+        - 'reasoning': The 'Why' behind these extractions.
         """
         import asyncio
         loop = asyncio.get_event_loop()
+        # The manager agent will delegate to wisdom_analyst and avatar_analyst as needed
         result = await loop.run_in_executor(None, self.agent.run, prompt)
         
         # Parse and return structured data
