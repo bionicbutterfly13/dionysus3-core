@@ -5,6 +5,7 @@ smolagents tools that use Graphiti for avatar research.
 Feature: 019-avatar-knowledge-graph
 """
 
+import os
 import json
 import logging
 import asyncio
@@ -12,12 +13,38 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from smolagents import tool
+from openai import AsyncOpenAI
 
 from api.models.avatar import InsightType, AvatarInsight
 from api.services.graphiti_service import get_graphiti_service
-from api.services.claude import chat_completion, HAIKU
 
 logger = logging.getLogger(__name__)
+
+# OpenAI client for extraction (Anthropic credits exhausted)
+_openai_client = None
+
+def get_openai_client() -> AsyncOpenAI:
+    """Get or create OpenAI client."""
+    global _openai_client
+    if _openai_client is None:
+        _openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return _openai_client
+
+
+async def openai_chat_completion(
+    messages: list[dict],
+    system_prompt: str,
+    model: str = "gpt-4o-mini",
+    max_tokens: int = 1024
+) -> str:
+    """OpenAI-based completion for extraction."""
+    client = get_openai_client()
+    response = await client.chat.completions.create(
+        model=model,
+        max_tokens=max_tokens,
+        messages=[{"role": "system", "content": system_prompt}] + messages,
+    )
+    return response.choices[0].message.content
 
 def run_sync(coro):
     """Helper to run async coroutines in a synchronous context."""
@@ -72,10 +99,10 @@ Be precise. Use exact quotes when available. Infer intensity/strength from langu
 
         graphiti = None
         try:
-            response = await chat_completion(
+            response = await openai_chat_completion(
                 messages=[{"role": "user", "content": f"Extract {insight_type} from:\n\n{content}"}],
                 system_prompt=system_prompt,
-                model=HAIKU,
+                model="gpt-4o-mini",
                 max_tokens=512,
             )
 
@@ -272,10 +299,10 @@ For each insight found, output a JSON object on its own line with this structure
 
 Extract as many insights as you can find. Be thorough."""
 
-            response = await chat_completion(
+            response = await openai_chat_completion(
                 messages=[{"role": "user", "content": f"Document ({document_type}):\n\n{content}"}],
                 system_prompt=system_prompt,
-                model=HAIKU,
+                model="gpt-4o-mini",
                 max_tokens=4096,
             )
 
