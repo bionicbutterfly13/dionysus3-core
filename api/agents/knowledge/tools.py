@@ -121,6 +121,45 @@ Be precise. Use exact quotes when available. Infer intensity/strength from langu
     return run_sync(_extract_and_store())
 
 
+async def async_query_avatar_graph(query: str, insight_types: Optional[str] = None, limit: int = 10) -> dict:
+    """
+    Async version for use in async contexts (e.g., FastAPI endpoints).
+    """
+    graphiti = None
+    try:
+        graphiti = await get_graphiti_service()
+
+        # Search with avatar research group
+        results = await graphiti.search(
+            query=query,
+            group_ids=["avatar_research"],
+            limit=limit,
+        )
+
+        edges = results.get("edges", [])
+
+        # Filter by insight types if specified
+        if insight_types:
+            type_list = [t.strip() for t in insight_types.split(",")]
+            edges = [
+                e for e in edges
+                if any(t in str(e.get("fact", "")) for t in type_list)
+            ]
+
+        return {
+            "query": query,
+            "results": edges,
+            "count": len(edges),
+        }
+
+    except Exception as e:
+        logger.error(f"Avatar graph query failed: {e}")
+        return {"query": query, "results": [], "count": 0, "error": str(e)}
+    finally:
+        if graphiti:
+            await graphiti.close()
+
+
 @tool
 def query_avatar_graph(query: str, insight_types: Optional[str] = None, limit: int = 10) -> dict:
     """
@@ -134,42 +173,7 @@ def query_avatar_graph(query: str, insight_types: Optional[str] = None, limit: i
     Returns:
         Dict with matching insights from the knowledge graph
     """
-    async def _search():
-        graphiti = None
-        try:
-            graphiti = await get_graphiti_service()
-
-            # Search with avatar research group
-            results = await graphiti.search(
-                query=query,
-                group_ids=["avatar_research"],
-                limit=limit,
-            )
-
-            edges = results.get("edges", [])
-
-            # Filter by insight types if specified
-            if insight_types:
-                type_list = [t.strip() for t in insight_types.split(",")]
-                edges = [
-                    e for e in edges
-                    if any(t in str(e.get("fact", "")) for t in type_list)
-                ]
-
-            return {
-                "query": query,
-                "results": edges,
-                "count": len(edges),
-            }
-
-        except Exception as e:
-            logger.error(f"Avatar graph query failed: {e}")
-            return {"query": query, "results": [], "count": 0, "error": str(e)}
-        finally:
-            if graphiti:
-                await graphiti.close()
-
-    return run_sync(_search())
+    return run_sync(async_query_avatar_graph(query, insight_types, limit))
 
 
 @tool

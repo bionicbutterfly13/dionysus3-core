@@ -138,10 +138,10 @@ async def query_graph(request: QueryRequest):
 
     Semantic search with optional filtering by insight type.
     """
-    from api.agents.knowledge.tools import query_avatar_graph
+    from api.agents.knowledge.tools import async_query_avatar_graph
 
     try:
-        result = query_avatar_graph(
+        result = await async_query_avatar_graph(
             query=request.query,
             insight_types=request.insight_types,
             limit=request.limit,
