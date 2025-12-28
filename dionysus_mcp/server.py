@@ -1435,6 +1435,36 @@ async def fetch_archon_tasks() -> list[dict]:
     return tasks
 
 
+# =============================================================
+# MOSAEIC TOOLS (Feature 024)
+# =============================================================
+
+@app.tool()
+async def mosaeic_capture(text: str, source_id: str = "agent_observation") -> str:
+    """
+    Capture a deep experiential state using the MOSAEIC protocol.
+    Extracts Senses, Actions, Emotions, Impulses, and Cognitions from text.
+    
+    Args:
+        text: The raw narrative or observed experience.
+        source_id: Identifier for the source of this experience.
+    """
+    from api.services.mosaeic_service import get_mosaeic_service
+    service = get_mosaeic_service()
+    
+    capture = await service.extract_capture(text, source_id)
+    await service.persist_capture(capture)
+    
+    summary = f"MOSAEIC Capture Successful: {capture.summary}\n"
+    summary += f"- Senses: {capture.senses.content} (Intensity: {capture.senses.intensity})\n"
+    summary += f"- Actions: {capture.actions.content} (Intensity: {capture.actions.intensity})\n"
+    summary += f"- Emotions: {capture.emotions.content} (Intensity: {capture.emotions.intensity})\n"
+    summary += f"- Impulses: {capture.impulses.content} (Intensity: {capture.impulses.intensity})\n"
+    summary += f"- Cognitions: {capture.cognitions.content} (Intensity: {capture.cognitions.intensity})\n"
+    
+    return summary
+
+
 # =============================================================================
 # SERVER LIFECYCLE
 # =============================================================================

@@ -33,7 +33,11 @@ class PerceptionAgent:
             tools=self.tools,
             model=self.model,
             name="perception",
-            description="Specialized in environmental observation and memory retrieval."
+            description="""
+            Specialized in environmental observation and memory retrieval.
+            MANDATORY: Every state snapshot must include a MOSAEIC evaluation 
+            (Senses, Actions, Emotions, Impulses, Cognitions) using the mosaeic_capture tool.
+            """
         )
 
     def close(self):
