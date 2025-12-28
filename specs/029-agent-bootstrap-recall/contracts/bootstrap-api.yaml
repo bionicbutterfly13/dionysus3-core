@@ -1,0 +1,61 @@
+openapi: 3.0.0
+info:
+  title: Bootstrap Recall API
+  version: 1.0.0
+  description: Internal API for automated agent session grounding.
+
+paths:
+  /api/v1/bootstrap/recall:
+    post:
+      summary: Perform bootstrap recall for an agent session
+      operationId: performBootstrapRecall
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootstrapRequest'
+      responses:
+        '200':
+          description: Successfully retrieved and formatted context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapResponse'
+
+components:
+  schemas:
+    BootstrapRequest:
+      type: object
+      required:
+        - query
+        - project_id
+      properties:
+        query:
+          type: string
+          description: The initial user prompt to search against
+        project_id:
+          type: string
+          description: Scope retrieval to this project
+        bootstrap_recall:
+          type: boolean
+          default: true
+        max_tokens:
+          type: integer
+          default: 2000
+
+    BootstrapResponse:
+      type: object
+      properties:
+        formatted_context:
+          type: string
+          description: Markdown formatted "## Past Context" block
+        metadata:
+          type: object
+          properties:
+            source_count:
+              type: integer
+            summarized:
+              type: boolean
+            latency_ms:
+              type: number

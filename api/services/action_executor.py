@@ -580,7 +580,7 @@ class ReflectHandler(ActionHandler):
             memories = request.params.get("memories", [])
 
             # 1. Generate actual reflection via LLM
-            from api.services.claude import chat_completion, SONNET
+            from api.services.llm_service import chat_completion, SONNET
             
             system_prompt = """You are Dionysus's reflective faculty. 
             Analyze the provided memories and topic to find root causes, hidden implications, 
@@ -673,7 +673,7 @@ class InquireShallowHandler(ActionHandler):
 
             # 1. Quick search via vector store
             from api.services.vector_search import get_vector_search_service
-            from api.services.claude import chat_completion, HAIKU
+            from api.services.llm_service import chat_completion, HAIKU
             
             search_service = get_vector_search_service()
             results = await search_service.semantic_search(question, top_k=3)
@@ -687,7 +687,7 @@ class InquireShallowHandler(ActionHandler):
             answer = await chat_completion(
                 messages=[{"role": "user", "content": user_content}],
                 system_prompt=system_prompt,
-                model=HAIKU,
+                model=GPT5_NANO,
                 max_tokens=200
             )
 
@@ -748,7 +748,7 @@ class InquireDeepHandler(ActionHandler):
             # 1. Deep search via vector store + Graphiti
             from api.services.vector_search import get_vector_search_service
             from api.services.graphiti_service import get_graphiti_service
-            from api.services.claude import chat_completion, SONNET
+            from api.services.llm_service import chat_completion, SONNET
             
             search_service = get_vector_search_service()
             graphiti = await get_graphiti_service()
@@ -837,7 +837,7 @@ class SynthesizeHandler(ActionHandler):
                 )
 
             # 1. Generate synthesis via LLM
-            from api.services.claude import chat_completion, SONNET
+            from api.services.llm_service import chat_completion, SONNET
             
             system_prompt = f"""You are Dionysus's synthesis faculty.
             Your task is to take disparate data points and weave them into a high-level, 
@@ -999,7 +999,7 @@ class BrainstormGoalsHandler(ActionHandler):
             count = request.params.get("count", 3)
 
             # 1. Generate goal ideas via LLM
-            from api.services.claude import chat_completion, HAIKU
+            from api.services.llm_service import chat_completion, HAIKU
             import json
             
             system_prompt = f"""You are Dionysus's creative goal-setting faculty.
@@ -1010,7 +1010,7 @@ class BrainstormGoalsHandler(ActionHandler):
             response = await chat_completion(
                 messages=[{"role": "user", "content": f"Context for brainstorming: {context}"}],
                 system_prompt=system_prompt,
-                model=HAIKU,
+                model=GPT5_NANO,
                 max_tokens=500
             )
             

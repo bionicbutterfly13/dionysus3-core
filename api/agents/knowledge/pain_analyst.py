@@ -23,12 +23,16 @@ class PainAnalyst:
     """
 
     def __init__(self, model_id: str = None):
-        model_id = model_id or os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano-2025-08-07")
+        model_id = model_id or os.getenv("SMOLAGENTS_MODEL", "openai/gpt-4o-mini")
 
-        self.model = LiteLLMModel(
-            model_id=model_id,
-            api_key=os.getenv("OPENAI_API_KEY"),
-        )
+        # Configure LiteLLMModel for Ollama or cloud providers
+        model_kwargs = {"model_id": model_id}
+        if model_id.startswith("ollama/"):
+            model_kwargs["api_base"] = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+        else:
+            model_kwargs["api_key"] = os.getenv("OPENAI_API_KEY")
+
+        self.model = LiteLLMModel(**model_kwargs)
 
         self.agent = CodeAgent(
             tools=[ingest_avatar_insight, query_avatar_graph],

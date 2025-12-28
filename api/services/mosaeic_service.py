@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Optional
 
 from api.models.mosaeic import MOSAEICCapture, MOSAEICWindow
-from api.services.claude import chat_completion, HAIKU
+from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class MOSAEICService:
     def __init__(self):
-        self.model = HAIKU  # Use cheap model for extraction
+        self.model = GPT5_NANO  # Use cheap model for extraction
 
     async def extract_capture(self, text: str, source_id: str = "user") -> MOSAEICCapture:
         """Extract five-window MOSAEIC state from raw text."""

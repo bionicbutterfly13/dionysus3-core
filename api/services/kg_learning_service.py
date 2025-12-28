@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from api.models.kg_learning import ExtractionResult, RelationshipProposal, AttractorBasin, CognitionStrategy
 from api.services.graphiti_service import get_graphiti_service
-from api.services.claude import chat_completion, SONNET
+from api.services.llm_service import chat_completion, SONNET
 from api.services.webhook_neo4j_driver import get_neo4j_driver
 
 logger = logging.getLogger(__name__)

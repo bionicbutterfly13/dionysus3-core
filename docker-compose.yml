@@ -10,13 +10,25 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    volumes:
+      - .:/app
+      - /Volumes/Asylum:/Volumes/Asylum
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - dionysus3-core_default
-      - dionysus_default
     restart: unless-stopped
+
+  silverbullet:
+    image: zefhemel/silverbullet
+    container_name: dionysus-docs
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/space
+    networks:
+      - dionysus3-core_default
 
 networks:
   dionysus3-core_default:
-    external: true
-  dionysus_default:
-    external: true

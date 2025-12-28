@@ -191,7 +191,7 @@ async def reflect_on_topic(topic: str, context: Optional[str] = None) -> str:
     """
     Deep reflection on a specific topic to gain new insights.
     """
-    from api.services.claude import chat_completion, SONNET
+    from api.services.llm_service import chat_completion, SONNET
     
     system_prompt = "You are Dionysus's reflective faculty. Analyze for root causes and systemic connections."
     user_content = f"Topic: {topic}\n\nContext: {context or 'None'}"
@@ -209,7 +209,7 @@ async def synthesize_information(objective: str, data_points: str) -> str:
     """
     Synthesize multiple data points into a coherent analysis or plan.
     """
-    from api.services.claude import chat_completion, SONNET
+    from api.services.llm_service import chat_completion, SONNET
     
     system_prompt = "You are Dionysus's synthesis faculty. Weave disparate data into a high-level actionable plan."
     user_content = f"Objective: {objective}\n\nData Points: {data_points}"
@@ -1398,6 +1398,41 @@ async def get_models_by_winners(
         List of models with their ThoughtSeed context
     """
     return await get_models_by_winners_tool(layer=layer, limit=limit)
+
+
+# =============================================================================
+# ARCHON TOOLS (Feature 012)
+# =============================================================================
+
+@app.tool()
+async def fetch_archon_tasks() -> list[dict]:
+    """
+    Fetch historical tasks from the local Archon environment.
+    Used for historical reconstruction and longitudinal memory.
+    """
+    # This tool acts as a proxy to the local filesystem/Archon state.
+    # In this environment, we can read from the specs/ directory to simulate task history.
+    import glob
+    import os
+    
+    tasks = []
+    specs_path = "specs/*"
+    for spec_dir in glob.glob(specs_path):
+        tasks_file = os.path.join(spec_dir, "tasks.md")
+        if os.path.exists(tasks_file):
+            with open(tasks_file, "r") as f:
+                content = f.read()
+                # Simple parser for [X] or [ ] tasks
+                for line in content.split("\n"):
+                    if "[" in line and "]" in line and "-" in line:
+                        status = "completed" if "[X]" in line or "[x]" in line else "pending"
+                        tasks.append({
+                            "project": os.path.basename(spec_dir),
+                            "description": line.split("]", 1)[1].strip(),
+                            "status": status,
+                            "source": "markdown_spec"
+                        })
+    return tasks
 
 
 # =============================================================================

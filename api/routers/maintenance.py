@@ -34,10 +34,10 @@ async def get_review_queue(limit: int = 20):
     """
     Fetch low-confidence items requiring human oversight.
     """
-    from api.services.aspect_service import get_aspect_service
-    service = get_aspect_service()
+    from api.services.maintenance_service import get_maintenance_service
+    service = get_maintenance_service()
     
-    items = await service.get_human_review_items(limit=limit)
+    items = await service.get_human_review_queue(limit=limit)
     return [
         HumanReviewItem(
             id=str(i["id"]),
@@ -54,10 +54,10 @@ async def resolve_review_item(item_id: str):
     """
     Mark a low-confidence item as resolved/reviewed.
     """
-    from api.services.aspect_service import get_aspect_service
-    service = get_aspect_service()
+    from api.services.maintenance_service import get_maintenance_service
+    service = get_maintenance_service()
     
-    success = await service.delete_review_item(item_id)
+    success = await service.resolve_review_item(item_id)
     if not success:
         raise HTTPException(status_code=404, detail="Item not found")
     
@@ -69,10 +69,10 @@ async def reconstruct_tasks(limit: int = 1000):
     Fetch all historical tasks from local Archon and mirror them in Neo4j.
     Use this to bring Dionysus 3.0 into integrity with Archon history.
     """
-    from api.services.reconstruction_service import get_reconstruction_service
-    service = get_reconstruction_service()
+    from api.services.maintenance_service import get_maintenance_service
+    service = get_maintenance_service()
     
-    result = await service.reconstruct_task_history(limit=limit)
+    result = await service.reconstruct_archon_history(limit=limit)
     if result["status"] == "error":
         raise HTTPException(status_code=500, detail=result.get("error"))
     

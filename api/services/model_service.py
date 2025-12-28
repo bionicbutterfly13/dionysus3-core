@@ -56,6 +56,37 @@ REVISION_ERROR_THRESHOLD = 0.5
 # =============================================================================
 
 
+from api.models.cognitive import NeuronalPacketModel, EFEResponse
+
+# =============================================================================
+# NeuronalPacket (Synergistic Whole)
+# =============================================================================
+
+class NeuronalPacket:
+    """
+    Implementation of a Neuronal Packet (Yufik 2019).
+    Encapsulates a group of ThoughtSeeds and enforces mutual constraints.
+    """
+    def __init__(self, model: NeuronalPacketModel):
+        self.data = model
+
+    def apply_synergistic_boost(self, active_seed_id: str, scores: dict) -> dict:
+        """
+        Boost the confidence of all seeds in the packet when one is dominant.
+        Reduces degrees of freedom by reinforcing the group.
+        """
+        if active_seed_id not in self.data.seed_ids:
+            return scores
+            
+        for seed_id in self.data.seed_ids:
+            if seed_id in scores:
+                # Synergistic boost: Reduce EFE (increase desirability)
+                scores[seed_id].efe_score *= (1.0 - (0.1 * self.data.cohesion_weight))
+        
+        return scores
+
+from api.services.efe_engine import get_efe_engine
+
 class ModelService:
     """
     Service for managing mental models.
@@ -74,6 +105,17 @@ class ModelService:
         """
         self._driver = driver or get_neo4j_driver()
         self._llm_client = llm_client
+        self._efe_engine = get_efe_engine()
+
+    async def select_dominant_thought(self, query: str, goal_vector: List[float], candidates: List[Dict[str, Any]]) -> str:
+        """
+        T013: Use EFE calculation to select the dominant ThoughtSeed.
+        """
+        efe_response = self._efe_engine.calculate_efe(query, goal_vector, candidates)
+        
+        # Apply synergistic boosts if any packets are involved
+        # For now, we'll assume a flat structure but allow for future packet expansion
+        return efe_response.dominant_seed_id
 
     # =========================================================================
     # Model CRUD & Prediction Generation
@@ -199,16 +241,19 @@ class ModelService:
         max_models: int = MAX_MODELS_PER_CONTEXT,
     ) -> list[MentalModel]:
         """
-        Get models relevant to the current context.
+        Get models relevant to the current context, respecting energy wells.
         """
         domain_hint = context.get("domain_hint")
         
+        # FR-030-001: Order by boundary_energy and stability to ensure stable models are preferred
         cypher = """
         MATCH (m:MentalModel)
         WHERE m.status = 'active'
         RETURN m
         ORDER BY
             CASE WHEN m.domain = $domain_hint THEN 0 ELSE 1 END,
+            m.boundary_energy DESC,
+            m.stability DESC,
             m.prediction_accuracy DESC,
             m.created_at DESC
         LIMIT $limit
@@ -361,6 +406,9 @@ class ModelService:
             status=ModelStatus(node.get("status", "active")),
             created_at=datetime.fromisoformat(node["created_at"].replace('Z', '+00:00')) if isinstance(node["created_at"], str) else node["created_at"],
             updated_at=datetime.fromisoformat(node["updated_at"].replace('Z', '+00:00')) if isinstance(node["updated_at"], str) else node["updated_at"],
+            boundary_energy=float(node.get("boundary_energy", 0.5)),
+            cohesion_ratio=float(node.get("cohesion_ratio", 1.0)),
+            stability=float(node.get("stability", 0.5)),
         )
 
     def _node_to_prediction(self, node) -> ModelPrediction:

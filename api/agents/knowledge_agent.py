@@ -5,6 +5,8 @@ from smolagents import CodeAgent, LiteLLMModel
 from api.agents.knowledge.tools import ingest_avatar_insight, query_avatar_graph, synthesize_avatar_profile
 from api.agents.knowledge.wisdom_tools import ingest_wisdom_insight, query_wisdom_graph
 from api.agents.tools.mosaeic_tools import mosaeic_capture
+from api.services.bootstrap_recall_service import BootstrapRecallService
+from api.services.llm_service import chat_completion, HAIKU, SONNET
 
 class KnowledgeAgent:
     """
@@ -15,16 +17,22 @@ class KnowledgeAgent:
     def __init__(self, model_id: Optional[str] = None):
         # Default model for management/writing tasks
         if model_id is None:
-            model_id = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5-20251101")
+            model_id = SONNET # Use GPT-5 Nano
             
+        # Select key based on model provider
+        api_key = os.getenv("OPENAI_API_KEY") if "gpt" in model_id.lower() else os.getenv("ANTHROPIC_API_KEY")
+
         self.model = LiteLLMModel(
             model_id=model_id,
-            api_key=os.getenv("ANTHROPIC_API_KEY")
+            api_key=api_key
         )
+        
+        # T011: Initialize bootstrap recall service
+        self.bootstrap_svc = BootstrapRecallService()
         
         # Use the cheap model for heavy analytical extraction tasks
         self.cheap_model = LiteLLMModel(
-            model_id=os.getenv("OPENAI_MODEL", "gpt-5-mini"),
+            model_id=HAIKU,
             api_key=os.getenv("OPENAI_API_KEY")
         )
         
@@ -51,16 +59,25 @@ class KnowledgeAgent:
             description="Orchestrates the extraction of wisdom and avatar data from all available sources."
         )
 
-    async def map_avatar_data(self, raw_data: str, source: str = "unknown") -> dict:
+    async def map_avatar_data(self, raw_data: str, source: str = "unknown", project_id: str = "ias-knowledge-base") -> dict:
         """
         Orchestrate deep analysis of archives to learn voice, process, and avatar data.
         """
+        # T012: Perform Bootstrap Recall
+        bootstrap_result = await self.bootstrap_svc.recall_context(
+            query=f"Avatar wisdom voice extraction from {source}",
+            project_id=project_id,
+            config=BootstrapConfig(project_id=project_id)
+        )
+
         from api.services.aspect_service import get_aspect_service
         aspect_service = get_aspect_service()
         
         prompt = f"""
         Analyze this raw archival data to extract CURRENTLY RELEVANT wisdom.
         
+        {bootstrap_result.formatted_context}
+
         DATA:
         {raw_data}
         
@@ -85,9 +102,35 @@ class KnowledgeAgent:
             "confidence": 0.9
         }
 
-    async def review_manuscript(self, text: str, target_word_count: int = 13500) -> Dict[str, Any]:
-        prompt = f"Review this manuscript for IAS consistency and target {target_word_count} words:\n\n{text[:5000]}"
+    async def extract_wisdom_from_archive(self, content: str, session_id: str) -> dict:
+        """
+        T002: Use the /research.agent protocol to extract structured wisdom.
+        """
+        prompt = f"""
+        You are a /research.agent performing WISDOM EXTRACTION from a historical conversation.
+        
+        SESSION_ID: {session_id}
+        
+        TASK:
+        1. Extract recurring principles or 'Mental Models'.
+        2. Identify successful OODA loop patterns.
+        3. Map 'Attractor Basins' (Energy Wells) for the project or avatar.
+        4. Preserve provenance metadata.
+        
+        CONTENT:
+        {content}
+        
+        OUTPUT:
+        Respond with a JSON object containing 'wisdom_insights', 'attractors', and 'reasoning'.
+        """
         import asyncio
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, self.agent.run, prompt)
-        return {"result": str(result)}
+        
+        # Parse and return structured data
+        try:
+            cleaned = str(result).strip()
+            if "```json" in cleaned: cleaned = cleaned.split("```json")[1].split("```")[0].strip()
+            return json.loads(cleaned)
+        except:
+            return {"raw_output": str(result), "session_id": session_id}

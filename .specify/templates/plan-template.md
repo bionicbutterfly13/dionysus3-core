@@ -31,13 +31,7 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Per `.specify/memory/constitution.md`:
-
-- [ ] **I. Data Integrity First**: Feature does not risk data loss or corruption
-- [ ] **II. Test-Driven Development**: Test plan included for memory operations
-- [ ] **III. Memory Safety & Correctness**: Safety implications documented
-- [ ] **IV. Observable Systems**: Observability hooks planned
-- [ ] **V. Versioned Contracts**: Contract impact assessed (breaking vs non-breaking)
+[Gates determined based on constitution file]
 
 ## Project Structure
 

@@ -12,12 +12,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from api.services.session_manager import SessionManager
-from api.services.claude import (
+from api.services.llm_service import (
     chat_completion,
     chat_stream,
     analyze_for_diagnosis,
     generate_woop_plans,
-    HAIKU
+GPT5_NANO
 )
 from api.framework import IAS_FRAMEWORK, get_step, get_obstacle
 
@@ -311,7 +311,7 @@ async def chat(request: ChatRequest):
         response_text = await chat_completion(
             messages=messages,
             system_prompt=COACH_SYSTEM_PROMPT_WITH_DIAGNOSIS,
-            model=HAIKU
+            model=GPT5_NANO
         )
 
         # Parse structured response if it's JSON
@@ -361,7 +361,7 @@ async def chat(request: ChatRequest):
     response_text = await chat_completion(
         messages=messages,
         system_prompt=COACH_SYSTEM_PROMPT,
-        model=HAIKU
+        model=GPT5_NANO
     )
 
     # Add assistant response to history
@@ -411,7 +411,7 @@ async def chat_stream_endpoint(request: ChatRequest):
         async for chunk in chat_stream(
             messages=session["messages"].copy(),
             system_prompt=COACH_SYSTEM_PROMPT,
-            model=HAIKU
+            model=GPT5_NANO
         ):
             full_response += chunk
             yield f"data: {json.dumps({'chunk': chunk})}\n\n"

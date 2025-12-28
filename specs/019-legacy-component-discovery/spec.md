@@ -36,3 +36,7 @@ As a maintainer, I want auto-suggested enhancement opportunities and risk flags,
 - **SC-002**: At least one enhancement opportunity and one risk factor are present for qualifying components.
 - **SC-003**: Output is available both via CLI/API and as a smolagent tool invocation.
 
+## Implementation Notes (Progress)
+- Discovery engine lives in `api/services/discovery_service.py` with trace logging.
+- Interfaces delivered: smolagent tool `discover_components`, FastAPI route `POST /api/discovery/run`, CLI `scripts/discover_legacy_components.py`.
+- Tests in `tests/test_discovery_service.py`; live run against D2.0 produces ranked candidates.

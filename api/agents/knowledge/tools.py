@@ -5,6 +5,7 @@ smolagents tools that use Graphiti for avatar research.
 Feature: 019-avatar-knowledge-graph
 """
 
+import os
 import json
 import logging
 import asyncio
@@ -12,27 +13,48 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from smolagents import tool
+from openai import AsyncOpenAI
 
 from api.models.avatar import InsightType, AvatarInsight
 from api.services.graphiti_service import get_graphiti_service
-from api.services.claude import chat_completion, HAIKU
 
 logger = logging.getLogger(__name__)
 
+# OpenAI client for extraction (Anthropic credits exhausted)
+_openai_client = None
+
+def get_openai_client() -> AsyncOpenAI:
+    """Get or create OpenAI client."""
+    global _openai_client
+    if _openai_client is None:
+        _openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return _openai_client
+
+
+async def openai_chat_completion(
+    messages: list[dict],
+    system_prompt: str,
+    model: str = "gpt-5-nano",
+    max_tokens: int = 1024
+) -> str:
+    """OpenAI-based completion for extraction."""
+    client = get_openai_client()
+    response = await client.chat.completions.create(
+        model=model,
+        max_completion_tokens=max_tokens,  # gpt-5 uses max_completion_tokens
+        messages=[{"role": "system", "content": system_prompt}] + messages,
+    )
+    return response.choices[0].message.content
+
 def run_sync(coro):
     """Helper to run async coroutines in a synchronous context."""
+    # Always create a new event loop to avoid cross-loop issues
+    loop = asyncio.new_event_loop()
     try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
-    if loop.is_running():
-        import nest_asyncio
-        nest_asyncio.apply()
         return loop.run_until_complete(coro)
-    else:
-        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 @tool
 def ingest_avatar_insight(
@@ -75,11 +97,12 @@ Respond with JSON only using this schema:
 
 Be precise. Use exact quotes when available. Infer intensity/strength from language cues."""
 
+        graphiti = None
         try:
-            response = await chat_completion(
+            response = await openai_chat_completion(
                 messages=[{"role": "user", "content": f"Extract {insight_type} from:\n\n{content}"}],
                 system_prompt=system_prompt,
-                model=HAIKU,
+                model="gpt-5-nano",
                 max_tokens=512,
             )
 
@@ -118,8 +141,50 @@ Be precise. Use exact quotes when available. Infer intensity/strength from langu
         except Exception as e:
             logger.error(f"Avatar insight extraction failed: {e}")
             return {"success": False, "error": str(e)}
+        finally:
+            if graphiti:
+                await graphiti.close()
 
     return run_sync(_extract_and_store())
+
+
+async def async_query_avatar_graph(query: str, insight_types: Optional[str] = None, limit: int = 10) -> dict:
+    """
+    Async version for use in async contexts (e.g., FastAPI endpoints).
+    """
+    graphiti = None
+    try:
+        graphiti = await get_graphiti_service()
+
+        # Search with avatar research group
+        results = await graphiti.search(
+            query=query,
+            group_ids=["avatar_research"],
+            limit=limit,
+        )
+
+        edges = results.get("edges", [])
+
+        # Filter by insight types if specified
+        if insight_types:
+            type_list = [t.strip() for t in insight_types.split(",")]
+            edges = [
+                e for e in edges
+                if any(t in str(e.get("fact", "")) for t in type_list)
+            ]
+
+        return {
+            "query": query,
+            "results": edges,
+            "count": len(edges),
+        }
+
+    except Exception as e:
+        logger.error(f"Avatar graph query failed: {e}")
+        return {"query": query, "results": [], "count": 0, "error": str(e)}
+    finally:
+        if graphiti:
+            await graphiti.close()
 
 
 @tool
@@ -135,38 +200,7 @@ def query_avatar_graph(query: str, insight_types: Optional[str] = None, limit: i
     Returns:
         Dict with matching insights from the knowledge graph
     """
-    async def _search():
-        try:
-            graphiti = await get_graphiti_service()
-
-            # Search with avatar research group
-            results = await graphiti.search(
-                query=query,
-                group_ids=["avatar_research"],
-                limit=limit,
-            )
-
-            edges = results.get("edges", [])
-
-            # Filter by insight types if specified
-            if insight_types:
-                type_list = [t.strip() for t in insight_types.split(",")]
-                edges = [
-                    e for e in edges
-                    if any(t in str(e.get("fact", "")) for t in type_list)
-                ]
-
-            return {
-                "query": query,
-                "results": edges,
-                "count": len(edges),
-            }
-
-        except Exception as e:
-            logger.error(f"Avatar graph query failed: {e}")
-            return {"query": query, "results": [], "count": 0, "error": str(e)}
-
-    return run_sync(_search())
+    return run_sync(async_query_avatar_graph(query, insight_types, limit))
 
 
 @tool
@@ -182,6 +216,7 @@ def synthesize_avatar_profile(dimensions: str = "all") -> dict:
         Dict with synthesized avatar profile organized by dimension
     """
     async def _synthesize():
+        graphiti = None
         try:
             graphiti = await get_graphiti_service()
 
@@ -227,6 +262,9 @@ def synthesize_avatar_profile(dimensions: str = "all") -> dict:
         except Exception as e:
             logger.error(f"Avatar profile synthesis failed: {e}")
             return {"error": str(e)}
+        finally:
+            if graphiti:
+                await graphiti.close()
 
     return run_sync(_synthesize())
 
@@ -247,6 +285,7 @@ def bulk_ingest_document(
         Dict with extraction summary and counts by insight type
     """
     async def _bulk_ingest():
+        graphiti = None
         try:
             # Read the document
             with open(file_path, 'r') as f:
@@ -260,10 +299,10 @@ For each insight found, output a JSON object on its own line with this structure
 
 Extract as many insights as you can find. Be thorough."""
 
-            response = await chat_completion(
+            response = await openai_chat_completion(
                 messages=[{"role": "user", "content": f"Document ({document_type}):\n\n{content}"}],
                 system_prompt=system_prompt,
-                model=HAIKU,
+                model="gpt-5-nano",
                 max_tokens=4096,
             )
 
@@ -311,5 +350,8 @@ Extract as many insights as you can find. Be thorough."""
         except Exception as e:
             logger.error(f"Bulk ingest failed: {e}")
             return {"success": False, "error": str(e)}
+        finally:
+            if graphiti:
+                await graphiti.close()
 
     return run_sync(_bulk_ingest())
