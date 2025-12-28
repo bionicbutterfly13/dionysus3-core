@@ -1,34 +1,26 @@
 """
-Claude API Service for IAS
+LLM Service for IAS
 
-Supports multiple LLM providers via LLM_PROVIDER env var:
-- "anthropic" (default): Uses Claude API
-- "ollama": Uses local Ollama with qwen2.5:7b
+Uses GPT-5 Nano via LiteLLM. Ollama available as fallback.
 """
 
 import os
 import json
+import logging
 from typing import AsyncGenerator, Optional
-import anthropic
 from litellm import acompletion
 
-# Initialize Anthropic client (used when LLM_PROVIDER=anthropic)
-client = anthropic.AsyncAnthropic(
-    api_key=os.getenv("ANTHROPIC_API_KEY")
-)
+logger = logging.getLogger(__name__)
 
 # Provider config
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ollama/qwen2.5:7b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ollama/phi3:mini")
 
-# Anthropic Models
-# Re-routed to GPT-5 Nano for unified cognitive processing
-HAIKU = "openai/gpt-5-nano"
-SONNET = "openai/gpt-5-nano"
-
-# OpenAI / Unified Models
+# Model constants - all route to GPT-5 Nano
 GPT5_NANO = "openai/gpt-5-nano"
+HAIKU = GPT5_NANO
+SONNET = GPT5_NANO
 
 
 async def chat_completion(
@@ -38,15 +30,13 @@ async def chat_completion(
     max_tokens: int = 1024
 ) -> str:
     """
-    Non-streaming chat completion.
+    Non-streaming chat completion via LiteLLM.
 
-    Uses LLM_PROVIDER env var to select backend:
-    - "anthropic": Claude API
-    - "ollama": Local Ollama with qwen2.5:7b
-    - "openai": OpenAI API or LiteLLM compatible
+    Uses LLM_PROVIDER env var:
+    - "openai": GPT-5 Nano (default)
+    - "ollama": Local Ollama
     """
     if LLM_PROVIDER == "ollama":
-        # Use LiteLLM with Ollama
         ollama_messages = [{"role": "system", "content": system_prompt}] + messages
         response = await acompletion(
             model=OLLAMA_MODEL,
@@ -55,13 +45,11 @@ async def chat_completion(
             api_base=OLLAMA_BASE_URL,
         )
         return response.choices[0].message.content
-    elif LLM_PROVIDER == "openai" or model.startswith("openai/"):
-        # Use LiteLLM for OpenAI models
+    else:
+        # OpenAI / GPT-5 Nano
         openai_messages = [{"role": "system", "content": system_prompt}] + messages
-        
-        # Ensure model has openai/ prefix for LiteLLM if not present
         llm_model = model if model.startswith("openai/") else f"openai/{model}"
-        
+
         try:
             response = await acompletion(
                 model=llm_model,
@@ -74,44 +62,37 @@ async def chat_completion(
         except Exception as e:
             logger.error(f"LiteLLM error ({llm_model}): {e}")
             return ""
-    else:
-        # Default: Anthropic
-        response = await client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            system=system_prompt,
-            messages=messages
-        )
-        return response.content[0].text
 
 
 async def chat_stream(
     messages: list[dict],
     system_prompt: str,
-    model: str = HAIKU,
+    model: str = GPT5_NANO,
     max_tokens: int = 1024
 ) -> AsyncGenerator[str, None]:
-    """Streaming chat completion."""
-    async with client.messages.stream(
-        model=model,
+    """Streaming chat completion via LiteLLM."""
+    openai_messages = [{"role": "system", "content": system_prompt}] + messages
+    llm_model = model if model.startswith("openai/") else f"openai/{model}"
+
+    response = await acompletion(
+        model=llm_model,
+        messages=openai_messages,
         max_tokens=max_tokens,
-        system=system_prompt,
-        messages=messages
-    ) as stream:
-        async for text in stream.text_stream:
-            yield text
+        api_key=os.getenv("OPENAI_API_KEY"),
+        stream=True,
+    )
+    async for chunk in response:
+        if chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
 
 
 from smolagents import CodeAgent, LiteLLMModel
 
 class CoachingAgent:
-    """
-    Agentic wrapper for IAS coaching logic.
-    """
+    """Agentic wrapper for IAS coaching logic."""
+
     def __init__(self, model_id: Optional[str] = None):
-        if model_id is None:
-            model_id = GPT5_NANO # Use the cheap gpt-5-nano
-            
+        model_id = model_id or GPT5_NANO
         self.model = LiteLLMModel(
             model_id=model_id,
             api_key=os.getenv("OPENAI_API_KEY")
@@ -140,7 +121,8 @@ class CoachingAgent:
         result = await loop.run_in_executor(None, self.agent.run, prompt)
         try:
             cleaned = result.strip()
-            if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.strip("`").replace("json", "").strip()
             return json.loads(cleaned)
         except:
             return {"error": "Failed to parse diagnosis", "raw": result}
@@ -155,10 +137,12 @@ class CoachingAgent:
         result = await loop.run_in_executor(None, self.agent.run, prompt)
         try:
             cleaned = result.strip()
-            if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.strip("`").replace("json", "").strip()
             return json.loads(cleaned)
         except:
             return [result]
+
 
 async def analyze_for_diagnosis(
     conversation: list[dict],
