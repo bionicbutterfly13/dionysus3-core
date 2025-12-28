@@ -1,18 +1,28 @@
 """
 Claude API Service for IAS
+
+Supports multiple LLM providers via LLM_PROVIDER env var:
+- "anthropic" (default): Uses Claude API
+- "ollama": Uses local Ollama with qwen2.5:7b
 """
 
 import os
 import json
 from typing import AsyncGenerator, Optional
 import anthropic
+from litellm import acompletion
 
-# Initialize client
+# Initialize Anthropic client (used when LLM_PROVIDER=anthropic)
 client = anthropic.AsyncAnthropic(
     api_key=os.getenv("ANTHROPIC_API_KEY")
 )
 
-# Models
+# Provider config
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "anthropic")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ollama/qwen2.5:7b")
+
+# Anthropic Models
 HAIKU = "claude-haiku-4-5-20251001"
 SONNET = "claude-opus-4-5-20251101"
 
@@ -23,14 +33,32 @@ async def chat_completion(
     model: str = HAIKU,
     max_tokens: int = 1024
 ) -> str:
-    """Non-streaming chat completion."""
-    response = await client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=messages
-    )
-    return response.content[0].text
+    """
+    Non-streaming chat completion.
+
+    Uses LLM_PROVIDER env var to select backend:
+    - "anthropic": Claude API (default)
+    - "ollama": Local Ollama with qwen2.5:7b
+    """
+    if LLM_PROVIDER == "ollama":
+        # Use LiteLLM with Ollama
+        ollama_messages = [{"role": "system", "content": system_prompt}] + messages
+        response = await acompletion(
+            model=OLLAMA_MODEL,
+            messages=ollama_messages,
+            max_tokens=max_tokens,
+            api_base=OLLAMA_BASE_URL,
+        )
+        return response.choices[0].message.content
+    else:
+        # Default: Anthropic
+        response = await client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            system=system_prompt,
+            messages=messages
+        )
+        return response.content[0].text
 
 
 async def chat_stream(
