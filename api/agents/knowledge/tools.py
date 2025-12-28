@@ -21,18 +21,13 @@ logger = logging.getLogger(__name__)
 
 def run_sync(coro):
     """Helper to run async coroutines in a synchronous context."""
+    # Always create a new event loop to avoid cross-loop issues
+    loop = asyncio.new_event_loop()
     try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
-    if loop.is_running():
-        import nest_asyncio
-        nest_asyncio.apply()
         return loop.run_until_complete(coro)
-    else:
-        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 @tool
 def ingest_avatar_insight(
@@ -75,6 +70,7 @@ Respond with JSON only using this schema:
 
 Be precise. Use exact quotes when available. Infer intensity/strength from language cues."""
 
+        graphiti = None
         try:
             response = await chat_completion(
                 messages=[{"role": "user", "content": f"Extract {insight_type} from:\n\n{content}"}],
@@ -118,6 +114,9 @@ Be precise. Use exact quotes when available. Infer intensity/strength from langu
         except Exception as e:
             logger.error(f"Avatar insight extraction failed: {e}")
             return {"success": False, "error": str(e)}
+        finally:
+            if graphiti:
+                await graphiti.close()
 
     return run_sync(_extract_and_store())
 
@@ -136,6 +135,7 @@ def query_avatar_graph(query: str, insight_types: Optional[str] = None, limit: i
         Dict with matching insights from the knowledge graph
     """
     async def _search():
+        graphiti = None
         try:
             graphiti = await get_graphiti_service()
 
@@ -165,6 +165,9 @@ def query_avatar_graph(query: str, insight_types: Optional[str] = None, limit: i
         except Exception as e:
             logger.error(f"Avatar graph query failed: {e}")
             return {"query": query, "results": [], "count": 0, "error": str(e)}
+        finally:
+            if graphiti:
+                await graphiti.close()
 
     return run_sync(_search())
 
@@ -182,6 +185,7 @@ def synthesize_avatar_profile(dimensions: str = "all") -> dict:
         Dict with synthesized avatar profile organized by dimension
     """
     async def _synthesize():
+        graphiti = None
         try:
             graphiti = await get_graphiti_service()
 
@@ -227,6 +231,9 @@ def synthesize_avatar_profile(dimensions: str = "all") -> dict:
         except Exception as e:
             logger.error(f"Avatar profile synthesis failed: {e}")
             return {"error": str(e)}
+        finally:
+            if graphiti:
+                await graphiti.close()
 
     return run_sync(_synthesize())
 
@@ -247,6 +254,7 @@ def bulk_ingest_document(
         Dict with extraction summary and counts by insight type
     """
     async def _bulk_ingest():
+        graphiti = None
         try:
             # Read the document
             with open(file_path, 'r') as f:
@@ -311,5 +319,8 @@ Extract as many insights as you can find. Be thorough."""
         except Exception as e:
             logger.error(f"Bulk ingest failed: {e}")
             return {"success": False, "error": str(e)}
+        finally:
+            if graphiti:
+                await graphiti.close()
 
     return run_sync(_bulk_ingest())

@@ -59,23 +59,21 @@ class GraphitiService:
     - Episode ingestion with entity extraction
     - Hybrid search (semantic + keyword + graph)
     - Temporal tracking of facts
-    """
 
-    _instance: Optional["GraphitiService"] = None
-    _graphiti: Optional[Graphiti] = None
+    Note: Creates fresh Graphiti client per-request to avoid event loop issues.
+    """
 
     def __init__(self, config: Optional[GraphitiConfig] = None):
         self.config = config or GraphitiConfig()
+        self._graphiti: Optional[Graphiti] = None
         self._initialized = False
 
     @classmethod
     async def get_instance(cls, config: Optional[GraphitiConfig] = None) -> "GraphitiService":
-        """Get or create singleton instance."""
-        if cls._instance is None:
-            cls._instance = cls(config)
-        if not cls._instance._initialized:
-            await cls._instance.initialize()
-        return cls._instance
+        """Create a new instance (no singleton - avoids event loop issues)."""
+        instance = cls(config)
+        await instance.initialize()
+        return instance
 
     async def initialize(self) -> None:
         """Initialize Graphiti connection and indexes."""
