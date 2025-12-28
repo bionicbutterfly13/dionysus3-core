@@ -64,15 +64,19 @@ async def test_ingest(client: httpx.AsyncClient, base_url: str, secret: str) -> 
     print("\n--- Testing /webhook/memevolve/v1/ingest ---")
     
     body = {
-        "trajectory_data": {
-            "agent_id": "test-agent",
-            "memories": [
-                {"content": "Test memory 1", "timestamp": datetime.utcnow().isoformat()},
-                {"content": "Test memory 2", "timestamp": datetime.utcnow().isoformat()}
-            ]
-        },
-        "source_agent": "test-memevolve-client",
-        "metadata": {"test": True}
+        "trajectory": {
+            "steps": [
+                {"observation": "Test memory 1", "thought": "Reasoning 1", "action": "Action 1"},
+                {"observation": "Test memory 2", "thought": "Reasoning 2", "action": "Action 2"}
+            ],
+            "metadata": {
+                "agent_id": "test-agent",
+                "session_id": "test-session",
+                "project_id": "test-project",
+                "trajectory_type": "episodic"
+            },
+            "summary": "This is a test summary"
+        }
     }
     body_bytes = json.dumps(body).encode("utf-8")
     

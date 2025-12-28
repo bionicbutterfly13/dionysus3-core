@@ -23,7 +23,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ollama/qwen2.5:7b")
 
 # Anthropic Models
-# Remapped to gpt-5-nano for bill protection
+# Re-routed to GPT-5 Nano for unified cognitive processing
 HAIKU = "openai/gpt-5-nano"
 SONNET = "openai/gpt-5-nano"
 
@@ -62,8 +62,6 @@ async def chat_completion(
         # Ensure model has openai/ prefix for LiteLLM if not present
         llm_model = model if model.startswith("openai/") else f"openai/{model}"
         
-        print(f"DEBUG: LiteLLM Calling {llm_model} with {len(openai_messages)} messages")
-        
         try:
             response = await acompletion(
                 model=llm_model,
@@ -72,13 +70,9 @@ async def chat_completion(
                 api_key=os.getenv("OPENAI_API_KEY"),
                 timeout=60,
             )
-            print(f"DEBUG: LiteLLM Response Object: {response}")
-            content = response.choices[0].message.content
-            if not content:
-                print("DEBUG: LiteLLM returned empty content!")
-            return content or ""
+            return response.choices[0].message.content or ""
         except Exception as e:
-            print(f"DEBUG: LiteLLM EXCEPTION: {e}")
+            logger.error(f"LiteLLM error ({llm_model}): {e}")
             return ""
     else:
         # Default: Anthropic
