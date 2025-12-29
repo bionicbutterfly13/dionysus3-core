@@ -47,6 +47,8 @@ class MosaeicCaptureTool(Tool):
     output_type = "any"
 
     def forward(self, text: str, source_id: str = "agent_observation") -> dict:
+        from api.agents.resilience import wrap_with_resilience
+        
         async def _capture():
             service = get_mosaeic_service()
             capture = await service.extract_capture(text, source_id)
@@ -68,10 +70,13 @@ class MosaeicCaptureTool(Tool):
             
         except Exception as e:
             logger.error(f"MOSAEIC capture failed: {e}")
+            # T005: Wrap with resilience hint
+            error_msg = f"Error during MOSAEIC capture: {e}"
+            hinted_error = wrap_with_resilience(error_msg)
             return {
                 "success": False,
                 "summary": "Capture failed",
-                "error": str(e)
+                "error": hinted_error
             }
 
 # Export tool instance

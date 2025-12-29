@@ -79,14 +79,18 @@ class BootstrapRecallService:
         # 3. Format block
         full_context = self._format_markdown_block(semantic_memories, trajectories, project_id)
         
-        # 4. Summarize if needed
+        # 4. Summarize and Truncate to Budget (T015)
         source_count = len(semantic_memories) + len(trajectories)
         summarized = False
         
-        # Simple token heuristic (characters / 4)
-        if len(full_context) / 4 > config.max_tokens:
+        # Check token count properly
+        token_count = self._get_token_count(full_context)
+        if token_count > config.max_tokens:
             full_context = await self._summarize_if_needed(full_context)
             summarized = True
+            
+        # Final safety truncation
+        full_context = self._truncate_to_budget(full_context, config.max_tokens)
             
         return BootstrapResult(
             formatted_context=full_context,
@@ -94,6 +98,33 @@ class BootstrapRecallService:
             summarized=summarized,
             latency_ms=(time.time() - start_time) * 1000
         )
+
+    def _get_token_count(self, text: str) -> int:
+        """Calculate token count using tiktoken."""
+        import tiktoken
+        try:
+            encoding = tiktoken.encoding_for_model("gpt-4o") # Close enough for gpt-5
+            return len(encoding.encode(text))
+        except Exception:
+            return len(text) // 4 # Fallback
+
+    def _truncate_to_budget(self, text: str, max_tokens: int) -> str:
+        """Hard truncation to ensure budget compliance (T015)."""
+        import tiktoken
+        try:
+            encoding = tiktoken.encoding_for_model("gpt-4o")
+            tokens = encoding.encode(text)
+            if len(tokens) <= max_tokens:
+                return text
+            
+            truncated = encoding.decode(tokens[:max_tokens])
+            return truncated + "\n\n*...[Context truncated to fit token budget]*"
+        except Exception:
+            # Char-based fallback: ~4 chars per token
+            limit = max_tokens * 4
+            if len(text) <= limit:
+                return text
+            return text[:limit] + "\n\n*...[Context truncated]*"
 
     async def _fetch_semantic_memories(self, query: str, project_id: str) -> List[Dict[str, Any]]:
         vector_svc = get_vector_search_service()

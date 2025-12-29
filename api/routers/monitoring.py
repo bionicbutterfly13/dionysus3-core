@@ -34,6 +34,14 @@ async def get_alerts(service = Depends(get_monitoring_service_with_trace)):
     """Get active system alerts and warnings."""
     return await service.get_alerts()
 
+@router.get("/flow", response_model=Dict)
+async def get_river_flow(project_id: str = "default", service = Depends(get_monitoring_service_with_trace)):
+    """T027: Get current 'River' status (Information flow quality)."""
+    from api.services.context_stream import get_context_stream_service
+    stream_svc = get_context_stream_service()
+    flow = await stream_svc.analyze_current_flow(project_id)
+    return flow.model_dump()
+
 @router.get("/cognitive", response_model=Dict)
 async def get_cognitive_stats(service = Depends(get_monitoring_service_with_trace)):
     """T020: Get real-time EFE and stability metrics."""

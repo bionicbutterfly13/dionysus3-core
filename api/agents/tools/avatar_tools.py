@@ -9,6 +9,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from smolagents import Tool
+from datetime import datetime
 
 from api.models.avatar import InsightType
 from api.services.graphiti_service import get_graphiti_service
@@ -48,20 +49,20 @@ class IngestAvatarInsightTool(Tool):
 
     def setup(self):
         """Called once before first use."""
-        # Note: We don't initialize graphiti here because it needs an event loop.
-        # We use get_graphiti_service() inside the forward method.
         pass
 
     def forward(self, content: str, insight_type: str, source: str = "unknown") -> dict:
+        from api.agents.resilience import wrap_with_resilience
         # 1. Validate insight type
         valid_types = [t.value for t in InsightType]
         if insight_type not in valid_types:
+            error_msg = f"Invalid insight_type. Must be one of: {valid_types}"
             return AvatarInsightOutput(
                 success=False,
                 insight_type=insight_type,
                 extracted={},
                 source=source,
-                error=f"Invalid insight_type. Must be one of: {valid_types}"
+                error=wrap_with_resilience(error_msg)
             ).model_dump()
 
         async def _run():
@@ -128,12 +129,13 @@ Be precise. Use exact quotes when available. Infer intensity/strength from langu
 
             except Exception as e:
                 logger.error(f"Avatar insight extraction failed: {e}")
+                error_msg = wrap_with_resilience(str(e))
                 return AvatarInsightOutput(
                     success=False,
                     insight_type=insight_type,
                     extracted={},
                     source=source,
-                    error=str(e)
+                    error=error_msg
                 )
             finally:
                 if graphiti:
@@ -166,20 +168,30 @@ class QueryAvatarGraphTool(Tool):
         "limit": {
             "type": "integer",
             "description": "Maximum results to return",
-            "default": 10
+            "default": 10,
+            "nullable": True
         }
     }
     output_type = "any"
 
     def forward(self, query: str, insight_types: Optional[str] = None, limit: int = 10) -> dict:
+        from api.agents.resilience import wrap_with_resilience
         async def _run():
             from api.agents.knowledge.tools import async_query_avatar_graph
             return await async_query_avatar_graph(query, insight_types, limit)
 
-        result_dict = async_tool_wrapper(_run)()
-        # Map to Pydantic for validation and consistency
-        output = AvatarGraphQueryOutput(**result_dict)
-        return output.model_dump()
+        try:
+            result_dict = async_tool_wrapper(_run)()
+            # Map to Pydantic for validation and consistency
+            output = AvatarGraphQueryOutput(**result_dict)
+            return output.model_dump()
+        except Exception as e:
+            return {
+                "query": query,
+                "results": [],
+                "count": 0,
+                "error": wrap_with_resilience(f"Avatar query failed: {e}")
+            }
 
 class AvatarProfileOutput(BaseModel):
     archetype: str = Field(..., description="The synthesized avatar archetype")
@@ -196,14 +208,14 @@ class SynthesizeAvatarProfileTool(Tool):
         "dimensions": {
             "type": "string",
             "description": "Comma-separated dimensions to include, or 'all' for everything.",
-            "default": "all"
+            "default": "all",
+            "nullable": True
         }
     }
     output_type = "any"
 
     def forward(self, dimensions: str = "all") -> dict:
         async def _run():
-            from api.agents.knowledge.tools import run_sync
             # We wrap the existing logic
             graphiti = None
             try:
@@ -225,7 +237,9 @@ class SynthesizeAvatarProfileTool(Tool):
                 profile["total_insights"] = total_insights
                 return AvatarProfileOutput(**profile)
             except Exception as e:
-                return AvatarProfileOutput(archetype="unknown", synthesized_at="", dimensions={}, total_insights=0, error=str(e))
+                from api.agents.resilience import wrap_with_resilience
+                error_msg = wrap_with_resilience(f"Avatar profile synthesis failed: {e}")
+                return AvatarProfileOutput(archetype="unknown", synthesized_at="", dimensions={}, total_insights=0, error=error_msg)
             finally:
                 if graphiti: await graphiti.close()
 
@@ -253,7 +267,8 @@ class BulkIngestDocumentTool(Tool):
         "document_type": {
             "type": "string",
             "description": "Type of document - copy_brief, email, interview, review",
-            "default": "copy_brief"
+            "default": "copy_brief",
+            "nullable": True
         }
     }
     output_type = "any"
@@ -264,10 +279,10 @@ class BulkIngestDocumentTool(Tool):
             graphiti = None
             try:
                 with open(file_path, 'r') as f: content = f.read()
-                system_prompt = \"\"\"You are an avatar research analyst. Analyze this document and extract ALL avatar insights.
+                system_prompt = """You are an avatar research analyst. Analyze this document and extract ALL avatar insights.
 For each insight found, output a JSON object on its own line with this structure:
 {"type": "pain_point|objection|desire|belief|behavior|voice_pattern|failed_solution", "content": "the relevant text", "extracted": {structured data}}
-Extract as many insights as you can find. Be thorough.\"\"\"
+Extract as many insights as you can find. Be thorough."""
                 response = await openai_chat_completion(messages=[{"role": "user", "content": f"Document ({document_type}):\n\n{content}"}], system_prompt=system_prompt, model="gpt-5-nano", max_tokens=4096)
                 insights = []
                 for line in response.strip().split("\n"):
@@ -287,7 +302,9 @@ Extract as many insights as you can find. Be thorough.\"\"\"
                     except: continue
                 return BulkIngestOutput(success=True, document=file_path, document_type=document_type, insights_found=len(insights), insights_stored=stored_count, by_type=by_type)
             except Exception as e:
-                return BulkIngestOutput(success=False, document=file_path, document_type=document_type, insights_found=0, insights_stored=0, by_type={}, error=str(e))
+                from api.agents.resilience import wrap_with_resilience
+                error_msg = wrap_with_resilience(f"Bulk ingestion failed: {e}")
+                return BulkIngestOutput(success=False, document=file_path, document_type=document_type, insights_found=0, insights_stored=0, by_type={}, error=error_msg)
             finally:
                 if graphiti: await graphiti.close()
 

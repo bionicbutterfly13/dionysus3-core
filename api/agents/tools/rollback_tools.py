@@ -39,6 +39,7 @@ class CreateCheckpointTool(Tool):
     output_type = "any"
 
     def forward(self, component_id: str, file_path: str, related_files: list[str] = None) -> dict:
+        from api.agents.resilience import wrap_with_resilience
         service = get_rollback_service()
         request = CheckpointCreateRequest(
             component_id=component_id,
@@ -55,9 +56,10 @@ class CreateCheckpointTool(Tool):
             )
             return output.model_dump()
         except Exception as e:
+            error_msg = wrap_with_resilience(f"Failed to create checkpoint: {e}")
             return RollbackOutput(
                 success=False,
-                message=f"Failed to create checkpoint: {e}"
+                message=error_msg
             ).model_dump()
 
 class RollbackToCheckpointTool(Tool):
@@ -73,6 +75,7 @@ class RollbackToCheckpointTool(Tool):
     output_type = "any"
 
     def forward(self, checkpoint_id: str) -> dict:
+        from api.agents.resilience import wrap_with_resilience
         service = get_rollback_service()
         
         try:
@@ -84,15 +87,17 @@ class RollbackToCheckpointTool(Tool):
                     checkpoint_id=checkpoint_id
                 ).model_dump()
             else:
+                error_msg = wrap_with_resilience(f"Rollback failed for {checkpoint_id}. Check system logs.")
                 return RollbackOutput(
                     success=False,
-                    message=f"Rollback failed for {checkpoint_id}. Check system logs.",
+                    message=error_msg,
                     checkpoint_id=checkpoint_id
                 ).model_dump()
         except Exception as e:
+            error_msg = wrap_with_resilience(f"Rollback execution error: {e}")
             return RollbackOutput(
                 success=False,
-                message=f"Rollback execution error: {e}",
+                message=error_msg,
                 checkpoint_id=checkpoint_id
             ).model_dump()
 

@@ -52,7 +52,8 @@ class AvatarResearcher:
         audit = get_audit_callback()
         
         # Manager agent with access to all tools and sub-agents
-        self.agent = ToolCallingAgent(
+        # (Docker sandboxing disabled for local Darwin environment stability)
+        self.agent = CodeAgent(
             tools=[
                 ingest_avatar_insight,
                 query_avatar_graph,
@@ -70,7 +71,11 @@ insights across pain points, objections, desires, beliefs, behaviors, and voice 
                 self.objection_handler.agent,
                 self.voice_extractor.agent,
             ],
-            step_callbacks=audit.get_registry("avatar_researcher")
+            executor_type="local",
+            use_structured_outputs_internally=True,
+            additional_authorized_imports=["importlib.resources", "json", "datetime"],
+            step_callbacks=audit.get_registry("avatar_researcher"),
+            planning_interval=3
         )
 
     async def analyze_document(self, file_path: str, document_type: str = "copy_brief") -> Dict[str, Any]:

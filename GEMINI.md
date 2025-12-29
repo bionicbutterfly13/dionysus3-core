@@ -76,6 +76,8 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 7.  **Daedalus Coordination Pool (Feature 020) (Completed)**: Implemented smolagents-backed background worker pool with task routing, context isolation, and automatic retry logic.
 8.  **Rollback Safety Net (Feature 021) (Completed)**: Implemented checkpointing and fast rollback for agentic changes with checksum verification.
 9.  **Migration & Coordination Observability (Feature 023) (Completed)**: Implemented unified metrics, performance tracking, and alerting across discovery, coordination, and rollback services.
+10. **MoSAEIC Protocol (Feature 024) (Completed)**: Implemented five-window experiential capture (Senses, Actions, Emotions, Impulses, Cognitions) with LLM-based extraction and Graphiti persistence.
+11. **Agentic KG Learning (Feature 022) (Completed)**: Implemented self-improving extraction loop with attractor basins, strategy boosting, and human review gating.
 
 **Current Focus**: Fleet deployment of parallel implementation agents.
 
@@ -94,8 +96,8 @@ docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py
 ```
 
 ## Recent Changes
+- 022-agentic-kg-learning: Implemented dynamic relationship extraction with provenance and low-confidence gating. Added review queue API.
+- 024-mosaeic-protocol: Implemented full capture and persistence flow for experiential windows.
 - 023-migration-observability: Implemented unified metrics aggregator, performance monitoring, and system alerts. Added contract tests.
 - 021-rollback-safety-net: Verified checkpointing and rollback logic with unit tests.
 - 020-daedalus-coordination-pool: Completed context isolation, task routing, and retry implementation.
-- 029-agent-bootstrap-recall: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
-- 019-avatar-knowledge-graph: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]

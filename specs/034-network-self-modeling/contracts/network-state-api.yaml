@@ -1,0 +1,543 @@
+openapi: 3.1.0
+info:
+  title: Network State API
+  description: API for querying and managing agent network states
+  version: 1.0.0
+  contact:
+    name: Dionysus Team
+
+servers:
+  - url: /api/v1
+    description: Main API server
+
+paths:
+  /network-state/{agent_id}:
+    get:
+      summary: Get current network state
+      description: Returns the most recent network state snapshot for an agent
+      operationId: getCurrentNetworkState
+      tags:
+        - Network State
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Agent identifier
+      responses:
+        '200':
+          description: Current network state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkState'
+        '404':
+          description: Agent not found or no network state exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - bearerAuth: []
+
+  /network-state/{agent_id}/history:
+    get:
+      summary: Get network state history
+      description: Returns historical network state snapshots for an agent
+      operationId: getNetworkStateHistory
+      tags:
+        - Network State
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: start_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Start of time range (default: 24 hours ago)
+        - name: end_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: End of time range (default: now)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+          description: Maximum number of snapshots to return
+      responses:
+        '200':
+          description: List of network state snapshots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  snapshots:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NetworkState'
+                  total_count:
+                    type: integer
+      security:
+        - bearerAuth: []
+
+  /network-state/{agent_id}/snapshot:
+    post:
+      summary: Create manual snapshot
+      description: Triggers a manual network state snapshot
+      operationId: createNetworkSnapshot
+      tags:
+        - Network State
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Snapshot created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkState'
+        '429':
+          description: Rate limited (max 1 manual snapshot per minute)
+      security:
+        - bearerAuth: []
+
+  /network-state/{agent_id}/diff:
+    get:
+      summary: Get state diff between two snapshots
+      description: Returns the difference between two network state snapshots
+      operationId: getNetworkStateDiff
+      tags:
+        - Network State
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: from_snapshot_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: to_snapshot_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: State diff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkStateDiff'
+      security:
+        - bearerAuth: []
+
+  /self-modeling/{agent_id}/predictions:
+    get:
+      summary: Get self-prediction history
+      description: Returns self-prediction records for an agent
+      operationId: getSelfPredictions
+      tags:
+        - Self-Modeling
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: resolved_only
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Only return resolved predictions with error calculated
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: List of prediction records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  predictions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PredictionRecord'
+                  average_error:
+                    type: number
+                    description: Average prediction error (resolved only)
+      security:
+        - bearerAuth: []
+
+  /self-modeling/{agent_id}/accuracy:
+    get:
+      summary: Get self-prediction accuracy metrics
+      description: Returns aggregated self-prediction accuracy over time
+      operationId: getSelfPredictionAccuracy
+      tags:
+        - Self-Modeling
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: window_days
+          in: query
+          schema:
+            type: integer
+            default: 7
+          description: Number of days to aggregate over
+      responses:
+        '200':
+          description: Accuracy metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccuracyMetrics'
+      security:
+        - bearerAuth: []
+
+  /role-matrix/{agent_id}:
+    get:
+      summary: Get active role matrix
+      description: Returns the active role matrix specification for an agent
+      operationId: getRoleMatrix
+      tags:
+        - Role Matrix
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role matrix specification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleMatrix'
+        '404':
+          description: No role matrix defined for agent
+      security:
+        - bearerAuth: []
+
+    put:
+      summary: Update role matrix
+      description: Updates the role matrix specification for an agent
+      operationId: updateRoleMatrix
+      tags:
+        - Role Matrix
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleMatrixInput'
+      responses:
+        '200':
+          description: Role matrix updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleMatrix'
+        '400':
+          description: Invalid role matrix specification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      security:
+        - bearerAuth: []
+
+  /role-matrix/{agent_id}/export:
+    get:
+      summary: Export current state as role matrix
+      description: Exports the agent's current network state as a role matrix specification
+      operationId: exportRoleMatrix
+      tags:
+        - Role Matrix
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Exported role matrix
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleMatrix'
+      security:
+        - bearerAuth: []
+
+components:
+  schemas:
+    NetworkState:
+      type: object
+      required:
+        - id
+        - agent_id
+        - timestamp
+        - trigger
+        - connection_weights
+        - thresholds
+        - speed_factors
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        trigger:
+          type: string
+          enum: [CHANGE_EVENT, DAILY_CHECKPOINT, MANUAL]
+        connection_weights:
+          type: object
+          additionalProperties:
+            type: number
+            minimum: 0.01
+            maximum: 0.99
+        thresholds:
+          type: object
+          additionalProperties:
+            type: number
+            minimum: 0
+            maximum: 1
+        speed_factors:
+          type: object
+          additionalProperties:
+            type: number
+            minimum: 0
+        delta_from_previous:
+          type: number
+          nullable: true
+        checksum:
+          type: string
+
+    NetworkStateDiff:
+      type: object
+      properties:
+        from_snapshot_id:
+          type: string
+          format: uuid
+        to_snapshot_id:
+          type: string
+          format: uuid
+        weight_changes:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              old:
+                type: number
+              new:
+                type: number
+              delta:
+                type: number
+        threshold_changes:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              old:
+                type: number
+              new:
+                type: number
+              delta:
+                type: number
+        speed_factor_changes:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              old:
+                type: number
+              new:
+                type: number
+              delta:
+                type: number
+        total_delta:
+          type: number
+
+    PredictionRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+        predicted_at:
+          type: string
+          format: date-time
+        predicted_state:
+          type: object
+        actual_state_id:
+          type: string
+          format: uuid
+          nullable: true
+        prediction_error:
+          type: number
+          nullable: true
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [PENDING, RESOLVED, EXPIRED]
+
+    AccuracyMetrics:
+      type: object
+      properties:
+        agent_id:
+          type: string
+        window_days:
+          type: integer
+        total_predictions:
+          type: integer
+        resolved_predictions:
+          type: integer
+        average_error:
+          type: number
+        accuracy_rate:
+          type: number
+          description: Percentage of predictions with error < 0.3
+        trend:
+          type: string
+          enum: [IMPROVING, STABLE, DEGRADING]
+
+    RoleMatrix:
+      type: object
+      properties:
+        id:
+          type: string
+        agent_id:
+          type: string
+        version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleNode'
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleConnection'
+
+    RoleNode:
+      type: object
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+        speed_factor:
+          type: number
+        threshold:
+          type: number
+        aggregation_type:
+          type: string
+        aggregation_params:
+          type: object
+
+    RoleConnection:
+      type: object
+      properties:
+        from_node_id:
+          type: string
+        to_node_id:
+          type: string
+        weight:
+          type: number
+        is_base:
+          type: boolean
+        is_inhibitory:
+          type: boolean
+
+    RoleMatrixInput:
+      type: object
+      required:
+        - nodes
+        - connections
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleNode'
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleConnection'
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Same auth as agent audit logs (existing RBAC)

@@ -51,9 +51,24 @@ class MetacognitionAgent:
     def close(self):
         self.__exit__(None, None, None)
 
-    def run(self, task: str):
-        """Run the metacognition cycle."""
-        if not self.agent:
-            with self:
-                return self.agent.run(task)
-        return self.agent.run(task)
+    async def run(self, task: str):
+        """Run the metacognition cycle with River Metaphor integration."""
+        from api.services.context_stream import get_context_stream_service
+        from api.models.cognitive import FlowState
+        
+        # 1. Check current River Flow (T027)
+        stream_svc = get_context_stream_service()
+        flow = await stream_svc.analyze_current_flow(project_id="default")
+        
+        # 2. Adjust max_steps based on state (SC-002)
+        if flow.state == FlowState.TURBULENT:
+            # Slow down, be more careful
+            self.agent.max_steps = 3
+        elif flow.state == FlowState.FLOWING:
+            # Productive, can do more
+            self.agent.max_steps = 8
+        
+        # 3. Inject flow context into task for LLM awareness
+        task_with_flow = f"CURRENT RIVER STATUS: {flow.summary}\n\n{task}"
+        
+        return self.agent.run(task_with_flow)

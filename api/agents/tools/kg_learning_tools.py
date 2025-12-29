@@ -79,5 +79,27 @@ class AgenticKGExtractTool(Tool):
                 error=str(e)
             ).model_dump()
 
-# Export tool instance
-agentic_kg_extract = AgenticKGExtractTool()
+@tool(structured_output=True)
+def evaluate_kg_extraction(extraction_json: str, ground_truth: str) -> dict:
+    """
+    Evaluate the quality of a Knowledge Graph extraction against ground truth.
+    Provides mathematical precision/recall proxies and learning signals.
+    
+    Args:
+        extraction_json: The JSON string of the ExtractionResult to evaluate.
+        ground_truth: The raw text or ground truth used for comparison.
+    """
+    from api.agents.resource_gate import async_tool_wrapper
+    from api.models.kg_learning import ExtractionResult
+    
+    async def _eval():
+        service = get_kg_learning_service()
+        data = json.loads(extraction_json)
+        extraction = ExtractionResult(**data)
+        return await service.evaluate_extraction(extraction, ground_truth)
+
+    return async_tool_wrapper(_eval)()
+
+
+@tool
+def agentic_kg_extract(content: str, source_id: str) -> str:

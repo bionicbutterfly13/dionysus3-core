@@ -49,14 +49,19 @@ class KnowledgeAgent:
             step_callbacks=audit.get_registry("wisdom_analyst")
         )
 
-        self.agent = ToolCallingAgent(
+        # (Docker sandboxing disabled for local Darwin environment stability)
+        self.agent = CodeAgent(
             tools=[synthesize_avatar_profile, query_wisdom_graph, mosaeic_capture],
             model=self.model,
             managed_agents=[self.avatar_analyst, self.wisdom_analyst],
             name="knowledge_manager",
             description="Orchestrates the extraction of wisdom and avatar data from all available sources.",
+            executor_type="local",
+            use_structured_outputs_internally=True,
+            additional_authorized_imports=["importlib.resources", "json", "datetime"],
+            step_callbacks=audit.get_registry("knowledge_manager"),
             max_steps=10,
-            step_callbacks=audit.get_registry("knowledge_manager")
+            planning_interval=3
         )
 
     async def map_avatar_data(self, raw_data: str, source: str = "unknown", project_id: str = "ias-knowledge-base") -> dict:

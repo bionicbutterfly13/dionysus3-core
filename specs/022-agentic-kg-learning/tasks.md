@@ -26,12 +26,12 @@
 
 
 ## Phase 3: Evaluation & Learning (P2)
-
 - [x] T008 Implement strategy boosting in `KGLearningService._record_learning` (FR-003)
+- [x] T009 Implement `ExtractionEvaluator` smolagent tool to calculate precision/recall proxies (FR-005)
+- [x] T010 Implement `AutomaticFeedbackLoop`: Evaluator triggers strategy boosts for high-precision runs
+- [x] T014 Add `learning_metrics` nodes to Neo4j to track system evolution over time
+- [x] T015 Implement token-count context budgeting in `BootstrapRecallService` (Priority 1.2)
 
-- [x] T009 Implement extraction quality evaluator (precision/recall proxy) (FR-005)
-
-- [x] T010 Add batch processing support for large doc ingestion
 
 
 

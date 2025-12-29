@@ -70,5 +70,6 @@ Script: You now own the complete IAS AI Suite. You can implement solo. However, 
 
 ## Copy Rules
 - Never say "no fluff" (defensive cliche)
+- Never say "bundle" (cheap/gimmicky connotation)
 - Eliminate em-dashes (breaks rhythm for analytical minds)
 - Use periods, colons, or line breaks instead

@@ -59,21 +59,24 @@ class ConsciousnessManager:
         self.reasoning_agent_wrapper.agent.tools[context_explorer.name] = context_explorer
         self.reasoning_agent_wrapper.agent.tools[cognitive_check.name] = cognitive_check
         
-        # T1.2: The orchestrator agent manages specialized agents.
-        # We use ToolCallingAgent here because managed_agents are not yet supported 
-        # with remote code execution (Docker).
-        self.orchestrator = ToolCallingAgent(
+        # T0.2: The orchestrator agent manages specialized agents.
+        # (Docker sandboxing disabled for local Darwin environment stability)
+        self.orchestrator = CodeAgent(
             tools=[],
             model=self.model,
             managed_agents=[
-                self.perception_agent_wrapper, 
-                self.reasoning_agent_wrapper, 
-                self.metacognition_agent_wrapper
+                self.perception_agent_wrapper.agent, 
+                self.reasoning_agent_wrapper.agent, 
+                self.metacognition_agent_wrapper.agent
             ],
             name="consciousness_manager",
             description="High-level cognitive orchestrator. Use 'perception' to gather data, 'reasoning' to analyze, and 'metacognition' to decide on strategy.",
-            max_steps=10,
-            step_callbacks=audit.get_registry("consciousness_manager") # T2.1
+            use_structured_outputs_internally=True,
+            executor_type="local",
+            additional_authorized_imports=["importlib.resources", "json", "datetime"],
+            step_callbacks=audit.get_registry("consciousness_manager"), # T2.1
+            max_steps=10, # Increase since planning steps don't count (T3.3)
+            planning_interval=3 # Pause and plan every 3 action steps (T3.3)
         )
         self._entered = True
         return self

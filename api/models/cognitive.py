@@ -1,6 +1,15 @@
+import enum
 from datetime import datetime
 from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
+
+class FlowState(str, enum.Enum):
+    """River Metaphor states for metacognition (Feature 027)."""
+    EMERGING = "emerging"
+    FLOWING = "flowing"
+    CONVERGING = "converging"
+    STABLE = "stable"
+    TURBULENT = "turbulent"
 
 class EFEResult(BaseModel):
     """Result of an Expected Free Energy calculation for a ThoughtSeed."""

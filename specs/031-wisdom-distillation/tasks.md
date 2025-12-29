@@ -1,23 +1,23 @@
-# Tasks: Project-Wide Distillation & Wisdom Extraction
+# Tasks: Wisdom Distillation (The System Soul)
 
-**Input**: spec.md
+**Input**: spec.md, plan.md
 
-## Phase 1: Fleet Processing (Archive)
+## Phase 1: Foundation (P1)
+- [ ] T001 Define `WisdomUnit` and specialized subclasses (`MentalModel`, `StrategicPrinciple`, `CaseStudy`) in `api/models/wisdom.py`.
+- [ ] T002 Implement `WisdomService` to load raw JSON extracts and prepare them for synthesis.
 
-- [ ] T001 Deploy DAEDALUS fleet for conversation archive distillation (709 files)
-- [ ] T002 Analysts MUST use the `/research.agent` protocol from Context-Engineering to extract structured "Neuronal Packets" from conversations
-- [ ] T003 Preserve "Provenance" (Session ID, Date, Agent Type)
+## Phase 2: The Distiller Agent (P1)
+- [ ] T003 Create `api/agents/knowledge/wisdom_distiller.py` using `CodeAgent` with Docker sandboxing.
+- [ ] T004 Implement `distill_wisdom_cluster` smolagent tool: synthesizes canonical definitions from multiple fragments.
 
-## Phase 2: Folder Cleanup (014-028)
+## Phase 3: Graph Integration (P1)
+- [ ] T005 Implement `WisdomService.persist_distilled_unit`: writes to Neo4j and creates `DERIVED_FROM` links to original episodes.
+- [ ] T006 Implement "Richness Scoring" (FR-031-003) based on MoSAEIC window coverage.
 
-- [ ] T004 Use Explorer Agents to review and merge orphaned folders (014-028)
-- [ ] T005 Explorer agents MUST identify "Redundancies" between Spec 014-028 and the active Dionysus 3 engine
+## Phase 4: Worldview Integration (P2)
+- [ ] T007 Update `WorldviewIntegrationService` to prioritize distilled units as Bayesian priors.
+- [ ] T008 Update `PerceptionAgent` description to explicitly look for `StrategicPrinciples` during recall.
 
-## Phase 3: Consolidation
-
-- [ ] T006 Implement a `WisdomConsolidator` that merges overlapping insights into unified `KnowledgeDomain` nodes in Neo4j
-- [ ] T007 Consolidate extracted Neuronal Packets into Neo4j Knowledge Domains
-
-## Phase 4: Finalization
-
-- [ ] T008 Final system-wide distillation report and cleanup
+## Phase 5: Verification (P1)
+- [ ] T009 Run the full distiller on `wisdom_extraction_raw.json` and verify SC-001 (50% reduction).
+- [ ] T010 Unit test: Verify provenance chain mapping.

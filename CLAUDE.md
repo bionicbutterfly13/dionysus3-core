@@ -35,6 +35,8 @@ Execute inside the API container:
 ## Active Technologies
 - Python 3.11 + FastAPI, smolagents, Pydantic v2 (020-daedalus-coordination-pool)
 - In-memory (Dict-based registry) - no persistence required (020-daedalus-coordination-pool)
+- Python 3.11+ (async/await, Pydantic v2) + FastAPI, smolagents, Pydantic v2, Graphiti (Neo4j access) (034-network-self-modeling)
+- Neo4j via n8n webhooks (network states, role matrices, Hebbian weights) (034-network-self-modeling)
 
 ## Recent Changes
 - 020-daedalus-coordination-pool: Added Python 3.11 + FastAPI, smolagents, Pydantic v2

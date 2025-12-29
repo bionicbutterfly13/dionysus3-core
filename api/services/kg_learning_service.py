@@ -60,7 +60,15 @@ class KGLearningService:
 
         # 4. Update basins and learn
         await self._strengthen_basins(result.entities)
-        await self._record_learning(result.relationships)
+        
+        # T010: Automatic Feedback Loop
+        # We evaluate the extraction against the source content
+        evaluation = await self.evaluate_extraction(result, content)
+        
+        if evaluation.get("precision_score", 0.0) > 0.8:
+            # Boost strategies for the relation types used in this high-precision run
+            await self._record_learning(result.relationships)
+            logger.info(f"Automatic Strategy Boost applied for run {result.run_id}")
 
         result.end_time = datetime.utcnow()
         return result
@@ -173,12 +181,85 @@ class KGLearningService:
         for rel in relationships:
             if rel.confidence > 0.7:
                 cypher = """
-                MERGE (s:CognitionStrategy {{category: 'relationship_types', name: $name}})
+                MERGE (s:CognitionStrategy {category: 'relationship_types', name: $name})
                 SET s.success_count = coalesce(s.success_count, 0) + 1,
                     s.priority_boost = coalesce(s.priority_boost, 0.0) + 0.05,
                     s.last_used = datetime()
                 """
                 await self._driver.execute_query(cypher, {"name": rel.relation_type})
+
+    async def evaluate_extraction(self, extraction: ExtractionResult, ground_truth: str) -> Dict[str, Any]:
+        """
+        Evaluate an extraction result against ground truth.
+        T009: Calculates precision proxy and provides learning signals.
+        """
+        prompt = f"""
+        You are a Knowledge Graph Evaluator. Compare the EXTRACTED relationships 
+        against the GROUND TRUTH document and existing knowledge.
+        
+        GROUND TRUTH:
+        {ground_truth[:3000]}
+        
+        EXTRACTED:
+        {extraction.model_dump_json()}
+        
+        Evaluate each relationship for:
+        1. Accuracy (Is it actually in the text?)
+        2. Relevance (Is it strategically important?)
+        3. Contradiction (Does it conflict with high-stability basins?)
+        
+        Respond ONLY with a JSON object:
+        {{
+            "precision_score": 0.0-1.0,
+            "recall_proxy": 0.0-1.0,
+            "hallucinations": ["list", "of", "errors"],
+            "learning_signal": "Description of why this was good or bad",
+            "recommended_boosts": ["relation_type_to_boost"]
+        }}
+        """
+        
+        response = await chat_completion(
+            messages=[{"role": "user", "content": prompt}],
+            system_prompt="You are a rigorous mathematical evaluator of Knowledge Graphs.",
+            model=SONNET,
+            max_tokens=1024
+        )
+        
+        try:
+            cleaned = response.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.strip("`").replace("json", "").strip()
+            eval_data = json.loads(cleaned)
+            
+            # Record the evaluation in Neo4j (T014)
+            await self._record_evaluation_metric(extraction.run_id, eval_data)
+            
+            return eval_data
+        except Exception as e:
+            logger.error(f"evaluation_failed: {e}")
+            return {"error": "Evaluation parsing failed", "precision_score": 0.0}
+
+    async def _record_evaluation_metric(self, run_id: str, eval_data: Dict[str, Any]):
+        """Persist learning metrics to Neo4j (T014)."""
+        cypher = """
+        MATCH (r:RelationshipProposal {run_id: $run_id})
+        MERGE (m:LearningMetric {run_id: $run_id})
+        SET m.precision = $precision,
+            m.recall = $recall,
+            m.timestamp = datetime(),
+            m.hallucinations = $hallucinations,
+            m.signal = $signal
+        WITH m, r
+        CREATE (r)-[:EVALUATED_AS]->(m)
+        """
+        params = {
+            "run_id": run_id,
+            "precision": eval_data.get("precision_score", 0.0),
+            "recall": eval_data.get("recall_proxy", 0.0),
+            "hallucinations": eval_data.get("hallucinations", []),
+            "signal": eval_data.get("learning_signal", "")
+        }
+        await self._driver.execute_query(cypher, params)
 
 
 _kg_learning_service: Optional[KGLearningService] = None

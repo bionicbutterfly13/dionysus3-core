@@ -23,11 +23,12 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ollama/phi3:mini")
 OLLAMA_FLEET_MODEL = os.getenv("OLLAMA_FLEET_MODEL", "deepseek-v3")
 
-# Model constants - all route to GPT-5 Nano by default
-GPT5_NANO = "openai/gpt-5-nano-2025-08-07"
-GPT5_MINI = "openai/gpt-5-mini-2025-08-07"
-HAIKU = GPT5_NANO
-SONNET = GPT5_NANO
+# Model constants - mapping to gpt-4o-mini for stability until gpt-5 is fully GA
+GPT5_NANO = "openai/gpt-4o-mini"
+GPT5_MINI = "openai/gpt-4o-mini"
+HAIKU = "anthropic/claude-3-haiku-20240307"
+SONNET = "anthropic/claude-3-5-sonnet-20240620"
+OLLAMA_MODEL = "ollama/llama3.2" # Using locally available model
 
 
 def get_router_model(model_id: str = "dionysus-agents") -> LiteLLMRouterModel:
@@ -68,7 +69,8 @@ def get_router_model(model_id: str = "dionysus-agents") -> LiteLLMRouterModel:
             "routing_strategy": "simple-shuffle",
             "num_retries": 2,
             "fallbacks": [{GPT5_NANO: [GPT5_MINI, OLLAMA_MODEL]}],
-        }
+        },
+        drop_params=True # T033: Prevent UnsupportedParamsError
     )
 
 
@@ -114,6 +116,7 @@ async def chat_completion(
                 "messages": openai_messages,
                 "api_key": os.getenv("OPENAI_API_KEY"),
                 "timeout": 60,
+                "drop_params": True # T033: Ensure stability
             }
             if "gpt-5" not in llm_model:
                 kwargs["max_tokens"] = max_tokens

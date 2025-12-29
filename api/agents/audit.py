@@ -73,16 +73,30 @@ class AgentAuditCallback:
         Returns a dictionary of callbacks configured for this audit instance.
         """
         def handle_action(step, **kwargs):
-            asyncio.run_coroutine_threadsafe(
-                self.on_step(step, agent_name, trace_id), 
-                asyncio.get_event_loop()
-            )
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.on_step(step, agent_name, trace_id), 
+                        loop
+                    )
+                else:
+                    asyncio.run(self.on_step(step, agent_name, trace_id))
+            except Exception:
+                pass # Audit failure should not break agent
 
         def handle_planning(step, **kwargs):
-            asyncio.run_coroutine_threadsafe(
-                self.on_step(step, agent_name, trace_id), 
-                asyncio.get_event_loop()
-            )
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        self.on_step(step, agent_name, trace_id), 
+                        loop
+                    )
+                else:
+                    asyncio.run(self.on_step(step, agent_name, trace_id))
+            except Exception:
+                pass
 
         return {
             ActionStep: handle_action,
