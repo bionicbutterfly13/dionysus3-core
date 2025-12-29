@@ -54,4 +54,4 @@
 ## Phase 6: Polish
 
 - [x] T017 Update `GEMINI.md` status to reflect unified agentic architecture
-- [ ] T018 Run final consistency check across all 3 project pillars
+- [x] T018 Run final consistency check across all 3 project pillars
