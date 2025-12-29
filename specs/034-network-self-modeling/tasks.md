@@ -27,9 +27,9 @@ Following existing api/ structure per plan.md:
 
 **Purpose**: Feature flags and base configuration for opt-in functionality
 
-- [ ] T001 Add feature flags to config for NETWORK_STATE_ENABLED, SELF_MODELING_ENABLED, HEBBIAN_LEARNING_ENABLED, ROLE_MATRIX_ENABLED in api/config.py
-- [ ] T002 [P] Create SnapshotTrigger enum (CHANGE_EVENT, DAILY_CHECKPOINT, MANUAL) in api/models/network_state.py
-- [ ] T003 [P] Create AdaptationMode enum (ACCELERATING, STABLE, DECELERATING, STRESSED) in api/models/network_state.py
+- [X] T001 Add feature flags to config for NETWORK_STATE_ENABLED, SELF_MODELING_ENABLED, HEBBIAN_LEARNING_ENABLED, ROLE_MATRIX_ENABLED in api/config.py
+- [X] T002 [P] Create SnapshotTrigger enum (CHANGE_EVENT, DAILY_CHECKPOINT, MANUAL) in api/models/network_state.py
+- [X] T003 [P] Create AdaptationMode enum (ACCELERATING, STABLE, DECELERATING, STRESSED) in api/models/network_state.py
 
 ---
 
@@ -39,10 +39,10 @@ Following existing api/ structure per plan.md:
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Implement state_to_vector() utility for L2 norm delta calculation in api/services/network_state_service.py
-- [ ] T005 [P] Implement weight_bounds_enforcer() using sigmoid squashing (0.01, 0.99) in api/utils/math_utils.py
-- [ ] T006 [P] Create base webhook persistence helper for Neo4j network state storage in api/services/network_state_service.py
-- [ ] T007 Add network-state router registration in api/main.py (conditional on feature flag)
+- [X] T004 Implement state_to_vector() utility for L2 norm delta calculation in api/services/network_state_service.py
+- [X] T005 [P] Implement weight_bounds_enforcer() using sigmoid squashing (0.01, 0.99) in api/utils/math_utils.py
+- [X] T006 [P] Create base webhook persistence helper for Neo4j network state storage in api/services/network_state_service.py
+- [X] T007 Add network-state router registration in api/main.py (conditional on feature flag)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -56,24 +56,24 @@ Following existing api/ structure per plan.md:
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Unit test for NetworkState model validation in tests/unit/test_network_state.py
-- [ ] T009 [P] [US1] Unit test for delta calculation (5% threshold) in tests/unit/test_network_state.py
-- [ ] T010 [P] [US1] Contract test for GET /network-state/{agent_id} in tests/contract/test_network_state_api.py
-- [ ] T011 [P] [US1] Contract test for GET /network-state/{agent_id}/history in tests/contract/test_network_state_api.py
-- [ ] T012 [P] [US1] Contract test for POST /network-state/{agent_id}/snapshot in tests/contract/test_network_state_api.py
+- [X] T008 [P] [US1] Unit test for NetworkState model validation in tests/unit/test_network_state.py
+- [X] T009 [P] [US1] Unit test for delta calculation (5% threshold) in tests/unit/test_network_state.py
+- [X] T010 [P] [US1] Contract test for GET /network-state/{agent_id} in tests/contract/test_network_state_api.py
+- [X] T011 [P] [US1] Contract test for GET /network-state/{agent_id}/history in tests/contract/test_network_state_api.py
+- [X] T012 [P] [US1] Contract test for POST /network-state/{agent_id}/snapshot in tests/contract/test_network_state_api.py
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Create NetworkState Pydantic model with W/T/H fields in api/models/network_state.py
-- [ ] T014 [US1] Implement NetworkStateService.get_current() in api/services/network_state_service.py
-- [ ] T015 [US1] Implement NetworkStateService.should_snapshot() with 5% delta threshold in api/services/network_state_service.py
-- [ ] T016 [US1] Implement NetworkStateService.create_snapshot() with Neo4j persistence in api/services/network_state_service.py
-- [ ] T017 [US1] Implement NetworkStateService.get_history() with time range filtering in api/services/network_state_service.py
-- [ ] T018 [US1] Create GET /network-state/{agent_id} endpoint in api/routers/network_state.py
-- [ ] T019 [US1] Create GET /network-state/{agent_id}/history endpoint in api/routers/network_state.py
-- [ ] T020 [US1] Create POST /network-state/{agent_id}/snapshot endpoint with rate limiting in api/routers/network_state.py
-- [ ] T021 [US1] Create GET /network-state/{agent_id}/diff endpoint in api/routers/network_state.py
-- [ ] T022 [US1] Add RBAC check using existing audit log permissions in api/routers/network_state.py
+- [X] T013 [P] [US1] Create NetworkState Pydantic model with W/T/H fields in api/models/network_state.py
+- [X] T014 [US1] Implement NetworkStateService.get_current() in api/services/network_state_service.py
+- [X] T015 [US1] Implement NetworkStateService.should_snapshot() with 5% delta threshold in api/services/network_state_service.py
+- [X] T016 [US1] Implement NetworkStateService.create_snapshot() with Neo4j persistence in api/services/network_state_service.py
+- [X] T017 [US1] Implement NetworkStateService.get_history() with time range filtering in api/services/network_state_service.py
+- [X] T018 [US1] Create GET /network-state/{agent_id} endpoint in api/routers/network_state.py
+- [X] T019 [US1] Create GET /network-state/{agent_id}/history endpoint in api/routers/network_state.py
+- [X] T020 [US1] Create POST /network-state/{agent_id}/snapshot endpoint with rate limiting in api/routers/network_state.py
+- [X] T021 [US1] Create GET /network-state/{agent_id}/diff endpoint in api/routers/network_state.py
+- [X] T022 [US1] Add RBAC check using existing audit log permissions in api/routers/network_state.py
 - [ ] T023 [P] [US1] Integration test for NetworkState Neo4j persistence in tests/integration/test_network_state_neo4j.py
 
 **Checkpoint**: User Story 1 complete - network state observation fully functional
@@ -175,14 +175,14 @@ Following existing api/ structure per plan.md:
 
 ### Tests for User Story 5
 
-- [ ] T063 [P] [US5] Unit test for SelfModelState model in tests/unit/test_network_state.py
-- [ ] T064 [P] [US5] Unit test for TimingState model in tests/unit/test_network_state.py
-- [ ] T065 [P] [US5] Unit test for adaptation mode transitions in tests/unit/test_network_state.py
+- [X] T063 [P] [US5] Unit test for SelfModelState model in tests/unit/test_network_state.py
+- [X] T064 [P] [US5] Unit test for TimingState model in tests/unit/test_network_state.py
+- [X] T065 [P] [US5] Unit test for adaptation mode transitions in tests/unit/test_network_state.py
 
 ### Implementation for User Story 5
 
-- [ ] T066 [P] [US5] Create SelfModelState Pydantic model in api/models/network_state.py
-- [ ] T067 [P] [US5] Create TimingState Pydantic model in api/models/network_state.py
+- [X] T066 [P] [US5] Create SelfModelState Pydantic model in api/models/network_state.py
+- [X] T067 [P] [US5] Create TimingState Pydantic model in api/models/network_state.py
 - [ ] T068 [US5] Extend MetaplasticityController with optional H-state tracking in api/services/metaplasticity_service.py
 - [ ] T069 [US5] Implement second-order speed modulation based on prediction error in api/services/metaplasticity_service.py
 - [ ] T070 [US5] Implement stress-reduces-adaptation principle (configurable) in api/services/metaplasticity_service.py

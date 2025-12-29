@@ -5,8 +5,8 @@
 
 ## Phase 1: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Implement `fetch_all_historical_tasks` in `ArchonIntegrationService`
-- [ ] T002 Implement `reconstruct_task_history` in `ReconstructionService`
+- [x] T001 Implement `fetch_all_historical_tasks` in `ArchonIntegrationService`
+- [x] T002 Implement `reconstruct_task_history` in `ReconstructionService`
 
 ---
 
@@ -14,14 +14,14 @@
 
 **Goal**: Full mirroring of Archon history to Neo4j.
 
-- [ ] T003 Implement idempotent UNWIND Cypher query for batch task merging
-- [ ] T004 Link tasks to project nodes via `BELONGS_TO` relationships
-- [ ] T005 Create `POST /api/maintenance/reconstruct-tasks` endpoint
+- [x] T003 Implement idempotent UNWIND Cypher query for batch task merging
+- [x] T004 Link tasks to project nodes via `BELONGS_TO` relationships
+- [x] T005 Create `POST /api/maintenance/reconstruct-tasks` endpoint
 - [ ] T006 Run `scripts/init_boardroom.py` to establish system identity baseline
 
 ---
 
 ## Phase 3: Polish
 
-- [ ] T006 Add detailed logging for reconstruction progress
-- [ ] T007 Implement a 'dry-run' mode for reconstruction verification
+- [x] T007 Add detailed logging for reconstruction progress
+- [ ] T008 Implement a 'dry-run' mode for reconstruction verification
