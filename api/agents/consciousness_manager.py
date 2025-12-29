@@ -139,6 +139,10 @@ class ConsciousnessManager:
         2. Delegate to 'reasoning' to analyze the perception results and initial context.
         3. Delegate to 'metacognition' to review goals and decide on strategic updates.
         4. Synthesize everything into a final actionable plan.
+        
+        SELF-HEALING PROTOCOL:
+        If a sub-agent returns a "RECOVERY_HINT", you MUST prioritize that advice in your 
+        next decision step to avoid cascading failures.
 
         OUTPUT FORMAT:
         You MUST respond with a JSON object in this exact format:

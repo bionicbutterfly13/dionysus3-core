@@ -51,6 +51,34 @@ class GraphitiConfig:
             raise ValueError("OPENAI_API_KEY environment variable required")
 
 
+import asyncio
+import threading
+
+# Dedicated thread and loop for Graphiti operations to ensure thread-safety
+_graphiti_loop: Optional[asyncio.AbstractEventLoop] = None
+_graphiti_thread: Optional[threading.Thread] = None
+
+def _start_graphiti_loop():
+    global _graphiti_loop
+    _graphiti_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(_graphiti_loop)
+    _graphiti_loop.run_forever()
+
+def get_graphiti_loop() -> asyncio.AbstractEventLoop:
+    global _graphiti_thread, _graphiti_loop
+    if _graphiti_thread is None:
+        _graphiti_thread = threading.Thread(target=_start_graphiti_loop, daemon=True)
+        _graphiti_thread.start()
+        # Wait for loop to be initialized
+        import time
+        while _graphiti_loop is None:
+            time.sleep(0.1)
+    return _graphiti_loop
+
+# Global Graphiti instance
+_global_graphiti: Optional[Graphiti] = None
+_global_graphiti_lock = threading.Lock() # Use threading lock for initialization
+
 class GraphitiService:
     """
     Service wrapper for Graphiti knowledge graph operations.
@@ -60,46 +88,49 @@ class GraphitiService:
     - Hybrid search (semantic + keyword + graph)
     - Temporal tracking of facts
 
-    Note: Creates fresh Graphiti client per-request to avoid event loop issues.
+    Note: Now uses a global client instance to maintain stable event loop connection.
     """
 
     def __init__(self, config: Optional[GraphitiConfig] = None):
         self.config = config or GraphitiConfig()
-        self._graphiti: Optional[Graphiti] = None
         self._initialized = False
 
     @classmethod
     async def get_instance(cls, config: Optional[GraphitiConfig] = None) -> "GraphitiService":
-        """Create a new instance (no singleton - avoids event loop issues)."""
+        """Create or return existing instance with global graphiti client."""
         instance = cls(config)
         await instance.initialize()
         return instance
 
     async def initialize(self) -> None:
         """Initialize Graphiti connection and indexes."""
+        global _global_graphiti
+        
         if self._initialized:
             return
 
-        logger.info(f"Initializing Graphiti with Neo4j at {self.config.neo4j_uri}")
-
-        self._graphiti = Graphiti(
-            uri=self.config.neo4j_uri,
-            user=self.config.neo4j_user,
-            password=self.config.neo4j_password,
-        )
-
-        # Build indexes (safe, won't delete existing)
-        await self._graphiti.build_indices_and_constraints(delete_existing=False)
+        with _global_graphiti_lock:
+            if _global_graphiti is None:
+                logger.info(f"Initializing Global Graphiti with Neo4j at {self.config.neo4j_uri}")
+                _global_graphiti = Graphiti(
+                    uri=self.config.neo4j_uri,
+                    user=self.config.neo4j_user,
+                    password=self.config.neo4j_password,
+                )
+                # Build indexes (safe, won't delete existing)
+                await _global_graphiti.build_indices_and_constraints(delete_existing=False)
 
         self._initialized = True
-        logger.info("Graphiti initialized successfully")
+        logger.info("Graphiti Service initialized successfully")
 
     async def close(self) -> None:
-        """Close Graphiti connection."""
-        if self._graphiti:
-            await self._graphiti.close()
-            self._initialized = False
-            logger.info("Graphiti connection closed")
+        """Note: Global instance is not closed per-request."""
+        pass
+
+    def _get_graphiti(self) -> Graphiti:
+        if _global_graphiti is None:
+            raise RuntimeError("GraphitiService not initialized")
+        return _global_graphiti
 
     async def ingest_message(
         self,
@@ -110,25 +141,14 @@ class GraphitiService:
     ) -> dict[str, Any]:
         """
         Ingest a message/episode and extract entities.
-
-        Args:
-            content: The message content to process
-            source_description: Description of the source (e.g., "user message", "session 123")
-            group_id: Partition ID for multi-tenant separation
-            valid_at: When the event occurred (defaults to now)
-
-        Returns:
-            Dict with extracted nodes and edges
         """
-        if not self._graphiti:
-            raise RuntimeError("GraphitiService not initialized")
-
+        graphiti = self._get_graphiti()
         group = group_id or self.config.group_id
         timestamp = valid_at or datetime.now()
 
         logger.info(f"Ingesting message into group '{group}': {content[:100]}...")
 
-        result = await self._graphiti.add_episode(
+        result = await graphiti.add_episode(
             name=f"episode_{uuid4().hex[:8]}",
             episode_body=content,
             source=EpisodeType.message,
@@ -332,29 +352,18 @@ class GraphitiService:
     ) -> dict[str, Any]:
         """
         Hybrid search across entities and relationships.
-
-        Args:
-            query: Search query
-            group_ids: Filter by group IDs (default: service group_id)
-            limit: Max results
-            use_cross_encoder: Use LLM reranking (not supported in 0.24.3)
-
-        Returns:
-            Dict with nodes, edges, episodes found
         """
-        if not self._graphiti:
-            raise RuntimeError("GraphitiService not initialized")
-
+        graphiti = self._get_graphiti()
         groups = group_ids or [self.config.group_id]
 
         logger.info(f"Searching for: {query}")
 
-        results = await self._graphiti.search(
+        results = await graphiti.search(
             query=query,
             group_ids=groups,
             num_results=limit,
         )
-
+        
         # graphiti-core 0.24.3 returns a list of edges directly
         edges = results if isinstance(results, list) else getattr(results, 'edges', [])
         
@@ -381,11 +390,10 @@ class GraphitiService:
     async def health_check(self) -> dict[str, Any]:
         """Check Graphiti and Neo4j health."""
         try:
-            if not self._graphiti:
-                return {"healthy": False, "error": "Not initialized"}
+            graphiti = self._get_graphiti()
 
             # Simple search to verify connectivity
-            await self._graphiti.search(
+            await graphiti.search(
                 query="test",
                 group_ids=[self.config.group_id],
                 num_results=1,

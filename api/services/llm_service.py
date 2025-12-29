@@ -19,37 +19,29 @@ logger = logging.getLogger(__name__)
 
 # Provider config
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ollama/phi3:mini")
-OLLAMA_FLEET_MODEL = os.getenv("OLLAMA_FLEET_MODEL", "deepseek-v3")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_MODEL = "ollama/llama3.2" # Using locally available model
+OLLAMA_FLEET_MODEL = "ollama/qwen2.5:14b"
 
-# Model constants - mapping to gpt-4o-mini for stability until gpt-5 is fully GA
-GPT5_NANO = "openai/gpt-4o-mini"
-GPT5_MINI = "openai/gpt-4o-mini"
+# Model constants - All route to GPT-5 Nano
+GPT5_NANO = "openai/gpt-5-nano-2025-08-07"
+GPT5_MINI = "openai/gpt-5-nano-2025-08-07"
 HAIKU = "anthropic/claude-3-haiku-20240307"
 SONNET = "anthropic/claude-3-5-sonnet-20240620"
-OLLAMA_MODEL = "ollama/llama3.2" # Using locally available model
 
 
 def get_router_model(model_id: str = "dionysus-agents") -> LiteLLMRouterModel:
     """
-    Returns a LiteLLMRouterModel with GPT-5 Nano -> GPT-5 Mini -> Ollama fallback.
-    T3.1: Ensures high availability and cost optimization.
+    Returns a LiteLLMRouterModel with GPT-5 Nano -> Ollama fallback.
     """
     from smolagents import LiteLLMRouterModel
     
+    # Use consistent model_name across deployments for the router group
     model_list = [
         {
             "model_name": model_id,
             "litellm_params": {
                 "model": GPT5_NANO,
-                "api_key": os.getenv("OPENAI_API_KEY"),
-            }
-        },
-        {
-            "model_name": model_id,
-            "litellm_params": {
-                "model": GPT5_MINI,
                 "api_key": os.getenv("OPENAI_API_KEY"),
             }
         },
@@ -68,9 +60,9 @@ def get_router_model(model_id: str = "dionysus-agents") -> LiteLLMRouterModel:
         client_kwargs={
             "routing_strategy": "simple-shuffle",
             "num_retries": 2,
-            "fallbacks": [{GPT5_NANO: [GPT5_MINI, OLLAMA_MODEL]}],
+            "fallbacks": [{model_id: [model_id]}], # Fallback is handled by the model list order
         },
-        drop_params=True # T033: Prevent UnsupportedParamsError
+        drop_params=True
     )
 
 
@@ -82,51 +74,35 @@ async def chat_completion(
 ) -> str:
     """
     Non-streaming chat completion via LiteLLM.
-
-    Uses LLM_PROVIDER env var:
-    - "openai": GPT-5 Nano (default)
-    - "ollama": Local Ollama
     """
     # If model is an ollama model, force provider
-    current_provider = LLM_PROVIDER
     if model.startswith("ollama/"):
-        current_provider = "ollama"
-        model = model.replace("ollama/", "")
-
-    if current_provider == "ollama":
-        # Use LiteLLM with Ollama
-        ollama_messages = [{"role": "system", "content": system_prompt}] + messages
-        response = await acompletion(
-            model=f"ollama/{model}",
-            messages=ollama_messages,
-            max_tokens=max_tokens,
-            api_base=OLLAMA_BASE_URL,
-            drop_params=True # Ollama doesn't like some OpenAI params
-        )
-        return response.choices[0].message.content or ""
+        llm_model = model
     else:
-        # OpenAI / GPT-5 Nano
-        openai_messages = [{"role": "system", "content": system_prompt}] + messages
         llm_model = model if model.startswith("openai/") else f"openai/{model}"
 
-        try:
-            # T004: Explicitly omit max_tokens for gpt-5-nano if needed
-            kwargs = {
-                "model": llm_model,
-                "messages": openai_messages,
-                "api_key": os.getenv("OPENAI_API_KEY"),
-                "timeout": 60,
-                "drop_params": True # T033: Ensure stability
-            }
-            if "gpt-5" not in llm_model:
-                kwargs["max_tokens"] = max_tokens
-                
-            response = await acompletion(**kwargs)
-            content = response.choices[0].message.content
-            return content if content is not None else ""
-        except Exception as e:
-            logger.error(f"LiteLLM error ({llm_model}): {e}")
-            return ""
+    try:
+        kwargs = {
+            "model": llm_model,
+            "messages": [{"role": "system", "content": system_prompt}] + messages,
+            "api_key": os.getenv("OPENAI_API_KEY"),
+            "timeout": 60,
+            "drop_params": True
+        }
+        
+        # Ollama support
+        if "ollama" in llm_model:
+            kwargs["api_base"] = OLLAMA_BASE_URL
+            
+        if "gpt-5" not in llm_model:
+            kwargs["max_tokens"] = max_tokens
+            
+        response = await acompletion(**kwargs)
+        content = response.choices[0].message.content
+        return content if content is not None else ""
+    except Exception as e:
+        logger.error(f"LiteLLM error ({llm_model}): {e}")
+        return ""
 
 
 async def chat_stream(
@@ -136,15 +112,15 @@ async def chat_stream(
     max_tokens: int = 1024
 ) -> AsyncGenerator[str, None]:
     """Streaming chat completion via LiteLLM."""
-    openai_messages = [{"role": "system", "content": system_prompt}] + messages
     llm_model = model if model.startswith("openai/") else f"openai/{model}"
 
     response = await acompletion(
         model=llm_model,
-        messages=openai_messages,
+        messages=[{"role": "system", "content": system_prompt}] + messages,
         max_tokens=max_tokens,
         api_key=os.getenv("OPENAI_API_KEY"),
         stream=True,
+        drop_params=True
     )
     async for chunk in response:
         if chunk.choices[0].delta.content:
@@ -181,9 +157,8 @@ class CoachingAgent:
             "contrarian_insight": "..."
         }}
         """
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        from api.agents.resource_gate import run_agent_with_timeout
+        result = await run_agent_with_timeout(self.agent, prompt)
         try:
             cleaned = result.strip()
             if cleaned.startswith("```"):
@@ -197,9 +172,8 @@ class CoachingAgent:
         Wish: {wish} | Outcome: {outcome} | Obstacle: {obstacle} | Context: {context}
         Respond ONLY with a JSON list of 3 strings.
         """
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        from api.agents.resource_gate import run_agent_with_timeout
+        result = await run_agent_with_timeout(self.agent, prompt)
         try:
             cleaned = result.strip()
             if cleaned.startswith("```"):

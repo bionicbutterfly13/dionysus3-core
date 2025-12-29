@@ -17,10 +17,12 @@ async def run_agent_with_timeout(
     timeout_seconds: int = 30,
     use_ollama: bool = False,
     trace_id: str = "no-trace",
-    max_retries: int = 1 # T003
+    max_retries: int = 1,
+    fallback_model_id: Optional[str] = "dionysus-agents-mini" # T004
 ) -> Any:
     """
     Executes an agent run with a mandatory timeout, resource gating, and self-healing retries.
+    Now supports model promotion on first retry.
     """
     from api.services.agent_memory_service import get_agent_memory_service
     
@@ -29,15 +31,21 @@ async def run_agent_with_timeout(
     current_attempt = 0
     
     while current_attempt <= max_retries:
+        if current_attempt > 0 and fallback_model_id:
+            if hasattr(agent.model, 'model_id'):
+                agent.model.model_id = fallback_model_id
+                logger.info(f"Retrying with promoted model: {fallback_model_id}")
+
         async with semaphore:
             def _run():
-                # Force a new event loop if necessary for this sub-thread
+                # T033: Crucial fix for smolagents threads - must have local event loop
+                # for any async calls (like Neo4j driver) inside tool execution.
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
                 try:
-                    asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                return agent.run(prompt, return_full_result=True)
+                    return agent.run(prompt, return_full_result=True)
+                finally:
+                    loop.close()
 
             try:
                 loop = asyncio.get_event_loop()
@@ -78,39 +86,16 @@ async def run_agent_with_timeout(
     return "Error: Unknown failure in execution loop."
 
 def async_tool_wrapper(func: Callable) -> Callable:
-
     """
-
     Decorator/wrapper for async tools to run in a dedicated thread-per-tool 
-
-    with an isolated event loop, eliminating nest_asyncio.
-
+    with a stable, dedicated event loop. 
     """
-
     def wrapper(*args, **kwargs):
-
-        try:
-
-            loop = asyncio.get_event_loop()
-
-        except RuntimeError:
-
-            loop = asyncio.new_event_loop()
-
-            asyncio.set_event_loop(loop)
-
+        from api.services.graphiti_service import get_graphiti_loop
+        loop = get_graphiti_loop()
+        
+        # Use run_coroutine_threadsafe to execute on the dedicated loop
+        future = asyncio.run_coroutine_threadsafe(func(*args, **kwargs), loop)
+        return future.result()
             
-
-        if loop.is_running():
-
-            import nest_asyncio
-
-            nest_asyncio.apply()
-
-            return loop.run_until_complete(func(*args, **kwargs))
-
-        else:
-
-            return loop.run_until_complete(func(*args, **kwargs))
-
     return wrapper

@@ -23,7 +23,7 @@ class PainAnalyst:
     """
 
     def __init__(self, model_id: str = None):
-        model_id = model_id or os.getenv("SMOLAGENTS_MODEL", "openai/gpt-4o-mini")
+        model_id = model_id or os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano-2025-08-07")
 
         # Configure LiteLLMModel for Ollama or cloud providers
         model_kwargs = {"model_id": model_id}

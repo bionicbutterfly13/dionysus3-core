@@ -770,7 +770,7 @@ class HeartbeatService:
             from litellm import completion
             
             response = await completion(
-                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-4o-mini"),
+                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano-2025-08-07"),
                 messages=[
                     {"role": "system", "content": "You are a cognitive analyst identifying patterns in agent behaviors."},
                     {"role": "user", "content": prompt}
@@ -826,7 +826,7 @@ class HeartbeatService:
             from litellm import completion
             
             response = await completion(
-                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-4o-mini"),
+                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano-2025-08-07"),
                 messages=[
                     {"role": "system", "content": "You are a strategic synthesis engine for an autonomous agent."},
                     {"role": "user", "content": prompt}

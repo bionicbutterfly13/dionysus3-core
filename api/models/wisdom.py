@@ -7,7 +7,7 @@ Represent distilled cognitive units like Mental Models, Strategic Principles, an
 
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 
 
@@ -34,12 +34,14 @@ class WisdomUnit(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_updated: datetime = Field(default_factory=datetime.utcnow)
     
-    metadata: Dict = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class MentalModel(WisdomUnit):
     """A recurring cognitive framework (e.g., OODA, 15-Point SPIAD)."""
     type: WisdomType = WisdomType.MENTAL_MODEL
+    core_logic: Optional[str] = None
+    application_context: Optional[str] = None
     principles: List[str] = Field(default_factory=list)
     anti_patterns: List[str] = Field(default_factory=list)
 
@@ -49,12 +51,13 @@ class StrategicPrinciple(WisdomUnit):
     type: WisdomType = WisdomType.STRATEGIC_PRINCIPLE
     rationale: Optional[str] = None
     application_context: Optional[str] = None
+    actionable_directive: Optional[str] = None
 
 
 class CaseStudy(WisdomUnit):
     """An experiential narrative showing a transformation."""
     type: WisdomType = WisdomType.CASE_STUDY
-    problem_state: str
-    breakthrough_moment: str
-    result_state: str
-    mosaeic_profile: Optional[Dict] = None
+    problem_state: Optional[str] = None
+    breakthrough_moment: Optional[str] = None
+    result_state: Optional[str] = None
+    mosaeic_profile: Optional[Dict[str, Any]] = None
