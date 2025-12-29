@@ -68,7 +68,8 @@ def get_router_model(model_id: str = "dionysus-agents") -> LiteLLMRouterModel:
             "routing_strategy": "simple-shuffle",
             "num_retries": 2,
             "fallbacks": [{GPT5_NANO: [GPT5_MINI, OLLAMA_MODEL]}],
-        }
+        },
+        drop_params=True # T033: Prevent UnsupportedParamsError
     )
 
 

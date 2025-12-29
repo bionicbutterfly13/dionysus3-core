@@ -40,20 +40,23 @@ class IngestWisdomInsightTool(Tool):
         "source": {
             "type": "string", 
             "description": "Source document or context for this insight",
-            "default": "unknown"
+            "default": "unknown",
+            "nullable": True
         }
     }
     output_type = "any"
 
-    def forward(self, content: str, insight_type: str, source: str = "unknown") -> dict:
+    def forward(self, content: str, insight_type: str, source: Optional[str] = "unknown") -> dict:
+        from api.agents.resilience import wrap_with_resilience
         valid_types = ["voice_pattern", "process_insight", "evolution_reasoning", "strategic_idea"]
         if insight_type not in valid_types:
+            error_msg = wrap_with_resilience(f"Invalid insight_type. Must be one of: {valid_types}")
             return WisdomInsightOutput(
                 success=False,
                 insight_type=insight_type,
                 extracted={},
                 source=source,
-                error=f"Invalid insight_type. Must be one of: {valid_types}"
+                error=error_msg
             ).model_dump()
 
         async def _run():
@@ -120,7 +123,7 @@ Preserve the raw authenticity and 'richness' of the user's original thoughts."""
                     insight_type=insight_type,
                     extracted={},
                     source=source,
-                    error=str(e)
+                    error=wrap_with_resilience(str(e))
                 )
             finally:
                 if graphiti:
@@ -153,12 +156,14 @@ class QueryWisdomGraphTool(Tool):
         "limit": {
             "type": "integer",
             "description": "Maximum results to return",
-            "default": 10
+            "default": 10,
+            "nullable": True
         }
     }
     output_type = "any"
 
-    def forward(self, query: str, insight_types: Optional[str] = None, limit: int = 10) -> dict:
+    def forward(self, query: str, insight_types: Optional[str] = None, limit: Optional[int] = 10) -> dict:
+        from api.agents.resilience import wrap_with_resilience
         async def _run():
             try:
                 graphiti = await get_graphiti_service()
@@ -174,15 +179,64 @@ class QueryWisdomGraphTool(Tool):
                 }
             except Exception as e:
                 logger.error(f"Wisdom graph query failed: {e}")
-                return {"query": query, "results": [], "count": 0, "error": str(e)}
+                return {"query": query, "results": [], "count": 0, "error": wrap_with_resilience(str(e))}
             finally:
                 if 'graphiti' in locals() and graphiti:
                     await graphiti.close()
 
-        result_dict = async_tool_wrapper(_run)()
-        output = WisdomGraphQueryOutput(**result_dict)
-        return output.model_dump()
+        return async_tool_wrapper(_run)()
+
+class DistillWisdomClusterTool(Tool):
+    name = "distill_wisdom_cluster"
+    description = "Synthesize a group of fragmented insights into a single canonical Wisdom Unit."
+    
+    inputs = {
+        "fragments_json": {
+            "type": "string",
+            "description": "JSON list of fragmented insights to merge."
+        },
+        "wisdom_type": {
+            "type": "string",
+            "description": "The target type: mental_model, strategic_principle, or case_study.",
+            "default": "mental_model",
+            "nullable": True
+        }
+    }
+    output_type = "any"
+
+    def forward(self, fragments_json: str, wisdom_type: str = "mental_model") -> dict:
+        async def _run():
+            from api.services.llm_service import chat_completion, SONNET
+            from api.models.wisdom import WisdomType
+            
+            try:
+                fragments = json.loads(fragments_json)
+            except Exception as e:
+                return {"error": f"invalid_json_input: {e}"}
+            
+            system_prompt = f"You are a master of synthesis. Merge these {len(fragments)} fragments into ONE high-fidelity {wisdom_type}."
+            user_content = f"Fragments to distill:\n{json.dumps(fragments, indent=2)}\n\nOutput a canonical JSON for a {wisdom_type}."
+            
+            response = await chat_completion(
+                messages=[{"role": "user", "content": user_content}],
+                system_prompt=system_prompt,
+                model=SONNET,
+                max_tokens=1024
+            )
+            
+            try:
+                cleaned = response.strip()
+                if cleaned.startswith("```"):
+                    cleaned = cleaned.strip("`").replace("json", "").strip()
+                data = json.loads(cleaned)
+                return data
+            except Exception as e:
+                logger.error(f"distillation_synthesis_failed: {e}")
+                return {"error": str(e)}
+
+        return async_tool_wrapper(_run)()
 
 # Export tool instances
 ingest_wisdom_insight = IngestWisdomInsightTool()
 query_wisdom_graph = QueryWisdomGraphTool()
+distill_wisdom_cluster = DistillWisdomClusterTool()

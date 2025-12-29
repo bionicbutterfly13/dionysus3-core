@@ -52,7 +52,7 @@ class IngestAvatarInsightTool(Tool):
         # We use get_graphiti_service() inside the forward method.
         pass
 
-    def forward(self, content: str, insight_type: str, source: str = "unknown") -> dict:
+    def forward(self, content: str, insight_type: str, source: Optional[str] = "unknown") -> dict:
         # 1. Validate insight type
         valid_types = [t.value for t in InsightType]
         if insight_type not in valid_types:
@@ -166,7 +166,8 @@ class QueryAvatarGraphTool(Tool):
         "limit": {
             "type": "integer",
             "description": "Maximum results to return",
-            "default": 10
+            "default": 10,
+            "nullable": True
         }
     }
     output_type = "any"
@@ -196,7 +197,8 @@ class SynthesizeAvatarProfileTool(Tool):
         "dimensions": {
             "type": "string",
             "description": "Comma-separated dimensions to include, or 'all' for everything.",
-            "default": "all"
+            "default": "all",
+            "nullable": True
         }
     }
     output_type = "any"
@@ -253,7 +255,8 @@ class BulkIngestDocumentTool(Tool):
         "document_type": {
             "type": "string",
             "description": "Type of document - copy_brief, email, interview, review",
-            "default": "copy_brief"
+            "default": "copy_brief",
+            "nullable": True
         }
     }
     output_type = "any"
@@ -264,10 +267,10 @@ class BulkIngestDocumentTool(Tool):
             graphiti = None
             try:
                 with open(file_path, 'r') as f: content = f.read()
-                system_prompt = \"\"\"You are an avatar research analyst. Analyze this document and extract ALL avatar insights.
+                system_prompt = """You are an avatar research analyst. Analyze this document and extract ALL avatar insights.
 For each insight found, output a JSON object on its own line with this structure:
 {"type": "pain_point|objection|desire|belief|behavior|voice_pattern|failed_solution", "content": "the relevant text", "extracted": {structured data}}
-Extract as many insights as you can find. Be thorough.\"\"\"
+Extract as many insights as you can find. Be thorough."""
                 response = await openai_chat_completion(messages=[{"role": "user", "content": f"Document ({document_type}):\n\n{content}"}], system_prompt=system_prompt, model="gpt-5-nano", max_tokens=4096)
                 insights = []
                 for line in response.strip().split("\n"):
