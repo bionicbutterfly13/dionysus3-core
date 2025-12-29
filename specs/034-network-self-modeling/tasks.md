@@ -118,19 +118,19 @@ Following existing api/ structure per plan.md:
 
 ### Tests for User Story 3
 
-- [ ] T038 [P] [US3] Unit test for HebbianConnection model in tests/unit/test_hebbian.py
-- [ ] T039 [P] [US3] Unit test for Hebbian weight update formula in tests/unit/test_hebbian.py
-- [ ] T040 [P] [US3] Unit test for exponential decay calculation in tests/unit/test_hebbian.py
-- [ ] T041 [P] [US3] Unit test for weight boundary enforcement in tests/unit/test_hebbian.py
+- [X] T038 [P] [US3] Unit test for HebbianConnection model in tests/unit/test_hebbian.py
+- [X] T039 [P] [US3] Unit test for Hebbian weight update formula in tests/unit/test_hebbian.py
+- [X] T040 [P] [US3] Unit test for exponential decay calculation in tests/unit/test_hebbian.py
+- [X] T041 [P] [US3] Unit test for weight boundary enforcement in tests/unit/test_hebbian.py
 
 ### Implementation for User Story 3
 
-- [ ] T042 [P] [US3] Create HebbianConnection Pydantic model in api/models/hebbian.py
-- [ ] T043 [US3] Implement HebbianConnection.apply_hebbian_update() with Treur formula in api/models/hebbian.py
-- [ ] T044 [US3] Implement HebbianConnection.apply_decay() with exponential decay in api/models/hebbian.py
-- [ ] T045 [US3] Implement HebbianService.record_coactivation() in api/services/hebbian_service.py
-- [ ] T046 [US3] Implement HebbianService.apply_decay_batch() for scheduled decay in api/services/hebbian_service.py
-- [ ] T047 [US3] Implement HebbianService._persist() for Neo4j relationship property updates in api/services/hebbian_service.py
+- [X] T042 [P] [US3] Create HebbianConnection Pydantic model in api/models/hebbian.py
+- [X] T043 [US3] Implement HebbianConnection.apply_hebbian_update() with Treur formula in api/models/hebbian.py
+- [X] T044 [US3] Implement HebbianConnection.apply_decay() with exponential decay in api/models/hebbian.py
+- [X] T045 [US3] Implement HebbianService.record_coactivation() in api/services/hebbian_service.py
+- [X] T046 [US3] Implement HebbianService.apply_decay_batch() for scheduled decay in api/services/hebbian_service.py
+- [X] T047 [US3] Implement HebbianService._persist() for Neo4j relationship property updates in api/services/hebbian_service.py
 - [ ] T048 [US3] Add Hebbian weight updates to kg_learning_service retrieval callbacks in api/services/kg_learning_service.py (conditional on flag)
 
 **Checkpoint**: User Story 3 complete - Hebbian learning functional
