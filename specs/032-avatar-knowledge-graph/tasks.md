@@ -37,8 +37,8 @@
 
 ## Phase 5: Docs (P3)
 
-- [ ] T019 Add usage documentation for avatar endpoints
+- [x] T019 Add usage documentation for avatar endpoints
 
 ---
 
-**Total**: 19 tasks | **Status**: 18 done, 1 todo
+**Total**: 19 tasks | **Status**: 19 done, 0 todo
