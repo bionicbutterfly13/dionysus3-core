@@ -104,7 +104,7 @@ Following existing api/ structure per plan.md:
 - [X] T034 [US2] Implement callback.on_step() with prediction/resolution cycle in api/agents/self_modeling_callback.py
 - [X] T035 [US2] Create GET /self-modeling/{agent_id}/predictions endpoint in api/routers/network_state.py
 - [X] T036 [US2] Create GET /self-modeling/{agent_id}/accuracy endpoint in api/routers/network_state.py
-- [ ] T037 [US2] Add opt-in self-modeling callback to agent initialization (conditional on flag) in api/agents/consciousness_manager.py
+- [X] T037 [US2] Add opt-in self-modeling callback to agent initialization (conditional on flag) in api/agents/consciousness_manager.py
 
 **Checkpoint**: User Story 2 complete - self-prediction regularization functional
 
@@ -131,7 +131,7 @@ Following existing api/ structure per plan.md:
 - [X] T045 [US3] Implement HebbianService.record_coactivation() in api/services/hebbian_service.py
 - [X] T046 [US3] Implement HebbianService.apply_decay_batch() for scheduled decay in api/services/hebbian_service.py
 - [X] T047 [US3] Implement HebbianService._persist() for Neo4j relationship property updates in api/services/hebbian_service.py
-- [ ] T048 [US3] Add Hebbian weight updates to kg_learning_service retrieval callbacks in api/services/kg_learning_service.py (conditional on flag)
+- [X] T048 [US3] Add Hebbian weight updates to kg_learning_service retrieval callbacks in api/services/kg_learning_service.py (conditional on flag)
 
 **Checkpoint**: User Story 3 complete - Hebbian learning functional
 

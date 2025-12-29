@@ -16,6 +16,7 @@ from api.models.kg_learning import ExtractionResult, RelationshipProposal, Attra
 from api.services.graphiti_service import get_graphiti_service
 from api.services.llm_service import chat_completion, SONNET
 from api.services.webhook_neo4j_driver import get_neo4j_driver
+from api.models.network_state import get_network_state_config
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +188,40 @@ class KGLearningService:
                     s.last_used = datetime()
                 """
                 await self._driver.execute_query(cypher, {"name": rel.relation_type})
+
+        # T048: Hebbian co-activation learning (conditional on feature flag)
+        config = get_network_state_config()
+        if config.hebbian_learning_enabled:
+            await self._apply_hebbian_coactivation(relationships)
+
+    async def _apply_hebbian_coactivation(self, relationships: List[RelationshipProposal]):
+        """
+        Apply Hebbian learning to relationship connections (T048).
+
+        When entities co-activate through successful extraction, strengthen
+        their connection weights using the Hebbian learning formula.
+        """
+        from api.services.hebbian_service import get_hebbian_service
+
+        hebbian_svc = get_hebbian_service()
+
+        for rel in relationships:
+            if rel.confidence < 0.6:
+                continue
+
+            # Record co-activation between source and target entities
+            # Activation values scaled by confidence
+            try:
+                await hebbian_svc.record_coactivation(
+                    source_id=rel.source,
+                    target_id=rel.target,
+                    v1=rel.confidence,
+                    v2=rel.confidence
+                )
+                logger.debug(f"Hebbian co-activation recorded: {rel.source} -> {rel.target}")
+            except Exception as e:
+                # Don't fail extraction on Hebbian errors - just log
+                logger.warning(f"Hebbian co-activation failed for {rel.source}->{rel.target}: {e}")
 
     async def evaluate_extraction(self, extraction: ExtractionResult, ground_truth: str) -> Dict[str, Any]:
         """

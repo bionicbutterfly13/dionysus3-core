@@ -10,6 +10,7 @@ from api.agents.tools.cognitive_tools import context_explorer, cognitive_check
 from api.services.bootstrap_recall_service import BootstrapRecallService
 from api.services.metaplasticity_service import get_metaplasticity_controller
 from api.models.bootstrap import BootstrapConfig
+from api.agents.self_modeling_callback import create_self_modeling_callback
 
 class ConsciousnessManager:
     """
@@ -47,13 +48,27 @@ class ConsciousnessManager:
         # Enter sub-agents
         self.perception_agent_wrapper.__enter__()
         # Apply callbacks to sub-agents
-        self.perception_agent_wrapper.agent.step_callbacks = audit.get_registry("perception")
-        
+        perception_callbacks = audit.get_registry("perception")
+        self.perception_agent_wrapper.agent.step_callbacks = perception_callbacks
+
         self.reasoning_agent_wrapper.__enter__()
-        self.reasoning_agent_wrapper.agent.step_callbacks = audit.get_registry("reasoning")
-        
+        reasoning_callbacks = audit.get_registry("reasoning")
+        self.reasoning_agent_wrapper.agent.step_callbacks = reasoning_callbacks
+
         self.metacognition_agent_wrapper.__enter__()
-        self.metacognition_agent_wrapper.agent.step_callbacks = audit.get_registry("metacognition")
+        metacognition_callbacks = audit.get_registry("metacognition")
+        self.metacognition_agent_wrapper.agent.step_callbacks = metacognition_callbacks
+
+        # T037: Add opt-in self-modeling callbacks (conditional on SELF_MODELING_ENABLED)
+        for agent_name, callbacks in [
+            ("perception", perception_callbacks),
+            ("reasoning", reasoning_callbacks),
+            ("metacognition", metacognition_callbacks)
+        ]:
+            self_modeling_cb = create_self_modeling_callback(agent_id=agent_name)
+            if self_modeling_cb:
+                callbacks.append(self_modeling_cb)
+                print(f"DEBUG: Self-modeling callback enabled for {agent_name}")
         
         # Add Explorer and Cognitive tools to Reasoning specifically
         self.reasoning_agent_wrapper.agent.tools[context_explorer.name] = context_explorer
