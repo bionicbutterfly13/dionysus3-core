@@ -23,4 +23,4 @@
 
 ## Phase 3: Export
 
-- [ ] T009 Export all generated text files to `/Volumes/Arkham/Marketing/stefan/assets/`
+- [X] T009 Export all generated text files to `/Volumes/Arkham/Marketing/stefan/assets/`
