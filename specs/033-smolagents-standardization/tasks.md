@@ -30,9 +30,9 @@
 - [x] T018 Wire token usage tracking into all agents
 
 ## Phase 4: Tier 3 Reliability
-- [ ] T019 Implement `LiteLLMRouterModel` (Nano -> Mini -> Ollama)
-- [ ] T020 Remove `nest_asyncio` from all tools (Thread-per-tool pattern)
-- [ ] T021 Add planning intervals to `ConsciousnessManager`
+- [x] T019 Implement `LiteLLMRouterModel` (Nano -> Mini -> Ollama)
+- [x] T020 Remove `nest_asyncio` from all tools (Thread-per-tool pattern)
+- [x] T021 Add planning intervals to `ConsciousnessManager`
 
 ## Phase 5: Tier 4 Tool Improvements
 - [ ] T022 Add Pydantic output validation to all tools

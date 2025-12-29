@@ -1,63 +1,101 @@
 """
-Smolagent tools for rollback and checkpointing.
+Class-based tools for rollback and checkpointing.
 Feature: 021-rollback-safety-net
+Tasks: T4.1, T4.2
 """
 
-from smolagents import tool
+from typing import List, Optional
+from pydantic import BaseModel, Field
+from smolagents import Tool
+
 from api.services.rollback_service import get_rollback_service
 from api.models.rollback import CheckpointCreateRequest
+from api.agents.resource_gate import async_tool_wrapper
 
+class RollbackOutput(BaseModel):
+    success: bool = Field(..., description="Whether the operation was successful")
+    message: str = Field(..., description="Detailed result message")
+    checkpoint_id: Optional[str] = Field(None, description="The UUID of the checkpoint involved")
 
-@tool
-def create_checkpoint(component_id: str, file_path: str, related_files: list[str] = None) -> str:
-    """
-    Create a safety checkpoint for a file or component before making changes.
+class CreateCheckpointTool(Tool):
+    name = "create_checkpoint"
+    description = "Create a safety checkpoint for a file or component before making changes."
     
-    Args:
-        component_id: Unique identifier for the component (e.g., 'model_service')
-        file_path: Primary file path to backup
-        related_files: Optional list of related files (tests, docs) to include
-    """
-    import asyncio
-    service = get_rollback_service()
-    request = CheckpointCreateRequest(
-        component_id=component_id,
-        file_path=file_path,
-        related_files=related_files or []
-    )
-    
-    # Run async in sync tool
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        import nest_asyncio
-        nest_asyncio.apply()
-        checkpoint_id = loop.run_until_complete(service.create_checkpoint(request))
-    else:
-        checkpoint_id = asyncio.run(service.create_checkpoint(request))
+    inputs = {
+        "component_id": {
+            "type": "string",
+            "description": "Unique identifier for the component (e.g., 'model_service')"
+        },
+        "file_path": {
+            "type": "string",
+            "description": "Primary file path to backup"
+        },
+        "related_files": {
+            "type": "list",
+            "description": "Optional list of related files (tests, docs) to include",
+            "nullable": True
+        }
+    }
+    output_type = "any"
+
+    def forward(self, component_id: str, file_path: str, related_files: list[str] = None) -> dict:
+        service = get_rollback_service()
+        request = CheckpointCreateRequest(
+            component_id=component_id,
+            file_path=file_path,
+            related_files=related_files or []
+        )
         
-    return f"Checkpoint created: {checkpoint_id}. You can now safely edit {file_path}."
+        try:
+            checkpoint_id = async_tool_wrapper(service.create_checkpoint)(request)
+            output = RollbackOutput(
+                success=True,
+                message=f"Checkpoint created successfully. You can now safely edit {file_path}.",
+                checkpoint_id=checkpoint_id
+            )
+            return output.model_dump()
+        except Exception as e:
+            return RollbackOutput(
+                success=False,
+                message=f"Failed to create checkpoint: {e}"
+            ).model_dump()
 
+class RollbackToCheckpointTool(Tool):
+    name = "rollback_to_checkpoint"
+    description = "Rollback a component to a previously created checkpoint."
+    
+    inputs = {
+        "checkpoint_id": {
+            "type": "string",
+            "description": "The UUID of the checkpoint to restore."
+        }
+    }
+    output_type = "any"
 
-@tool
-def rollback_to_checkpoint(checkpoint_id: str) -> str:
-    """
-    Rollback a component to a previously created checkpoint.
-    
-    Args:
-        checkpoint_id: The UUID of the checkpoint to restore.
-    """
-    import asyncio
-    service = get_rollback_service()
-    
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        import nest_asyncio
-        nest_asyncio.apply()
-        success = loop.run_until_complete(service.rollback(checkpoint_id))
-    else:
-        success = asyncio.run(service.rollback(checkpoint_id))
+    def forward(self, checkpoint_id: str) -> dict:
+        service = get_rollback_service()
         
-    if success:
-        return f"Rollback to {checkpoint_id} successful. Files restored."
-    else:
-        return f"Rollback failed. Check system logs for checkpoint {checkpoint_id}."
+        try:
+            success = async_tool_wrapper(service.rollback)(checkpoint_id)
+            if success:
+                return RollbackOutput(
+                    success=True,
+                    message=f"Rollback to {checkpoint_id} successful. Files restored.",
+                    checkpoint_id=checkpoint_id
+                ).model_dump()
+            else:
+                return RollbackOutput(
+                    success=False,
+                    message=f"Rollback failed for {checkpoint_id}. Check system logs.",
+                    checkpoint_id=checkpoint_id
+                ).model_dump()
+        except Exception as e:
+            return RollbackOutput(
+                success=False,
+                message=f"Rollback execution error: {e}",
+                checkpoint_id=checkpoint_id
+            ).model_dump()
+
+# Export tool instances
+create_checkpoint = CreateCheckpointTool()
+rollback_to_checkpoint = RollbackToCheckpointTool()

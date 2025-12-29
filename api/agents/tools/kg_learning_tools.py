@@ -1,38 +1,83 @@
 """
-Smolagent tools for agentic KG learning loops.
+Class-based tools for agentic KG learning loops.
 Feature: 022-agentic-kg-learning
+Tasks: T4.1, T4.2
 """
 
-from smolagents import tool
+from typing import List, Optional
+from pydantic import BaseModel, Field
+from smolagents import Tool
+
 from api.services.kg_learning_service import get_kg_learning_service
+from api.agents.resource_gate import async_tool_wrapper
 
+class KGRelationship(BaseModel):
+    source: str
+    target: str
+    relation_type: str
+    confidence: float
 
-@tool
-def agentic_kg_extract(content: str, source_id: str) -> str:
-    """
-    Extract structured knowledge from content using the agentic learning loop.
-    This tool uses attractor basins and cognition strategies to get better over time.
+class KGExtractionOutput(BaseModel):
+    success: bool = Field(..., description="Whether the extraction was successful")
+    entity_count: int = Field(..., description="Number of entities extracted")
+    relationship_count: int = Field(..., description="Number of relationships extracted")
+    top_relationships: List[KGRelationship] = Field(..., description="Details of the most confident relationships")
+    summary: str = Field(..., description="Textual overview of the extraction result")
+    error: Optional[str] = Field(None, description="Error message if extraction failed")
+
+class AgenticKGExtractTool(Tool):
+    name = "agentic_kg_extract"
+    description = "Extract structured knowledge from content using the agentic learning loop."
     
-    Args:
-        content: The text content to analyze.
-        source_id: Unique identifier for the source (e.g., 'research_paper_01').
-    """
-    import asyncio
-    service = get_kg_learning_service()
-    
-    # Run async in sync tool
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        import nest_asyncio
-        nest_asyncio.apply()
-        result = loop.run_until_complete(service.extract_and_learn(content, source_id))
-    else:
-        result = asyncio.run(service.extract_and_learn(content, source_id))
-        
-    summary = f"Extracted {len(result.entities)} entities and {len(result.relationships)} relationships."
-    if result.relationships:
-        summary += "\nTop Relationships:"
-        for rel in result.relationships[:3]:
-            summary += f"\n- {rel.source} {rel.relation_type} {rel.target} ({rel.confidence:.2f})"
+    inputs = {
+        "content": {
+            "type": "string",
+            "description": "The text content to analyze."
+        },
+        "source_id": {
+            "type": "string",
+            "description": "Unique identifier for the source (e.g., 'research_paper_01')."
+        }
+    }
+    output_type = "any"
+
+    def forward(self, content: str, source_id: str) -> dict:
+        async def _extract():
+            service = get_kg_learning_service()
+            return await service.extract_and_learn(content, source_id)
+
+        try:
+            result = async_tool_wrapper(_extract)()
             
-    return summary
+            top_rels = [
+                KGRelationship(
+                    source=rel.source,
+                    target=rel.target,
+                    relation_type=rel.relation_type,
+                    confidence=rel.confidence
+                ) for rel in result.relationships[:5]
+            ]
+            
+            summary = f"Extracted {len(result.entities)} entities and {len(result.relationships)} relationships."
+            
+            output = KGExtractionOutput(
+                success=True,
+                entity_count=len(result.entities),
+                relationship_count=len(result.relationships),
+                top_relationships=top_rels,
+                summary=summary
+            )
+            return output.model_dump()
+            
+        except Exception as e:
+            return KGExtractionOutput(
+                success=False,
+                entity_count=0,
+                relationship_count=0,
+                top_relationships=[],
+                summary="Extraction failed",
+                error=str(e)
+            ).model_dump()
+
+# Export tool instance
+agentic_kg_extract = AgenticKGExtractTool()

@@ -1,4 +1,5 @@
 import os
+import os
 from smolagents import ToolCallingAgent, LiteLLMModel, MCPClient
 from mcp import StdioServerParameters
 
@@ -9,11 +10,9 @@ class PerceptionAgent:
     Uses ToolCallingAgent for efficient, parallel tool interaction.
     """
 
-    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
-        self.model = LiteLLMModel(
-            model_id=model_id,
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
+    def __init__(self, model_id: str = "dionysus-agents"):
+        from api.services.llm_service import get_router_model
+        self.model = get_router_model(model_id=model_id)
         self.server_params = StdioServerParameters(
             command="python3",
             args=["-m", "dionysus_mcp.server"],

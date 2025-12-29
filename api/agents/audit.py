@@ -68,16 +68,10 @@ class AgentAuditCallback:
             # We don't want audit failures to crash the agent
             logger.error(f"Audit webhook failed: {e}")
 
-    def get_registry(self, agent_name: str, trace_id: str = "no-trace") -> CallbackRegistry:
+    def get_registry(self, agent_name: str, trace_id: str = "no-trace") -> Dict:
         """
-        Returns a CallbackRegistry configured for this audit instance.
+        Returns a dictionary of callbacks configured for this audit instance.
         """
-        registry = CallbackRegistry()
-        
-        # We use lambdas to inject agent_name and trace_id context into the sync callback
-        # Note: smolagents callbacks are expected to be sync in some versions, 
-        # but here we trigger an async background task.
-        
         def handle_action(step, **kwargs):
             asyncio.run_coroutine_threadsafe(
                 self.on_step(step, agent_name, trace_id), 
@@ -90,10 +84,10 @@ class AgentAuditCallback:
                 asyncio.get_event_loop()
             )
 
-        registry.register(ActionStep, handle_action)
-        registry.register(PlanningStep, handle_planning)
-        
-        return registry
+        return {
+            ActionStep: handle_action,
+            PlanningStep: handle_planning
+        }
 
 _global_audit: Optional[AgentAuditCallback] = None
 

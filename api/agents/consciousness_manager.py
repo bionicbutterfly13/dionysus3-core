@@ -2,7 +2,7 @@ import os
 import json
 from typing import Any, Dict
 
-from smolagents import CodeAgent, LiteLLMModel
+from smolagents import ToolCallingAgent, LiteLLMModel
 from api.agents.perception_agent import PerceptionAgent
 from api.agents.reasoning_agent import ReasoningAgent
 from api.agents.metacognition_agent import MetacognitionAgent
@@ -17,14 +17,12 @@ class ConsciousnessManager:
     using smolagents hierarchical managed_agents architecture.
     """
 
-    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
+    def __init__(self, model_id: str = "dionysus-agents"):
         """
         Initialize the Consciousness Manager and its managed sub-agents.
         """
-        self.model = LiteLLMModel(
-            model_id=model_id,
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
+        from api.services.llm_service import get_router_model
+        self.model = get_router_model(model_id=model_id)
         
         # Instantiate cognitive services
         self.bootstrap_svc = BootstrapRecallService()
@@ -61,8 +59,10 @@ class ConsciousnessManager:
         self.reasoning_agent_wrapper.agent.tools[context_explorer.name] = context_explorer
         self.reasoning_agent_wrapper.agent.tools[cognitive_check.name] = cognitive_check
         
-        # T0.2: The orchestrator agent manages specialized agents with Docker sandboxing
-        self.orchestrator = CodeAgent(
+        # T1.2: The orchestrator agent manages specialized agents.
+        # We use ToolCallingAgent here because managed_agents are not yet supported 
+        # with remote code execution (Docker).
+        self.orchestrator = ToolCallingAgent(
             tools=[],
             model=self.model,
             managed_agents=[
@@ -72,13 +72,7 @@ class ConsciousnessManager:
             ],
             name="consciousness_manager",
             description="High-level cognitive orchestrator. Use 'perception' to gather data, 'reasoning' to analyze, and 'metacognition' to decide on strategy.",
-            use_structured_outputs_internally=True,
-            executor_type="docker",
-            executor_kwargs={
-                "image": "dionysus/agent-sandbox:latest",
-                "timeout": 30,
-            },
-            additional_authorized_imports=["importlib.resources", "json", "datetime"],
+            max_steps=10,
             step_callbacks=audit.get_registry("consciousness_manager") # T2.1
         )
         self._entered = True

@@ -1,0 +1,26 @@
+FROM python:3.11-alpine
+
+# Install build dependencies for numerical libraries
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    python3-dev \
+    libffi-dev \
+    openssl-dev
+
+# Pre-install core agent dependencies
+RUN pip install --no-cache-dir \
+    numpy \
+    pandas \
+    networkx \
+    httpx \
+    pydantic
+
+# Create a non-privileged user
+RUN adduser -D agent
+USER agent
+
+WORKDIR /home/agent
+
+CMD ["python3"]
+

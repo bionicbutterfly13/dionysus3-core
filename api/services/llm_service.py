@@ -4,11 +4,16 @@ LLM Service for IAS
 Uses GPT-5 Nano via LiteLLM. Ollama available as fallback.
 """
 
+from __future__ import annotations
+
 import os
 import json
 import logging
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Optional, TYPE_CHECKING
 from litellm import acompletion
+
+if TYPE_CHECKING:
+    from smolagents import LiteLLMRouterModel
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +24,52 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ollama/phi3:mini")
 OLLAMA_FLEET_MODEL = os.getenv("OLLAMA_FLEET_MODEL", "deepseek-v3")
 
 # Model constants - all route to GPT-5 Nano by default
-GPT5_NANO = "openai/gpt-5-nano"
+GPT5_NANO = "openai/gpt-5-nano-2025-08-07"
+GPT5_MINI = "openai/gpt-5-mini-2025-08-07"
 HAIKU = GPT5_NANO
 SONNET = GPT5_NANO
+
+
+def get_router_model(model_id: str = "dionysus-agents") -> LiteLLMRouterModel:
+    """
+    Returns a LiteLLMRouterModel with GPT-5 Nano -> GPT-5 Mini -> Ollama fallback.
+    T3.1: Ensures high availability and cost optimization.
+    """
+    from smolagents import LiteLLMRouterModel
+    
+    model_list = [
+        {
+            "model_name": model_id,
+            "litellm_params": {
+                "model": GPT5_NANO,
+                "api_key": os.getenv("OPENAI_API_KEY"),
+            }
+        },
+        {
+            "model_name": model_id,
+            "litellm_params": {
+                "model": GPT5_MINI,
+                "api_key": os.getenv("OPENAI_API_KEY"),
+            }
+        },
+        {
+            "model_name": model_id,
+            "litellm_params": {
+                "model": OLLAMA_MODEL,
+                "api_base": OLLAMA_BASE_URL,
+            }
+        }
+    ]
+    
+    return LiteLLMRouterModel(
+        model_id=model_id,
+        model_list=model_list,
+        client_kwargs={
+            "routing_strategy": "simple-shuffle",
+            "num_retries": 2,
+            "fallbacks": [{GPT5_NANO: [GPT5_MINI, OLLAMA_MODEL]}],
+        }
+    )
 
 
 async def chat_completion(

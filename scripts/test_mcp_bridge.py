@@ -32,7 +32,7 @@ async def main():
     
     # 3. Create Agent with Bridged Tools
     try:
-        with ToolCollection.from_mcp(server_params, trust_remote_code=True) as tools:
+        with ToolCollection.from_mcp(server_params) as tools:
             print(f"Successfully bridged {len(tools.tools)} tools from MCP.")
             
             agent = CodeAgent(

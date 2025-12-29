@@ -13,14 +13,9 @@ class MarketingAgent:
     Uses ToolCallingAgent for efficient copy generation and wisdom retrieval.
     """
 
-    def __init__(self, model_id: Optional[str] = None):
-        if model_id is None:
-            model_id = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5-20251101")
-            
-        self.model = LiteLLMModel(
-            model_id=model_id,
-            api_key=os.getenv("ANTHROPIC_API_KEY")
-        )
+    def __init__(self, model_id: str = "dionysus-agents"):
+        from api.services.llm_service import get_router_model
+        self.model = get_router_model(model_id=model_id)
         
         # T011: Initialize bootstrap recall service
         self.bootstrap_svc = BootstrapRecallService()

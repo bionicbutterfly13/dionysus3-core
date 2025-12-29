@@ -1,24 +1,23 @@
 import json
 import os
+import asyncio
 from typing import Any, Dict
 
-from smolagents import CodeAgent, LiteLLMModel, MCPClient
+from smolagents import ToolCallingAgent, LiteLLMModel, MCPClient
 from mcp import StdioServerParameters
 
 class HeartbeatAgent:
     """
     Agent wrapper for the Heartbeat DECIDE phase.
-    Uses smolagents CodeAgent with bridged MCP tools to reason about state.
+    Uses smolagents ToolCallingAgent with bridged MCP tools to reason about state.
     """
 
-    def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
+    def __init__(self, model_id: str = "dionysus-agents"):
         """
         Initialize the Heartbeat Agent with bridged MCP tools.
         """
-        self.model = LiteLLMModel(
-            model_id=model_id,
-            api_key=os.getenv("OPENAI_API_KEY"),
-        )
+        from api.services.llm_service import get_router_model
+        self.model = get_router_model(model_id=model_id)
         self.server_params = StdioServerParameters(
             command="python3",
             args=["-m", "dionysus_mcp.server"],
@@ -35,13 +34,14 @@ class HeartbeatAgent:
         
         audit = get_audit_callback()
         
-        self.agent = CodeAgent(
+        # T1.1: Migrate to ToolCallingAgent
+        self.agent = ToolCallingAgent(
             tools=tools,
             model=self.model,
             max_steps=5,
-            executor_type="local",
+            name="heartbeat_agent",
+            description="Autonomous cognitive decision cycle agent.",
             verbosity_level=1,
-            use_structured_outputs_internally=True,
             step_callbacks=audit.get_registry("heartbeat_agent")
         )
         return self

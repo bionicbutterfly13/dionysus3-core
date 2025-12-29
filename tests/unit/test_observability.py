@@ -2,7 +2,7 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
 from api.agents.audit import AgentAuditCallback, get_audit_callback
-from smolagents.memory import ActionStep
+from smolagents.memory import ActionStep, PlanningStep
 
 @pytest.mark.asyncio
 async def test_audit_callback_on_step():
@@ -38,7 +38,6 @@ def test_audit_registry_generation():
     audit = get_audit_callback()
     registry = audit.get_registry("test_orchestrator", trace_id="trace-456")
     
-    assert registry is not None
-    # CallbackRegistry should have entries for ActionStep and PlanningStep
-    assert ActionStep in registry._callbacks
-    assert len(registry._callbacks[ActionStep]) >= 1
+    assert isinstance(registry, dict)
+    assert ActionStep in registry
+    assert PlanningStep in registry

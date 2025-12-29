@@ -36,28 +36,14 @@ class AvatarResearcher:
     Uses Graphiti-backed tools for knowledge graph persistence.
     """
 
-    def __init__(self, model_id: str = None):
+    def __init__(self, model_id: str = "dionysus-agents"):
         """
         Initialize the Avatar Researcher with sub-agents.
-
-        Args:
-            model_id: LiteLLM model identifier (default: from env or gpt-4o-mini)
         """
-        model_id = model_id or os.getenv("SMOLAGENTS_MODEL", "openai/gpt-4o-mini")
+        from api.services.llm_service import get_router_model
+        self.model = get_router_model(model_id=model_id)
 
-        # Configure LiteLLMModel with appropriate settings
-        model_kwargs = {"model_id": model_id}
-
-        if model_id.startswith("ollama/"):
-            # Ollama needs api_base, no api_key
-            model_kwargs["api_base"] = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-        else:
-            # OpenAI/Anthropic need api_key
-            model_kwargs["api_key"] = os.getenv("OPENAI_API_KEY")
-
-        self.model = LiteLLMModel(**model_kwargs)
-
-        # Initialize sub-agents
+        # Initialize sub-agents (migrated to ToolCallingAgent or updated)
         self.pain_analyst = PainAnalyst(model_id=model_id)
         self.objection_handler = ObjectionHandler(model_id=model_id)
         self.voice_extractor = VoiceExtractor(model_id=model_id)
@@ -66,7 +52,7 @@ class AvatarResearcher:
         audit = get_audit_callback()
         
         # Manager agent with access to all tools and sub-agents
-        self.agent = CodeAgent(
+        self.agent = ToolCallingAgent(
             tools=[
                 ingest_avatar_insight,
                 query_avatar_graph,
@@ -78,19 +64,12 @@ class AvatarResearcher:
             description="""Master avatar research coordinator. Orchestrates specialized agents
 to build comprehensive customer avatar profiles from raw content. Expert at synthesizing
 insights across pain points, objections, desires, beliefs, behaviors, and voice patterns.""",
-            max_steps=10,
+            max_steps=15, # Increased for complex planning
             managed_agents=[
                 self.pain_analyst.agent,
                 self.objection_handler.agent,
                 self.voice_extractor.agent,
             ],
-            executor_type="docker",
-            executor_kwargs={
-                "image": "dionysus/agent-sandbox:latest",
-                "timeout": 30,
-            },
-            use_structured_outputs_internally=True,
-            additional_authorized_imports=["importlib.resources", "json", "datetime"],
             step_callbacks=audit.get_registry("avatar_researcher")
         )
 
