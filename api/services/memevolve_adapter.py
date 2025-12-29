@@ -224,9 +224,31 @@ class MemEvolveAdapter:
                 "memories": [],
                 "query": request.query,
                 "result_count": 0,
-                "search_time_ms": round((time.time() - start_time) * 1000, 2),
-                "error": str(e),
+                search_time_ms = round((time.time() - start_time) * 1000, 2),
+                error = str(e),
             }
+
+    async def trigger_evolution(self) -> Dict[str, Any]:
+        """
+        Trigger the meta-evolution workflow to optimize retrieval strategies (T003).
+        
+        Returns:
+            Dict with evolution result summary
+        """
+        payload = {
+            "operation": "trigger_evolution",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        
+        try:
+            result = await self._sync_service._send_to_webhook(
+                payload,
+                webhook_url=self._sync_service.config.memevolve_evolve_webhook_url
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Meta-evolution trigger failed: {e}")
+            return {"success": False, "error": str(e)}
 
 
 # Singleton pattern

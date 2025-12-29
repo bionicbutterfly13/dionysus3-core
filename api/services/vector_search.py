@@ -89,14 +89,38 @@ class VectorSearchService:
         health["vector_search_webhook_url"] = self._webhook_url
         return health
 
+    async def _get_latest_strategy(self) -> dict[str, Any]:
+        """Fetch the latest RetrievalStrategy node from Neo4j (T006)."""
+        cypher = "MATCH (s:RetrievalStrategy) RETURN s ORDER BY s.created_at DESC LIMIT 1"
+        try:
+            records = await self._sync.run_cypher(cypher)
+            if records.get("records"):
+                strategy = records["records"][0]
+                return {
+                    "top_k": int(strategy.get("top_k", DEFAULT_TOP_K)),
+                    "threshold": float(strategy.get("threshold", DEFAULT_THRESHOLD)),
+                    "id": strategy.get("id")
+                }
+        except Exception as e:
+            logger.warning(f"Failed to fetch latest retrieval strategy: {e}")
+        
+        return {"top_k": DEFAULT_TOP_K, "threshold": DEFAULT_THRESHOLD}
+
     async def semantic_search(
         self,
         query: str,
-        top_k: int = DEFAULT_TOP_K,
-        threshold: float = DEFAULT_THRESHOLD,
+        top_k: Optional[int] = None,
+        threshold: Optional[float] = None,
         filters: Optional[SearchFilters] = None,
     ) -> SearchResponse:
         total_start = time.time()
+
+        # T006: Always use latest evolved strategy if specific overrides not provided
+        if top_k is None or threshold is None:
+            strategy = await self._get_latest_strategy()
+            top_k = top_k or strategy["top_k"]
+            threshold = threshold or strategy["threshold"]
+            logger.info(f"Using strategy: {strategy.get('id', 'default')} (k={top_k}, t={threshold})")
 
         payload: dict[str, Any] = {
             "operation": "vector_search",

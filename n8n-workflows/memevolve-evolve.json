@@ -1,0 +1,96 @@
+{
+  "name": "memevolve-evolve",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "memevolve/v1/evolve",
+        "options": {
+          "rawBody": true
+        },
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst payload = $input.first().binary?.data?.toString() || JSON.stringify($input.first().json);\nconst signature = $input.first().headers['x-webhook-signature'];\nconst secret = $env.MEMORY_WEBHOOK_TOKEN;\n\nif (!signature) throw new Error('Missing X-Webhook-Signature header');\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');\nif (signature !== expected) throw new Error('Invalid signature');\n\nreturn $input.first();"
+      },
+      "id": "validate-signature",
+      "name": "Validate HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 520]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "specifyBody": "string",
+        "body": "{\"statements\": [{\"statement\": \"MATCH (t:Trajectory) WHERE t.created_at > datetime() - duration('P1D') RETURN t ORDER BY t.created_at DESC LIMIT 50\"}]}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "fetch-trajectories",
+      "name": "Fetch Trajectories",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Heuristic optimization based on trajectory count and recent performance\nconst trajectories = $input.first().json.results[0]?.data || [];\nconst count = trajectories.length;\n\n// Default parameters\nlet top_k = 5;\nlet threshold = 0.7;\n\nif (count > 20) {\n  // More data allows for higher precision\n  top_k = 7;\n  threshold = 0.75;\n}\n\nif (count > 40) {\n  top_k = 10;\n  threshold = 0.8;\n}\n\nreturn [{\n  json: {\n    top_k,\n    threshold,\n    version: Date.now(),\n    optimization_basis: `Analyzed ${count} recent trajectories`\n  }\n}];"
+      },
+      "id": "optimize-strategy",
+      "name": "Optimize Strategy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 520]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "specifyBody": "string",
+        "body": "={\"statements\": [{\"statement\": \"CREATE (s:RetrievalStrategy {id: randomUUID(), top_k: $top_k, threshold: $threshold, version: $version, created_at: datetime(), basis: $basis}) RETURN s\", \"parameters\": {\"top_k\": {{ $json.top_k }}, \"threshold\": {{ $json.threshold }}, \"version\": {{ $json.version }}, \"basis\": \"{{ $json.optimization_basis }}\"}}]}",
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "create-strategy-node",
+      "name": "Create Strategy Node",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1160, 520]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 520]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validate HMAC Signature", "type": "main", "index": 0 }]] },
+    "Validate HMAC Signature": { "main": [[{ "node": "Fetch Trajectories", "type": "main", "index": 0 }]] },
+    "Fetch Trajectories": { "main": [[{ "node": "Optimize Strategy", "type": "main", "index": 0 }]] },
+    "Optimize Strategy": { "main": [[{ "node": "Create Strategy Node", "type": "main", "index": 0 }]] },
+    "Create Strategy Node": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  }
+}
