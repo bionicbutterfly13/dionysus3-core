@@ -342,25 +342,76 @@ class ReconstructionService:
     # Task History Reconstruction (Feature 012)
     # =========================================================================
 
-    async def reconstruct_task_history(self, limit: int = 1000) -> dict[str, Any]:
+    async def reconstruct_task_history(
+        self,
+        limit: int = 1000,
+        dry_run: bool = False
+    ) -> dict[str, Any]:
         """
         Fetch all historical tasks from Archon and mirror them in Neo4j.
+
+        Args:
+            limit: Maximum number of tasks to fetch
+            dry_run: If True, fetch and validate but don't write to Neo4j (T008)
+
+        Returns:
+            Dict with status, counts, and (in dry_run mode) preview of tasks
         """
         from api.services.archon_integration import get_archon_service
-        
+
         archon = get_archon_service()
-        
-        logger.info(f"Starting historical task reconstruction (limit={limit})...")
+
+        mode = "DRY-RUN" if dry_run else "LIVE"
+        logger.info(f"Starting historical task reconstruction [{mode}] (limit={limit})...")
         
         # 1. Fetch from Archon
         tasks = await archon.fetch_all_historical_tasks(limit=limit)
         if not tasks:
-            return {"status": "no_tasks_found", "count": 0}
-            
-        logger.info(f"Fetched {len(tasks)} tasks from Archon. Mirroring to Neo4j...")
-        
-        # 2. Mirror to Neo4j
-        # We use a single large Cypher query with UNWIND for efficiency
+            return {"status": "no_tasks_found", "count": 0, "dry_run": dry_run}
+
+        logger.info(f"Fetched {len(tasks)} tasks from Archon.")
+
+        # 2. Clean task data for Neo4j (ensure no nested complex objects)
+        clean_tasks = []
+        for t in tasks:
+            clean_tasks.append({
+                "id": str(t.get("id", "")) if t.get("id") else None,
+                "title": t.get("title", "Untitled") if t.get("title") else "Untitled",
+                "description": t.get("description", "") if t.get("description") else "",
+                "status": t.get("status", "unknown") if t.get("status") else "unknown",
+                "feature": t.get("feature", "default") if t.get("feature") else "default",
+                "project_id": str(t.get("project_id", "")) if t.get("project_id") else None,
+                "task_order": int(t.get("task_order", 50)) if t.get("task_order") else 50
+            })
+
+        # 3. DRY-RUN MODE: Return preview without writing (T008)
+        if dry_run:
+            # Group tasks by project for preview
+            by_project: dict[str, list] = {}
+            for task in clean_tasks:
+                proj = task["project_id"] or "no-project"
+                if proj not in by_project:
+                    by_project[proj] = []
+                by_project[proj].append(task)
+
+            logger.info(f"[DRY-RUN] Would mirror {len(clean_tasks)} tasks across {len(by_project)} projects")
+
+            return {
+                "status": "dry_run_success",
+                "dry_run": True,
+                "fetched": len(tasks),
+                "would_mirror": len(clean_tasks),
+                "projects": len(by_project),
+                "preview": {
+                    "tasks_by_status": self._count_by_status(clean_tasks),
+                    "tasks_by_project": {k: len(v) for k, v in by_project.items()},
+                    "sample_tasks": clean_tasks[:5],  # First 5 as sample
+                }
+            }
+
+        # 4. LIVE MODE: Mirror to Neo4j
+        logger.info(f"Mirroring {len(clean_tasks)} tasks to Neo4j...")
+
         cypher = """
         UNWIND $tasks as task
         MERGE (t:ArchonTask {id: task.id})
@@ -377,34 +428,30 @@ class ReconstructionService:
         MERGE (t)-[:BELONGS_TO]->(p)
         RETURN count(t) as mirrored
         """
-        
+
         try:
-            # Clean task data for Neo4j (ensure no nested complex objects)
-            clean_tasks = []
-            for t in tasks:
-                clean_tasks.append({
-                    "id": str(t.get("id", "")) if t.get("id") else None,
-                    "title": t.get("title", "Untitled") if t.get("title") else "Untitled",
-                    "description": t.get("description", "") if t.get("description") else "",
-                    "status": t.get("status", "unknown") if t.get("status") else "unknown",
-                    "feature": t.get("feature", "default") if t.get("feature") else "default",
-                    "project_id": str(t.get("project_id", "")) if t.get("project_id") else None,
-                    "task_order": int(t.get("task_order", 50)) if t.get("task_order") else 50
-                })
-                
             result = await self._driver.execute_query(cypher, {"tasks": clean_tasks})
             mirrored = int(result[0]["mirrored"]) if result else 0
-            
+
             logger.info(f"Successfully mirrored {mirrored} tasks to Neo4j.")
-            
+
             return {
                 "status": "success",
+                "dry_run": False,
                 "fetched": len(tasks),
                 "mirrored": mirrored
             }
         except Exception as e:
             logger.error(f"Error mirroring tasks to Neo4j: {e}")
-            return {"status": "error", "error": str(e)}
+            return {"status": "error", "error": str(e), "dry_run": False}
+
+    def _count_by_status(self, tasks: list[dict]) -> dict[str, int]:
+        """Count tasks by status for dry-run preview."""
+        counts: dict[str, int] = {}
+        for t in tasks:
+            status = t.get("status", "unknown")
+            counts[status] = counts.get(status, 0) + 1
+        return counts
 
     # =========================================================================
     # Step 1: Fragment Scanning

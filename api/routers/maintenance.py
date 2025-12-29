@@ -15,7 +15,11 @@ router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
 class ReconstructionResponse(BaseModel):
     status: str
     fetched: int
-    mirrored: int
+    mirrored: int = 0
+    dry_run: bool = False
+    would_mirror: int = 0
+    projects: int = 0
+    preview: Optional[dict] = None
 
 class ConsolidationResponse(BaseModel):
     status: str
@@ -64,22 +68,30 @@ async def resolve_review_item(item_id: str):
     return {"success": True, "message": f"Item {item_id} resolved"}
 
 @router.post("/reconstruct-tasks", response_model=ReconstructionResponse)
-async def reconstruct_tasks(limit: int = 1000):
+async def reconstruct_tasks(limit: int = 1000, dry_run: bool = False):
     """
     Fetch all historical tasks from local Archon and mirror them in Neo4j.
     Use this to bring Dionysus 3.0 into integrity with Archon history.
+
+    Args:
+        limit: Maximum number of tasks to fetch
+        dry_run: If True, fetch and validate but don't write to Neo4j (T008)
     """
     from api.services.maintenance_service import get_maintenance_service
     service = get_maintenance_service()
-    
-    result = await service.reconstruct_archon_history(limit=limit)
+
+    result = await service.reconstruct_archon_history(limit=limit, dry_run=dry_run)
     if result["status"] == "error":
         raise HTTPException(status_code=500, detail=result.get("error"))
-    
+
     return ReconstructionResponse(
         status=result["status"],
         fetched=result.get("fetched", 0),
-        mirrored=result.get("mirrored", 0)
+        mirrored=result.get("mirrored", 0),
+        dry_run=result.get("dry_run", False),
+        would_mirror=result.get("would_mirror", 0),
+        projects=result.get("projects", 0),
+        preview=result.get("preview"),
     )
 
 @router.post("/consolidate-memory", response_model=ConsolidationResponse)

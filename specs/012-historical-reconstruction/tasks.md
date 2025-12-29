@@ -17,11 +17,11 @@
 - [x] T003 Implement idempotent UNWIND Cypher query for batch task merging
 - [x] T004 Link tasks to project nodes via `BELONGS_TO` relationships
 - [x] T005 Create `POST /api/maintenance/reconstruct-tasks` endpoint
-- [ ] T006 Run `scripts/init_boardroom.py` to establish system identity baseline
+- [ ] T006 Run `scripts/init_boardroom.py` to establish system identity baseline (operational - requires VPS env)
 
 ---
 
 ## Phase 3: Polish
 
 - [x] T007 Add detailed logging for reconstruction progress
-- [ ] T008 Implement a 'dry-run' mode for reconstruction verification
+- [x] T008 Implement a 'dry-run' mode for reconstruction verification

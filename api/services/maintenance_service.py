@@ -20,11 +20,22 @@ class MaintenanceService:
         self.reconstruction_svc = get_reconstruction_service()
         self.aspect_svc = get_aspect_service()
 
-    async def reconstruct_archon_history(self, limit: int = 1000) -> Dict[str, Any]:
+    async def reconstruct_archon_history(
+        self,
+        limit: int = 1000,
+        dry_run: bool = False
+    ) -> Dict[str, Any]:
         """
         Mirror local Archon task history into Neo4j.
+
+        Args:
+            limit: Maximum number of tasks to fetch
+            dry_run: If True, fetch and validate but don't write (T008)
         """
-        return await self.reconstruction_svc.reconstruct_task_history(limit=limit)
+        return await self.reconstruction_svc.reconstruct_task_history(
+            limit=limit,
+            dry_run=dry_run
+        )
 
     async def get_human_review_queue(self, limit: int = 20) -> List[Dict[str, Any]]:
         """
