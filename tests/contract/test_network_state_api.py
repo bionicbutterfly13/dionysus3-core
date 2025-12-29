@@ -405,3 +405,175 @@ class TestFeatureFlags:
 
         assert response.status_code == 503
         assert "not enabled" in response.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# T026: Contract test for GET /self-modeling/{agent_id}/predictions
+# ---------------------------------------------------------------------------
+
+
+class TestGetPredictions:
+    """Contract tests for GET /self-modeling/{agent_id}/predictions (T026)."""
+
+    @pytest.mark.asyncio
+    async def test_get_predictions_returns_200(self):
+        """Test GET predictions returns 200 with predictions array."""
+        from api.models.prediction import PredictionRecord
+        from api.services.self_modeling_service import SelfModelingService
+
+        mock_prediction = PredictionRecord(
+            agent_id="agent-001",
+            predicted_state={"w_a->b": 0.5},
+            actual_state={"w_a->b": 0.55},
+            prediction_error=0.10
+        )
+
+        mock_service = MagicMock(spec=SelfModelingService)
+        mock_service.get_predictions = AsyncMock(return_value=[mock_prediction])
+
+        enabled_config = NetworkStateConfig(
+            network_state_enabled=True,
+            self_modeling_enabled=True
+        )
+
+        with patch(
+            "api.routers.network_state.get_self_modeling_service",
+            return_value=mock_service
+        ), patch(
+            "api.routers.network_state.get_network_state_config",
+            return_value=enabled_config
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/v1/network-state/self-modeling/agent-001/predictions"
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "predictions" in data
+        assert "total_count" in data
+        assert data["total_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_get_predictions_disabled_returns_503(self):
+        """Test GET predictions returns 503 when feature disabled."""
+        disabled_config = NetworkStateConfig(
+            network_state_enabled=True,
+            self_modeling_enabled=False
+        )
+
+        with patch(
+            "api.routers.network_state.get_network_state_config",
+            return_value=disabled_config
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/v1/network-state/self-modeling/agent-001/predictions"
+                )
+
+        assert response.status_code == 503
+        assert "not enabled" in response.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# T027: Contract test for GET /self-modeling/{agent_id}/accuracy
+# ---------------------------------------------------------------------------
+
+
+class TestGetAccuracyMetrics:
+    """Contract tests for GET /self-modeling/{agent_id}/accuracy (T027)."""
+
+    @pytest.mark.asyncio
+    async def test_get_accuracy_returns_200(self):
+        """Test GET accuracy returns 200 with metrics."""
+        from api.models.prediction import PredictionAccuracy
+        from api.services.self_modeling_service import SelfModelingService
+
+        mock_metrics = PredictionAccuracy(
+            agent_id="agent-001",
+            average_error=0.08,
+            sample_count=42,
+            window_start=datetime.utcnow() - timedelta(hours=24),
+            window_end=datetime.utcnow()
+        )
+
+        mock_service = MagicMock(spec=SelfModelingService)
+        mock_service.get_accuracy_metrics = AsyncMock(return_value=mock_metrics)
+
+        enabled_config = NetworkStateConfig(
+            network_state_enabled=True,
+            self_modeling_enabled=True
+        )
+
+        with patch(
+            "api.routers.network_state.get_self_modeling_service",
+            return_value=mock_service
+        ), patch(
+            "api.routers.network_state.get_network_state_config",
+            return_value=enabled_config
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/v1/network-state/self-modeling/agent-001/accuracy"
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["agent_id"] == "agent-001"
+        assert data["average_error"] == 0.08
+        assert data["sample_count"] == 42
+        assert "window_start" in data
+        assert "window_end" in data
+
+    @pytest.mark.asyncio
+    async def test_get_accuracy_with_window_param(self):
+        """Test GET accuracy accepts window_hours parameter."""
+        from api.models.prediction import PredictionAccuracy
+        from api.services.self_modeling_service import SelfModelingService
+
+        mock_metrics = PredictionAccuracy(
+            agent_id="agent-001",
+            average_error=0.05,
+            sample_count=10,
+            window_start=datetime.utcnow() - timedelta(hours=48),
+            window_end=datetime.utcnow()
+        )
+
+        mock_service = MagicMock(spec=SelfModelingService)
+        mock_service.get_accuracy_metrics = AsyncMock(return_value=mock_metrics)
+
+        enabled_config = NetworkStateConfig(
+            network_state_enabled=True,
+            self_modeling_enabled=True
+        )
+
+        with patch(
+            "api.routers.network_state.get_self_modeling_service",
+            return_value=mock_service
+        ), patch(
+            "api.routers.network_state.get_network_state_config",
+            return_value=enabled_config
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test"
+            ) as client:
+                response = await client.get(
+                    "/api/v1/network-state/self-modeling/agent-001/accuracy",
+                    params={"window_hours": 48}
+                )
+
+        assert response.status_code == 200
+        mock_service.get_accuracy_metrics.assert_called_once()
+        # Verify window_hours was passed
+        call_kwargs = mock_service.get_accuracy_metrics.call_args.kwargs
+        assert call_kwargs.get("window_hours") == 48

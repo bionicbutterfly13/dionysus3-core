@@ -88,22 +88,22 @@ Following existing api/ structure per plan.md:
 
 ### Tests for User Story 2
 
-- [ ] T024 [P] [US2] Unit test for PredictionRecord model in tests/unit/test_self_modeling.py
-- [ ] T025 [P] [US2] Unit test for prediction error calculation in tests/unit/test_self_modeling.py
-- [ ] T026 [P] [US2] Contract test for GET /self-modeling/{agent_id}/predictions in tests/contract/test_network_state_api.py
-- [ ] T027 [P] [US2] Contract test for GET /self-modeling/{agent_id}/accuracy in tests/contract/test_network_state_api.py
+- [X] T024 [P] [US2] Unit test for PredictionRecord model in tests/unit/test_self_modeling.py
+- [X] T025 [P] [US2] Unit test for prediction error calculation in tests/unit/test_self_modeling.py
+- [X] T026 [P] [US2] Contract test for GET /self-modeling/{agent_id}/predictions in tests/contract/test_network_state_api.py
+- [X] T027 [P] [US2] Contract test for GET /self-modeling/{agent_id}/accuracy in tests/contract/test_network_state_api.py
 
 ### Implementation for User Story 2
 
-- [ ] T028 [P] [US2] Create PredictionRecord Pydantic model in api/models/prediction.py
-- [ ] T029 [US2] Implement PredictionService.predict() for next state prediction in api/services/self_modeling_service.py
-- [ ] T030 [US2] Implement PredictionService.resolve() to compare prediction vs actual in api/services/self_modeling_service.py
-- [ ] T031 [US2] Implement PredictionService.calculate_error() using L2 norm in api/services/self_modeling_service.py
-- [ ] T032 [US2] Implement PredictionService.get_accuracy_metrics() for time-windowed aggregation in api/services/self_modeling_service.py
-- [ ] T033 [US2] Create SelfModelingCallback for smolagents integration in api/agents/self_modeling_callback.py
-- [ ] T034 [US2] Implement callback.on_step() with prediction/resolution cycle in api/agents/self_modeling_callback.py
-- [ ] T035 [US2] Create GET /self-modeling/{agent_id}/predictions endpoint in api/routers/network_state.py
-- [ ] T036 [US2] Create GET /self-modeling/{agent_id}/accuracy endpoint in api/routers/network_state.py
+- [X] T028 [P] [US2] Create PredictionRecord Pydantic model in api/models/prediction.py
+- [X] T029 [US2] Implement PredictionService.predict() for next state prediction in api/services/self_modeling_service.py
+- [X] T030 [US2] Implement PredictionService.resolve() to compare prediction vs actual in api/services/self_modeling_service.py
+- [X] T031 [US2] Implement PredictionService.calculate_error() using L2 norm in api/services/self_modeling_service.py
+- [X] T032 [US2] Implement PredictionService.get_accuracy_metrics() for time-windowed aggregation in api/services/self_modeling_service.py
+- [X] T033 [US2] Create SelfModelingCallback for smolagents integration in api/agents/self_modeling_callback.py
+- [X] T034 [US2] Implement callback.on_step() with prediction/resolution cycle in api/agents/self_modeling_callback.py
+- [X] T035 [US2] Create GET /self-modeling/{agent_id}/predictions endpoint in api/routers/network_state.py
+- [X] T036 [US2] Create GET /self-modeling/{agent_id}/accuracy endpoint in api/routers/network_state.py
 - [ ] T037 [US2] Add opt-in self-modeling callback to agent initialization (conditional on flag) in api/agents/consciousness_manager.py
 
 **Checkpoint**: User Story 2 complete - self-prediction regularization functional

@@ -73,6 +73,72 @@ class SelfModelingService:
         if norm == 0: return 0.0
         return float(np.linalg.norm(p_vec - a_vec) / norm)
 
+    async def get_accuracy_metrics(
+        self,
+        agent_id: str,
+        window_hours: int = 24
+    ) -> PredictionAccuracy:
+        """Get time-windowed accuracy metrics for an agent (T032)."""
+        window_start = datetime.utcnow() - timedelta(hours=window_hours)
+
+        cypher = """
+        MATCH (p:PredictionRecord {agent_id: $agent_id})
+        WHERE p.resolved_at IS NOT NULL
+          AND datetime(p.timestamp) >= datetime($window_start)
+        RETURN avg(p.prediction_error) as avg_error,
+               count(p) as sample_count
+        """
+        async with self.driver.session() as session:
+            result = await session.run(cypher, {
+                "agent_id": agent_id,
+                "window_start": window_start.isoformat()
+            })
+            record = await result.single()
+
+            avg_error = record["avg_error"] if record and record["avg_error"] else 0.0
+            sample_count = record["sample_count"] if record else 0
+
+            return PredictionAccuracy(
+                agent_id=agent_id,
+                average_error=float(avg_error),
+                sample_count=int(sample_count),
+                window_start=window_start,
+                window_end=datetime.utcnow()
+            )
+
+    async def get_predictions(
+        self,
+        agent_id: str,
+        limit: int = 50,
+        include_resolved: bool = True
+    ) -> list[PredictionRecord]:
+        """Get recent predictions for an agent."""
+        resolved_filter = "" if include_resolved else "AND p.resolved_at IS NULL"
+
+        cypher = f"""
+        MATCH (p:PredictionRecord {{agent_id: $agent_id}})
+        WHERE true {resolved_filter}
+        RETURN p
+        ORDER BY p.timestamp DESC
+        LIMIT $limit
+        """
+        async with self.driver.session() as session:
+            result = await session.run(cypher, {"agent_id": agent_id, "limit": limit})
+            records = await result.data()
+
+            return [
+                PredictionRecord(
+                    id=r["p"]["id"],
+                    agent_id=r["p"]["agent_id"],
+                    timestamp=datetime.fromisoformat(r["p"]["timestamp"]),
+                    predicted_state=r["p"]["predicted_state"],
+                    actual_state=r["p"].get("actual_state"),
+                    prediction_error=r["p"].get("prediction_error"),
+                    resolved_at=datetime.fromisoformat(r["p"]["resolved_at"]) if r["p"].get("resolved_at") else None
+                )
+                for r in records
+            ]
+
     async def _persist_prediction(self, prediction: PredictionRecord):
         cypher = """
         CREATE (p:PredictionRecord {

@@ -22,7 +22,9 @@ from api.models.network_state import (
     SnapshotTrigger,
     get_network_state_config,
 )
+from api.models.prediction import PredictionRecord, PredictionAccuracy
 from api.services.network_state_service import NetworkStateService, get_network_state_service
+from api.services.self_modeling_service import SelfModelingService, get_self_modeling_service
 
 logger = logging.getLogger(__name__)
 
@@ -231,3 +233,79 @@ async def get_network_state_diff(
         )
 
     return diff
+
+
+# ---------------------------------------------------------------------------
+# Self-Modeling Endpoints (T035-T036)
+# ---------------------------------------------------------------------------
+
+
+class PredictionsResponse(BaseModel):
+    """Response model for predictions list."""
+    predictions: list[PredictionRecord]
+    total_count: int
+
+
+def get_self_modeling() -> SelfModelingService:
+    """Dependency for self-modeling service."""
+    return get_self_modeling_service()
+
+
+def check_self_modeling_enabled() -> None:
+    """Check if self-modeling feature is enabled."""
+    config = get_network_state_config()
+    if not config.self_modeling_enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="Self-modeling feature is not enabled. Set SELF_MODELING_ENABLED=true"
+        )
+
+
+@router.get(
+    "/self-modeling/{agent_id}/predictions",
+    response_model=PredictionsResponse,
+    responses={
+        503: {"model": ErrorResponse, "description": "Feature not enabled"},
+    },
+    summary="Get agent predictions",
+    description="Returns recent self-predictions for an agent (T035)",
+)
+async def get_predictions(
+    agent_id: str,
+    limit: int = Query(50, ge=1, le=200, description="Maximum predictions to return"),
+    include_resolved: bool = Query(True, description="Include resolved predictions"),
+    service: SelfModelingService = Depends(get_self_modeling),
+    _: None = Depends(check_self_modeling_enabled),
+) -> PredictionsResponse:
+    """Get recent predictions for an agent."""
+    predictions = await service.get_predictions(
+        agent_id=agent_id,
+        limit=limit,
+        include_resolved=include_resolved,
+    )
+    return PredictionsResponse(
+        predictions=predictions,
+        total_count=len(predictions),
+    )
+
+
+@router.get(
+    "/self-modeling/{agent_id}/accuracy",
+    response_model=PredictionAccuracy,
+    responses={
+        503: {"model": ErrorResponse, "description": "Feature not enabled"},
+    },
+    summary="Get prediction accuracy metrics",
+    description="Returns time-windowed accuracy metrics for an agent (T036)",
+)
+async def get_accuracy_metrics(
+    agent_id: str,
+    window_hours: int = Query(24, ge=1, le=168, description="Window size in hours (max 7 days)"),
+    service: SelfModelingService = Depends(get_self_modeling),
+    _: None = Depends(check_self_modeling_enabled),
+) -> PredictionAccuracy:
+    """Get prediction accuracy metrics for an agent."""
+    return await service.get_accuracy_metrics(
+        agent_id=agent_id,
+        window_hours=window_hours,
+    )
