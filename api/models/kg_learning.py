@@ -5,22 +5,37 @@ Feature: 022-agentic-kg-learning
 
 from datetime import datetime
 from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class RelationshipProposal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     source: str
     target: str
     relation_type: str = Field(..., alias="type")
     confidence: float = 0.0
     evidence: str = ""
     reasoning: Optional[str] = None
+    
+    # Provenance (FR-004)
+    run_id: Optional[str] = None
+    model_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Review Status
+    status: str = Field(default="pending", description="pending, approved, rejected, reviewed")
 
 
 class ExtractionResult(BaseModel):
     entities: List[str] = Field(default_factory=list)
     relationships: List[RelationshipProposal] = Field(default_factory=list)
     provenance: Dict = Field(default_factory=dict)
+    
+    # Aggregate stats
+    run_id: str = Field(default_factory=lambda: "run-" + datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+    start_time: datetime = Field(default_factory=datetime.utcnow)
+    end_time: Optional[datetime] = None
 
 
 class AttractorBasin(BaseModel):
