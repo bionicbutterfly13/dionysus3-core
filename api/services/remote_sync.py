@@ -128,6 +128,12 @@ class SyncConfig(BaseModel):
         ),
         description="n8n webhook URL for persisting full agent trajectories.",
     )
+    memevolve_evolve_webhook_url: str = Field(
+        default_factory=lambda: os.getenv(
+            "N8N_MEMEVOLVE_EVOLVE_URL", "http://n8n:5678/webhook/memevolve/v1/evolve"
+        ),
+        description="n8n webhook URL for triggering meta-evolution retrieval optimization.",
+    )
     webhook_token: str = Field(
         default_factory=lambda: os.getenv("MEMORY_WEBHOOK_TOKEN", ""),
         description="HMAC secret for webhook authentication",

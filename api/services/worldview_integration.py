@@ -195,6 +195,25 @@ class WorldviewIntegrationService:
             logger.error(f"Error in resolve_prediction_with_propagation: {e}")
             raise
 
+    async def get_distilled_priors(self, query: str, limit: int = 5) -> list[dict]:
+        """
+        Retrieve distilled wisdom units to serve as Bayesian priors (T007).
+        High-richness units are prioritized.
+        """
+        cypher = """
+        MATCH (w:WisdomUnit)
+        WHERE w.name CONTAINS $query OR w.summary CONTAINS $query
+        RETURN w.id as id, w.name as name, w.type as type, w.summary as summary, 
+               w.richness_score as richness
+        ORDER BY w.richness_score DESC
+        LIMIT $limit
+        """
+        try:
+            return await self._driver.execute_query(cypher, {"query": query, "limit": limit})
+        except Exception as e:
+            logger.error(f"Error fetching distilled priors: {e}")
+            return []
+
 # Factory
 _instance: Optional[WorldviewIntegrationService] = None
 

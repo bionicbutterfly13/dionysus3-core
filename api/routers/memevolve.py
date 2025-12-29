@@ -15,6 +15,7 @@ from api.models.memevolve import (
     MemoryRecallResponse,
     MemoryRecallItem,
     IngestResponse,
+    EvolutionResponse,
 )
 from api.services.hmac_utils import verify_memevolve_signature
 from api.services.memevolve_adapter import get_memevolve_adapter, MemEvolveAdapter
@@ -88,3 +89,33 @@ async def recall_memories(
         result_count=result["result_count"],
         search_time_ms=result.get("search_time_ms")
     )
+
+
+@router.post("/evolve", response_model=EvolutionResponse)
+async def trigger_evolution(
+    adapter: MemEvolveAdapter = Depends(get_memevolve_adapter)
+) -> EvolutionResponse:
+    """
+    Trigger meta-evolution retrieval strategy optimization.
+    
+    Analyzes recent trajectory performance and generates a new
+    optimized RetrievalStrategy node in Neo4j.
+    """
+    result = await adapter.trigger_evolution()
+    
+    if result.get("success", True):
+        # n8n may return results in different formats
+        records = result.get("records", [])
+        new_strategy = records[0] if records else {}
+        
+        return EvolutionResponse(
+            success=True,
+            message="Meta-evolution cycle triggered successfully",
+            optimization_basis=new_strategy.get("basis"),
+            new_strategy_id=new_strategy.get("id")
+        )
+    else:
+        return EvolutionResponse(
+            success=False,
+            message=f"Meta-evolution failed: {result.get('error', 'Unknown error')}"
+        )

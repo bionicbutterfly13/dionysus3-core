@@ -136,3 +136,11 @@ class IngestResponse(BaseModel):
     ingest_id: UUID = Field(..., description="Unique ingestion event ID")
     entities_extracted: int = Field(0, description="Number of entities extracted")
     memories_created: int = Field(0, description="Number of memories created")
+
+
+class EvolutionResponse(BaseModel):
+    """Response model for meta-evolution."""
+    success: bool = Field(..., description="Whether the evolution trigger was successful")
+    message: str = Field(..., description="Status message or error details")
+    optimization_basis: Optional[str] = Field(None, description="Summary of data analyzed")
+    new_strategy_id: Optional[str] = Field(None, description="UUID of the created RetrievalStrategy node")

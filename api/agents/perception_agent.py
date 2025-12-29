@@ -23,6 +23,12 @@ class PerceptionAgent:
         self.name = "perception"
         self.description = """
             Specialized in environmental observation and memory retrieval.
+            
+            PRIORITY: When recalling past context, you MUST explicitly search for 
+            Strategic Principles and Mental Models using query_wisdom_graph.
+            Distilled wisdom represents the "canonical" knowledge of the system 
+            and should be prioritized over raw episodic memories.
+            
             MANDATORY: Every state snapshot must include a MOSAEIC evaluation 
             (Senses, Actions, Emotions, Impulses, Cognitions) using the mosaeic_capture tool.
             """
