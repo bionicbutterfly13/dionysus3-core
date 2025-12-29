@@ -183,10 +183,10 @@ Following existing api/ structure per plan.md:
 
 - [X] T066 [P] [US5] Create SelfModelState Pydantic model in api/models/network_state.py
 - [X] T067 [P] [US5] Create TimingState Pydantic model in api/models/network_state.py
-- [ ] T068 [US5] Extend MetaplasticityController with optional H-state tracking in api/services/metaplasticity_service.py
-- [ ] T069 [US5] Implement second-order speed modulation based on prediction error in api/services/metaplasticity_service.py
-- [ ] T070 [US5] Implement stress-reduces-adaptation principle (configurable) in api/services/metaplasticity_service.py
-- [ ] T071 [US5] Connect TimingState updates to NetworkState snapshots in api/services/network_state_service.py
+- [X] T068 [US5] Extend MetaplasticityController with optional H-state tracking in api/services/metaplasticity_service.py
+- [X] T069 [US5] Implement second-order speed modulation based on prediction error in api/services/metaplasticity_service.py
+- [X] T070 [US5] Implement stress-reduces-adaptation principle (configurable) in api/services/metaplasticity_service.py
+- [X] T071 [US5] Connect TimingState updates to NetworkState snapshots in api/services/network_state_service.py
 
 **Checkpoint**: User Story 5 complete - multi-level adaptation functional
 

@@ -439,6 +439,117 @@ class NetworkStateService:
             total_delta=self.calculate_delta(from_state, to_state),
         )
 
+    # -------------------------------------------------------------------------
+    # T071: TimingState Integration
+    # -------------------------------------------------------------------------
+
+    async def create_snapshot_with_timing(
+        self,
+        agent_id: str,
+        trigger: SnapshotTrigger,
+        connection_weights: dict[str, float],
+        thresholds: dict[str, float],
+        speed_factors: dict[str, float],
+    ) -> tuple[Optional[NetworkState], Optional["TimingState"]]:
+        """
+        Create network state snapshot with associated TimingState (T071).
+
+        Connects the NetworkState observation layer with the TimingState
+        (H-state) tracking from the metaplasticity controller.
+
+        Args:
+            agent_id: Agent identifier
+            trigger: Reason for snapshot
+            connection_weights: W values
+            thresholds: T values
+            speed_factors: H values
+
+        Returns:
+            Tuple of (NetworkState, TimingState) or (None, None) if disabled
+        """
+        from api.models.network_state import TimingState, SelfModelState
+        from api.services.metaplasticity_service import get_metaplasticity_controller
+
+        # Create base network state snapshot
+        network_state = await self.create_snapshot(
+            agent_id=agent_id,
+            trigger=trigger,
+            connection_weights=connection_weights,
+            thresholds=thresholds,
+            speed_factors=speed_factors,
+        )
+
+        if not network_state:
+            return None, None
+
+        # Get metaplasticity controller for H-state data
+        controller = get_metaplasticity_controller()
+
+        # Create SelfModelState (first-order self-model)
+        self_model = SelfModelState(
+            agent_id=agent_id,
+            network_state_id=network_state.id,
+            w_states=connection_weights,
+            t_states=thresholds,
+            observation_confidence=0.8,  # Default confidence
+        )
+
+        # Create TimingState from controller (T071)
+        timing_state = controller.create_timing_state(
+            agent_id=agent_id,
+            self_model_state_id=self_model.id,
+        )
+
+        # Persist TimingState to Neo4j
+        await self._persist_timing_state(timing_state, network_state.id)
+
+        logger.info(
+            f"Created snapshot with timing for {agent_id}: "
+            f"mode={timing_state.adaptation_mode.value}, "
+            f"stress={timing_state.stress_level:.2f}"
+        )
+
+        return network_state, timing_state
+
+    async def _persist_timing_state(
+        self,
+        timing_state: "TimingState",
+        network_state_id: str
+    ) -> None:
+        """Persist TimingState to Neo4j and link to NetworkState."""
+        cypher = """
+        MATCH (ns:NetworkState {id: $network_state_id})
+        CREATE (ts:TimingState {
+            id: $id,
+            agent_id: $agent_id,
+            self_model_state_id: $self_model_state_id,
+            h_states: $h_states,
+            adaptation_mode: $adaptation_mode,
+            stress_level: $stress_level,
+            updated_at: $updated_at
+        })
+        CREATE (ns)-[:HAS_TIMING]->(ts)
+        RETURN ts
+        """
+
+        try:
+            async with self.driver.session() as session:
+                await session.run(
+                    cypher,
+                    {
+                        "network_state_id": network_state_id,
+                        "id": timing_state.id,
+                        "agent_id": timing_state.agent_id,
+                        "self_model_state_id": timing_state.self_model_state_id,
+                        "h_states": timing_state.h_states,
+                        "adaptation_mode": timing_state.adaptation_mode.value,
+                        "stress_level": timing_state.stress_level,
+                        "updated_at": timing_state.updated_at.isoformat(),
+                    }
+                )
+        except Exception as e:
+            logger.error(f"Failed to persist TimingState: {e}")
+
 
 # Singleton instance
 _service: Optional[NetworkStateService] = None
