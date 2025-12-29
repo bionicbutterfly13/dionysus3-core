@@ -30,32 +30,81 @@ class ConsciousnessManager:
         self.bootstrap_svc = BootstrapRecallService()
         self.metaplasticity_svc = get_metaplasticity_controller()
         
-        # Instantiate sub-agents (these are ToolCallingAgent or CodeAgent internally)
+        # Instantiate sub-agent wrappers
         self.perception_agent_wrapper = PerceptionAgent()
-        # T015: Add Explorer and Cognitive tools to Reasoning
         self.reasoning_agent_wrapper = ReasoningAgent()
+        self.metacognition_agent_wrapper = MetacognitionAgent()
+        
+        self.orchestrator = None
+        self._entered = False
+
+    def __enter__(self):
+        from api.agents.audit import get_audit_callback
+        
+        # 1. Initialize Audit Registry (T2.1)
+        # Note: We'd normally get trace_id from context, but here we setup general registry
+        # The registry can be updated or we can use a generic one
+        audit = get_audit_callback()
+        
+        # Enter sub-agents
+        self.perception_agent_wrapper.__enter__()
+        # Apply callbacks to sub-agents
+        self.perception_agent_wrapper.agent.step_callbacks = audit.get_registry("perception")
+        
+        self.reasoning_agent_wrapper.__enter__()
+        self.reasoning_agent_wrapper.agent.step_callbacks = audit.get_registry("reasoning")
+        
+        self.metacognition_agent_wrapper.__enter__()
+        self.metacognition_agent_wrapper.agent.step_callbacks = audit.get_registry("metacognition")
+        
+        # Add Explorer and Cognitive tools to Reasoning specifically
         self.reasoning_agent_wrapper.agent.tools[context_explorer.name] = context_explorer
         self.reasoning_agent_wrapper.agent.tools[cognitive_check.name] = cognitive_check
         
-        self.metacognition_agent_wrapper = MetacognitionAgent()
-        
-        self.perception = self.perception_agent_wrapper.agent
-        self.reasoning = self.reasoning_agent_wrapper.agent
-        self.metacognition = self.metacognition_agent_wrapper.agent
-
-        # The orchestrator agent manages the specialized agents
+        # T0.2: The orchestrator agent manages specialized agents with Docker sandboxing
         self.orchestrator = CodeAgent(
             tools=[],
             model=self.model,
-            managed_agents=[self.perception, self.reasoning, self.metacognition],
+            managed_agents=[
+                self.perception_agent_wrapper, 
+                self.reasoning_agent_wrapper, 
+                self.metacognition_agent_wrapper
+            ],
             name="consciousness_manager",
-            description="High-level cognitive orchestrator. Use 'perception' to gather data, 'reasoning' to analyze, and 'metacognition' to decide on strategy."
+            description="High-level cognitive orchestrator. Use 'perception' to gather data, 'reasoning' to analyze, and 'metacognition' to decide on strategy.",
+            use_structured_outputs_internally=True,
+            executor_type="docker",
+            executor_kwargs={
+                "image": "dionysus/agent-sandbox:latest",
+                "timeout": 30,
+            },
+            additional_authorized_imports=["importlib.resources", "json", "datetime"],
+            step_callbacks=audit.get_registry("consciousness_manager") # T2.1
         )
+        self._entered = True
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.perception_agent_wrapper.__exit__(exc_type, exc_val, exc_tb)
+        self.reasoning_agent_wrapper.__exit__(exc_type, exc_val, exc_tb)
+        self.metacognition_agent_wrapper.__exit__(exc_type, exc_val, exc_tb)
+        self._entered = False
 
     async def run_ooda_cycle(self, initial_context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute a full OODA loop via the managed agent hierarchy.
         """
+        if not self._entered:
+            with self:
+                return await self._run_ooda_cycle(initial_context)
+        return await self._run_ooda_cycle(initial_context)
+
+    async def _run_ooda_cycle(self, initial_context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Internal implementation of OODA loop execution with timeout and gating.
+        """
+        from api.agents.resource_gate import run_agent_with_timeout
+        
         print("=== CONSCIOUSNESS OODA CYCLE START (MANAGED AGENTS) ===")
         
         # T012: Bootstrap Recall Integration
@@ -106,14 +155,18 @@ class ConsciousnessManager:
         }}
         """
         
-        import asyncio
-        loop = asyncio.get_event_loop()
-        # CodeAgent.run is sync
-        raw_result = await loop.run_in_executor(None, self.orchestrator.run, prompt)
+        # Determine if we are using Ollama for gating
+        is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
+        
+        # Run with timeout and gating (T0.3, Q4)
+        raw_result = await run_agent_with_timeout(
+            self.orchestrator, 
+            prompt, 
+            timeout_seconds=90, # Orchestrator needs more time for 3 sub-agents
+            use_ollama=is_ollama
+        )
         
         # T017: Calculate OODA Surprise (prediction error)
-        # In this implementation, we use the confidence score as an inverse proxy for surprise
-        # Higher confidence = lower surprise
         confidence = 0.8 # Default
         try:
             cleaned = str(raw_result).strip()
@@ -137,9 +190,8 @@ class ConsciousnessManager:
         print(f"DEBUG: Metaplasticity adjusted learning_rate={adjusted_lr:.4f}, max_steps={new_max_steps} (surprise={surprise_level:.2f})")
         
         # Note: In smolagents, we update the agent properties directly
-        for agent in [self.perception, self.reasoning, self.metacognition]:
+        for agent in [self.perception_agent_wrapper.agent, self.reasoning_agent_wrapper.agent, self.metacognition_agent_wrapper.agent]:
             agent.max_steps = new_max_steps
-            # learning_rate integration depends on specific model optimizer, here we log it
         
         print("\n=== CONSCIOUSNESS OODA CYCLE COMPLETE ===")
 

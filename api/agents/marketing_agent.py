@@ -1,7 +1,7 @@
 import os
 import json
 from typing import Any, Dict, List, Optional
-from smolagents import CodeAgent, LiteLLMModel
+from smolagents import ToolCallingAgent, LiteLLMModel
 
 from api.agents.knowledge.wisdom_tools import query_wisdom_graph
 from api.services.bootstrap_recall_service import BootstrapRecallService
@@ -10,7 +10,7 @@ from api.models.bootstrap import BootstrapConfig
 class MarketingAgent:
     """
     Specialized agent for generating marketing assets (emails, sales pages).
-    Uses smolagents CodeAgent for creative content generation.
+    Uses ToolCallingAgent for efficient copy generation and wisdom retrieval.
     """
 
     def __init__(self, model_id: Optional[str] = None):
@@ -25,11 +25,18 @@ class MarketingAgent:
         # T011: Initialize bootstrap recall service
         self.bootstrap_svc = BootstrapRecallService()
         
-        self.agent = CodeAgent(
+        # T1.1: Migrate to ToolCallingAgent
+        from api.agents.audit import get_audit_callback
+        audit = get_audit_callback()
+        
+        self.agent = ToolCallingAgent(
             tools=[query_wisdom_graph],
             model=self.model,
             name="marketing_agent",
-            description="Expert in IAS marketing and copy generation. Can generate nurture sequences and sales pages. Can query wisdom_graph for MOSAEIC richness."
+            description="Expert in IAS marketing and copy generation. Can generate nurture sequences and sales pages. Can query wisdom_graph for MOSAEIC richness.",
+            max_steps=5,
+            max_tool_threads=4, # Enable parallel tool execution (T1.3)
+            step_callbacks=audit.get_registry("marketing_agent")
         )
 
     async def generate_email(self, topic: str, framework: str, target_audience: str = "analytical professional", project_id: str = "ias-marketing") -> Dict[str, Any]:

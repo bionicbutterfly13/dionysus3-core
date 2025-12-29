@@ -1,11 +1,11 @@
-import os
-from smolagents import CodeAgent, LiteLLMModel, ToolCollection
+from smolagents import ToolCallingAgent, LiteLLMModel, MCPClient
 from mcp import StdioServerParameters
 
 class ReasoningAgent:
     """
     Specialized agent for the ORIENT phase of the OODA loop.
     Analyzes observations, reflects on patterns, and synthesizes insights via MCP tools.
+    Uses ToolCallingAgent for efficient, parallel analysis and reflection.
     """
 
     def __init__(self, model_id: str = "openai/gpt-5-nano-2025-08-07"):
@@ -13,38 +13,48 @@ class ReasoningAgent:
             model_id=model_id,
             api_key=os.getenv("OPENAI_API_KEY")
         )
-        
-        # Bridge tools from local MCP server
-        server_params = StdioServerParameters(
+        self.server_params = StdioServerParameters(
             command="python3",
             args=["-m", "dionysus_mcp.server"],
             env={**os.environ, "PYTHONPATH": "."}
         )
+        self.mcp_client = None
+        self.agent = None
+        self.name = "reasoning"
+        self.description = """
+            Specialized in analysis, reflection, and synthesis of information.
+            Uses ToolCallingAgent to perform parallel reasoning over observations.
+            """
+
+    def __enter__(self):
+        from api.agents.audit import get_audit_callback
+        self.mcp_client = MCPClient(self.server_params, structured_output=True)
+        tools = self.mcp_client.__enter__()
         
-        try:
-            self.tool_collection = ToolCollection.from_mcp(server_params, trust_remote_code=True)
-            self.tools = [*self.tool_collection.tools]
-        except Exception as e:
-            self.tools = []
-            print(f"Warning: ReasoningAgent MCP Bridge failed: {e}")
+        audit = get_audit_callback()
         
-        self.agent = CodeAgent(
-            tools=self.tools,
+        # T1.1: Migrate to ToolCallingAgent
+        self.agent = ToolCallingAgent(
+            tools=tools,
             model=self.model,
-            name="reasoning",
-            description="Specialized in analysis, reflection, and synthesis of information."
+            name=self.name,
+            description=self.description,
+            max_steps=5,
+            max_tool_threads=4, # Enable parallel tool execution (T1.3)
+            step_callbacks=audit.get_registry("reasoning")
         )
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.mcp_client:
+            self.mcp_client.__exit__(exc_type, exc_val, exc_tb)
 
     def close(self):
-        """Terminate the MCP bridge session."""
-        if hasattr(self, 'tool_collection'):
-            try:
-                self.tool_collection.__exit__(None, None, None)
-            except:
-                pass
+        self.__exit__(None, None, None)
 
     def run(self, task: str):
-        """
-        Run the reasoning cycle.
-        """
+        """Run the reasoning cycle."""
+        if not self.agent:
+            with self:
+                return self.agent.run(task)
         return self.agent.run(task)

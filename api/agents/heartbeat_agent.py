@@ -2,7 +2,7 @@ import json
 import os
 from typing import Any, Dict
 
-from smolagents import CodeAgent, LiteLLMModel, ToolCollection
+from smolagents import CodeAgent, LiteLLMModel, MCPClient
 from mcp import StdioServerParameters
 
 class HeartbeatAgent:
@@ -19,51 +19,54 @@ class HeartbeatAgent:
             model_id=model_id,
             api_key=os.getenv("OPENAI_API_KEY"),
         )
-        
-        # Bridge tools from local MCP server
-        server_params = StdioServerParameters(
+        self.server_params = StdioServerParameters(
             command="python3",
             args=["-m", "dionysus_mcp.server"],
             env={**os.environ, "PYTHONPATH": "."}
         )
+        self.mcp_client = None
+        self.agent = None
+
+    def __enter__(self):
+        from api.agents.audit import get_audit_callback
+        # T0.1: trust_remote_code=False (default)
+        self.mcp_client = MCPClient(self.server_params, structured_output=True)
+        tools = self.mcp_client.__enter__()
         
-        try:
-            self.tool_collection = ToolCollection.from_mcp(server_params, trust_remote_code=True)
-            self.tools = [*self.tool_collection.tools]
-        except Exception as e:
-            # Emergency fallback: minimal toolset or empty
-            self.tools = []
-            print(f"Warning: HeartbeatAgent MCP Bridge failed: {e}")
+        audit = get_audit_callback()
         
         self.agent = CodeAgent(
-            tools=self.tools,
+            tools=tools,
             model=self.model,
             max_steps=5,
             executor_type="local",
-            verbosity_level=1
+            verbosity_level=1,
+            use_structured_outputs_internally=True,
+            step_callbacks=audit.get_registry("heartbeat_agent")
         )
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.mcp_client:
+            self.mcp_client.__exit__(exc_type, exc_val, exc_tb)
 
     def close(self):
         """Terminate the MCP bridge session."""
-        if hasattr(self, 'tool_collection'):
-            try:
-                self.tool_collection.__exit__(None, None, None)
-            except:
-                pass
+        self.__exit__(None, None, None)
 
     async def decide(self, context: Dict[str, Any]) -> str:
         """
-        Execute the decision cycle.
-        
-        Args:
-            context: Dictionary containing environment, goals, energy, etc.
-        
-        Returns:
-            A string summary of the decision and actions taken.
+        Execute the decision cycle with timeout and resource gating (T0.3).
         """
-        # Construct the prompt from the context
-        # We simplify the legacy prompt to focus on the CodeAgent's strengths
+        if not self.agent:
+            with self:
+                return await self._run_decide(context)
+        return await self._run_decide(context)
+
+    async def _run_decide(self, context: Dict[str, Any]) -> str:
+        from api.agents.resource_gate import run_agent_with_timeout
         
+        # Construct the prompt from the context
         prompt = f"""
         You are Dionysus, an autonomous cognitive system.
         This is Heartbeat #{context.get('heartbeat_number', 'unknown')}.
@@ -89,17 +92,18 @@ class HeartbeatAgent:
         2. Reflect on your current progress or any obstacles.
         3. Decide on the most impactful actions to take right now.
         
-        If you take actions using tools (like recalling or reflecting), those count as part of your "Action Phase" for this heartbeat.
-        
         Return a final summary of what you did and why, and what your plan is for the next cycle.
         """
         
-        # Run the agent (CodeAgent.run is sync, so we wrap if needed, but here we can just call it
-        # since we are likely in a thread pool or it handles it. 
-        # Actually, smolagents.run IS sync. We should ideally run this in an executor if called from async code.)
+        # Determine if we are using Ollama for gating
+        is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
         
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        # Run with timeout and gating (T0.3, Q4)
+        result = await run_agent_with_timeout(
+            self.agent, 
+            prompt, 
+            timeout_seconds=60, # Heartbeat can be complex
+            use_ollama=is_ollama
+        )
         
         return str(result)

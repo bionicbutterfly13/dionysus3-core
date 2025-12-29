@@ -62,6 +62,9 @@ class AvatarResearcher:
         self.objection_handler = ObjectionHandler(model_id=model_id)
         self.voice_extractor = VoiceExtractor(model_id=model_id)
 
+        from api.agents.audit import get_audit_callback
+        audit = get_audit_callback()
+        
         # Manager agent with access to all tools and sub-agents
         self.agent = CodeAgent(
             tools=[
@@ -81,19 +84,22 @@ insights across pain points, objections, desires, beliefs, behaviors, and voice 
                 self.objection_handler.agent,
                 self.voice_extractor.agent,
             ],
+            executor_type="docker",
+            executor_kwargs={
+                "image": "dionysus/agent-sandbox:latest",
+                "timeout": 30,
+            },
+            use_structured_outputs_internally=True,
+            additional_authorized_imports=["importlib.resources", "json", "datetime"],
+            step_callbacks=audit.get_registry("avatar_researcher")
         )
 
     async def analyze_document(self, file_path: str, document_type: str = "copy_brief") -> Dict[str, Any]:
         """
         Analyze a document comprehensively using all sub-agents.
-
-        Args:
-            file_path: Path to the document to analyze
-            document_type: Type of document (copy_brief, email, interview, review)
-
-        Returns:
-            Comprehensive analysis results from all agents
         """
+        from api.agents.resource_gate import run_agent_with_timeout
+        
         prompt = f"""Analyze this document comprehensively for avatar research.
 
 Document: {file_path}
@@ -110,9 +116,16 @@ Your task:
 
 Be thorough - this document may be our "Ground Truth" for the avatar."""
 
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        # Determine if we are using Ollama for gating
+        is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
+        
+        # Run with timeout and gating (T0.3, Q4)
+        result = await run_agent_with_timeout(
+            self.agent, 
+            prompt, 
+            timeout_seconds=120, # Document analysis can be slow
+            use_ollama=is_ollama
+        )
 
         return {
             "document": file_path,
@@ -123,17 +136,12 @@ Be thorough - this document may be our "Ground Truth" for the avatar."""
     async def analyze_content(self, content: str, source: str = "unknown") -> Dict[str, Any]:
         """
         Analyze raw content using all sub-agents in parallel.
-
-        Args:
-            content: Raw text content to analyze
-            source: Source identifier
-
-        Returns:
-            Combined analysis from all agents
         """
         import asyncio
 
         # Run all sub-agents in parallel
+        # Note: Sub-agents currently don't use the timeout wrapper here yet, 
+        # they will once migrated to ToolCallingAgent or updated.
         results = await asyncio.gather(
             self.pain_analyst.analyze(content, source),
             self.objection_handler.analyze(content, source),
@@ -151,13 +159,9 @@ Be thorough - this document may be our "Ground Truth" for the avatar."""
     async def research_question(self, question: str) -> Dict[str, Any]:
         """
         Answer a research question about the avatar using the knowledge graph.
-
-        Args:
-            question: Natural language question about the avatar
-
-        Returns:
-            Research findings with supporting evidence
         """
+        from api.agents.resource_gate import run_agent_with_timeout
+        
         prompt = f"""Answer this research question about our avatar using the knowledge graph.
 
 Question: {question}
@@ -170,9 +174,16 @@ Your approach:
 
 Think like a market researcher presenting to a copywriting team."""
 
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        # Determine if we are using Ollama for gating
+        is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
+        
+        # Run with timeout and gating (T0.3, Q4)
+        result = await run_agent_with_timeout(
+            self.agent, 
+            prompt, 
+            timeout_seconds=60, 
+            use_ollama=is_ollama
+        )
 
         return {
             "question": question,
@@ -182,13 +193,9 @@ Think like a market researcher presenting to a copywriting team."""
     async def generate_avatar_profile(self, dimensions: str = "all") -> Dict[str, Any]:
         """
         Generate a complete avatar profile from the knowledge graph.
-
-        Args:
-            dimensions: Which dimensions to include (comma-separated or "all")
-
-        Returns:
-            Comprehensive avatar profile
         """
+        from api.agents.resource_gate import run_agent_with_timeout
+        
         prompt = f"""Generate a comprehensive avatar profile from all available research.
 
 Dimensions to include: {dimensions}
@@ -208,9 +215,16 @@ Your task:
 
 Make this immediately useful for copywriting and messaging."""
 
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        # Determine if we are using Ollama for gating
+        is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
+        
+        # Run with timeout and gating (T0.3, Q4)
+        result = await run_agent_with_timeout(
+            self.agent, 
+            prompt, 
+            timeout_seconds=90, 
+            use_ollama=is_ollama
+        )
 
         return {
             "dimensions": dimensions,
@@ -220,18 +234,8 @@ Make this immediately useful for copywriting and messaging."""
     async def ingest_ground_truth(self, file_path: str) -> Dict[str, Any]:
         """
         Ingest the "Ground Truth" avatar document (e.g., IAS-copy-brief.md).
-
-        This is a comprehensive ingestion that:
-        1. Bulk ingests the document
-        2. Runs all sub-agents for deep extraction
-        3. Synthesizes the complete profile
-
-        Args:
-            file_path: Path to the ground truth document
-
-        Returns:
-            Ingestion summary with counts and profile
         """
+        from api.agents.resource_gate import run_agent_with_timeout
         logger.info(f"Ingesting ground truth document: {file_path}")
 
         # Read the document
@@ -256,9 +260,16 @@ Step 4: Report what was found - counts by category, key insights, anything missi
 
 This is foundational research. Be exhaustive."""
 
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        # Determine if we are using Ollama for gating
+        is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
+        
+        # Run with timeout and gating (T0.3, Q4)
+        result = await run_agent_with_timeout(
+            self.agent, 
+            prompt, 
+            timeout_seconds=180, # Exhaustive ingestion takes time
+            use_ollama=is_ollama
+        )
 
         return {
             "document": file_path,

@@ -6,7 +6,7 @@ Feature: 019-avatar-knowledge-graph
 """
 
 import os
-from smolagents import CodeAgent, LiteLLMModel
+from smolagents import ToolCallingAgent, LiteLLMModel
 
 from api.agents.knowledge.tools import ingest_avatar_insight, query_avatar_graph
 
@@ -34,25 +34,26 @@ class PainAnalyst:
 
         self.model = LiteLLMModel(**model_kwargs)
 
-        self.agent = CodeAgent(
+        # T1.1: Migrate to ToolCallingAgent
+        from api.agents.audit import get_audit_callback
+        audit = get_audit_callback()
+        
+        self.agent = ToolCallingAgent(
             tools=[ingest_avatar_insight, query_avatar_graph],
             model=self.model,
             name="pain_analyst",
             description="Extracts and categorizes customer pain points from content. Expert at identifying hidden pains and their triggers.",
             max_steps=5,
+            max_tool_threads=4, # Enable parallel tool execution (T1.3)
+            step_callbacks=audit.get_registry("pain_analyst")
         )
 
     async def analyze(self, content: str, source: str = "unknown") -> dict:
         """
         Analyze content for pain points.
-
-        Args:
-            content: Raw text to analyze
-            source: Source document identifier
-
-        Returns:
-            Analysis results with extracted pain points
         """
+        from api.agents.resource_gate import run_agent_with_timeout
+        
         prompt = f"""Analyze this content for customer pain points.
 
 Content from {source}:
@@ -72,9 +73,16 @@ Focus on:
 
 Extract everything you find."""
 
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, self.agent.run, prompt)
+        # Determine if we are using Ollama for gating
+        is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
+        
+        # Run with timeout and gating (T0.3, Q4)
+        result = await run_agent_with_timeout(
+            self.agent, 
+            prompt, 
+            timeout_seconds=60, 
+            use_ollama=is_ollama
+        )
 
         return {
             "agent": "pain_analyst",
