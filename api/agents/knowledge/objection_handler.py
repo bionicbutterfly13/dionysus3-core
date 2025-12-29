@@ -8,7 +8,7 @@ Feature: 019-avatar-knowledge-graph
 import os
 from smolagents import ToolCallingAgent, LiteLLMModel
 
-from api.agents.knowledge.tools import ingest_avatar_insight, query_avatar_graph
+from api.agents.tools.avatar_tools import ingest_avatar_insight, query_avatar_graph
 
 
 class ObjectionHandler:

@@ -3,7 +3,7 @@ import json
 from typing import Any, Dict, List, Optional
 from smolagents import ToolCallingAgent, LiteLLMModel
 
-from api.agents.knowledge.wisdom_tools import query_wisdom_graph
+from api.agents.tools.wisdom_tools import query_wisdom_graph
 from api.services.bootstrap_recall_service import BootstrapRecallService
 from api.models.bootstrap import BootstrapConfig
 

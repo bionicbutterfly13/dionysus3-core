@@ -11,7 +11,7 @@ from typing import List, Optional, Dict, Any
 
 from smolagents import CodeAgent, LiteLLMModel
 
-from api.agents.knowledge.tools import (
+from api.agents.tools.avatar_tools import (
     ingest_avatar_insight,
     query_avatar_graph,
     synthesize_avatar_profile,
