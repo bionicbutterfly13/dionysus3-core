@@ -37,7 +37,7 @@
 
 ## Phase 5: Docs (P3)
 
-- [x] T019 Add usage documentation for avatar endpoints
+- [x] T019 Add usage documentation for avatar endpoints in docs/avatar.md
 
 ---
 
