@@ -1,30 +1,44 @@
 # Tasks: Agentic Knowledge Graph Learning Loop
 
-**Input**: spec.md, plan.md
+**Input**: spec.md
+**Status**: In-Progress
 
-## Phase 1: Extraction Agent/Tool (P1)
-- [ ] T001 Implement relationship extraction tool/agent using LLM with dynamic relation types and confidences
-- [ ] T002 Include provenance (source doc, run id, model id) in outputs
+## Phase 1: Foundation Enhancement (P1)
 
-## Phase 2: Attractor Basins (P1)
-- [ ] T003 Implement basin store (concept clusters, strengths, related basins)
-- [ ] T004 Feed basin context into extraction prompts; update strengths on each run
+- [x] T001 Implement dynamic relationship extraction in `KGLearningService.extract_and_learn` (FR-001)
 
-## Phase 3: Cognition-Base Learning (P2)
-- [ ] T005 Record successful patterns/strategies; implement priority boosts
-- [ ] T006 Apply boosts to subsequent extraction runs
+- [x] T002 Implement attractor basin context injection (FR-002)
 
-## Phase 4: Graph Storage & Review (P1)
-- [ ] T007 Write relationships to Graphiti/Neo4j with confidence and dynamic types
-- [ ] T008 Route low-confidence edges to human review queue
+- [x] T003 Enhance `RelationshipProposal` model with provenance fields (run_id, model_id, confidence) (FR-004)
 
-## Phase 5: Evaluation Hooks (P2)
-- [ ] T009 Add batch evaluation hooks (precision proxy or review rate) and logging
+- [x] T004 Implement low-confidence threshold gating for human review (FR-004)
 
-## Phase 6: Testing (P1/P2)
-- [ ] T010 Test dynamic relation type creation and storage
-- [ ] T011 Test basin strengthening across multiple docs
-- [ ] T012 Test learning boosts affecting subsequent runs
 
-## Phase 7: Docs (P3)
-- [ ] T013 Add usage doc snippet and expected outputs
+
+## Phase 2: Interfaces & Tools (P1)
+
+- [x] T005 Create `agentic_kg_extract` smolagent tool in `api/agents/tools/kg_learning_tools.py`
+
+- [x] T006 Expose `POST /api/v1/kg/learn` endpoint in `api/routers/kg_learning.py`
+
+- [x] T007 Implement `GET /api/v1/kg/review-queue` for low-confidence extractions
+
+
+
+## Phase 3: Evaluation & Learning (P2)
+
+- [x] T008 Implement strategy boosting in `KGLearningService._record_learning` (FR-003)
+
+- [x] T009 Implement extraction quality evaluator (precision/recall proxy) (FR-005)
+
+- [x] T010 Add batch processing support for large doc ingestion
+
+
+
+## Phase 4: Testing & Verification (P1)
+
+- [x] T011 Unit test for dynamic relation extraction with provenance
+
+- [x] T012 Integration test for basin-guided improvement over 3+ runs (SC-002)
+
+- [x] T013 Contract test for review queue API

@@ -33,28 +33,40 @@ class KGLearningService:
         # 2. Extract via LLM
         result = await self._llm_extract(content, basin_context, strategy_context)
         
-        # 3. Store in Graphiti
+        # 3. Store in Graphiti with threshold gating (FR-004)
+        CONFIDENCE_THRESHOLD = 0.6
         graphiti = await get_graphiti_service()
+        
         for rel in result.relationships:
-            # We map the proposal to a Graphiti episode ingestion for now, 
-            # or directly create edges if we want more control.
-            # For parity with D2.0 'agentic' mode, we'll store them as facts.
-            fact = f"{rel.source} {rel.relation_type} {rel.target}. Evidence: {rel.evidence}"
-            await graphiti.ingest_message(
-                content=fact,
-                source_description=f"agentic_extraction:{source_id}",
-                valid_at=datetime.utcnow()
-            )
+            # Set provenance
+            rel.run_id = result.run_id
+            rel.model_id = str(SONNET)
+            
+            # Persist the proposal itself for tracking/review (T007)
+            await self._persist_proposal(rel)
+            
+            if rel.confidence >= CONFIDENCE_THRESHOLD:
+                rel.status = "approved"
+                # Map to Graphiti ingestion
+                fact = f"{rel.source} {rel.relation_type} {rel.target}. Evidence: {rel.evidence}"
+                await graphiti.ingest_message(
+                    content=fact,
+                    source_description=f"agentic_extraction:{source_id}:{result.run_id}",
+                    valid_at=datetime.utcnow()
+                )
+            else:
+                rel.status = "pending_review"
+                logger.info(f"Low confidence ({rel.confidence}) extraction queued for review: {rel.source}->{rel.target}")
 
         # 4. Update basins and learn
         await self._strengthen_basins(result.entities)
         await self._record_learning(result.relationships)
 
+        result.end_time = datetime.utcnow()
         return result
 
     async def _get_relevant_basins(self, content: str) -> str:
         """Query Neo4j for basins relevant to the content."""
-        # Simplified: get top 5 strongest basins
         cypher = """
         MATCH (b:AttractorBasin)
         RETURN b.name as name, b.strength as strength, b.concepts as concepts
@@ -116,7 +128,6 @@ class KGLearningService:
         )
         
         try:
-            # Basic cleaning
             cleaned = response.strip()
             if cleaned.startswith("```"):
                 cleaned = cleaned.strip("`").replace("json", "").strip()
@@ -126,13 +137,30 @@ class KGLearningService:
             logger.error(f"failed_to_parse_extraction: {e}")
             return ExtractionResult()
 
+    async def _persist_proposal(self, rel: RelationshipProposal):
+        """Store a relationship proposal in Neo4j for audit/review."""
+        cypher = """
+        CREATE (r:RelationshipProposal {{
+            source: $source,
+            target: $target,
+            relation_type: $type,
+            confidence: $confidence,
+            evidence: $evidence,
+            run_id: $run_id,
+            model_id: $model_id,
+            status: $status,
+            created_at: datetime()
+        }})
+        """
+        params = rel.model_dump(by_alias=True)
+        await self._driver.execute_query(cypher, params)
+
     async def _strengthen_basins(self, entities: List[str]):
         """Update/Create basins based on extracted entities."""
-        # Simple logic: MERGE basin for first entity, add others as concepts
         if not entities: return
         
         cypher = """
-        MERGE (b:AttractorBasin {name: $main})
+        MERGE (b:AttractorBasin {{name: $main}})
         SET b.strength = coalesce(b.strength, 1.0) + 0.1,
             b.concepts = apoc.coll.toSet(coalesce(b.concepts, []) + $all),
             b.last_strengthened = datetime()
@@ -145,7 +173,7 @@ class KGLearningService:
         for rel in relationships:
             if rel.confidence > 0.7:
                 cypher = """
-                MERGE (s:CognitionStrategy {category: 'relationship_types', name: $name})
+                MERGE (s:CognitionStrategy {{category: 'relationship_types', name: $name}})
                 SET s.success_count = coalesce(s.success_count, 0) + 1,
                     s.priority_boost = coalesce(s.priority_boost, 0.0) + 0.05,
                     s.last_used = datetime()

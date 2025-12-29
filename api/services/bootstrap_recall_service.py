@@ -40,10 +40,10 @@ class BootstrapRecallService:
 
         try:
             # Execute hybrid retrieval with timeout
-            # We use wait_for to enforce the 2s spec requirement
+            # We use wait_for to enforce the 5s spec requirement (increased from 2s)
             result = await asyncio.wait_for(
                 self._execute_recall(query, project_id, config),
-                timeout=2.0
+                timeout=5.0
             )
         except asyncio.TimeoutError:
             self._log(logging.WARNING, "bootstrap_recall_timeout")
