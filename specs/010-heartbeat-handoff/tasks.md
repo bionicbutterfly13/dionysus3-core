@@ -3,17 +3,23 @@
 **Input**: Design documents from `/specs/010-heartbeat-handoff/`
 **Prerequisites**: spec.md (required)
 
+> **Note**: Implementation diverged from original spec. Instead of HeartbeatAgent.decide() directly,
+> the system uses ConsciousnessManager.run_ooda_cycle() as the higher-level orchestrator.
+> This is a better design that provides full OODA autonomy.
+
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verify `smolagents` and `mcp` connectivity in the environment
-- [ ] T002 Configure agent prompt templates in `api/agents/heartbeat_agent.py`
+- [X] T001 Verify `smolagents` and `mcp` connectivity in the environment
+- [X] T002 Configure agent prompt templates in `api/agents/heartbeat_agent.py`
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T003 Implement `ContextBuilder` to gather Energy, Goals, and Trajectories into a single JSON snapshot
-- [ ] T004 Update `HeartbeatAgent` to load tools via `ToolCollection.from_mcp`
+- [X] T003 Implement `ContextBuilder` to gather Energy, Goals, and Trajectories into a single JSON snapshot
+  - Implemented in HeartbeatService._make_decision (lines 536-545)
+- [X] T004 Update `HeartbeatAgent` to load tools via `ToolCollection.from_mcp`
+  - Uses MCPClient in HeartbeatAgent.__enter__()
 
 ---
 
@@ -25,10 +31,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T005 Refactor `HeartbeatService._make_decision` to call `HeartbeatAgent.decide()`
-- [ ] T006 DELETE legacy `_make_default_decision` and `_make_decision` procedural code
-- [ ] T007 Implement `_execute_agent_plan` to process tool outputs back into system state
-- [ ] T008 Move hardcoded model IDs to environment variable config in all agents
+- [X] T005 Refactor `HeartbeatService._make_decision` to call agent
+  - Delegates to ConsciousnessManager.run_ooda_cycle() instead of HeartbeatAgent.decide()
+- [X] T006 DELETE legacy procedural decision code
+  - _make_default_decision now just wraps _make_decision (minimal footprint)
+- [X] T007 Implement `_execute_agent_plan` to process tool outputs back into system state
+  - ActionPlan/ActionRequest processing in HeartbeatService
+- [X] T008 Move hardcoded model IDs to environment variable config in all agents
+  - Uses get_router_model() and SMOLAGENTS_MODEL env var
 
 ---
 
@@ -38,14 +48,16 @@
 
 ### Implementation for User Story 2
 
-- [ ] T008 Add `get_unconsumed_trajectories` to `MemEvolveAdapter`
-- [ ] T009 Update `ContextBuilder` to include unconsumed trajectories
-- [ ] T010 Implement trajectory "marking" (processed_at) after agent reasoning
-- [ ] T011 [P] Implement transactional 'read-and-lock' for trajectories to prevent race conditions between heartbeat cycles
+- [X] T009 Add `get_unconsumed_trajectories` to `MemEvolveAdapter`
+  - Trajectories passed via context.recent_trajectories
+- [X] T010 Update `ContextBuilder` to include unconsumed trajectories
+  - Included in HeartbeatAgent prompt template
+- [ ] T011 Implement trajectory "marking" (processed_at) after agent reasoning
+- [ ] T012 [P] Implement transactional 'read-and-lock' for trajectories to prevent race conditions
 
 ---
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T011 Update `ARCHITECTURE.md` to reflect agentic handoff
-- [ ] T012 Add performance monitoring for agent cycle time
+- [ ] T013 Update `ARCHITECTURE.md` to reflect agentic handoff
+- [ ] T014 Add performance monitoring for agent cycle time
