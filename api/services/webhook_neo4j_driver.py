@@ -10,10 +10,13 @@ All Cypher is executed via an n8n webhook; the application never connects to Neo
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, Optional
 
 from api.services.remote_sync import RemoteSyncService, SyncConfig
+
+logger = logging.getLogger(__name__)
 
 
 _WRITE_KEYWORDS = re.compile(r"\b(CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP)\b", re.IGNORECASE)
@@ -33,6 +36,10 @@ def _extract_records(payload: dict[str, Any]) -> list[dict[str, Any]]:
                 if isinstance(columns, list) and isinstance(row, list) and len(columns) == len(row):
                     records.append(dict(zip(columns, row)))
         return records
+
+    # Warn if it looks like we missed something (not a standard success response, no data)
+    if "error" not in payload and payload and not payload.get("success", False):
+         logger.warning(f"Unexpected Neo4j response format: keys={list(payload.keys())}")
 
     return []
 

@@ -61,6 +61,7 @@ class RollbackService:
             state_file.write_text(json.dumps(data, indent=2))
         except Exception as e:
             logger.error(f"failed_to_save_rollback_state: {e}")
+            raise
 
     async def create_checkpoint(self, request: CheckpointCreateRequest) -> str:
         """Create a rollback checkpoint for a component."""
@@ -68,7 +69,7 @@ class RollbackService:
         checkpoint_dir = self.storage_path / checkpoint_id
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info("creating_checkpoint", checkpoint_id=checkpoint_id, component_id=request.component_id)
+        logger.info(f"creating_checkpoint: checkpoint_id={checkpoint_id} component_id={request.component_id}")
 
         try:
             # 1. Backup files
@@ -98,7 +99,7 @@ class RollbackService:
             return checkpoint_id
 
         except Exception as e:
-            logger.error("checkpoint_failed", checkpoint_id=checkpoint_id, error=str(e))
+            logger.error(f"checkpoint_failed: checkpoint_id={checkpoint_id} error={e}")
             if checkpoint_dir.exists():
                 shutil.rmtree(checkpoint_dir)
             raise
@@ -112,7 +113,7 @@ class RollbackService:
         for fpath in all_files:
             source = Path(fpath)
             if not source.exists():
-                logger.warning("file_not_found_for_backup", path=fpath)
+                logger.warning(f"file_not_found_for_backup: path={fpath}")
                 continue
 
             dest = files_dir / source.name
@@ -168,7 +169,7 @@ class RollbackService:
             success = True
         except Exception as e:
             error = str(e)
-            logger.error("rollback_failed", checkpoint_id=checkpoint_id, error=error)
+            logger.error(f"rollback_failed: checkpoint_id={checkpoint_id} error={error}")
         finally:
             duration = time.time() - start_time
             record = RollbackRecord(
