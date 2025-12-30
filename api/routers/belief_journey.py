@@ -255,10 +255,16 @@ def get_belief_or_400(journey: BeliefJourney, belief_id: UUID, belief_type: str 
 async def health_check():
     """Health check for belief journey router."""
     service = get_belief_tracking_service()
+    ingestion_health = service.get_ingestion_health()
+    
+    # Status is degraded if ingestion is failing
+    status = "healthy" if ingestion_health["healthy"] else "degraded"
+    
     return {
-        "status": "healthy",
+        "status": status,
         "service": "belief-journey",
-        "journeys_in_memory": len(service._journeys)
+        "journeys_in_memory": len(service._journeys),
+        "ingestion": ingestion_health
     }
 
 

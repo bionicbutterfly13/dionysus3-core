@@ -189,3 +189,139 @@ class TestGraphitiPayloads:
             call_kwargs = mock_graphiti.ingest_message.call_args.kwargs
             assert 'group_id' in call_kwargs
             assert journey.graphiti_group_id in call_kwargs['group_id']
+
+
+class TestIngestionTracking:
+    """Tests for ingestion health tracking - ensures no silent failures."""
+
+    @pytest.fixture
+    def belief_service(self):
+        from api.services.belief_tracking_service import BeliefTrackingService
+        return BeliefTrackingService()
+
+    async def test_initial_ingestion_health_is_clean(self, belief_service):
+        """Verify new service has clean ingestion state."""
+        health = belief_service.get_ingestion_health()
+        
+        assert health["total_attempts"] == 0
+        assert health["successful"] == 0
+        assert health["failed"] == 0
+        assert health["success_rate"] == 1.0
+        assert health["healthy"] is True
+        assert health["recent_failures"] == []
+
+    async def test_successful_ingestion_increments_counter(self, belief_service):
+        """Verify successful ingestions are tracked."""
+        mock_graphiti = AsyncMock()
+        mock_graphiti.ingest_message = AsyncMock(return_value=None)
+        
+        with patch(
+            'api.services.belief_tracking_service.get_graphiti_service',
+            return_value=mock_graphiti
+        ):
+            await belief_service.create_journey(participant_id="test_track_001")
+            
+            health = belief_service.get_ingestion_health()
+            assert health["total_attempts"] >= 1
+            assert health["successful"] >= 1
+            assert health["failed"] == 0
+            assert health["healthy"] is True
+
+    async def test_failed_ingestion_tracked_in_failures(self, belief_service):
+        """Verify failed ingestions are tracked with details."""
+        failing_graphiti = AsyncMock()
+        failing_graphiti.ingest_message = AsyncMock(
+            side_effect=Exception("Connection refused")
+        )
+        
+        with patch(
+            'api.services.belief_tracking_service.get_graphiti_service',
+            return_value=failing_graphiti
+        ):
+            await belief_service.create_journey(participant_id="test_track_002")
+            
+            health = belief_service.get_ingestion_health()
+            assert health["total_attempts"] >= 1
+            assert health["failed"] >= 1
+            assert health["healthy"] is False
+            assert len(health["recent_failures"]) >= 1
+            
+            # Verify failure details
+            failure = health["recent_failures"][0]
+            assert "type" in failure
+            assert "journey_id" in failure
+            assert "error" in failure
+            assert "Connection refused" in failure["error"]
+            assert "timestamp" in failure
+
+    async def test_success_rate_calculation(self, belief_service):
+        """Verify success rate is calculated correctly."""
+        mock_graphiti = AsyncMock()
+        call_count = 0
+        
+        async def sometimes_fail(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count % 2 == 0:
+                raise Exception("Intermittent failure")
+            return None
+        
+        mock_graphiti.ingest_message = AsyncMock(side_effect=sometimes_fail)
+        
+        with patch(
+            'api.services.belief_tracking_service.get_graphiti_service',
+            return_value=mock_graphiti
+        ):
+            # Create multiple journeys to trigger multiple ingestions
+            for i in range(4):
+                await belief_service.create_journey(participant_id=f"test_rate_{i}")
+            
+            health = belief_service.get_ingestion_health()
+            # Should have some successes and some failures
+            assert health["total_attempts"] >= 4
+            assert 0 < health["success_rate"] < 1.0
+
+    async def test_clear_failed_ingestions(self, belief_service):
+        """Verify failed ingestions can be cleared."""
+        failing_graphiti = AsyncMock()
+        failing_graphiti.ingest_message = AsyncMock(
+            side_effect=Exception("Test failure")
+        )
+        
+        with patch(
+            'api.services.belief_tracking_service.get_graphiti_service',
+            return_value=failing_graphiti
+        ):
+            await belief_service.create_journey(participant_id="test_clear")
+            
+            # Verify failures exist
+            health = belief_service.get_ingestion_health()
+            assert health["failed"] >= 1
+            
+            # Clear failures
+            cleared = belief_service.clear_failed_ingestions()
+            assert cleared >= 1
+            
+            # Verify cleared
+            health = belief_service.get_ingestion_health()
+            assert health["failed"] == 0
+            assert health["healthy"] is True
+
+    async def test_recent_failures_limited_to_ten(self, belief_service):
+        """Verify only last 10 failures are kept in recent_failures."""
+        failing_graphiti = AsyncMock()
+        failing_graphiti.ingest_message = AsyncMock(
+            side_effect=Exception("Repeated failure")
+        )
+        
+        with patch(
+            'api.services.belief_tracking_service.get_graphiti_service',
+            return_value=failing_graphiti
+        ):
+            # Create 15 journeys to trigger 15+ failures
+            for i in range(15):
+                await belief_service.create_journey(participant_id=f"test_limit_{i}")
+            
+            health = belief_service.get_ingestion_health()
+            # recent_failures should be capped at 10
+            assert len(health["recent_failures"]) <= 10

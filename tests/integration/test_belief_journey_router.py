@@ -469,6 +469,22 @@ class TestHealthEndpoint:
         response = await client.get("/belief-journey/health")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "healthy"
+        assert data["status"] in ["healthy", "degraded"]
         assert data["service"] == "belief-journey"
         assert "journeys_in_memory" in data
+
+    async def test_health_includes_ingestion_stats(self, client: AsyncClient):
+        """Test that health endpoint includes ingestion statistics."""
+        response = await client.get("/belief-journey/health")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Verify ingestion stats are present
+        assert "ingestion" in data
+        ingestion = data["ingestion"]
+        assert "total_attempts" in ingestion
+        assert "successful" in ingestion
+        assert "failed" in ingestion
+        assert "success_rate" in ingestion
+        assert "healthy" in ingestion
+        assert "recent_failures" in ingestion

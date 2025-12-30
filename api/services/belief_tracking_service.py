@@ -52,6 +52,10 @@ class BeliefTrackingService:
     
     def __init__(self):
         self._journeys: Dict[UUID, BeliefJourney] = {}
+        # Track ingestion failures for observability
+        self._failed_ingestions: List[Dict[str, Any]] = []
+        self._successful_ingestions: int = 0
+        self._total_ingestion_attempts: int = 0
     
     # =========================================================================
     # Journey Management
@@ -843,6 +847,7 @@ class BeliefTrackingService:
         content: str,
     ) -> None:
         """Ingest a journey event into Graphiti."""
+        self._total_ingestion_attempts += 1
         try:
             graphiti = await get_graphiti_service()
             journey = self._journeys.get(journey_id)
@@ -853,11 +858,20 @@ class BeliefTrackingService:
                 source_description="ias_belief_tracking",
                 group_id=group_id,
             )
+            self._successful_ingestions += 1
         except Exception as e:
             logger.warning(f"Failed to ingest journey event to Graphiti: {e}")
+            self._failed_ingestions.append({
+                "type": "journey_event",
+                "journey_id": str(journey_id),
+                "event_type": event_type,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            })
     
     async def _ingest_belief_event(self, payload: BeliefIngestionPayload) -> None:
         """Ingest a belief event into Graphiti."""
+        self._total_ingestion_attempts += 1
         try:
             graphiti = await get_graphiti_service()
             journey = self._journeys.get(payload.journey_id)
@@ -868,11 +882,20 @@ class BeliefTrackingService:
                 source_description="ias_belief_tracking",
                 group_id=group_id,
             )
+            self._successful_ingestions += 1
         except Exception as e:
             logger.warning(f"Failed to ingest belief event to Graphiti: {e}")
+            self._failed_ingestions.append({
+                "type": "belief_event",
+                "journey_id": str(payload.journey_id),
+                "belief_id": str(payload.belief_id),
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            })
     
     async def _ingest_experiment_event(self, payload: ExperimentIngestionPayload) -> None:
         """Ingest an experiment event into Graphiti."""
+        self._total_ingestion_attempts += 1
         try:
             graphiti = await get_graphiti_service()
             journey = self._journeys.get(payload.journey_id)
@@ -883,11 +906,20 @@ class BeliefTrackingService:
                 source_description="ias_belief_tracking",
                 group_id=group_id,
             )
+            self._successful_ingestions += 1
         except Exception as e:
             logger.warning(f"Failed to ingest experiment event to Graphiti: {e}")
+            self._failed_ingestions.append({
+                "type": "experiment_event",
+                "journey_id": str(payload.journey_id),
+                "experiment_id": str(payload.experiment_id),
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            })
     
     async def _ingest_replay_event(self, payload: ReplayLoopIngestionPayload) -> None:
         """Ingest a replay loop event into Graphiti."""
+        self._total_ingestion_attempts += 1
         try:
             graphiti = await get_graphiti_service()
             journey = self._journeys.get(payload.journey_id)
@@ -898,8 +930,43 @@ class BeliefTrackingService:
                 source_description="ias_belief_tracking",
                 group_id=group_id,
             )
+            self._successful_ingestions += 1
         except Exception as e:
             logger.warning(f"Failed to ingest replay event to Graphiti: {e}")
+            self._failed_ingestions.append({
+                "type": "replay_event",
+                "journey_id": str(payload.journey_id),
+                "loop_id": str(payload.loop_id),
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            })
+
+    def get_ingestion_health(self) -> Dict[str, Any]:
+        """
+        Get ingestion health status for observability.
+        
+        Returns stats on successful vs failed Graphiti ingestions,
+        allowing operators to detect silent failures.
+        """
+        success_rate = (
+            self._successful_ingestions / self._total_ingestion_attempts
+            if self._total_ingestion_attempts > 0 else 1.0
+        )
+        
+        return {
+            "total_attempts": self._total_ingestion_attempts,
+            "successful": self._successful_ingestions,
+            "failed": len(self._failed_ingestions),
+            "success_rate": round(success_rate, 4),
+            "healthy": len(self._failed_ingestions) == 0,
+            "recent_failures": self._failed_ingestions[-10:],  # Last 10 failures
+        }
+
+    def clear_failed_ingestions(self) -> int:
+        """Clear the failed ingestions log. Returns count cleared."""
+        count = len(self._failed_ingestions)
+        self._failed_ingestions.clear()
+        return count
 
 
 # =============================================================================
