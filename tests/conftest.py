@@ -6,6 +6,8 @@ import os
 import pytest
 import asyncio
 from typing import AsyncGenerator
+from unittest.mock import AsyncMock, MagicMock, patch
+
 
 # =============================================================================
 # Async Support
@@ -17,6 +19,56 @@ def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
+
+# =============================================================================
+# Mock Neo4j Driver (prevents real webhook connections)
+# =============================================================================
+
+@pytest.fixture(autouse=True)
+def mock_neo4j_driver():
+    """
+    Auto-applied fixture that mocks the Neo4j webhook driver.
+    This prevents tests from trying to connect to real n8n webhooks.
+    """
+    mock_driver = AsyncMock()
+    mock_driver.execute_query = AsyncMock(return_value=[])
+
+    with patch('api.services.remote_sync.get_neo4j_driver', return_value=mock_driver):
+        yield mock_driver
+
+
+@pytest.fixture(autouse=True)
+def mock_graphiti_service():
+    """
+    Auto-applied fixture that mocks Graphiti service.
+    Prevents tests from trying to connect to real Neo4j.
+    """
+    mock_service = AsyncMock()
+    mock_service.ingest_message = AsyncMock(return_value=None)
+    mock_service.ingest_extracted_relationships = AsyncMock(return_value={"ingested": 0, "skipped": 0, "errors": []})
+    mock_service.extract_with_context = AsyncMock(return_value={
+        "entities": [],
+        "relationships": [],
+        "approved_count": 0,
+        "pending_count": 0,
+        "model_used": "test"
+    })
+
+    with patch('api.services.belief_tracking_service.get_graphiti_service', return_value=mock_service):
+        yield mock_service
+
+
+@pytest.fixture(autouse=True)
+def reset_belief_tracking_singleton():
+    """
+    Reset the BeliefTrackingService singleton between tests.
+    """
+    import api.services.belief_tracking_service as bt_module
+    bt_module._belief_tracking_service = None
+    yield
+    bt_module._belief_tracking_service = None
+
 
 # =============================================================================
 # API Fixtures

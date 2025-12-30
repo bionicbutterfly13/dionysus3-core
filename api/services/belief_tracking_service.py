@@ -105,7 +105,7 @@ class BeliefTrackingService:
             "phase": journey.current_phase.value,
             "lesson": journey.current_lesson.value,
             "lessons": [l.value for l in journey.lessons_completed],
-            "created_at": journey.created_at.isoformat(),
+            "created_at": journey.started_at.isoformat(),
             "updated_at": journey.last_activity_at.isoformat()
         })
     

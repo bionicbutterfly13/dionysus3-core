@@ -225,7 +225,7 @@ class MetricsResponse(BaseModel):
 async def get_journey_or_404(journey_id: UUID) -> BeliefJourney:
     """Get journey by ID or raise 404."""
     service = get_belief_tracking_service()
-    journey = service.get_journey(journey_id)  # sync method
+    journey = await service.get_journey(journey_id)
     if not journey:
         raise HTTPException(status_code=404, detail=f"Journey {journey_id} not found")
     return journey
