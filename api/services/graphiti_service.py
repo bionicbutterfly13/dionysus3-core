@@ -256,7 +256,11 @@ class GraphitiService:
         if not cleaned:
             return {}
             
-        return json.loads(cleaned)
+        try:
+            return json.loads(cleaned)
+        except Exception as e:
+            logger.error(f"Failed to parse JSON response from LLM: {e}. Cleaned text: {cleaned}")
+            return {}
 
     @staticmethod
     def _normalize_entity_objects(payload: dict[str, Any]) -> list[dict[str, Any]]:

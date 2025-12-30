@@ -599,7 +599,8 @@ async def recall_memories(
             manager = get_session_manager()
             journey = await manager.get_or_create_journey(uuid.UUID(x_device_id))
             resolved_journey_id = str(journey.id)
-        except (ValueError, Exception):
+        except (ValueError, Exception) as e:
+            logger.warning(f"Journey lookup failed for device {x_device_id}: {e}")
             pass
 
     # If no journey context, return empty

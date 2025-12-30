@@ -9,9 +9,9 @@
 
 **Purpose**: Shared infrastructure and validation helpers
 
-- [ ] T001 Create `api/utils/callbacks.py` for CallbackRegistry if needed
-- [ ] T002 Create `api/utils/schema_context.py` scaffolding
-- [ ] T003 Install `jsonschema` if not present in environment (check requirements.txt)
+- [X] T001 Create `api/utils/callbacks.py` for CallbackRegistry if needed
+- [X] T002 Create `api/utils/schema_context.py` scaffolding
+- [X] T003 Install `jsonschema` if not present in environment (check requirements.txt)
 
 ---
 
@@ -23,15 +23,15 @@
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Create unit test `tests/unit/test_schema_context.py` verifying validation retry logic and timeout handling
-- [ ] T005 [P] [US1] Create integration test `tests/integration/test_heartbeat_reliability.py` with mock LLM failure
+- [X] T004 [P] [US1] Create unit test `tests/unit/test_schema_context.py` verifying validation retry logic and timeout handling
+- [X] T005 [P] [US1] Create integration test `tests/integration/test_heartbeat_reliability.py` with mock LLM failure
 
 ### Implementation for User Story 1
 
-- [ ] T006 [P] [US1] Implement `SchemaContext` class in `api/utils/schema_context.py`
-- [ ] T007 [P] [US1] Define `HeartbeatDecisionSchema` in `api/models/action.py` using Pydantic `model_json_schema`
-- [ ] T008 [US1] Update `HeartbeatService._make_decision` in `api/services/heartbeat_service.py` to use `SchemaContext.query()`
-- [ ] T009 [US1] Update `HeartbeatService` retry configuration to use 5s timeout
+- [X] T006 [P] [US1] Implement `SchemaContext` class in `api/utils/schema_context.py`
+- [X] T007 [P] [US1] Define `HeartbeatDecisionSchema` in `api/models/action.py` using Pydantic `model_json_schema`
+- [X] T008 [US1] Update `HeartbeatService._make_decision` in `api/services/heartbeat_service.py` to use `SchemaContext.query()`
+- [X] T009 [US1] Update `HeartbeatService` retry configuration to use 5s timeout
 
 **Checkpoint**: Heartbeat service should now be robust against JSON errors.
 

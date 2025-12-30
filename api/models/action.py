@@ -9,7 +9,7 @@ Dataclasses for action requests, results, and execution tracking.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 
@@ -20,6 +20,40 @@ from uuid import UUID, uuid4
 # Import ActionType from energy_service where costs are defined
 from api.services.energy_service import ActionType
 
+
+from pydantic import BaseModel, Field, ConfigDict
+
+# =============================================================================
+# Pydantic Schemas for LLM Output (SchemaContext)
+# =============================================================
+
+class ActionEntrySchema(BaseModel):
+    """A single action in the plan."""
+    action: str = Field(..., description="Action type name (e.g. recall, reflect, rest)")
+    params: Dict[str, Any] = Field(default_factory=dict, description="Parameters for the action")
+    reason: str = Field(..., description="Why this specific action was chosen")
+
+class HeartbeatDecisionSchema(BaseModel):
+    """Structured decision for a heartbeat cycle."""
+    reasoning: str = Field(..., description="The cognitive process explaining the situation and plan")
+    emotional_state: float = Field(0.0, ge=-1.0, le=1.0, description="Internal emotional valence")
+    confidence: float = Field(0.5, ge=0.0, le=1.0, description="Confidence in the current plan")
+    focus_goal_id: Optional[str] = Field(None, description="UUID of the primary goal being addressed")
+    actions: List[ActionEntrySchema] = Field(default_factory=list, description="List of actions to execute")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "reasoning": "I need to recall recent events to align with current goals.",
+                "emotional_state": 0.2,
+                "confidence": 0.9,
+                "focus_goal_id": "550e8400-e29b-41d4-a716-446655440000",
+                "actions": [
+                    {"action": "recall", "params": {"query": "recent tasks"}, "reason": "Gather context"}
+                ]
+            }
+        }
+    )
 
 # =============================================================================
 # Action Status

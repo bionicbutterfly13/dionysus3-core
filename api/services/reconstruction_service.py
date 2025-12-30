@@ -512,7 +512,7 @@ class ReconstructionService:
                 )
                 self._fragments.append(fragment)
         except Exception as e:
-            logger.warning(f"Failed to scan episodic memories: {e}")
+            logger.error(f"Failed to scan episodic memories from Graphiti: {e}")
 
     async def _scan_sessions(self, context: ReconstructionContext) -> None:
         """Scan recent sessions from memory system."""
@@ -543,7 +543,7 @@ class ReconstructionService:
                         )
                         self._fragments.append(fragment)
         except Exception as e:
-            logger.warning(f"Failed to scan sessions: {e}")
+            logger.error(f"Failed to scan recent sessions from n8n: {e}")
     
     async def _scan_tasks(self, context: ReconstructionContext) -> None:
         """Scan active tasks from Archon."""
@@ -563,7 +563,7 @@ class ReconstructionService:
                 )
                 self._fragments.append(fragment)
         except Exception as e:
-            logger.warning(f"Failed to scan tasks: {e}")
+            logger.error(f"Failed to scan active tasks from Archon: {e}")
 
     def _load_prefetched_tasks(self, tasks: list[dict]) -> None:
         """Load pre-fetched tasks as fragments."""
@@ -594,7 +594,7 @@ class ReconstructionService:
                 )
                 self._fragments.append(fragment)
         except Exception as e:
-            logger.warning(f"Failed to scan entities: {e}")
+            logger.error(f"Failed to scan key entities from Graphiti: {e}")
     
     # =========================================================================
     # Step 2: Resonance Activation

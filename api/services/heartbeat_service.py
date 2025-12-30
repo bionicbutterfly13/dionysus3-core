@@ -527,10 +527,12 @@ class HeartbeatService:
 
     async def _make_decision(self, context: HeartbeatContext) -> HeartbeatDecision:
         """
-        Make the heartbeat decision using ConsciousnessManager.
+        Make the heartbeat decision using ConsciousnessManager and SchemaContext.
         """
         try:
             from api.agents.consciousness_manager import ConsciousnessManager
+            from api.utils.schema_context import SchemaContext
+            from api.models.action import HeartbeatDecisionSchema
             
             # Convert HeartbeatContext to initial_context dict for the manager
             initial_context = {
@@ -545,25 +547,61 @@ class HeartbeatService:
             }
 
             manager = ConsciousnessManager()
-            result = await manager.run_ooda_cycle(initial_context)
+            agent_result = await manager.run_ooda_cycle(initial_context)
             
-            # Map structured actions from manager to HeartbeatDecision
+            # T008: Use SchemaContext to normalize and validate the agent's decision
+            sc = SchemaContext(HeartbeatDecisionSchema, max_retries=2, timeout_seconds=5)
+            
+            # We pass the agent's reasoning and the context to the schema context for normalization
+            normalization_prompt = f"""
+            Normalize the following agent reasoning into a strict structured plan.
+            
+            AGENT REASONING:
+            {agent_result.get('final_plan', str(agent_result))}
+            
+            AGENT ACTIONS SUGGESTED:
+            {json.dumps(agent_result.get('actions', []))}
+            """
+            
+            result = await sc.query(normalization_prompt)
+            
+            if "error" in result:
+                logger.error(f"Schema normalization failed: {result['error']}. Falling back to raw agent result.")
+                # Minimal mapping from agent result if normalization fails
+                structured_actions = []
+                for a in agent_result.get("actions", []):
+                    try:
+                        structured_actions.append(ActionRequest(
+                            action_type=ActionType(a["action"]),
+                            params=a.get("params", {}),
+                            reason="Raw agent action (normalization failed)"
+                        ))
+                    except (ValueError, KeyError):
+                        continue
+                return HeartbeatDecision(
+                    action_plan=ActionPlan(actions=structured_actions, reasoning=agent_result.get("final_plan", str(agent_result))),
+                    reasoning=agent_result.get("final_plan", str(agent_result)),
+                    focus_goal_id=None,
+                    confidence=agent_result.get("confidence", 0.5)
+                )
+
+            # Map structured actions from SchemaContext to HeartbeatDecision
             structured_actions = []
             for a in result.get("actions", []):
                 try:
                     structured_actions.append(ActionRequest(
                         action_type=ActionType(a["action"]),
                         params=a.get("params", {}),
-                        reason="Agentic decision from ConsciousnessManager"
+                        reason=a.get("reason", "Structured decision")
                     ))
                 except (ValueError, KeyError) as e:
                     logger.warning(f"Skipping invalid agent action {a}: {e}")
 
             return HeartbeatDecision(
-                action_plan=ActionPlan(actions=structured_actions, reasoning=result["final_plan"]),
-                reasoning=result["final_plan"],
-                focus_goal_id=context.goal_assessment.active_goals[0].id if context.goal_assessment.active_goals else None,
-                emotional_state=0.0,
+                action_plan=ActionPlan(actions=structured_actions, reasoning=result["reasoning"]),
+                reasoning=result["reasoning"],
+                focus_goal_id=UUID(result["focus_goal_id"]) if result.get("focus_goal_id") else None,
+                emotional_state=result.get("emotional_state", 0.0),
                 confidence=result.get("confidence", 0.8),
             )
 
