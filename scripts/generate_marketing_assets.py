@@ -44,27 +44,36 @@ async def generate_assets():
     ]
 
     for item in emails_to_generate:
+        target_file = os.path.join(export_path, item['file'])
+        if os.path.exists(target_file):
+            logger.info(f"Skipping {item['file']}, already exists.")
+            continue
+            
         logger.info(f"Generating email: {item['topic']}")
         try:
             result = await agent.generate_email(item['topic'], item['framework'])
-            with open(os.path.join(export_path, item['file']), "w") as f:
+            with open(target_file, "w") as f:
                 json.dump(result, f, indent=2)
             logger.info(f"  ✓ Saved to {item['file']}")
         except Exception as e:
             logger.error(f"  ✗ Failed: {e}")
 
     # 2. Generate Sales Page
-    logger.info("Generating $97 Tripwire Sales Page (Blueprint Bundle)")
-    try:
-        sales_page = await agent.generate_sales_page(
-            product="IAS Blueprint Bundle",
-            positioning="A step-by-step cognitive toolkit for high-performing professionals to end burnout and reclaim 10+ hours per week."
-        )
-        with open(os.path.join(export_path, "sales_page_tripwire.json"), "w") as f:
-            json.dump(sales_page, f, indent=2)
-        logger.info("  ✓ Saved to sales_page_tripwire.json")
-    except Exception as e:
-        logger.error(f"  ✗ Failed: {e}")
+    sales_page_file = os.path.join(export_path, "sales_page_tripwire.json")
+    if os.path.exists(sales_page_file):
+        logger.info("Skipping sales page, already exists.")
+    else:
+        logger.info("Generating $97 Tripwire Sales Page (Blueprint Bundle)")
+        try:
+            sales_page = await agent.generate_sales_page(
+                product="IAS Blueprint Bundle",
+                positioning="A step-by-step cognitive toolkit for high-performing professionals to end burnout and reclaim 10+ hours per week."
+            )
+            with open(sales_page_file, "w") as f:
+                json.dump(sales_page, f, indent=2)
+            logger.info("  ✓ Saved to sales_page_tripwire.json")
+        except Exception as e:
+            logger.error(f"  ✗ Failed: {e}")
 
     logger.info("Marketing asset generation session complete.")
 

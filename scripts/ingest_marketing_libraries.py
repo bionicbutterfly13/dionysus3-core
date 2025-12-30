@@ -12,7 +12,7 @@ sys.path.insert(0, str(project_root))
 
 from api.services.graphiti_service import get_graphiti_service, GraphitiConfig
 from api.agents.knowledge_agent import KnowledgeAgent
-from api.agents.knowledge.wisdom_tools import ingest_wisdom_insight
+from api.agents.tools.wisdom_tools import ingest_wisdom_insight
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

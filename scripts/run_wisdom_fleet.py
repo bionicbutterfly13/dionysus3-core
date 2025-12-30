@@ -15,8 +15,8 @@ from api.agents.knowledge_agent import KnowledgeAgent
 
 logger = logging.getLogger("dionysus.wisdom_fleet")
 
-# VPS settings
-ARCHIVE_PATH = "/app/data/archives/*.md"
+# Local settings (VPS path: /app/data/archives/*.md)
+ARCHIVE_PATH = "/Volumes/Asylum/repos/claude-conversation-extractor/Claude Conversations/*.md"
 BATCH_SIZE = 5 # Parallel batches for speed
 FLEET_MODEL = "openai/gpt-5-nano"
 

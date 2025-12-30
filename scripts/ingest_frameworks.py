@@ -4,7 +4,7 @@ import os
 import sys
 import json
 from api.agents.knowledge.tools import ingest_avatar_insight
-from api.agents.knowledge.wisdom_tools import ingest_wisdom_insight
+from api.agents.tools.wisdom_tools import ingest_wisdom_insight
 
 async def ingest_frameworks():
     print("🚀 Ingesting CopyHackers and RMBC Frameworks into Wisdom Graph...")

@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from api.services.autobiographical_service import get_autobiographical_service
 from api.models.autobiographical import DevelopmentEvent, DevelopmentEventType
 from api.services.kg_learning_service import get_kg_learning_service
-from api.agents.knowledge.wisdom_tools import ingest_wisdom_insight
+from api.agents.tools.wisdom_tools import ingest_wisdom_insight
 
 async def initialize_system_soul():
     print("🧠 Initializing Dionysus 3.0 System Soul...")
