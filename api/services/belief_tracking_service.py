@@ -844,7 +844,7 @@ class BeliefTrackingService:
     ) -> None:
         """Ingest a journey event into Graphiti."""
         try:
-            graphiti = get_graphiti_service()
+            graphiti = await get_graphiti_service()
             journey = self._journeys.get(journey_id)
             group_id = journey.graphiti_group_id if journey else f"ias_journey_{journey_id.hex[:8]}"
             
@@ -859,7 +859,7 @@ class BeliefTrackingService:
     async def _ingest_belief_event(self, payload: BeliefIngestionPayload) -> None:
         """Ingest a belief event into Graphiti."""
         try:
-            graphiti = get_graphiti_service()
+            graphiti = await get_graphiti_service()
             journey = self._journeys.get(payload.journey_id)
             group_id = journey.graphiti_group_id if journey else f"ias_journey_{payload.journey_id.hex[:8]}"
             
@@ -874,7 +874,7 @@ class BeliefTrackingService:
     async def _ingest_experiment_event(self, payload: ExperimentIngestionPayload) -> None:
         """Ingest an experiment event into Graphiti."""
         try:
-            graphiti = get_graphiti_service()
+            graphiti = await get_graphiti_service()
             journey = self._journeys.get(payload.journey_id)
             group_id = journey.graphiti_group_id if journey else f"ias_journey_{payload.journey_id.hex[:8]}"
             
@@ -889,7 +889,7 @@ class BeliefTrackingService:
     async def _ingest_replay_event(self, payload: ReplayLoopIngestionPayload) -> None:
         """Ingest a replay loop event into Graphiti."""
         try:
-            graphiti = get_graphiti_service()
+            graphiti = await get_graphiti_service()
             journey = self._journeys.get(payload.journey_id)
             group_id = journey.graphiti_group_id if journey else f"ias_journey_{payload.journey_id.hex[:8]}"
             
