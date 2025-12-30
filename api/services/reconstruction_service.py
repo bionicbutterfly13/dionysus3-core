@@ -442,7 +442,7 @@ class ReconstructionService:
                 "mirrored": mirrored
             }
         except Exception as e:
-            logger.error(f"Error mirroring tasks to Neo4j: {e}")
+            logger.error(f"FATAL: Error mirroring tasks to Neo4j: {e}")
             return {"status": "error", "error": str(e), "dry_run": False}
 
     def _count_by_status(self, tasks: list[dict]) -> dict[str, int]:

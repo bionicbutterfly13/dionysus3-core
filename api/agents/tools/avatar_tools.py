@@ -287,9 +287,13 @@ Extract as many insights as you can find. Be thorough."""
                 insights = []
                 for line in response.strip().split("\n"):
                     line = line.strip()
+                    if not line: continue
                     if line.startswith("{") and line.endswith("}"):
-                        try: insights.append(json.loads(line))
-                        except: continue
+                        try: 
+                            insights.append(json.loads(line))
+                        except Exception as e:
+                            logger.warning(f"Failed to parse insight JSON line: {e}. Line: {line}")
+                            continue
                 graphiti = await get_graphiti_service()
                 stored_count, by_type = 0, {}
                 for insight in insights:
@@ -299,7 +303,9 @@ Extract as many insights as you can find. Be thorough."""
                     try:
                         await graphiti.ingest_message(content=episode_content, source_description=f"bulk_ingest:{document_type}", group_id="avatar_research")
                         stored_count += 1
-                    except: continue
+                    except Exception as e:
+                        logger.error(f"Failed to ingest avatar insight from {file_path} to Graphiti: {e}")
+                        continue
                 return BulkIngestOutput(success=True, document=file_path, document_type=document_type, insights_found=len(insights), insights_stored=stored_count, by_type=by_type)
             except Exception as e:
                 from api.agents.resilience import wrap_with_resilience

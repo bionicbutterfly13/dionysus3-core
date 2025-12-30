@@ -11,6 +11,7 @@ numpy>=1.24.0
 tiktoken>=0.5.1
 smolagents>=1.23.0
 litellm>=1.80.11
+jsonschema>=4.23.0
 
 # Knowledge Graph (Neo4j via Graphiti)
 neo4j>=5.28.2

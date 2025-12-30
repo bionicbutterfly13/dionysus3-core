@@ -180,7 +180,8 @@ class CoachingAgent:
             if cleaned.startswith("```"):
                 cleaned = cleaned.strip("`").replace("json", "").strip()
             return json.loads(cleaned)
-        except:
+        except Exception as e:
+            logger.error(f"Failed to parse diagnosis JSON: {e}. Raw: {result}")
             return {"error": "Failed to parse diagnosis", "raw": result}
 
     async def generate_woop(self, wish: str, outcome: str, obstacle: str, context: str) -> list[str]:
@@ -195,7 +196,8 @@ class CoachingAgent:
             if cleaned.startswith("```"):
                 cleaned = cleaned.strip("`").replace("json", "").strip()
             return json.loads(cleaned)
-        except:
+        except Exception as e:
+            logger.error(f"Failed to parse WOOP JSON: {e}. Raw: {result}")
             return [result]
 
 
