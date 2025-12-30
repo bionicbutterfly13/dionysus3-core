@@ -31,45 +31,65 @@ class KGLearningService:
         basin_context = await self._get_relevant_basins(content)
         strategy_context = await self._get_active_strategies()
 
-        # 2. Extract via LLM
-        result = await self._llm_extract(content, basin_context, strategy_context)
-        
-        # 3. Store in Graphiti with threshold gating (FR-004)
+        # 2. Extract via consolidated GraphitiService extractor (eliminates double extraction)
         CONFIDENCE_THRESHOLD = 0.6
         graphiti = await get_graphiti_service()
         
-        for rel in result.relationships:
-            # Set provenance
-            rel.run_id = result.run_id
-            rel.model_id = str(SONNET)
+        extraction = await graphiti.extract_with_context(
+            content=content,
+            basin_context=basin_context,
+            strategy_context=strategy_context,
+            confidence_threshold=CONFIDENCE_THRESHOLD,
+        )
+        
+        # 3. Build ExtractionResult from GraphitiService response
+        run_id = str(uuid4())
+        relationships = []
+        
+        for rel_dict in extraction.get("relationships", []):
+            rel = RelationshipProposal(
+                source=rel_dict["source"],
+                target=rel_dict["target"],
+                relation_type=rel_dict["relation_type"],
+                confidence=rel_dict["confidence"],
+                evidence=rel_dict.get("evidence", ""),
+                status=rel_dict["status"],
+                run_id=run_id,
+                model_id=extraction.get("model_used", str(SONNET)),
+            )
+            relationships.append(rel)
             
-            # Persist the proposal itself for tracking/review (T007)
+            # Persist the proposal for tracking/review (T007)
             await self._persist_proposal(rel)
-            
-            if rel.confidence >= CONFIDENCE_THRESHOLD:
-                rel.status = "approved"
-                # Map to Graphiti ingestion
-                fact = f"{rel.source} {rel.relation_type} {rel.target}. Evidence: {rel.evidence}"
-                await graphiti.ingest_message(
-                    content=fact,
-                    source_description=f"agentic_extraction:{source_id}:{result.run_id}",
-                    valid_at=datetime.utcnow()
-                )
-            else:
-                rel.status = "pending_review"
-                logger.info(f"Low confidence ({rel.confidence}) extraction queued for review: {rel.source}->{rel.target}")
+        
+        result = ExtractionResult(
+            run_id=run_id,
+            entities=extraction.get("entities", []),
+            relationships=relationships,
+        )
+        
+        # 4. Ingest approved relationships via GraphitiService (no double extraction)
+        approved_rels = [r for r in extraction.get("relationships", []) if r["status"] == "approved"]
+        if approved_rels:
+            await graphiti.ingest_extracted_relationships(
+                relationships=approved_rels,
+                source_id=f"agentic_extraction:{source_id}:{run_id}",
+            )
+        
+        # Log pending reviews
+        pending_count = extraction.get("pending_count", 0)
+        if pending_count > 0:
+            logger.info(f"{pending_count} low-confidence extractions queued for review")
 
-        # 4. Update basins and learn
+        # 5. Update basins and learn
         await self._strengthen_basins(result.entities)
         
         # T010: Automatic Feedback Loop
-        # We evaluate the extraction against the source content
         evaluation = await self.evaluate_extraction(result, content)
         
         if evaluation.get("precision_score", 0.0) > 0.8:
-            # Boost strategies for the relation types used in this high-precision run
             await self._record_learning(result.relationships)
-            logger.info(f"Automatic Strategy Boost applied for run {result.run_id}")
+            logger.info(f"Automatic Strategy Boost applied for run {run_id}")
 
         result.end_time = datetime.utcnow()
         return result
