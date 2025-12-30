@@ -49,17 +49,17 @@ def belief_tracking_service():
 
 
 @pytest.fixture
-def sample_journey(belief_tracking_service):
+async def sample_journey(belief_tracking_service):
     """Create a sample journey for testing."""
-    journey = belief_tracking_service.create_journey(participant_id="test_participant_001")
+    journey = await belief_tracking_service.create_journey(participant_id="test_participant_001")
     return journey
 
 
 @pytest.fixture
-def sample_limiting_belief(belief_tracking_service, sample_journey):
+async def sample_limiting_belief(belief_tracking_service, sample_journey):
     """Create a sample limiting belief for testing."""
-    belief = belief_tracking_service.identify_limiting_belief(
-        journey=sample_journey,
+    belief = await belief_tracking_service.identify_limiting_belief(
+        journey_id=sample_journey.id,
         content="I must always be exceptional—good enough is never enough",
         pattern_name="perfectionism_trap",
         origin_memory="Early school achievement pressure",
@@ -72,10 +72,10 @@ def sample_limiting_belief(belief_tracking_service, sample_journey):
 
 
 @pytest.fixture
-def sample_empowering_belief(belief_tracking_service, sample_journey):
+async def sample_empowering_belief(belief_tracking_service, sample_journey):
     """Create a sample empowering belief for testing."""
-    belief = belief_tracking_service.propose_empowering_belief(
-        journey=sample_journey,
+    belief = await belief_tracking_service.propose_empowering_belief(
+        journey_id=sample_journey.id,
         content="My worth is inherent, not earned through perfection",
         bridge_version="I am learning to accept good enough as valuable",
         replaces_belief_id=None
@@ -84,10 +84,10 @@ def sample_empowering_belief(belief_tracking_service, sample_journey):
 
 
 @pytest.fixture
-def sample_experiment(belief_tracking_service, sample_journey, sample_limiting_belief):
+async def sample_experiment(belief_tracking_service, sample_journey, sample_limiting_belief):
     """Create a sample experiment for testing."""
-    experiment = belief_tracking_service.design_experiment(
-        journey=sample_journey,
+    experiment = await belief_tracking_service.design_experiment(
+        journey_id=sample_journey.id,
         limiting_belief_id=sample_limiting_belief.id,
         empowering_belief_id=None,
         hypothesis="Delegating this task will not result in failure",
@@ -98,10 +98,10 @@ def sample_experiment(belief_tracking_service, sample_journey, sample_limiting_b
 
 
 @pytest.fixture
-def sample_replay_loop(belief_tracking_service, sample_journey):
+async def sample_replay_loop(belief_tracking_service, sample_journey):
     """Create a sample replay loop for testing."""
-    loop = belief_tracking_service.identify_replay_loop(
-        journey=sample_journey,
+    loop = await belief_tracking_service.identify_replay_loop(
+        journey_id=sample_journey.id,
         trigger_situation="After a meeting where I spoke assertively",
         story_text="I was too harsh. Everyone thinks I am difficult.",
         emotion="shame",

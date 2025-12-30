@@ -166,7 +166,8 @@ class AspectService:
                     source_description="aspect_removal",
                     valid_at=timestamp
                 )
-            except: pass
+            except Exception as e:
+                logger.error(f"Failed to record aspect removal in Graphiti: {e}")
             return True
         return False
 

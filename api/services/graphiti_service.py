@@ -259,9 +259,8 @@ class GraphitiService:
         return json.loads(cleaned)
 
     @staticmethod
-    def _normalize_extraction(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def _normalize_entity_objects(payload: dict[str, Any]) -> list[dict[str, Any]]:
         entities: list[dict[str, Any]] = []
-        relationships: list[dict[str, Any]] = []
 
         for item in payload.get("entities", []):
             if not isinstance(item, dict):
@@ -276,6 +275,12 @@ class GraphitiService:
                     "description": item.get("description"),
                 }
             )
+
+        return entities
+
+    @staticmethod
+    def _normalize_relationship_objects(payload: dict[str, Any]) -> list[dict[str, Any]]:
+        relationships: list[dict[str, Any]] = []
 
         for item in payload.get("relationships", []):
             if not isinstance(item, dict):
@@ -294,7 +299,39 @@ class GraphitiService:
                 }
             )
 
+        return relationships
+
+    @staticmethod
+    def _normalize_extraction(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        entities = GraphitiService._normalize_entity_objects(payload)
+        relationships = GraphitiService._normalize_relationship_objects(payload)
         return entities, relationships
+
+    @staticmethod
+    def _normalize_relationships_with_confidence(
+        raw_relationships: list[dict[str, Any]],
+        confidence_threshold: float,
+    ) -> tuple[list[dict[str, Any]], int, int]:
+        approved: list[dict[str, Any]] = []
+        pending: list[dict[str, Any]] = []
+
+        for rel in raw_relationships:
+            confidence = float(rel.get("confidence", 0.5))
+            normalized = {
+                "source": rel.get("source", ""),
+                "target": rel.get("target", ""),
+                "relation_type": rel.get("type", rel.get("relation", "RELATES_TO")),
+                "confidence": confidence,
+                "evidence": rel.get("evidence", ""),
+                "status": "approved" if confidence >= confidence_threshold else "pending_review",
+            }
+
+            if confidence >= confidence_threshold:
+                approved.append(normalized)
+            else:
+                pending.append(normalized)
+
+        return approved + pending, len(approved), len(pending)
 
     async def extract_and_structure_from_trajectory(
         self,
@@ -408,32 +445,16 @@ IMPORTANT:
             parsed = self._parse_json_response(response)
             entities = parsed.get("entities", [])
             raw_relationships = parsed.get("relationships", [])
-            
-            # Normalize and score relationships
-            approved = []
-            pending = []
-            
-            for rel in raw_relationships:
-                confidence = float(rel.get("confidence", 0.5))
-                normalized = {
-                    "source": rel.get("source", ""),
-                    "target": rel.get("target", ""),
-                    "relation_type": rel.get("type", rel.get("relation", "RELATES_TO")),
-                    "confidence": confidence,
-                    "evidence": rel.get("evidence", ""),
-                    "status": "approved" if confidence >= confidence_threshold else "pending_review"
-                }
-                
-                if confidence >= confidence_threshold:
-                    approved.append(normalized)
-                else:
-                    pending.append(normalized)
+            relationships, approved_count, pending_count = self._normalize_relationships_with_confidence(
+                raw_relationships,
+                confidence_threshold,
+            )
             
             return {
                 "entities": entities,
-                "relationships": approved + pending,
-                "approved_count": len(approved),
-                "pending_count": len(pending),
+                "relationships": relationships,
+                "approved_count": approved_count,
+                "pending_count": pending_count,
                 "confidence_threshold": confidence_threshold,
                 "model_used": str(use_model),
             }

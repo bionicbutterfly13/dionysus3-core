@@ -8,6 +8,7 @@ cognition-base strategy boosting.
 
 import json
 import logging
+import warnings
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
@@ -127,6 +128,11 @@ class KGLearningService:
         return f"Prioritized Relation Types: {', '.join(types)}"
 
     async def _llm_extract(self, content: str, basin_ctx: str, strategy_ctx: str) -> ExtractionResult:
+        warnings.warn(
+            "_llm_extract is deprecated and unused. Use GraphitiService.extract_with_context instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         prompt = f"""
         You are an expert knowledge extraction agent.
         

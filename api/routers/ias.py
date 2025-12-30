@@ -510,8 +510,13 @@ async def create_woop_plan(
             session = await get_persistent_session(request.session_id)
             if session.get("diagnosis"):
                 diagnosis_context = session["diagnosis"].get("explanation", "")
-        except HTTPException:
-            pass  # Session not found, continue with empty context
+    except HTTPException as e:
+        logger.warning(f"Session {session_id} lookup failed for commitment: {e.detail}")
+        return {
+            "session_id": session_id,
+            "error": "Session not found",
+            "message": "Commitment recorded without background context"
+        }
 
     plans = await generate_woop_plans(
         wish=request.wish,

@@ -51,6 +51,24 @@ class TestExtractWithContext:
             assert len(result["entities"]) == 2
             assert len(result["relationships"]) == 1
 
+    async def test_extract_with_context_accepts_relation_key(self, mock_graphiti_service):
+        """Verify relation key is normalized to relation_type."""
+        mock_response = '''
+        {
+            "entities": [],
+            "relationships": [
+                {"source": "A", "target": "B", "relation": "RELATES_TO", "confidence": 0.7, "evidence": "test"}
+            ]
+        }
+        '''
+
+        with patch('api.services.graphiti_service.chat_completion', return_value=mock_response):
+            result = await mock_graphiti_service.extract_with_context(
+                content="Test content about A and B"
+            )
+
+            assert result["relationships"][0]["relation_type"] == "RELATES_TO"
+
     async def test_extract_with_basin_context(self, mock_graphiti_service):
         """Verify basin context is included in prompt."""
         mock_response = '{"entities": [], "relationships": []}'
