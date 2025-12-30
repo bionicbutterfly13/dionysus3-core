@@ -9,7 +9,7 @@ cognition-base strategy boosting.
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from api.models.kg_learning import ExtractionResult, RelationshipProposal, AttractorBasin, CognitionStrategy

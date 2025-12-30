@@ -224,8 +224,8 @@ class MemEvolveAdapter:
                 "memories": [],
                 "query": request.query,
                 "result_count": 0,
-                search_time_ms = round((time.time() - start_time) * 1000, 2),
-                error = str(e),
+                "search_time_ms": round((time.time() - start_time) * 1000, 2),
+                "error": str(e),
             }
 
     async def trigger_evolution(self) -> Dict[str, Any]:
