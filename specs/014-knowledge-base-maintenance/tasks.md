@@ -2,9 +2,9 @@
 
 ## Phase 1: Audiobook Repository
 
-- [ ] T001 Audit current audiobook manuscript for consistency
-- [ ] T002 Update manuscript sections to reach 13,500 word target
-- [ ] T003 Verify audio asset alignment with updated text
+- [x] T001 Audit current audiobook manuscript for consistency
+- [x] T002 Update manuscript sections to reach 13,500 word target (Current: 14,063)
+- [ ] T003 Verify audio asset alignment with updated text (Deferred: no audio files in repo)
 
 ---
 

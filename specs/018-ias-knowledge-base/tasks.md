@@ -5,8 +5,8 @@
 
 ## Phase 1: Audiobook Maintenance
 
-- [ ] T001 [US1] Audit audiobook manuscript for IAS conceptual consistency
-- [ ] T002 [US1] Update sections to reach 13,500 word target word count
+- [x] T001 [US1] Audit audiobook manuscript for IAS conceptual consistency
+- [x] T002 [US1] Update sections to reach 13,500 word target word count (Current: 14,063)
 
 ---
 
