@@ -3,6 +3,7 @@ Context Stream Service - River Metaphor Flow Analysis
 Feature: 027-river-metaphor
 
 Analyzes information flow and detects 'turbulence' in reasoning.
+Upgraded with Neural Field Metrics (Feature 037).
 """
 
 import logging
@@ -18,16 +19,78 @@ class ContextFlow(BaseModel):
     state: FlowState
     density: float # Facts per episode
     turbulence: float # Variance/error proxy
+    compression: float = 1.0 # tokens_in / tokens_out
+    resonance: float = 0.5 # semantic alignment with goal
     summary: str
 
 class ContextStreamService:
     def __init__(self):
         self.history: List[ContextFlow] = []
 
-    async def analyze_current_flow(self, project_id: str) -> ContextFlow:
+    def calculate_compression(self, tokens_in: int, tokens_out: int) -> float:
         """
-        Calculate flow state based on recent Graphiti activity.
-        FR-002: Information Density and Turbulence Level.
+        Calculate compression ratio (tokens_in / tokens_out).
+        High ratio (> 1.0) means concise summary/high info gain.
+        """
+        if tokens_out == 0:
+            return 1.0
+        return float(tokens_in) / float(tokens_out)
+
+    async def calculate_resonance(self, goal_text: str, action_output: str) -> float:
+        """
+        Calculate semantic resonance (similarity) using EmbeddingService.
+        """
+        from api.services.embedding import get_embedding_service
+        try:
+            embed_svc = get_embedding_service()
+            return await embed_svc.calculate_similarity(goal_text, action_output)
+        except Exception as e:
+            logger.warning(f"Resonance calculation failed: {e}")
+            return 0.5
+
+    def map_to_flow_state(
+        self, 
+        density: float, 
+        turbulence: float, 
+        compression: float, 
+        resonance: float
+    ) -> ContextFlow:
+        """Maps metrics to a FlowState."""
+        
+        if turbulence > 0.6:
+            state = FlowState.TURBULENT
+        elif resonance < 0.3:
+            state = FlowState.DRIFTING
+        elif compression < 0.2 and density > 0.5:
+            state = FlowState.STAGNANT
+        elif resonance > 0.7 and turbulence < 0.2 and density > 0.5:
+            state = FlowState.STABLE
+        elif density > 0.3:
+            state = FlowState.FLOWING
+        elif density < 0.2:
+            state = FlowState.EMERGING
+        else:
+            state = FlowState.CONVERGING
+            
+        return ContextFlow(
+            state=state,
+            density=density,
+            turbulence=turbulence,
+            compression=compression,
+            resonance=resonance,
+            summary=f"River is {state.value.upper()}. Comp: {compression:.2f}, Res: {resonance:.2f}"
+        )
+
+    async def analyze_current_flow(
+        self, 
+        project_id: str, 
+        tokens_in: int = 0, 
+        tokens_out: int = 0,
+        goal_text: Optional[str] = None,
+        last_output: Optional[str] = None
+    ) -> ContextFlow:
+        """
+        Calculate flow state based on recent Graphiti activity and neural metrics.
         """
         graphiti = await get_graphiti_service()
         
@@ -36,40 +99,24 @@ class ContextStreamService:
         edges = results.get("edges", [])
         
         # 2. Calculate Density
-        # Simple proxy: number of factual edges retrieved divided by window size
         density = len(edges) / 10.0
         
         # 3. Calculate Turbulence
-        # In this implementation, we check for 'contradiction' or 'failed' keywords in the facts
         turbulence = 0.0
         negative_markers = ["contradict", "fail", "error", "hallucination", "mismatch", "unclear"]
-        
         for edge in edges:
             fact = str(edge.get("fact", "")).lower()
             if any(m in fact for m in negative_markers):
                 turbulence += 0.2
-        
         turbulence = min(1.0, turbulence)
         
-        # 4. Map to FlowState
-        if turbulence > 0.6:
-            state = FlowState.TURBULENT
-        elif density < 0.2:
-            state = FlowState.EMERGING
-        elif turbulence < 0.2 and density > 0.5:
-            state = FlowState.STABLE
-        elif density > 0.3:
-            state = FlowState.FLOWING
-        else:
-            state = FlowState.CONVERGING
+        # 4. Neural Metrics
+        compression = self.calculate_compression(tokens_in, tokens_out)
+        resonance = 0.5
+        if goal_text and last_output:
+            resonance = await self.calculate_resonance(goal_text, last_output)
             
-        flow = ContextFlow(
-            state=state,
-            density=density,
-            turbulence=turbulence,
-            summary=f"River is {state.value.upper()}. Density: {density:.2f}, Turbulence: {turbulence:.2f}"
-        )
-        
+        flow = self.map_to_flow_state(density, turbulence, compression, resonance)
         self.history.append(flow)
         return flow
 

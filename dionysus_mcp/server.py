@@ -21,7 +21,7 @@ import hashlib
 import hmac
 import json
 import os
-from typing import Any, Optional
+from typing import Any, List, Optional
 from contextlib import asynccontextmanager
 
 import httpx
@@ -538,19 +538,26 @@ async def query_basin_landscape() -> dict:
 @app.tool()
 async def create_thoughtseed(
     layer: str,
-    neuronal_packet: dict,
-    memory_id: Optional[str] = None
+    content: str,
+    memory_id: Optional[str] = None,
+    child_thought_ids: Optional[List[str]] = None,
+    parent_thought_id: Optional[str] = None,
+    neuronal_packet: Optional[dict] = None
 ) -> dict:
     """
     Create a new thoughtseed in the cognitive hierarchy via n8n webhook.
+    Supports fractal structures via child/parent links.
     """
     driver = get_neo4j_driver()
     cypher = """
         CREATE (t:ThoughtSeed {
             id: randomUUID(),
             layer: $layer,
+            content: $content,
             neuronal_packet: $neuronal_packet,
             memory_id: $memory_id,
+            child_thought_ids: $child_thought_ids,
+            parent_thought_id: $parent_thought_id,
             activation_level: 0.5,
             competition_status: 'pending',
             created_at: datetime()
@@ -561,8 +568,11 @@ async def create_thoughtseed(
     """
     params = {
         "layer": layer,
-        "neuronal_packet": json.dumps(neuronal_packet),
-        "memory_id": memory_id
+        "content": content,
+        "neuronal_packet": json.dumps(neuronal_packet or {}),
+        "memory_id": memory_id,
+        "child_thought_ids": child_thought_ids or [],
+        "parent_thought_id": parent_thought_id
     }
     
     async with driver.session() as session:

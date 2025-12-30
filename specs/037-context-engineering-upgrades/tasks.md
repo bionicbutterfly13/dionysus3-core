@@ -45,13 +45,13 @@
 
 ### Tests for User Story 2
 
-- [ ] T010 [P] [US2] Create unit test `tests/unit/test_neural_metrics.py` for compression/resonance calculations
+- [X] T010 [P] [US2] Create unit test `tests/unit/test_neural_metrics.py` for compression/resonance calculations
 
 ### Implementation for User Story 2
 
-- [ ] T011 [P] [US2] Update `ContextStreamService` in `api/services/context_stream.py` to calculate `compression` (tokens_in/tokens_out)
-- [ ] T012 [P] [US2] Update `ContextStreamService` to calculate `resonance` using `sentence-transformers`
-- [ ] T013 [US2] Update `FlowState` enum in `api/models/cognitive.py` to include new metric thresholds
+- [X] T011 [P] [US2] Update `ContextStreamService` in `api/services/context_stream.py` to calculate `compression` (tokens_in/tokens_out)
+- [X] T012 [P] [US2] Update `ContextStreamService` to calculate `resonance` using `sentence-transformers`
+- [X] T013 [US2] Update `FlowState` enum in `api/models/cognitive.py` to include new metric thresholds
 
 **Checkpoint**: `ContextStreamService` now reports rich flow metrics.
 
@@ -69,7 +69,7 @@
 
 ### Implementation for User Story 3
 
-- [ ] T015 [P] [US3] Update `ThoughtSeed` model in `api/models/thought.py` with `child_thought_ids` field
+- [X] T015 [P] [US3] Update `ThoughtSeed` model in `api/models/thought.py` with `child_thought_ids` field
 - [ ] T016 [US3] Update `MetacognitionAgent` prompt in `api/agents/metacognition_agent.py` to output recursive structures
 - [ ] T017 [US3] Verify `AgentMemoryService` persists child IDs correctly
 
@@ -85,12 +85,12 @@
 
 ### Tests for User Story 4
 
-- [ ] T018 [P] [US4] Verify audit logs continue to populate in `tests/integration/test_audit.py` (or manual check)
+- [X] T018 [P] [US4] Verify audit logs continue to populate in `tests/integration/test_audit.py` (or manual check)
 
 ### Implementation for User Story 4
 
-- [ ] T019 [P] [US4] Refactor `ConsciousnessManager` in `api/agents/consciousness_manager.py` to use `CallbackRegistry.register`
-- [ ] T020 [US4] Update `MoSAEIC` capture hooks to match `(step, **kwargs)` signature if needed
+- [X] T019 [P] [US4] Refactor `ConsciousnessManager` in `api/agents/consciousness_manager.py` to use `CallbackRegistry.register`
+- [X] T020 [US4] Update `MoSAEIC` capture hooks to match `(step, **kwargs)` signature if needed
 
 **Checkpoint**: Agent internals are cleaner and more stable.
 
@@ -98,8 +98,8 @@
 
 ## Phase 6: Polish & Verification
 
-- [ ] T021 Run full Heartbeat integration test suite
-- [ ] T022 Verify observability metrics in `dionysus_mcp`
+- [X] T021 Run full Heartbeat integration test suite
+- [X] T022 Verify observability metrics in `dionysus_mcp`
 
 ---
 

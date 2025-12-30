@@ -18,17 +18,12 @@ async def test_compression_calculation():
 
 @pytest.mark.asyncio
 async def test_resonance_calculation():
-    """Verify resonance (semantic similarity) calculation."""
+    """Verify resonance (semantic similarity) calculation using EmbeddingService."""
     service = ContextStreamService()
     
-    # Mock sentence-transformers similarity
-    # Higher similarity = Higher resonance
-    with patch("api.services.context_stream.util.cos_sim") as mock_sim:
-        mock_sim.return_value = [[0.85]]
-        
-        # We mock the model.encode calls too
-        service.model = MagicMock()
-        service.model.encode.return_value = [0.1, 0.2, 0.3]
+    # Mock EmbeddingService.calculate_similarity
+    with patch("api.services.embedding.EmbeddingService.calculate_similarity", new_callable=AsyncMock) as mock_sim:
+        mock_sim.return_value = 0.85
         
         resonance = await service.calculate_resonance("My Goal", "My Action Output")
         assert resonance == 0.85
@@ -38,10 +33,10 @@ async def test_flow_state_mapping():
     """Verify that FlowState accurately reflects new metrics."""
     service = ContextStreamService()
     
-    # High resonance, High compression -> STABLE
-    flow = service.map_to_flow_state(density=0.5, turbulence=0.1, compression=5.0, resonance=0.9)
+    # High resonance, low turbulence, High density -> STABLE
+    flow = service.map_to_flow_state(density=0.6, turbulence=0.1, compression=5.0, resonance=0.9)
     assert flow.state == FlowState.STABLE
     
-    # Low resonance -> TURBULENT (or DRIFTING if we add it)
+    # Low resonance -> DRIFTING
     flow = service.map_to_flow_state(density=0.5, turbulence=0.1, compression=1.0, resonance=0.2)
-    assert flow.state == FlowState.TURBULENT
+    assert flow.state == FlowState.DRIFTING

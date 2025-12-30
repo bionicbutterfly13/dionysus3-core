@@ -23,6 +23,8 @@ class MetacognitionAgent:
         self.description = """
             Specialized in self-reflection, goal management, and mental model revision.
             Uses ToolCallingAgent to evaluate system performance and adjust internal models.
+            Supports FRACTAL METACOGNITION: can create hierarchical thoughts by linking 
+            ThoughtSeeds as children of higher-order reflections.
             """
 
     def __enter__(self):
