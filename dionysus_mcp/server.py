@@ -299,6 +299,25 @@ async def get_consciousness_state() -> dict:
 
 
 @app.tool()
+async def get_context_flow(project_id: str = "default") -> dict:
+    """
+    Get current neural field metrics (compression, resonance, flow state).
+    """
+    from api.services.context_stream import get_context_stream_service
+    service = get_context_stream_service()
+    flow = await service.analyze_current_flow(project_id=project_id)
+    
+    return {
+        "state": flow.state.value,
+        "density": flow.density,
+        "turbulence": flow.turbulence,
+        "compression": flow.compression,
+        "resonance": flow.resonance,
+        "summary": flow.summary
+    }
+
+
+@app.tool()
 async def update_belief(
     domain: str,
     belief: dict,

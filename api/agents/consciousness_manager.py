@@ -40,6 +40,7 @@ class ConsciousnessManager:
     def __enter__(self):
         from api.agents.audit import get_audit_callback
         from api.utils.callbacks import CallbackRegistry
+        from api.agents.mosaeic_callback import create_mosaeic_callback
         from smolagents.memory import ActionStep
         
         # 1. Initialize Audit Registry (T2.1)
@@ -54,14 +55,20 @@ class ConsciousnessManager:
             for step_type, callback in audit_dict.items():
                 registry.register(step_type, callback)
                 
-            # Add opt-in self-modeling callback (conditional on feature flag)
+            # T020: Add MOSAEIC capture for perception
+            if agent_name == "perception":
+                mosaeic_cb = create_mosaeic_callback(agent_id=agent_name)
+                registry.register(ActionStep, mosaeic_cb)
+                print(f"DEBUG: MOSAEIC callback enabled for {agent_name}")
+
+            # T037: Add opt-in self-modeling callback (conditional on feature flag)
             self_modeling_cb = create_self_modeling_callback(agent_id=agent_name)
             if self_modeling_cb:
                 # self-modeling currently only supports ActionStep
                 registry.register(ActionStep, self_modeling_cb)
                 print(f"DEBUG: Self-modeling callback enabled for {agent_name}")
                 
-            return registry.wrap_as_dict() # smolagents 1.23 still uses dict internally mostly
+            return registry.wrap_as_list() # Use list for native smolagents support
 
         # Enter sub-agents and apply callbacks
         self.perception_agent_wrapper.__enter__()

@@ -65,13 +65,13 @@
 
 ### Tests for User Story 3
 
-- [ ] T014 [P] [US3] Create integration test `tests/integration/test_fractal_persistence.py`
+- [X] T014 [P] [US3] Create integration test `tests/integration/test_fractal_persistence.py`
 
 ### Implementation for User Story 3
 
 - [X] T015 [P] [US3] Update `ThoughtSeed` model in `api/models/thought.py` with `child_thought_ids` field
-- [ ] T016 [US3] Update `MetacognitionAgent` prompt in `api/agents/metacognition_agent.py` to output recursive structures
-- [ ] T017 [US3] Verify `AgentMemoryService` persists child IDs correctly
+- [X] T016 [US3] Update `MetacognitionAgent` prompt in `api/agents/metacognition_agent.py` to output recursive structures
+- [X] T017 [US3] Verify `AgentMemoryService` persists child IDs correctly
 
 **Checkpoint**: Thoughts can now reference other thoughts hierarchically.
 
