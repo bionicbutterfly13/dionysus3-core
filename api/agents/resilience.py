@@ -76,6 +76,7 @@ RECOVERY_STRATEGIES: dict[FailureType, list[RecoveryStrategy]] = {
             action=RecoveryAction.BROADEN_QUERY,
             hint_template="No results found. Broadening search to related concepts.",
             priority=10,
+            max_attempts=1,  # Escalate quickly to fallback
         ),
         RecoveryStrategy(
             failure_type=FailureType.EMPTY_RESULTS,
@@ -183,7 +184,7 @@ class StrategyHinter:
         """Classify an error message into a FailureType."""
         error_upper = error_msg.upper()
 
-        if "TIMEOUT" in error_upper:
+        if "TIMEOUT" in error_upper or "TIMED OUT" in error_upper:
             return FailureType.TIMEOUT
         elif "EMPTY" in error_upper or "NO RESULTS" in error_upper or "NOT FOUND" in error_upper:
             return FailureType.EMPTY_RESULTS
@@ -191,10 +192,11 @@ class StrategyHinter:
             return FailureType.PARSE_ERROR
         elif "RATE" in error_upper or "429" in error_upper or "LIMIT" in error_upper:
             return FailureType.RATE_LIMIT
-        elif "CONNECTION" in error_upper or "NETWORK" in error_upper or "SOCKET" in error_upper:
-            return FailureType.CONNECTION_ERROR
+        # Check BRIDGE before CONNECTION (since "bridge connection" would match CONNECTION otherwise)
         elif "BRIDGE" in error_upper or "MCP" in error_upper:
             return FailureType.BRIDGE_FAILURE
+        elif "CONNECTION" in error_upper or "NETWORK" in error_upper or "SOCKET" in error_upper:
+            return FailureType.CONNECTION_ERROR
         elif "MODEL" in error_upper or "LLM" in error_upper:
             return FailureType.MODEL_ERROR
         else:

@@ -62,7 +62,7 @@ class TestTimeoutRetryWithModelPromotion:
         mock_agent.memory = MagicMock()
 
         # Mock the memory service to avoid actual persistence
-        with patch('api.agents.resource_gate.get_agent_memory_service') as mock_mem_svc:
+        with patch('api.services.agent_memory_service.get_agent_memory_service') as mock_mem_svc:
             mock_mem_svc.return_value.persist_run = AsyncMock()
 
             # Run with very short timeout to force retry
@@ -108,7 +108,7 @@ class TestTimeoutRetryWithModelPromotion:
         mock_agent.run = mock_run
         mock_agent.memory = MagicMock()
 
-        with patch('api.agents.resource_gate.get_agent_memory_service') as mock_mem_svc:
+        with patch('api.services.agent_memory_service.get_agent_memory_service') as mock_mem_svc:
             mock_mem_svc.return_value.persist_run = AsyncMock()
 
             # The test verifies the model promotion logic path exists
@@ -142,7 +142,7 @@ class TestTimeoutRetryWithModelPromotion:
 
         mock_agent.run = mock_run
 
-        with patch('api.agents.resource_gate.get_agent_memory_service'):
+        with patch('api.services.agent_memory_service.get_agent_memory_service'):
             result = await run_agent_with_timeout(
                 agent=mock_agent,
                 prompt="Test",

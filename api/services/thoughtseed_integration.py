@@ -58,6 +58,8 @@ class ThoughtSeedIntegrationService:
         prediction_content: dict,
         confidence: float,
         context: dict | None = None,
+        parent_thought_id: UUID | None = None,
+        child_thought_ids: list[UUID] | None = None,
     ) -> dict:
         """
         Create a ThoughtSeed from a model prediction.
@@ -84,9 +86,17 @@ class ThoughtSeedIntegrationService:
             activation_level: $activation,
             competition_status: 'pending',
             neuronal_packet: $packet,
+            parent_thought_id: $parent_id,
+            child_thought_ids: $child_ids,
             created_at: datetime()
         })
         CREATE (m)-[:PRODUCED_SEED]->(t)
+        
+        WITH t
+        FOREACH (_ IN CASE WHEN $parent_id IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (p:ThoughtSeed {id: $parent_id})
+            MERGE (p)-[:HAS_CHILD]->(t)
+        )
         RETURN t
         """
         
@@ -96,7 +106,9 @@ class ThoughtSeedIntegrationService:
                 "id": thoughtseed_id,
                 "layer": layer,
                 "activation": activation_level,
-                "packet": json.dumps(packet)
+                "packet": json.dumps(packet),
+                "parent_id": str(parent_thought_id) if parent_thought_id else None,
+                "child_ids": [str(cid) for cid in (child_thought_ids or [])]
             })
             
             logger.info(f"Created ThoughtSeed {thoughtseed_id} from model {model_id}")

@@ -54,7 +54,7 @@ class MetacognitionAgent:
         self.__exit__(None, None, None)
 
     async def run(self, task: str):
-        """Run the metacognition cycle with River Metaphor integration."""
+        """Run the metacognition cycle with River Metaphor and Fractal integration."""
         from api.services.context_stream import get_context_stream_service
         from api.models.cognitive import FlowState
         
@@ -70,7 +70,15 @@ class MetacognitionAgent:
             # Productive, can do more
             self.agent.max_steps = 8
         
-        # 3. Inject flow context into task for LLM awareness
-        task_with_flow = f"CURRENT RIVER STATUS: {flow.summary}\n\n{task}"
+        # 3. Inject flow context and FRACTAL instructions into task for LLM awareness
+        fractal_instructions = """
+        FRACTAL METACOGNITION ENABLED:
+        When creating ThoughtSeeds, you can now link them hierarchically. 
+        - If a thought is a reflection on a previous thought, provide the parent_thought_id.
+        - You can also provide a list of child_thought_ids to establish containment.
+        - Use this to build deep, recursive models of system behavior.
+        """
+        
+        task_with_flow = f"CURRENT RIVER STATUS: {flow.summary}\n\n{fractal_instructions}\n\n{task}"
         
         return self.agent.run(task_with_flow)
