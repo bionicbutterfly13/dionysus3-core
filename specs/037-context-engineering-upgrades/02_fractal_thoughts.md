@@ -12,7 +12,7 @@
 
 ## User Scenarios & Testing
 
-### User Story 1 - Recursive Thought Encapsulation (Priority: P2)
+### User Story 3 (US3) - Recursive Thought Encapsulation (Priority: P2)
 
 As the Metacognition Agent, I want to create thoughts that contain other reasoning traces as "child" content, so that I can evaluate and critique entire chains of reasoning as a single object.
 

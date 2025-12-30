@@ -12,7 +12,7 @@
 
 ## User Scenarios & Testing
 
-### User Story 1 - Flow Efficiency Monitoring (Priority: P2)
+### User Story 2 (US2) - Flow Efficiency Monitoring (Priority: P2)
 
 As the Context Stream Service, I want to measure the "compression" and "resonance" of the system's processing, so that I can detect when the agents are "spinning" (low compression) or "hallucinating" (low resonance).
 
@@ -34,7 +34,7 @@ As the Context Stream Service, I want to measure the "compression" and "resonanc
 
 ### Functional Requirements
 
-- **FR-001**: Update `ContextStreamService` to calculate `compression_ratio` as `tokens_in / tokens_out`.
+- **FR-001**: Update `ContextStreamService` to calculate `compression` as `tokens_in / tokens_out`.
 - **FR-002**: Update `ContextStreamService` to calculate `resonance` using `sentence-transformers` (already available) to compare Action output vs Goal description.
 - **FR-003**: Update `FlowState` enum and logic to include these new metrics.
 
