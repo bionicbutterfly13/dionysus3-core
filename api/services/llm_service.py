@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Provider config
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
 OLLAMA_MODEL = "ollama/llama3.2" # Using locally available model
 OLLAMA_FLEET_MODEL = "ollama/qwen2.5:14b"
 
@@ -43,6 +43,13 @@ def get_router_model(model_id: str = "dionysus-agents") -> LiteLLMRouterModel:
             "litellm_params": {
                 "model": GPT5_NANO,
                 "api_key": os.getenv("OPENAI_API_KEY"),
+            }
+        },
+        {
+            "model_name": model_id,
+            "litellm_params": {
+                "model": SONNET,
+                "api_key": os.getenv("ANTHROPIC_API_KEY"),
             }
         },
         {

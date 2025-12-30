@@ -1,11 +1,14 @@
 import os
 import json
+import logging
 from typing import Any, Dict, List, Optional
 from smolagents import ToolCallingAgent, LiteLLMModel
 
 from api.agents.tools.wisdom_tools import query_wisdom_graph
 from api.services.bootstrap_recall_service import BootstrapRecallService
 from api.models.bootstrap import BootstrapConfig
+
+logger = logging.getLogger(__name__)
 
 class MarketingAgent:
     """
@@ -39,22 +42,30 @@ class MarketingAgent:
         Generate a high-converting nurture email with self-reported confidence.
         """
         # T012: Perform Bootstrap Recall
-        bootstrap_result = await self.bootstrap_svc.recall_context(
-            query=f"{topic} {framework}",
-            project_id=project_id,
-            config=BootstrapConfig(project_id=project_id)
-        )
+        try:
+            bootstrap_result = await self.bootstrap_svc.recall_context(
+                query=f"{topic} {framework}",
+                project_id=project_id,
+                config=BootstrapConfig(project_id=project_id)
+            )
+            context = bootstrap_result.formatted_context
+        except Exception as e:
+            logger.warning(f"Bootstrap recall failed for {topic}: {e}. Proceeding with zero-context.")
+            context = "Note: Historical context retrieval unavailable. Use general IAS principles."
 
         from api.services.aspect_service import get_aspect_service
         aspect_service = get_aspect_service()
-        aspects = await aspect_service.get_all_aspects(user_id="marketing_system")
-        
-        aspects_text = "\n".join([f"- {a.get('name')}: {a.get('role')}" for a in aspects])
+        try:
+            aspects = await aspect_service.get_all_aspects(user_id="marketing_system")
+            aspects_text = "\n".join([f"- {a.get('name')}: {a.get('role')}" for a in aspects])
+        except Exception as e:
+            logger.warning(f"Failed to fetch aspects: {e}")
+            aspects_text = "Standard boardroom configuration."
 
         prompt = f"""
         Generate a high-converting nurture email.
         
-        {bootstrap_result.formatted_context}
+        {context}
 
         - Topic: {topic}
         - Framework: {framework}

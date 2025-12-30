@@ -41,7 +41,8 @@ class MosaeicCaptureTool(Tool):
         "source_id": {
             "type": "string",
             "description": "Optional identifier for the source of this experience.",
-            "default": "agent_observation"
+            "default": "agent_observation",
+            "nullable": True
         }
     }
     output_type = "any"

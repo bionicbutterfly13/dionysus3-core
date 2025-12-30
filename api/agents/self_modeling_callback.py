@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from smolagents.agents import AgentStep
+from smolagents.memory import ActionStep
 from smolagents.monitoring import AgentLogger
 
 from api.models.network_state import get_network_state_config
@@ -76,7 +76,7 @@ class SelfModelingCallback(AgentLogger):
 
         return result
 
-    def log_step(self, step: AgentStep, step_number: int) -> None:
+    def log_step(self, step: ActionStep, step_number: int) -> None:
         """Called after each agent step. Synchronous wrapper for async resolution."""
         if not self.enabled:
             return
@@ -127,7 +127,7 @@ class SelfModelingCallback(AgentLogger):
             logger.warning(f"Error in on_step_start: {e}")
             self._pending_prediction_id = None
 
-    async def _on_step_end(self, step: AgentStep, step_number: int) -> None:
+    async def _on_step_end(self, step: ActionStep, step_number: int) -> None:
         """
         Called after agent step execution (T034).
 
