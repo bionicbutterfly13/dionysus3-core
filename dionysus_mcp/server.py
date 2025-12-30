@@ -21,7 +21,7 @@ import hashlib
 import hmac
 import json
 import os
-from typing import Any, Optional
+from typing import Any, List, Optional
 from contextlib import asynccontextmanager
 
 import httpx
@@ -191,7 +191,7 @@ async def reflect_on_topic(topic: str, context: Optional[str] = None) -> str:
     """
     Deep reflection on a specific topic to gain new insights.
     """
-    from api.services.llm_service import chat_completion, SONNET
+    from api.services.llm_service import chat_completion, GPT5_NANO
     
     system_prompt = "You are Dionysus's reflective faculty. Analyze for root causes and systemic connections."
     user_content = f"Topic: {topic}\n\nContext: {context or 'None'}"
@@ -199,7 +199,7 @@ async def reflect_on_topic(topic: str, context: Optional[str] = None) -> str:
     return await chat_completion(
         messages=[{"role": "user", "content": user_content}],
         system_prompt=system_prompt,
-        model=SONNET,
+        model=GPT5_NANO,
         max_tokens=1000
     )
 
@@ -209,7 +209,7 @@ async def synthesize_information(objective: str, data_points: str) -> str:
     """
     Synthesize multiple data points into a coherent analysis or plan.
     """
-    from api.services.llm_service import chat_completion, SONNET
+    from api.services.llm_service import chat_completion, GPT5_NANO
     
     system_prompt = "You are Dionysus's synthesis faculty. Weave disparate data into a high-level actionable plan."
     user_content = f"Objective: {objective}\n\nData Points: {data_points}"
@@ -217,7 +217,7 @@ async def synthesize_information(objective: str, data_points: str) -> str:
     return await chat_completion(
         messages=[{"role": "user", "content": user_content}],
         system_prompt=system_prompt,
-        model=SONNET,
+        model=GPT5_NANO,
         max_tokens=1000
     )
 
@@ -296,6 +296,25 @@ async def get_consciousness_state() -> dict:
             ]
         }
 
+
+
+@app.tool()
+async def get_context_flow(project_id: str = "default") -> dict:
+    """
+    Get current neural field metrics (compression, resonance, flow state).
+    """
+    from api.services.context_stream import get_context_stream_service
+    service = get_context_stream_service()
+    flow = await service.analyze_current_flow(project_id=project_id)
+    
+    return {
+        "state": flow.state.value,
+        "density": flow.density,
+        "turbulence": flow.turbulence,
+        "compression": flow.compression,
+        "resonance": flow.resonance,
+        "summary": flow.summary
+    }
 
 
 @app.tool()
@@ -538,19 +557,26 @@ async def query_basin_landscape() -> dict:
 @app.tool()
 async def create_thoughtseed(
     layer: str,
-    neuronal_packet: dict,
-    memory_id: Optional[str] = None
+    content: str,
+    memory_id: Optional[str] = None,
+    child_thought_ids: Optional[List[str]] = None,
+    parent_thought_id: Optional[str] = None,
+    neuronal_packet: Optional[dict] = None
 ) -> dict:
     """
     Create a new thoughtseed in the cognitive hierarchy via n8n webhook.
+    Supports fractal structures via child/parent links.
     """
     driver = get_neo4j_driver()
     cypher = """
         CREATE (t:ThoughtSeed {
             id: randomUUID(),
             layer: $layer,
+            content: $content,
             neuronal_packet: $neuronal_packet,
             memory_id: $memory_id,
+            child_thought_ids: $child_thought_ids,
+            parent_thought_id: $parent_thought_id,
             activation_level: 0.5,
             competition_status: 'pending',
             created_at: datetime()
@@ -561,8 +587,11 @@ async def create_thoughtseed(
     """
     params = {
         "layer": layer,
-        "neuronal_packet": json.dumps(neuronal_packet),
-        "memory_id": memory_id
+        "content": content,
+        "neuronal_packet": json.dumps(neuronal_packet or {}),
+        "memory_id": memory_id,
+        "child_thought_ids": child_thought_ids or [],
+        "parent_thought_id": parent_thought_id
     }
     
     async with driver.session() as session:

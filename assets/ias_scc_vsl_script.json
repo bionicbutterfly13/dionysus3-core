@@ -1,0 +1,85 @@
+{
+  "id": "scc-4c127b08-2a40-4473-8a7f-0609b0db6b17",
+  "name": "IAS Hidden Block Decoder",
+  "version": "1.0",
+  "hook": {
+    "product_name": "Hidden Block Decoder",
+    "number_helped_technique": "Tens of thousands",
+    "number_helped_personal": "230",
+    "ideal_audience": "Analytical empaths - high-status achievers",
+    "big_goal": "Silence the inner critic replay loop at the identity level",
+    "time_period": "3-hour rapid workshop",
+    "old_methods_failed": [
+      "Therapy",
+      "Biohacking",
+      "Meditation",
+      "Productivity Systems"
+    ],
+    "opening_statement": null
+  },
+  "client_stories": [
+    {
+      "id": "dr-danielle",
+      "name": "Dr. Danielle",
+      "avatar_type": "analytical_empath",
+      "role": "Physician",
+      "industry": null,
+      "location_type": null,
+      "family_status": null,
+      "status_markers": [],
+      "external_success_markers": [],
+      "internal_experiences": [
+        {
+          "feeling": "Emotional absence",
+          "trigger": null,
+          "frequency": "daily",
+          "expressed_as": null
+        }
+      ],
+      "core_pain_pattern": "Equating success with suffering",
+      "surface_complaint": null,
+      "hidden_belief": {
+        "statement": "The more successful you get, the more miserable you're supposed to be",
+        "origin": null,
+        "manifestations": [],
+        "cost": null
+      },
+      "method_used": "Hidden Block Decoder",
+      "key_intervention": "Hidden Block Decoder revelation",
+      "transformation_moment": null,
+      "internal_shifts": [],
+      "external_changes": [],
+      "specific_outcomes": [],
+      "hell_island": null,
+      "heaven_island": null,
+      "maps_to_lessons": [],
+      "maps_to_patterns": [],
+      "maps_to_desires": [],
+      "needs_filling": [],
+      "created_at": "2025-12-29 20:38:22.629568",
+      "updated_at": "2025-12-29 20:38:22.629576"
+    }
+  ],
+  "overview": null,
+  "backstory": null,
+  "identity": null,
+  "core_belief": {
+    "shift_type": "core",
+    "old_belief": "Suppress empathy to succeed",
+    "new_belief": "Integrate empathy as competitive advantage",
+    "problems_old_causes": [],
+    "cost_of_keeping": null,
+    "life_with_new": null,
+    "authority_quote": null,
+    "universal_analogy": null,
+    "personal_story": null,
+    "client_proof": null
+  },
+  "real_problem_belief": null,
+  "phases": [],
+  "recap": null,
+  "close": null,
+  "avatar_id": "analytical-empath",
+  "created_at": "2025-12-29 20:38:22.629712",
+  "updated_at": "2025-12-29 20:38:22.629714"
+}

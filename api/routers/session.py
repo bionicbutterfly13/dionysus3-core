@@ -383,7 +383,7 @@ async def log_session_event(
                 await client.post(url, json=payload)
         except Exception as e:
             # We log error but don't crash since this is background
-            print(f"Failed to forward session event to n8n: {e}")
+            logger.error(f"Failed to forward session event to n8n: {e}")
 
     # Forward in background to avoid blocking
     background_tasks.add_task(forward_event, event.model_dump(), webhook_url)

@@ -158,5 +158,7 @@ class KnowledgeAgent:
             cleaned = str(result).strip()
             if "```json" in cleaned: cleaned = cleaned.split("```json")[1].split("```")[0].strip()
             return json.loads(cleaned)
-        except:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to parse wisdom extraction JSON: {e}. Raw: {result}")
             return {"raw_output": str(result), "session_id": session_id}

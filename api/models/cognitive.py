@@ -10,6 +10,8 @@ class FlowState(str, enum.Enum):
     CONVERGING = "converging"
     STABLE = "stable"
     TURBULENT = "turbulent"
+    STAGNANT = "stagnant" # Low compression, high input/output with no gain
+    DRIFTING = "drifting" # Low resonance with goals
 
 class EFEResult(BaseModel):
     """Result of an Expected Free Energy calculation for a ThoughtSeed."""

@@ -256,12 +256,15 @@ class GraphitiService:
         if not cleaned:
             return {}
             
-        return json.loads(cleaned)
+        try:
+            return json.loads(cleaned)
+        except Exception as e:
+            logger.error(f"Failed to parse JSON response from LLM: {e}. Cleaned text: {cleaned}")
+            return {}
 
     @staticmethod
-    def _normalize_extraction(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def _normalize_entity_objects(payload: dict[str, Any]) -> list[dict[str, Any]]:
         entities: list[dict[str, Any]] = []
-        relationships: list[dict[str, Any]] = []
 
         for item in payload.get("entities", []):
             if not isinstance(item, dict):
@@ -276,6 +279,12 @@ class GraphitiService:
                     "description": item.get("description"),
                 }
             )
+
+        return entities
+
+    @staticmethod
+    def _normalize_relationship_objects(payload: dict[str, Any]) -> list[dict[str, Any]]:
+        relationships: list[dict[str, Any]] = []
 
         for item in payload.get("relationships", []):
             if not isinstance(item, dict):
@@ -294,7 +303,39 @@ class GraphitiService:
                 }
             )
 
+        return relationships
+
+    @staticmethod
+    def _normalize_extraction(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        entities = GraphitiService._normalize_entity_objects(payload)
+        relationships = GraphitiService._normalize_relationship_objects(payload)
         return entities, relationships
+
+    @staticmethod
+    def _normalize_relationships_with_confidence(
+        raw_relationships: list[dict[str, Any]],
+        confidence_threshold: float,
+    ) -> tuple[list[dict[str, Any]], int, int]:
+        approved: list[dict[str, Any]] = []
+        pending: list[dict[str, Any]] = []
+
+        for rel in raw_relationships:
+            confidence = float(rel.get("confidence", 0.5))
+            normalized = {
+                "source": rel.get("source", ""),
+                "target": rel.get("target", ""),
+                "relation_type": rel.get("type", rel.get("relation", "RELATES_TO")),
+                "confidence": confidence,
+                "evidence": rel.get("evidence", ""),
+                "status": "approved" if confidence >= confidence_threshold else "pending_review",
+            }
+
+            if confidence >= confidence_threshold:
+                approved.append(normalized)
+            else:
+                pending.append(normalized)
+
+        return approved + pending, len(approved), len(pending)
 
     async def extract_and_structure_from_trajectory(
         self,
@@ -341,6 +382,150 @@ class GraphitiService:
             "summary": summary,
             "entities": entities,
             "relationships": relationships,
+        }
+
+    async def extract_with_context(
+        self,
+        content: str,
+        basin_context: Optional[str] = None,
+        strategy_context: Optional[str] = None,
+        confidence_threshold: float = 0.6,
+        model: str = None,
+    ) -> dict[str, Any]:
+        """
+        Extract entities and relationships with optional basin/strategy context.
+        
+        Consolidates extraction logic used by KGLearningService and provides
+        confidence-scored relationships for threshold gating.
+        
+        Args:
+            content: Text to extract from
+            basin_context: Attractor basin context for guiding extraction
+            strategy_context: Cognition strategy context (prioritized relation types)
+            confidence_threshold: Minimum confidence for auto-approval (default 0.6)
+            model: LLM model to use (defaults to GPT5_NANO)
+            
+        Returns:
+            Dict with entities, relationships (with confidence), approved/pending counts
+        """
+        use_model = model or GPT5_NANO
+        
+        # Build context-aware prompt
+        context_section = ""
+        if basin_context:
+            context_section += f"\nCONTEXT FROM ATTRACTOR BASINS:\n{basin_context}\n"
+        if strategy_context:
+            context_section += f"\n{strategy_context}\n"
+        
+        prompt = f"""You are an expert knowledge extraction agent.
+{context_section}
+Analyze the following document and extract key CONCEPTS and semantic RELATIONSHIPS.
+
+DOCUMENT:
+{content[:4000]}
+
+Respond ONLY with a JSON object:
+{{
+    "entities": ["concept1", "concept2"],
+    "relationships": [
+        {{"source": "A", "target": "B", "type": "EXTENDS", "confidence": 0.9, "evidence": "..."}}
+    ]
+}}
+
+IMPORTANT:
+- Each relationship must have a confidence score between 0.0 and 1.0
+- Use specific relationship types like EXTENDS, VALIDATES, CONTRADICTS, REPLACES, CAUSES, ENABLES
+- Provide brief evidence for each relationship
+"""
+        
+        try:
+            response = await chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="Extract structured knowledge with confidence-scored relationships.",
+                model=use_model,
+                max_tokens=2048
+            )
+            
+            parsed = self._parse_json_response(response)
+            entities = parsed.get("entities", [])
+            raw_relationships = parsed.get("relationships", [])
+            relationships, approved_count, pending_count = self._normalize_relationships_with_confidence(
+                raw_relationships,
+                confidence_threshold,
+            )
+            
+            return {
+                "entities": entities,
+                "relationships": relationships,
+                "approved_count": approved_count,
+                "pending_count": pending_count,
+                "confidence_threshold": confidence_threshold,
+                "model_used": str(use_model),
+            }
+            
+        except Exception as e:
+            logger.error(f"Context-aware extraction failed: {e}")
+            return {
+                "entities": [],
+                "relationships": [],
+                "approved_count": 0,
+                "pending_count": 0,
+                "error": str(e),
+            }
+
+    async def ingest_extracted_relationships(
+        self,
+        relationships: list[dict[str, Any]],
+        source_id: str,
+        group_id: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """
+        Ingest pre-extracted relationships without re-extraction.
+        
+        This bypasses Graphiti's internal extraction when relationships
+        are already extracted by extract_with_context.
+        
+        Args:
+            relationships: List of relationship dicts with source/target/type/evidence
+            source_id: Source identifier for provenance
+            group_id: Optional group ID for the ingestion
+            
+        Returns:
+            Dict with ingestion results
+        """
+        graphiti = self._get_graphiti()
+        group = group_id or self.config.group_id
+        ingested = 0
+        errors = []
+        
+        for rel in relationships:
+            if rel.get("status") != "approved":
+                continue
+                
+            try:
+                fact = (
+                    f"{rel['source']} {rel['relation_type']} {rel['target']}. "
+                    f"Evidence: {rel.get('evidence', 'N/A')}"
+                )
+                
+                await graphiti.add_episode(
+                    name=f"fact_{uuid4().hex[:8]}",
+                    episode_body=fact,
+                    source=EpisodeType.message,
+                    source_description=source_id,
+                    group_id=group,
+                    reference_time=datetime.now(),
+                )
+                ingested += 1
+                
+            except Exception as e:
+                errors.append({"relationship": rel, "error": str(e)})
+                logger.warning(f"Failed to ingest relationship: {e}")
+        
+        return {
+            "ingested": ingested,
+            "skipped": len(relationships) - ingested - len(errors),
+            "errors": errors,
         }
 
     async def search(

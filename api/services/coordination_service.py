@@ -260,7 +260,8 @@ class CoordinationService:
             from api.services.discovery_service import get_discovery_service
             # If we can get it, assume it's up for this mockup
             return True
-        except (ImportError, Exception):
+        except (ImportError, Exception) as e:
+            self._log(logging.WARNING, "discovery_service_unavailable", error=str(e))
             return False
 
     def _should_process_task(self, task: Task) -> bool:
@@ -332,6 +333,7 @@ class CoordinationService:
             return
         
         if not success:
+            self._log(logging.WARNING, "task_completed_failure_reported", task_id=task_id, agent_id=task.assigned_agent_id)
             # If explicit fail call via complete_task, we could also trigger retry
             # but usually complete_task is for terminal states.
             # Let's assume handle_agent_failure is for crashes, 

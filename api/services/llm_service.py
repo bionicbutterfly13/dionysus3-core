@@ -23,9 +23,10 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:1143
 OLLAMA_MODEL = "ollama/llama3.2" # Using locally available model
 OLLAMA_FLEET_MODEL = "ollama/qwen2.5:14b"
 
-# Model constants - All route to GPT-5 Nano
+# Model constants - GPT-5 Nano with fallback chain
 GPT5_NANO = "openai/gpt-5-nano-2025-08-07"
-GPT5_MINI = "openai/gpt-5-nano-2025-08-07"
+GPT5_MINI = "openai/gpt-5-mini"
+GPT4O_MINI = "openai/gpt-4o-mini"
 HAIKU = "anthropic/claude-3-haiku-20240307"
 SONNET = "anthropic/claude-3-5-sonnet-20240620"
 
@@ -37,6 +38,7 @@ def get_router_model(model_id: str = "dionysus-agents") -> LiteLLMRouterModel:
     from smolagents import LiteLLMRouterModel
     
     # Use consistent model_name across deployments for the router group
+    # Fallback order: GPT5_NANO -> GPT5_MINI -> GPT4O_MINI -> OLLAMA
     model_list = [
         {
             "model_name": model_id,
@@ -48,8 +50,15 @@ def get_router_model(model_id: str = "dionysus-agents") -> LiteLLMRouterModel:
         {
             "model_name": model_id,
             "litellm_params": {
-                "model": SONNET,
-                "api_key": os.getenv("ANTHROPIC_API_KEY"),
+                "model": GPT5_MINI,
+                "api_key": os.getenv("OPENAI_API_KEY"),
+            }
+        },
+        {
+            "model_name": model_id,
+            "litellm_params": {
+                "model": GPT4O_MINI,
+                "api_key": os.getenv("OPENAI_API_KEY"),
             }
         },
         {
@@ -171,7 +180,8 @@ class CoachingAgent:
             if cleaned.startswith("```"):
                 cleaned = cleaned.strip("`").replace("json", "").strip()
             return json.loads(cleaned)
-        except:
+        except Exception as e:
+            logger.error(f"Failed to parse diagnosis JSON: {e}. Raw: {result}")
             return {"error": "Failed to parse diagnosis", "raw": result}
 
     async def generate_woop(self, wish: str, outcome: str, obstacle: str, context: str) -> list[str]:
@@ -186,7 +196,8 @@ class CoachingAgent:
             if cleaned.startswith("```"):
                 cleaned = cleaned.strip("`").replace("json", "").strip()
             return json.loads(cleaned)
-        except:
+        except Exception as e:
+            logger.error(f"Failed to parse WOOP JSON: {e}. Raw: {result}")
             return [result]
 
 

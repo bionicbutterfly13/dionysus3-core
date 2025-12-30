@@ -123,5 +123,6 @@ class MarketingAgent:
             if cleaned.startswith("```"): cleaned = cleaned.strip("`").replace("json", "").strip()
             data = json.loads(cleaned)
             return data
-        except:
+        except Exception as e:
+            logger.error(f"Failed to parse sales page JSON: {e}. Raw: {result}")
             return {"raw": result, "confidence": 0.5}

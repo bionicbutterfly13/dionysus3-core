@@ -510,8 +510,9 @@ async def create_woop_plan(
             session = await get_persistent_session(request.session_id)
             if session.get("diagnosis"):
                 diagnosis_context = session["diagnosis"].get("explanation", "")
-        except HTTPException:
-            pass  # Session not found, continue with empty context
+        except HTTPException as e:
+            logger.warning(f"Session {request.session_id} lookup failed for commitment: {e.detail}")
+            # Continue without session context rather than failing
 
     plans = await generate_woop_plans(
         wish=request.wish,
@@ -598,7 +599,8 @@ async def recall_memories(
             manager = get_session_manager()
             journey = await manager.get_or_create_journey(uuid.UUID(x_device_id))
             resolved_journey_id = str(journey.id)
-        except (ValueError, Exception):
+        except (ValueError, Exception) as e:
+            logger.warning(f"Journey lookup failed for device {x_device_id}: {e}")
             pass
 
     # If no journey context, return empty

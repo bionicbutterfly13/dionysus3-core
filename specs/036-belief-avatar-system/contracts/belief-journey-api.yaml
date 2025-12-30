@@ -1,0 +1,1185 @@
+openapi: 3.1.0
+info:
+  title: Belief Journey API
+  description: REST API for IAS belief transformation tracking
+  version: 1.0.0
+
+servers:
+  - url: /belief-journey
+    description: API prefix
+
+tags:
+  - name: journey
+    description: Journey lifecycle management
+  - name: limiting-beliefs
+    description: Limiting belief tracking
+  - name: empowering-beliefs
+    description: Empowering belief building
+  - name: experiments
+    description: Belief experiment management
+  - name: replay-loops
+    description: Replay loop tracking
+  - name: mosaeic
+    description: MOSAEIC captures
+  - name: vision
+    description: Vision elements
+  - name: support
+    description: Support circle management
+  - name: metrics
+    description: Journey analytics
+
+paths:
+  /journey/create:
+    post:
+      tags: [journey]
+      summary: Create a new belief journey
+      operationId: createJourney
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJourneyRequest'
+      responses:
+        '200':
+          description: Journey created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyResponse'
+
+  /journey/{journey_id}:
+    get:
+      tags: [journey]
+      summary: Get journey by ID
+      operationId: getJourney
+      parameters:
+        - $ref: '#/components/parameters/JourneyId'
+      responses:
+        '200':
+          description: Journey found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /journey/{journey_id}/advance:
+    post:
+      tags: [journey]
+      summary: Advance to next lesson
+      operationId: advanceLesson
+      parameters:
+        - $ref: '#/components/parameters/JourneyId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvanceLessonRequest'
+      responses:
+        '200':
+          description: Lesson advanced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /journey/{journey_id}/metrics:
+    get:
+      tags: [metrics]
+      summary: Get journey metrics
+      operationId: getJourneyMetrics
+      parameters:
+        - $ref: '#/components/parameters/JourneyId'
+      responses:
+        '200':
+          description: Metrics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /beliefs/limiting/identify:
+    post:
+      tags: [limiting-beliefs]
+      summary: Identify a limiting belief
+      operationId: identifyLimitingBelief
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentifyLimitingBeliefRequest'
+      responses:
+        '200':
+          description: Belief identified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LimitingBeliefResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /beliefs/limiting/{belief_id}/map:
+    post:
+      tags: [limiting-beliefs]
+      summary: Map belief to behaviors
+      operationId: mapLimitingBelief
+      parameters:
+        - $ref: '#/components/parameters/BeliefId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MapBeliefRequest'
+      responses:
+        '200':
+          description: Belief mapped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LimitingBeliefResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /beliefs/limiting/{belief_id}/evidence:
+    post:
+      tags: [limiting-beliefs]
+      summary: Add evidence for/against belief
+      operationId: addBeliefEvidence
+      parameters:
+        - $ref: '#/components/parameters/BeliefId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddEvidenceRequest'
+      responses:
+        '200':
+          description: Evidence added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LimitingBeliefResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /beliefs/limiting/{belief_id}/dissolve:
+    post:
+      tags: [limiting-beliefs]
+      summary: Mark belief as dissolved
+      operationId: dissolveBelief
+      parameters:
+        - $ref: '#/components/parameters/BeliefId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DissolveBeliefRequest'
+      responses:
+        '200':
+          description: Belief dissolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LimitingBeliefResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /beliefs/empowering/propose:
+    post:
+      tags: [empowering-beliefs]
+      summary: Propose an empowering belief
+      operationId: proposeEmpoweringBelief
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposeEmpoweringBeliefRequest'
+      responses:
+        '200':
+          description: Belief proposed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmpoweringBeliefResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /beliefs/empowering/{belief_id}/strengthen:
+    post:
+      tags: [empowering-beliefs]
+      summary: Strengthen empowering belief
+      operationId: strengthenEmpoweringBelief
+      parameters:
+        - $ref: '#/components/parameters/BeliefId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StrengthenBeliefRequest'
+      responses:
+        '200':
+          description: Belief strengthened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmpoweringBeliefResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /beliefs/empowering/{belief_id}/anchor:
+    post:
+      tags: [empowering-beliefs]
+      summary: Anchor belief to habit
+      operationId: anchorBeliefToHabit
+      parameters:
+        - $ref: '#/components/parameters/BeliefId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnchorBeliefRequest'
+      responses:
+        '200':
+          description: Belief anchored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmpoweringBeliefResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /experiments/design:
+    post:
+      tags: [experiments]
+      summary: Design a belief experiment
+      operationId: designExperiment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DesignExperimentRequest'
+      responses:
+        '200':
+          description: Experiment designed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /experiments/{experiment_id}/record:
+    post:
+      tags: [experiments]
+      summary: Record experiment result
+      operationId: recordExperimentResult
+      parameters:
+        - $ref: '#/components/parameters/ExperimentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordExperimentRequest'
+      responses:
+        '200':
+          description: Result recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /loops/identify:
+    post:
+      tags: [replay-loops]
+      summary: Identify a replay loop
+      operationId: identifyReplayLoop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentifyLoopRequest'
+      responses:
+        '200':
+          description: Loop identified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayLoopResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /loops/{loop_id}/interrupt:
+    post:
+      tags: [replay-loops]
+      summary: Interrupt replay loop
+      operationId: interruptReplayLoop
+      parameters:
+        - $ref: '#/components/parameters/LoopId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterruptLoopRequest'
+      responses:
+        '200':
+          description: Loop interrupted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayLoopResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /loops/{loop_id}/resolve:
+    post:
+      tags: [replay-loops]
+      summary: Resolve replay loop
+      operationId: resolveReplayLoop
+      parameters:
+        - $ref: '#/components/parameters/LoopId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveLoopRequest'
+      responses:
+        '200':
+          description: Loop resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayLoopResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /mosaeic/capture:
+    post:
+      tags: [mosaeic]
+      summary: Capture MOSAEIC observation
+      operationId: captureMosaeic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaptureMosaeicRequest'
+      responses:
+        '200':
+          description: Capture recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MosaeicResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /vision/add:
+    post:
+      tags: [vision]
+      summary: Add vision element
+      operationId: addVisionElement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddVisionRequest'
+      responses:
+        '200':
+          description: Vision added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisionResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /support/circle/create:
+    post:
+      tags: [support]
+      summary: Create support circle
+      operationId: createSupportCircle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCircleRequest'
+      responses:
+        '200':
+          description: Circle created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportCircleResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /support/circle/{circle_id}/member:
+    post:
+      tags: [support]
+      summary: Add circle member
+      operationId: addCircleMember
+      parameters:
+        - $ref: '#/components/parameters/CircleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMemberRequest'
+      responses:
+        '200':
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportCircleResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /health:
+    get:
+      tags: [metrics]
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  service:
+                    type: string
+                    example: belief_journey
+
+components:
+  parameters:
+    JourneyId:
+      name: journey_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    BeliefId:
+      name: belief_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    ExperimentId:
+      name: experiment_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LoopId:
+      name: loop_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    CircleId:
+      name: circle_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+
+  schemas:
+    # Request Schemas
+    CreateJourneyRequest:
+      type: object
+      properties:
+        participant_id:
+          type: string
+          nullable: true
+
+    AdvanceLessonRequest:
+      type: object
+      required: [lesson]
+      properties:
+        lesson:
+          $ref: '#/components/schemas/IASLesson'
+
+    IdentifyLimitingBeliefRequest:
+      type: object
+      required: [journey_id, content]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        pattern_name:
+          type: string
+          nullable: true
+        origin_memory:
+          type: string
+          nullable: true
+        self_talk:
+          type: array
+          items:
+            type: string
+        mental_blocks:
+          type: array
+          items:
+            type: string
+        self_sabotage_behaviors:
+          type: array
+          items:
+            type: string
+        protects_from:
+          type: string
+          nullable: true
+
+    MapBeliefRequest:
+      type: object
+      required: [journey_id, self_talk, mental_blocks, self_sabotage_behaviors, protects_from]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        self_talk:
+          type: array
+          items:
+            type: string
+        mental_blocks:
+          type: array
+          items:
+            type: string
+        self_sabotage_behaviors:
+          type: array
+          items:
+            type: string
+        protects_from:
+          type: string
+
+    AddEvidenceRequest:
+      type: object
+      required: [journey_id, evidence]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        evidence:
+          type: string
+        evidence_type:
+          type: string
+          enum: [for, against]
+          default: for
+
+    DissolveBeliefRequest:
+      type: object
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        replaced_by_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    ProposeEmpoweringBeliefRequest:
+      type: object
+      required: [journey_id, content]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        bridge_version:
+          type: string
+          nullable: true
+        replaces_belief_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    StrengthenBeliefRequest:
+      type: object
+      required: [journey_id, evidence]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        evidence:
+          type: string
+        embodiment_increase:
+          type: number
+          default: 0.1
+          minimum: 0
+          maximum: 1
+
+    AnchorBeliefRequest:
+      type: object
+      required: [journey_id, habit_stack, checklist_items]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        habit_stack:
+          type: string
+        checklist_items:
+          type: array
+          items:
+            type: string
+
+    DesignExperimentRequest:
+      type: object
+      required: [journey_id, hypothesis, action_to_take]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        limiting_belief_id:
+          type: string
+          format: uuid
+          nullable: true
+        empowering_belief_id:
+          type: string
+          format: uuid
+          nullable: true
+        hypothesis:
+          type: string
+        action_to_take:
+          type: string
+        context:
+          type: string
+          enum: [low, mid, high]
+          default: low
+
+    RecordExperimentRequest:
+      type: object
+      required: [journey_id, outcome, actual_result]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        outcome:
+          $ref: '#/components/schemas/ExperimentOutcome'
+        actual_result:
+          type: string
+        emotional_response:
+          type: string
+          nullable: true
+        belief_shift_observed:
+          type: string
+          nullable: true
+
+    IdentifyLoopRequest:
+      type: object
+      required: [journey_id, trigger_situation, story_text, emotion, fear_underneath]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        trigger_situation:
+          type: string
+        story_text:
+          type: string
+        emotion:
+          type: string
+        fear_underneath:
+          type: string
+        pattern_name:
+          type: string
+          nullable: true
+        fed_by_belief_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    InterruptLoopRequest:
+      type: object
+      required: [journey_id, compassionate_reflection]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        compassionate_reflection:
+          type: string
+
+    ResolveLoopRequest:
+      type: object
+      required: [journey_id, lesson_found, comfort_offered]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        lesson_found:
+          type: string
+        comfort_offered:
+          type: string
+        next_step_taken:
+          type: string
+          nullable: true
+        time_to_resolution_minutes:
+          type: number
+          nullable: true
+
+    CaptureMosaeicRequest:
+      type: object
+      required: [journey_id, high_pressure_context]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        high_pressure_context:
+          type: string
+        sensations:
+          type: array
+          items:
+            type: string
+        actions:
+          type: array
+          items:
+            type: string
+        emotions:
+          type: array
+          items:
+            type: string
+        impulses:
+          type: array
+          items:
+            type: string
+        cognitions:
+          type: array
+          items:
+            type: string
+        narrative_identified:
+          type: string
+          nullable: true
+        connects_to_belief_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    AddVisionRequest:
+      type: object
+      required: [journey_id, description]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        category:
+          type: string
+          default: general
+        values_aligned:
+          type: array
+          items:
+            type: string
+        first_step:
+          type: string
+          nullable: true
+        requires_dissolution_of:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    CreateCircleRequest:
+      type: object
+      required: [journey_id]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+
+    AddMemberRequest:
+      type: object
+      required: [journey_id, role]
+      properties:
+        journey_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [mentor, peer, mentee]
+        name:
+          type: string
+          nullable: true
+        check_in_frequency:
+          type: string
+          enum: [weekly, biweekly, monthly, quarterly]
+          default: monthly
+        value_provided:
+          type: string
+          nullable: true
+
+    # Response Wrappers
+    JourneyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/BeliefJourney'
+
+    LimitingBeliefResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/LimitingBelief'
+
+    EmpoweringBeliefResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/EmpoweringBelief'
+
+    ExperimentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/BeliefExperiment'
+
+    ReplayLoopResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/ReplayLoop'
+
+    MosaeicResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/MOSAEICCapture'
+
+    VisionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/VisionElement'
+
+    SupportCircleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/SupportCircle'
+
+    MetricsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/JourneyMetrics'
+
+    # Domain Models
+    BeliefJourney:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        participant_id:
+          type: string
+          nullable: true
+        current_phase:
+          $ref: '#/components/schemas/IASPhase'
+        current_lesson:
+          $ref: '#/components/schemas/IASLesson'
+        lessons_completed:
+          type: array
+          items:
+            $ref: '#/components/schemas/IASLesson'
+        limiting_beliefs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LimitingBelief'
+        empowering_beliefs:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmpoweringBelief'
+        experiments:
+          type: array
+          items:
+            $ref: '#/components/schemas/BeliefExperiment'
+        replay_loops:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReplayLoop'
+        started_at:
+          type: string
+          format: date-time
+        last_activity_at:
+          type: string
+          format: date-time
+
+    LimitingBelief:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        pattern_name:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/BeliefStatus'
+        strength:
+          type: number
+          minimum: 0
+          maximum: 1
+        evidence_for:
+          type: array
+          items:
+            type: string
+        evidence_against:
+          type: array
+          items:
+            type: string
+
+    EmpoweringBelief:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        bridge_version:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/EmpoweringBeliefStatus'
+        embodiment_level:
+          type: number
+          minimum: 0
+          maximum: 1
+        evidence_collected:
+          type: array
+          items:
+            type: string
+
+    BeliefExperiment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        hypothesis:
+          type: string
+        action_taken:
+          type: string
+        outcome:
+          $ref: '#/components/schemas/ExperimentOutcome'
+        actual_result:
+          type: string
+          nullable: true
+
+    ReplayLoop:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        trigger_situation:
+          type: string
+        story_text:
+          type: string
+        emotion:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReplayLoopStatus'
+
+    MOSAEICCapture:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        high_pressure_context:
+          type: string
+        sensations:
+          type: array
+          items:
+            type: string
+        emotions:
+          type: array
+          items:
+            type: string
+
+    VisionElement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+
+    SupportCircle:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupportCircleMember'
+        total_members:
+          type: integer
+
+    SupportCircleMember:
+      type: object
+      properties:
+        role:
+          type: string
+        name:
+          type: string
+          nullable: true
+        check_in_frequency:
+          type: string
+
+    JourneyMetrics:
+      type: object
+      properties:
+        journey_id:
+          type: string
+        current_phase:
+          type: string
+        current_lesson:
+          type: string
+        lessons_completed:
+          type: integer
+        limiting_beliefs:
+          type: object
+          properties:
+            total:
+              type: integer
+            dissolved:
+              type: integer
+            dissolution_rate:
+              type: number
+        empowering_beliefs:
+          type: object
+          properties:
+            total:
+              type: integer
+            embodied:
+              type: integer
+            embodiment_rate:
+              type: number
+        experiments:
+          type: object
+          properties:
+            total:
+              type: integer
+            success_rate:
+              type: number
+        replay_loops:
+          type: object
+          properties:
+            total:
+              type: integer
+            resolved:
+              type: integer
+            avg_resolution_time_minutes:
+              type: number
+              nullable: true
+
+    # Enums
+    IASPhase:
+      type: string
+      enum: [revelation, repatterning, stabilization]
+
+    IASLesson:
+      type: string
+      enum:
+        - lesson_1_breakthrough_mapping
+        - lesson_2_mosaeic_method
+        - lesson_3_replay_loop_breaker
+        - lesson_4_conviction_gauntlet
+        - lesson_5_perspective_matrix
+        - lesson_6_vision_accelerator
+        - lesson_7_habit_harmonizer
+        - lesson_8_execution_engine
+        - lesson_9_growth_anchor
+
+    BeliefStatus:
+      type: string
+      enum: [identified, mapped, tested, dissolving, dissolved]
+
+    EmpoweringBeliefStatus:
+      type: string
+      enum: [proposed, testing, strengthening, embodied]
+
+    ExperimentOutcome:
+      type: string
+      enum: [confirming, disconfirming, mixed, inconclusive]
+
+    ReplayLoopStatus:
+      type: string
+      enum: [active, interrupted, resolved, dormant]

@@ -39,36 +39,46 @@ class ConsciousnessManager:
 
     def __enter__(self):
         from api.agents.audit import get_audit_callback
+        from api.utils.callbacks import CallbackRegistry
+        from api.agents.mosaeic_callback import create_mosaeic_callback
+        from smolagents.memory import ActionStep
         
         # 1. Initialize Audit Registry (T2.1)
-        # Note: We'd normally get trace_id from context, but here we setup general registry
-        # The registry can be updated or we can use a generic one
         audit = get_audit_callback()
         
-        # Enter sub-agents
-        self.perception_agent_wrapper.__enter__()
-        # Apply callbacks to sub-agents
-        perception_callbacks = audit.get_registry("perception")
-        self.perception_agent_wrapper.agent.step_callbacks = perception_callbacks
+        # Helper to setup standardized registries for agents
+        def setup_agent_registry(agent_name):
+            registry = CallbackRegistry()
+            
+            # Add audit callbacks
+            audit_dict = audit.get_registry(agent_name)
+            for step_type, callback in audit_dict.items():
+                registry.register(step_type, callback)
+                
+            # T020: Add MOSAEIC capture for perception
+            if agent_name == "perception":
+                mosaeic_cb = create_mosaeic_callback(agent_id=agent_name)
+                registry.register(ActionStep, mosaeic_cb)
+                print(f"DEBUG: MOSAEIC callback enabled for {agent_name}")
 
-        self.reasoning_agent_wrapper.__enter__()
-        reasoning_callbacks = audit.get_registry("reasoning")
-        self.reasoning_agent_wrapper.agent.step_callbacks = reasoning_callbacks
-
-        self.metacognition_agent_wrapper.__enter__()
-        metacognition_callbacks = audit.get_registry("metacognition")
-        self.metacognition_agent_wrapper.agent.step_callbacks = metacognition_callbacks
-
-        # T037: Add opt-in self-modeling callbacks (conditional on SELF_MODELING_ENABLED)
-        for agent_name, callbacks in [
-            ("perception", perception_callbacks),
-            ("reasoning", reasoning_callbacks),
-            ("metacognition", metacognition_callbacks)
-        ]:
+            # T037: Add opt-in self-modeling callback (conditional on feature flag)
             self_modeling_cb = create_self_modeling_callback(agent_id=agent_name)
             if self_modeling_cb:
-                callbacks.append(self_modeling_cb)
+                # self-modeling currently only supports ActionStep
+                registry.register(ActionStep, self_modeling_cb)
                 print(f"DEBUG: Self-modeling callback enabled for {agent_name}")
+                
+            return registry.wrap_as_list() # Use list for native smolagents support
+
+        # Enter sub-agents and apply callbacks
+        self.perception_agent_wrapper.__enter__()
+        self.perception_agent_wrapper.agent.step_callbacks = setup_agent_registry("perception")
+
+        self.reasoning_agent_wrapper.__enter__()
+        self.reasoning_agent_wrapper.agent.step_callbacks = setup_agent_registry("reasoning")
+
+        self.metacognition_agent_wrapper.__enter__()
+        self.metacognition_agent_wrapper.agent.step_callbacks = setup_agent_registry("metacognition")
         
         # Add Explorer and Cognitive tools to Reasoning specifically
         self.reasoning_agent_wrapper.agent.tools[context_explorer.name] = context_explorer
@@ -89,9 +99,9 @@ class ConsciousnessManager:
             use_structured_outputs_internally=True,
             executor_type="local",
             additional_authorized_imports=["importlib.resources", "json", "datetime"],
-            step_callbacks=audit.get_registry("consciousness_manager"), # T2.1
-            max_steps=10, # Increase since planning steps don't count (T3.3)
-            planning_interval=3 # Pause and plan every 3 action steps (T3.3)
+            step_callbacks=setup_agent_registry("consciousness_manager"), # T2.1
+            max_steps=10, 
+            planning_interval=3 
         )
         self._entered = True
         return self

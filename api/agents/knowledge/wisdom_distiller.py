@@ -7,7 +7,7 @@ import json
 from typing import Any, Dict, List, Optional
 from smolagents import CodeAgent, LiteLLMModel
 from api.agents.tools.wisdom_tools import distill_wisdom_cluster, query_wisdom_graph
-from api.services.llm_service import get_router_model, SONNET
+from api.services.llm_service import get_router_model, GPT5_NANO
 
 class WisdomDistiller:
     """
