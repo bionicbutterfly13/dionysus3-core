@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from datetime import datetime
+from uuid import uuid4
 
 
 class BeliefShiftType(str, Enum):
@@ -225,14 +226,18 @@ class CloseSection(BaseModel):
     reason_why: str = Field(..., description="Why you do this")
 
 
+class RecapSection(BaseModel):
+    """Section 11: Recap of learnings."""
+    summary_text: str
+    recap_items: List[str] = Field(default_factory=list)
+
+
 class CoreConversionContent(BaseModel):
     """
     Complete Core Conversion Content structure.
-
-    This is the master container for all sales script content,
-    with client stories as an array that can grow over time.
+    Master container for VSL/Sales Letter scripts.
     """
-    id: str = Field(default="ias-core-conversion-v1")
+    id: str = Field(default_factory=lambda: f"scc-{uuid4()}")
     name: str = Field(default="IAS Hidden Block Decoder")
     version: str = Field(default="1.0")
 
@@ -260,7 +265,8 @@ class CoreConversionContent(BaseModel):
     # Sections 8-10: Phases
     phases: List[ContentPhase] = Field(default_factory=list)
 
-    # Section 11: Recap (derived from overview)
+    # Section 11: Recap
+    recap: Optional[RecapSection] = None
 
     # Section 12: Close
     close: Optional[CloseSection] = None
@@ -269,9 +275,3 @@ class CoreConversionContent(BaseModel):
     avatar_id: str = Field(default="analytical-empath")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-    # Gaps tracking
-    needs_filling: List[str] = Field(
-        default_factory=list,
-        description="Sections/fields that need more information"
-    )
