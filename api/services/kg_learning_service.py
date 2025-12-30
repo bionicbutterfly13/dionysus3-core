@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from api.models.kg_learning import ExtractionResult, RelationshipProposal, AttractorBasin, CognitionStrategy
 from api.services.graphiti_service import get_graphiti_service
-from api.services.llm_service import chat_completion, SONNET
+from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.webhook_neo4j_driver import get_neo4j_driver
 from api.models.network_state import get_network_state_config
 
@@ -55,7 +55,7 @@ class KGLearningService:
                 evidence=rel_dict.get("evidence", ""),
                 status=rel_dict["status"],
                 run_id=run_id,
-                model_id=extraction.get("model_used", str(SONNET)),
+                model_id=extraction.get("model_used", str(GPT5_NANO)),
             )
             relationships.append(rel)
             
@@ -152,7 +152,7 @@ class KGLearningService:
         response = await chat_completion(
             messages=[{"role": "user", "content": prompt}],
             system_prompt="Extract structured knowledge with dynamic relationship types.",
-            model=SONNET,
+            model=GPT5_NANO,
             max_tokens=2048
         )
         
@@ -276,7 +276,7 @@ class KGLearningService:
         response = await chat_completion(
             messages=[{"role": "user", "content": prompt}],
             system_prompt="You are a rigorous mathematical evaluator of Knowledge Graphs.",
-            model=SONNET,
+            model=GPT5_NANO,
             max_tokens=1024
         )
         

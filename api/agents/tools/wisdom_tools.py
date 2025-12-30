@@ -204,7 +204,7 @@ class DistillWisdomClusterTool(Tool):
 
     def forward(self, fragments_json: str, wisdom_type: str) -> dict:
         async def _run():
-            from api.services.llm_service import chat_completion, SONNET
+            from api.services.llm_service import chat_completion, GPT5_NANO
             from api.models.wisdom import WisdomType
             
             fragments = json.loads(fragments_json)
@@ -215,7 +215,7 @@ class DistillWisdomClusterTool(Tool):
             response = await chat_completion(
                 messages=[{"role": "user", "content": user_content}],
                 system_prompt=system_prompt,
-                model=SONNET,
+                model=GPT5_NANO,
                 max_tokens=1024
             )
             

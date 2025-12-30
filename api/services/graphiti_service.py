@@ -18,7 +18,7 @@ from graphiti_core import Graphiti
 from graphiti_core.nodes import EpisodeType
 # Note: search_config_recipes not available in graphiti-core 0.24.3
 from api.models.memevolve import TrajectoryData
-from api.services.llm_service import chat_completion, GPT5_NANO, SONNET
+from api.services.llm_service import chat_completion, GPT5_NANO
 
 logger = logging.getLogger(__name__)
 
@@ -362,12 +362,12 @@ class GraphitiService:
             basin_context: Attractor basin context for guiding extraction
             strategy_context: Cognition strategy context (prioritized relation types)
             confidence_threshold: Minimum confidence for auto-approval (default 0.6)
-            model: LLM model to use (defaults to SONNET for quality)
+            model: LLM model to use (defaults to GPT5_NANO)
             
         Returns:
             Dict with entities, relationships (with confidence), approved/pending counts
         """
-        use_model = model or SONNET
+        use_model = model or GPT5_NANO
         
         # Build context-aware prompt
         context_section = ""

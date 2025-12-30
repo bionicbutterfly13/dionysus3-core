@@ -580,7 +580,7 @@ class ReflectHandler(ActionHandler):
             memories = request.params.get("memories", [])
 
             # 1. Generate actual reflection via LLM
-            from api.services.llm_service import chat_completion, SONNET
+            from api.services.llm_service import chat_completion, GPT5_NANO
             
             system_prompt = """You are Dionysus's reflective faculty. 
             Analyze the provided memories and topic to find root causes, hidden implications, 
@@ -593,7 +593,7 @@ class ReflectHandler(ActionHandler):
             reflection = await chat_completion(
                 messages=[{"role": "user", "content": user_content}],
                 system_prompt=system_prompt,
-                model=SONNET,
+                model=GPT5_NANO,
                 max_tokens=1000
             )
 
@@ -748,7 +748,7 @@ class InquireDeepHandler(ActionHandler):
             # 1. Deep search via vector store + Graphiti
             from api.services.vector_search import get_vector_search_service
             from api.services.graphiti_service import get_graphiti_service
-            from api.services.llm_service import chat_completion, SONNET
+            from api.services.llm_service import chat_completion, GPT5_NANO
             
             search_service = get_vector_search_service()
             graphiti = await get_graphiti_service()
@@ -776,7 +776,7 @@ class InquireDeepHandler(ActionHandler):
             answer = await chat_completion(
                 messages=[{"role": "user", "content": user_content}],
                 system_prompt=system_prompt,
-                model=SONNET,
+                model=GPT5_NANO,
                 max_tokens=1500
             )
 
@@ -837,7 +837,7 @@ class SynthesizeHandler(ActionHandler):
                 )
 
             # 1. Generate synthesis via LLM
-            from api.services.llm_service import chat_completion, SONNET
+            from api.services.llm_service import chat_completion, GPT5_NANO
             
             system_prompt = f"""You are Dionysus's synthesis faculty.
             Your task is to take disparate data points and weave them into a high-level, 
@@ -850,7 +850,7 @@ class SynthesizeHandler(ActionHandler):
             synthesis = await chat_completion(
                 messages=[{"role": "user", "content": user_content}],
                 system_prompt=system_prompt,
-                model=SONNET,
+                model=GPT5_NANO,
                 max_tokens=1000
             )
 

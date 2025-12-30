@@ -37,6 +37,7 @@ Execute inside the API container:
 - In-memory (Dict-based registry) - no persistence required (020-daedalus-coordination-pool)
 - Python 3.11+ (async/await, Pydantic v2) + FastAPI, smolagents, Pydantic v2, Graphiti (Neo4j access) (034-network-self-modeling)
 - Neo4j via n8n webhooks (network states, role matrices, Hebbian weights) (034-network-self-modeling)
+- Neo4j via n8n webhooks (Graphiti for direct access as approved exception) (036-belief-avatar-system)
 
 ## Recent Changes
 - 020-daedalus-coordination-pool: Added Python 3.11 + FastAPI, smolagents, Pydantic v2
