@@ -581,6 +581,12 @@ async def create_thoughtseed(
             competition_status: 'pending',
             created_at: datetime()
         })
+        WITH t
+        // Optional link to parent if provided
+        FOREACH (_ IN CASE WHEN $parent_thought_id IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (p:ThoughtSeed {id: $parent_thought_id})
+            MERGE (p)-[:HAS_CHILD]->(t)
+        )
         RETURN t.id as id, t.layer as layer,
                t.activation_level as activation_level,
                t.competition_status as competition_status

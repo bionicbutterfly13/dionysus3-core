@@ -11,7 +11,7 @@ from uuid import uuid4, UUID
 
 from api.models.thought import ThoughtSeed, ThoughtLayer, CompetitionStatus
 
-pytestmark = pytest.mark.asyncio
+# removed global asyncio mark to avoid warnings on sync tests
 
 
 class TestFractalThoughtPersistence:
@@ -112,6 +112,7 @@ class TestFractalThoughtPersistence:
         assert restored.parent_thought_id == parent_id
         assert child_id in restored.child_thought_ids
 
+    @pytest.mark.asyncio
     async def test_neo4j_persistence_cypher_structure(self):
         """Verify Cypher query structure for fractal relationships."""
         from api.services.thoughtseed_integration import ThoughtSeedIntegrationService
@@ -137,6 +138,7 @@ class TestFractalThoughtPersistence:
         cypher_call = mock_driver.execute_query.call_args[0][0]
         assert "ThoughtSeed" in cypher_call or "CREATE" in cypher_call
 
+    @pytest.mark.asyncio
     async def test_retrieve_with_children(self):
         """Verify retrieval includes child references."""
         parent_id = str(uuid4())
