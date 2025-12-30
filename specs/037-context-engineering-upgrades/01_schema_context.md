@@ -13,7 +13,7 @@
 
 ## User Scenarios & Testing
 
-### User Story 1 - Reliable Heartbeat Decisions (Priority: P1)
+### User Story 1 (US1) - Reliable Heartbeat Decisions (Priority: P1)
 
 As the Dionysus system, I want every heartbeat decision to be strictly validated against a schema before execution, so that I never crash due to "prompt drift" or invalid JSON responses from the LLM.
 

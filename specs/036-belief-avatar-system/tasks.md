@@ -25,9 +25,9 @@
 
 **Purpose**: Project initialization and router structure
 
-- [ ] T001 Create router file skeleton in api/routers/belief_journey.py
-- [ ] T002 [P] Create request/response Pydantic models in api/routers/belief_journey.py (imports from api/models/belief_journey.py)
-- [ ] T003 Register router in api/main.py with prefix /belief-journey
+- [X] T001 Create router file skeleton in api/routers/belief_journey.py
+- [X] T002 [P] Create request/response Pydantic models in api/routers/belief_journey.py (imports from api/models/belief_journey.py)
+- [X] T003 Register router in api/main.py with prefix /belief-journey
 
 ---
 
@@ -37,10 +37,10 @@
 
 **⚠️ CRITICAL**: No endpoint implementation can begin until this phase is complete
 
-- [ ] T004 Implement health endpoint GET /health in api/routers/belief_journey.py
-- [ ] T005 [P] Add error handling helpers (404, 400) following ias.py patterns in api/routers/belief_journey.py
-- [ ] T006 [P] Create test fixtures for BeliefTrackingService in tests/conftest.py
-- [ ] T007 Verify BeliefTrackingService singleton works with async in tests/unit/test_belief_tracking_service.py
+- [X] T004 Implement health endpoint GET /health in api/routers/belief_journey.py
+- [X] T005 [P] Add error handling helpers (404, 400) following ias.py patterns in api/routers/belief_journey.py
+- [X] T006 [P] Create test fixtures for BeliefTrackingService in tests/conftest.py
+- [X] T007 Verify BeliefTrackingService singleton works with async in tests/unit/test_belief_tracking_service.py
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -54,22 +54,22 @@
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Integration test for journey creation in tests/integration/test_belief_journey_router.py
-- [ ] T009 [P] [US1] Integration test for limiting belief lifecycle in tests/integration/test_belief_journey_router.py
-- [ ] T010 [P] [US1] Integration test for empowering belief lifecycle in tests/integration/test_belief_journey_router.py
+- [X] T008 [P] [US1] Integration test for journey creation in tests/integration/test_belief_journey_router.py
+- [X] T009 [P] [US1] Integration test for limiting belief lifecycle in tests/integration/test_belief_journey_router.py
+- [X] T010 [P] [US1] Integration test for empowering belief lifecycle in tests/integration/test_belief_journey_router.py
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implement POST /journey/create endpoint in api/routers/belief_journey.py (FR-001)
-- [ ] T012 [US1] Implement GET /journey/{journey_id} endpoint in api/routers/belief_journey.py (FR-002)
-- [ ] T013 [US1] Implement POST /journey/{journey_id}/advance endpoint in api/routers/belief_journey.py (FR-003)
-- [ ] T014 [P] [US1] Implement POST /beliefs/limiting/identify endpoint in api/routers/belief_journey.py (FR-004)
-- [ ] T015 [P] [US1] Implement POST /beliefs/limiting/{belief_id}/map endpoint in api/routers/belief_journey.py (FR-005)
-- [ ] T016 [P] [US1] Implement POST /beliefs/limiting/{belief_id}/evidence endpoint in api/routers/belief_journey.py (FR-006)
-- [ ] T017 [US1] Implement POST /beliefs/limiting/{belief_id}/dissolve endpoint in api/routers/belief_journey.py (FR-007)
-- [ ] T018 [P] [US1] Implement POST /beliefs/empowering/propose endpoint in api/routers/belief_journey.py (FR-008)
-- [ ] T019 [P] [US1] Implement POST /beliefs/empowering/{belief_id}/strengthen endpoint in api/routers/belief_journey.py (FR-009)
-- [ ] T020 [US1] Implement POST /beliefs/empowering/{belief_id}/anchor endpoint in api/routers/belief_journey.py (FR-010)
+- [X] T011 [US1] Implement POST /journey/create endpoint in api/routers/belief_journey.py (FR-001)
+- [X] T012 [US1] Implement GET /journey/{journey_id} endpoint in api/routers/belief_journey.py (FR-002)
+- [X] T013 [US1] Implement POST /journey/{journey_id}/advance endpoint in api/routers/belief_journey.py (FR-003)
+- [X] T014 [P] [US1] Implement POST /beliefs/limiting/identify endpoint in api/routers/belief_journey.py (FR-004)
+- [X] T015 [P] [US1] Implement POST /beliefs/limiting/{belief_id}/map endpoint in api/routers/belief_journey.py (FR-005)
+- [X] T016 [P] [US1] Implement POST /beliefs/limiting/{belief_id}/evidence endpoint in api/routers/belief_journey.py (FR-006)
+- [X] T017 [US1] Implement POST /beliefs/limiting/{belief_id}/dissolve endpoint in api/routers/belief_journey.py (FR-007)
+- [X] T018 [P] [US1] Implement POST /beliefs/empowering/propose endpoint in api/routers/belief_journey.py (FR-008)
+- [X] T019 [P] [US1] Implement POST /beliefs/empowering/{belief_id}/strengthen endpoint in api/routers/belief_journey.py (FR-009)
+- [X] T020 [US1] Implement POST /beliefs/empowering/{belief_id}/anchor endpoint in api/routers/belief_journey.py (FR-010)
 
 **Checkpoint**: Journey and belief lifecycle fully functional via API
 
@@ -83,13 +83,13 @@
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] Integration test for metrics with populated journey in tests/integration/test_belief_journey_router.py
-- [ ] T022 [P] [US2] Integration test for metrics with empty journey in tests/integration/test_belief_journey_router.py
+- [X] T021 [P] [US2] Integration test for metrics with populated journey in tests/integration/test_belief_journey_router.py
+- [X] T022 [P] [US2] Integration test for metrics with empty journey in tests/integration/test_belief_journey_router.py
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Implement GET /journey/{journey_id}/metrics endpoint in api/routers/belief_journey.py (FR-020)
-- [ ] T024 [US2] Add metrics response model with all calculated fields in api/routers/belief_journey.py
+- [X] T023 [US2] Implement GET /journey/{journey_id}/metrics endpoint in api/routers/belief_journey.py (FR-020)
+- [X] T024 [US2] Add metrics response model with all calculated fields in api/routers/belief_journey.py
 
 **Checkpoint**: Facilitators can view participant progress analytics
 
@@ -140,13 +140,13 @@
 
 ### Tests for User Story 5
 
-- [ ] T036 [P] [US5] Integration test for replay loop lifecycle in tests/integration/test_belief_journey_router.py
+- [X] T036 [P] [US5] Integration test for replay loop lifecycle in tests/integration/test_belief_journey_router.py
 
 ### Implementation for User Story 5
 
-- [ ] T037 [US5] Implement POST /loops/identify endpoint in api/routers/belief_journey.py (FR-013)
-- [ ] T038 [US5] Implement POST /loops/{loop_id}/interrupt endpoint in api/routers/belief_journey.py (FR-014)
-- [ ] T039 [US5] Implement POST /loops/{loop_id}/resolve endpoint in api/routers/belief_journey.py (FR-015)
+- [X] T037 [US5] Implement POST /loops/identify endpoint in api/routers/belief_journey.py (FR-013)
+- [X] T038 [US5] Implement POST /loops/{loop_id}/interrupt endpoint in api/routers/belief_journey.py (FR-014)
+- [X] T039 [US5] Implement POST /loops/{loop_id}/resolve endpoint in api/routers/belief_journey.py (FR-015)
 
 **Checkpoint**: Replay loop tracking complete with resolution time capture
 
@@ -172,12 +172,12 @@
 
 **Purpose**: Complete API surface for full IAS journey support
 
-- [ ] T043 Implement POST /experiments/design endpoint in api/routers/belief_journey.py (FR-011)
-- [ ] T044 Implement POST /experiments/{experiment_id}/record endpoint in api/routers/belief_journey.py (FR-012)
-- [ ] T045 [P] Implement POST /mosaeic/capture endpoint in api/routers/belief_journey.py (FR-016)
-- [ ] T046 [P] Implement POST /vision/add endpoint in api/routers/belief_journey.py (FR-017)
-- [ ] T047 [P] Implement POST /support/circle/create endpoint in api/routers/belief_journey.py (FR-018)
-- [ ] T048 Implement POST /support/circle/{circle_id}/member endpoint in api/routers/belief_journey.py (FR-019)
+- [X] T043 Implement POST /experiments/design endpoint in api/routers/belief_journey.py (FR-011)
+- [X] T044 Implement POST /experiments/{experiment_id}/record endpoint in api/routers/belief_journey.py (FR-012)
+- [X] T045 [P] Implement POST /mosaeic/capture endpoint in api/routers/belief_journey.py (FR-016)
+- [X] T046 [P] Implement POST /vision/add endpoint in api/routers/belief_journey.py (FR-017)
+- [X] T047 [P] Implement POST /support/circle/create endpoint in api/routers/belief_journey.py (FR-018)
+- [X] T048 Implement POST /support/circle/{circle_id}/member endpoint in api/routers/belief_journey.py (FR-019)
 
 **Checkpoint**: Full API surface complete
 
@@ -187,7 +187,7 @@
 
 **Purpose**: Final validation and documentation
 
-- [ ] T049 [P] Add docstrings to all router endpoints in api/routers/belief_journey.py
+- [X] T049 [P] Add docstrings to all router endpoints in api/routers/belief_journey.py
 - [ ] T050 Run quickstart.md validation scenarios manually
 - [ ] T051 Verify OpenAPI spec matches implementation via /docs endpoint
 - [ ] T052 Update api/models/__init__.py with belief_journey exports

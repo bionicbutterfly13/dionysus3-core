@@ -7,7 +7,7 @@
 
 ## User Scenarios & Testing
 
-### User Story 1 - Robust Audit Hooks (Priority: P3)
+### User Story 4 (US4) - Robust Audit Hooks (Priority: P3)
 
 As a developer, I want to attach audit and MoSAEIC capture hooks to agents using the native `CallbackRegistry` pattern, so that my monitoring code doesn't break when agent internals change.
 
