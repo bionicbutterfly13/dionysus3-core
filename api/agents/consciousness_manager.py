@@ -232,10 +232,10 @@ The agents will return structured results for synthesis.""",
         print(f"DEBUG: Metaplasticity adjusted learning_rate={adjusted_lr:.4f}, max_steps={new_max_steps} (surprise={surprise_level:.2f})")
         
         # Note: In smolagents, we update the agent properties directly
-        # Feature 039: Access underlying agents via ManagedAgent instances
+        # smolagents 1.23+: managed instances ARE ToolCallingAgents directly
         if self._perception_managed and self._reasoning_managed and self._metacognition_managed:
-            for managed in [self._perception_managed, self._reasoning_managed, self._metacognition_managed]:
-                managed.agent.max_steps = new_max_steps
+            for agent in [self._perception_managed, self._reasoning_managed, self._metacognition_managed]:
+                agent.max_steps = new_max_steps
         
         print("\n=== CONSCIOUSNESS OODA CYCLE COMPLETE ===")
 
