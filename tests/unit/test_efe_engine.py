@@ -28,7 +28,8 @@ def test_efe_calculation_logic(efe_engine):
         }
     ]
     
-    response = efe_engine.calculate_efe("test query", goal_vector, thoughtseeds)
+    # Using legacy rank_candidates for compatibility check
+    response = efe_engine.rank_candidates("test query", goal_vector, thoughtseeds)
     
     # Detailed checks
     scores = response.scores
@@ -43,5 +44,18 @@ def test_efe_null_vectors(efe_engine):
     goal_vector = [0.0, 0.0]
     thoughtseeds = [{"id": "s1", "response_vector": [1.0, 0.0], "prediction_probabilities": [0.5, 0.5]}]
     
-    response = efe_engine.calculate_efe("q", goal_vector, thoughtseeds)
+    response = efe_engine.rank_candidates("q", goal_vector, thoughtseeds)
     assert response.scores["s1"].goal_divergence == 1.0
+
+def test_efe_direct_selection(efe_engine):
+    """Verify select_dominant_thought with new keys."""
+    goal_vector = [1.0, 0.0]
+    thoughtseeds = [
+        {
+            "id": "s1",
+            "vector": [1.0, 0.0],
+            "probabilities": [0.9, 0.1]
+        }
+    ]
+    response = efe_engine.select_dominant_thought(thoughtseeds, goal_vector)
+    assert response.dominant_seed_id == "s1"

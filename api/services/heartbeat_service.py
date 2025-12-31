@@ -361,6 +361,9 @@ class HeartbeatService:
         self._action_executor = action_executor or get_action_executor()
         self._driver = driver
         self._context_builder = ContextBuilder(driver)
+        
+        from api.services.efe_engine import get_efe_engine
+        self._efe_engine = get_efe_engine()
 
     def _get_driver(self):
         """Get Neo4j driver."""

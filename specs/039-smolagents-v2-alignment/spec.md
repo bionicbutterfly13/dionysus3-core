@@ -1,9 +1,10 @@
 # Feature Specification: Smolagents V2 Alignment
 
 **Feature Branch**: `feature/039-smolagents-v2`
-**Status**: Planning
+**Status**: In Progress (Phases 1-4 Complete)
 **Depends On**: 033-smolagents-standardization (complete)
 **Input**: [Smolagents v1.23+ Docs](https://huggingface.co/docs/smolagents), Context7 analysis
+**Terminology**: See [docs/TERMINOLOGY.md](../../docs/TERMINOLOGY.md) for disambiguation of "trajectory" and other overloaded terms
 
 ## Overview
 
@@ -14,7 +15,7 @@ Upgrade dionysus3-core's smolagents integration to leverage native multi-agent o
 Current implementation gaps:
 1. **Manual OODA orchestration** - `ConsciousnessManager` manually chains agents instead of using native `ManagedAgent`
 2. **No planning intervals** - Agents run linearly without periodic fact-checking or replanning
-3. **Ephemeral agent memory** - Execution trajectories lost after each run
+3. **Ephemeral agent memory** - Execution traces lost after each run
 4. **No consciousness integration** - Step callbacks don't trigger IWMT coherence or basin activation
 5. **Token accumulation** - Full observation history kept, causing context bloat
 

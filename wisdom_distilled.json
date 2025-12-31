@@ -1,1 +1,2604 @@
-[]
+[
+  {
+    "wisdom_id": "distilled-47cf1813",
+    "type": "mental_model",
+    "name": "MOSAEIC Memory System",
+    "summary": "A robust episodic-to-semantic memory scaffold consisting of FiveWindowCapture (Mental, Observation, Senses, Actions, Emotions) and TurningPoint to preserve high-emotion episodes and enable long-term knowledge stability.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160177",
+    "last_updated": "2025-12-30T12:02:39.160184",
+    "metadata": {},
+    "core_logic": "Encodes episodic-to-semantic transformation with temporal windowing (FiveWindowCapture) and TurningPoint for high-emotion preservation.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-71b64e08",
+    "type": "mental_model",
+    "name": "BeliefRewrite & MaladaptivePattern",
+    "summary": "Mechanisms for memory reconsolidation and tracking recurring suboptimal patterns to facilitate better long-term behavioral alignment.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160235",
+    "last_updated": "2025-12-30T12:02:39.160237",
+    "metadata": {},
+    "core_logic": "Memory reconsolidation framework enabling belief updates and pattern tracking to improve long-term behavior alignment.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-445bbb4c",
+    "type": "mental_model",
+    "name": "Pattern Evolution Tracker & Basin Reorganization",
+    "summary": "Encodes how patterns evolve across projects; energy-based basin dynamics guide learning and generalization.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160285",
+    "last_updated": "2025-12-30T12:02:39.160287",
+    "metadata": {},
+    "core_logic": "Energy-based basin dynamics modeling evolution of patterns to foster robust generalization across tasks.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-27584e01",
+    "type": "strategic_principle",
+    "name": "OODA Loop with Energy Budgeting",
+    "summary": "Observe, Orient, Decide, Act cycles embedded as a cognitive rhythm with explicit energy budgeting, shaping timing and prioritization of actions.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160354",
+    "last_updated": "2025-12-30T12:02:39.160357",
+    "metadata": {},
+    "rationale": "By budgeting cognitive energy, OODA cycles become efficient, timely, and aligned with resource constraints.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-a063fd7b",
+    "type": "strategic_principle",
+    "name": "Graphiti/Neo4j as Single Source of Truth with Temporal Validity and Provenance",
+    "summary": "Graphiti/Neo4j serves as the single source of truth with temporal validity (valid_at/invalid_at) and provenance metadata to support auditable decision traces.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160394",
+    "last_updated": "2025-12-30T12:02:39.160395",
+    "metadata": {},
+    "rationale": "Provides auditable, time-bound data lineage enabling reproducible and trustworthy decision-making.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-cb7ed316",
+    "type": "strategic_principle",
+    "name": "MCP Bridge Pattern for Tool Decoupling",
+    "summary": "Decouples cognition from tools, enabling safe, testable, and resilient tool usage via ToolCollection.from_mcp.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160421",
+    "last_updated": "2025-12-30T12:02:39.160422",
+    "metadata": {},
+    "rationale": "Promotes safe tool integration and repeatable experimentation by isolating cognitive reasoning from tool interfaces.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-71f9d4cf",
+    "type": "mental_model",
+    "name": "Avatar Knowledge Graph Schema",
+    "summary": "Schema comprising PainPoint, Objection, Desire, Belief, Behavior, VoicePattern, and FailedSolution enabling granular, personalized client engagement and provenance persistence.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160447",
+    "last_updated": "2025-12-30T12:02:39.160448",
+    "metadata": {},
+    "core_logic": "Structured graph schema for avatar modeling with persistent provenance across client interactions.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-a1759771",
+    "type": "mental_model",
+    "name": "Specialized Smolagents & AvatarResearcher Orchestrator",
+    "summary": "Specialized smolagents (PainAnalyst, ObjectionHandler, VoiceExtractor) plus an AvatarResearcher orchestrator enable scalable, modular avatar research workflows.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160473",
+    "last_updated": "2025-12-30T12:02:39.160474",
+    "metadata": {},
+    "core_logic": "Modular agent roles and orchestration to scale avatar research pipelines.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-81fdea92",
+    "type": "mental_model",
+    "name": "Ground-Truth Ingestion (IAS-copy-brief.md)",
+    "summary": "Ground-truth ingestion drives a reliable starting point for avatar modeling; bulk ingestion and Graphiti integration ensure provenance preservation.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160498",
+    "last_updated": "2025-12-30T12:02:39.160499",
+    "metadata": {},
+    "core_logic": "Ingest IAS-copy-brief.md as avatar ground truth; bulk ingestion and Graphiti integration ensure provenance preservation.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-49c261ba",
+    "type": "strategic_principle",
+    "name": "Rapid Observe-Orient-Decide-Act Cycles",
+    "summary": "The log demonstrates quick scanning, contextual orientation (distinguishing real files from AppleDouble metadata), decisive action, and immediate feedback.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160533",
+    "last_updated": "2025-12-30T12:02:39.160535",
+    "metadata": {},
+    "rationale": "Fast OODA cycles enable rapid situational awareness and timely responses.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-1e8397e8",
+    "type": "strategic_principle",
+    "name": "Pragmatic Data Hygiene",
+    "summary": "Prioritize cleanup of unnecessary assets (e.g., .srt files) while acknowledging metadata artifacts; distinguish operational data from metadata.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160573",
+    "last_updated": "2025-12-30T12:02:39.160575",
+    "metadata": {},
+    "rationale": "Maintains data quality and reduces noise by routine data hygiene practices.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-7ab7046f",
+    "type": "strategic_principle",
+    "name": "Preserve Provenance & Auditability",
+    "summary": "Record session identifiers, timestamps, actions, and outcomes to support traceability and accountability.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160613",
+    "last_updated": "2025-12-30T12:02:39.160616",
+    "metadata": {},
+    "rationale": "Ensures reproducibility and accountability through traceable data lineage.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-0dee8942",
+    "type": "strategic_principle",
+    "name": "Idempotent & Auditable Actions",
+    "summary": "Actions can be repeated without adverse effects; provide clear success/failure reporting to enable repeatability.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:02:39.160655",
+    "last_updated": "2025-12-30T12:02:39.160657",
+    "metadata": {},
+    "rationale": "Supports safe experimentation and reliable re-execution.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-76035fbf",
+    "type": "mental_model",
+    "name": "Ground Truth Ingestion (Canonical Reference)",
+    "summary": "Ingest IAS-copy-brief.md as the avatar ground truth; establishes a canonical reference for avatar research; enables Graphiti/Neo4j ingestion and downstream knowledge modeling.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-26-2a57f853"
+    ],
+    "created_at": "2025-12-30T12:02:39.160694",
+    "last_updated": "2025-12-30T12:02:39.160696",
+    "metadata": {},
+    "core_logic": "Ingest IAS-copy-brief.md as canonical reference; sources: 010-heartbeat-handoff, 019-avatar-knowledge-graph; enables Graphiti/Neo4j ingestion and downstream knowledge modeling.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-b127c5c7",
+    "type": "mental_model",
+    "name": "Episodic-to-Semantic Memory",
+    "summary": "Explicit episodic-to-semantic memory consolidation with time-based decay, turning points, and automatic consolidation triggers to stabilize long-term knowledge.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-26-2a57f853"
+    ],
+    "created_at": "2025-12-30T12:02:39.160751",
+    "last_updated": "2025-12-30T12:02:39.160753",
+    "metadata": {},
+    "core_logic": "Explicit episodic-to-semantic memory consolidation with time-based decay, turning points, and automatic consolidation triggers to stabilize long-term knowledge.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-83ac2201",
+    "type": "mental_model",
+    "name": "Trajectory-aware Context",
+    "summary": "ContextBuilder provides trajectories; decision adapter includes trajectories in the agent context; enables trajectory-aware reasoning in OODA loop.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-26-2a57f853"
+    ],
+    "created_at": "2025-12-30T12:01:30.855734",
+    "last_updated": "2025-12-30T12:01:30.855739",
+    "metadata": {},
+    "core_logic": "Expose trajectory data to the decision context to enable trajectory-aware reasoning within the OODA loop.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-a9af984c",
+    "type": "mental_model",
+    "name": "MCP Bridge Resilience",
+    "summary": "Tool loading via ToolCollection.from_mcp decouples agents from the existence of individual tools, increasing robustness to tool deletions.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-26-2a57f853"
+    ],
+    "created_at": "2025-12-30T12:01:30.855809",
+    "last_updated": "2025-12-30T12:01:30.855811",
+    "metadata": {},
+    "core_logic": "Decouple tool availability from agents by loading tools through a collection interface, reducing fragility to tool deletion.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-f38eeebe",
+    "type": "mental_model",
+    "name": "Avatar Knowledge Graph Schema",
+    "summary": "Graph schema design (PainPoint, Objection, Desire, Belief, Behavior, VoicePattern, etc.) and Graphiti/Neo4j integration to support rich avatar modeling.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-26-2a57f853"
+    ],
+    "created_at": "2025-12-30T12:01:30.855854",
+    "last_updated": "2025-12-30T12:01:30.855856",
+    "metadata": {},
+    "core_logic": "Define a graph schema for avatars and enable Graphiti/Neo4j integration to model rich agent personas.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-0ac6a033",
+    "type": "strategic_principle",
+    "name": "Explicit termination signals as boundary markers in constrained environments",
+    "summary": "Explicit termination signals function as boundary markers in constrained interactive environments.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-08-004eebc3"
+    ],
+    "created_at": "2025-12-30T12:01:30.855900",
+    "last_updated": "2025-12-30T12:01:30.855903",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-63470920",
+    "type": "strategic_principle",
+    "name": "Graceful termination and provenance preservation for non-actionable content",
+    "summary": "When content is non-actionable, the prudent pattern is to gracefully terminate and preserve provenance.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-08-004eebc3"
+    ],
+    "created_at": "2025-12-30T12:01:30.855942",
+    "last_updated": "2025-12-30T12:01:30.855944",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-4c4dbe17",
+    "type": "strategic_principle",
+    "name": "Provenance-first traceability",
+    "summary": "Preserving provenance metadata (session ID, timestamps) is essential for traceable wisdom extraction.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-08-004eebc3"
+    ],
+    "created_at": "2025-12-30T12:01:30.856124",
+    "last_updated": "2025-12-30T12:01:30.856130",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-42ed1ca5",
+    "type": "strategic_principle",
+    "name": "Read-to-understand-first",
+    "summary": "Read-to-understand-first: establish context by reading files/codebase before taking action",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-aa"
+    ],
+    "created_at": "2025-12-30T12:01:30.856190",
+    "last_updated": "2025-12-30T12:01:30.856193",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-d3533054",
+    "type": "strategic_principle",
+    "name": "Environment awareness",
+    "summary": "Environment awareness: respect system states and constraints (TodoWrite disabled, OpenSpec presence)",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-aa"
+    ],
+    "created_at": "2025-12-30T12:01:30.856235",
+    "last_updated": "2025-12-30T12:01:30.856237",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-0d05ecc3",
+    "type": "strategic_principle",
+    "name": "Modular exploration",
+    "summary": "Modular exploration: decompose into documentation (CLAUDE.md), architecture (Archon MCP), interfaces (OpenSpec)",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-aa"
+    ],
+    "created_at": "2025-12-30T12:01:30.856299",
+    "last_updated": "2025-12-30T12:01:30.856302",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-dd7bda18",
+    "type": "strategic_principle",
+    "name": "Documentation as navigation anchor",
+    "summary": "Documentation as navigation anchor: use Core CLAUDE.md as foundational reference",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-aa"
+    ],
+    "created_at": "2025-12-30T12:01:30.856365",
+    "last_updated": "2025-12-30T12:01:30.856368",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-8ae5e360",
+    "type": "strategic_principle",
+    "name": "Provenance-first reference",
+    "summary": "Provenance-first: preserve traceability and source metadata from the outset",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-aa"
+    ],
+    "created_at": "2025-12-30T12:01:30.856409",
+    "last_updated": "2025-12-30T12:01:30.856411",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-8cd1b781",
+    "type": "strategic_principle",
+    "name": "Iterative discovery",
+    "summary": "Iterative discovery: incremental reading, summarizing, and validating before proceeding",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-aa"
+    ],
+    "created_at": "2025-12-30T12:01:30.856493",
+    "last_updated": "2025-12-30T12:01:30.856496",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-cfa19b9a",
+    "type": "strategic_principle",
+    "name": "Observe phase",
+    "summary": "Observe: read relevant files; understand codebase structure",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-aa"
+    ],
+    "created_at": "2025-12-30T12:01:30.856527",
+    "last_updated": "2025-12-30T12:01:30.856529",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-092ce69c",
+    "type": "strategic_principle",
+    "name": "Orient phase",
+    "summary": "Orient: note system state (OpenSpec status); recognize access controls (TodoWrite disabled)",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-aa"
+    ],
+    "created_at": "2025-12-30T12:01:30.856553",
+    "last_updated": "2025-12-30T12:01:30.856555",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-64fb76db",
+    "type": "strategic_principle",
+    "name": "Decide phase",
+    "summary": "Decide: determine next exploration focus (OpenSpec, codebase)",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-aa"
+    ],
+    "created_at": "2025-12-30T12:01:30.856578",
+    "last_updated": "2025-12-30T12:01:30.856579",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-005ecd9c",
+    "type": "strategic_principle",
+    "name": "Act-Phase Targeted Exploration",
+    "summary": "In the Act phase, begin targeted exploration of the environment (e.g., survey first pages, docs) to surface actionable signals while anchoring exploration to provenance and planning context.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-aa"
+    ],
+    "created_at": "2025-12-30T12:01:42.734779",
+    "last_updated": "2025-12-30T12:01:42.734783",
+    "metadata": {},
+    "rationale": "Targets efficient information-gathering and reduces risk by anchoring exploration to concrete interfaces and documentation.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-c7a847f0",
+    "type": "strategic_principle",
+    "name": "Renormalised Generative Models (RGM) for Hierarchical Planning",
+    "summary": "RGM enables scale-free, hierarchical planning by coarse-graining state representations across levels, maintaining tractable inference while expanding planning horizons.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-30-c4f5926d"
+    ],
+    "created_at": "2025-12-30T12:01:42.734827",
+    "last_updated": "2025-12-30T12:01:42.734828",
+    "metadata": {},
+    "rationale": "Coarse-graining preserves essential structure while enabling multi-level planning across wide state spaces.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-82de7537",
+    "type": "mental_model",
+    "name": "Active Inference Loop: Perceive\u2013Plan\u2013Act",
+    "summary": "Active Inference provides a principled loop: perceive (update beliefs from observations), plan (evaluate actions via expected free energy), and act (update policies), closing the perception-action cycle.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-30-c4f5926d"
+    ],
+    "created_at": "2025-12-30T12:01:42.734859",
+    "last_updated": "2025-12-30T12:01:42.734860",
+    "metadata": {},
+    "core_logic": "Belief updating drives both action and future predictions; action policies are optimized to minimize expected free energy.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-b0d4e91d",
+    "type": "mental_model",
+    "name": "Hierarchical Generative Core (A,B,C,D,E)",
+    "summary": "Core tensors A, B, C, D, E encode likelihoods, transitions, path dynamics, and priors, forming a structured generative model across hierarchy.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-30-c4f5926d"
+    ],
+    "created_at": "2025-12-30T12:01:42.734887",
+    "last_updated": "2025-12-30T12:01:42.734888",
+    "metadata": {},
+    "core_logic": "Tensor components map observations to latent states, encode transition dynamics, and constrain priors across hierarchy.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-3cf83dcb",
+    "type": "mental_model",
+    "name": "Memory-Integrated Autobiographical Agents",
+    "summary": "Memory integration (episodic, semantic, procedural, strategic) is essential for autobiographical agents and informs planning through learned priors.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-30-c4f5926d"
+    ],
+    "created_at": "2025-12-30T12:01:42.734913",
+    "last_updated": "2025-12-30T12:01:42.734914",
+    "metadata": {},
+    "core_logic": "Memory systems provide priors and experiential data that shape predictions and decisions.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-844d60dc",
+    "type": "mental_model",
+    "name": "Embodied Enactive Design and Autopoiesis",
+    "summary": "Embodied enactive design (self/non-self boundary, autopoiesis) supports attachment to diverse interfaces and robust adaptation.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-30-c4f5926d"
+    ],
+    "created_at": "2025-12-30T12:01:42.734937",
+    "last_updated": "2025-12-30T12:01:42.734938",
+    "metadata": {},
+    "core_logic": "Agency arises from ongoing self-organization balanced with external coupling.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-97207e64",
+    "type": "strategic_principle",
+    "name": "Mature Workflow Practices as System Architecture",
+    "summary": "Mature workflow practices (TDD, feature branches, Serena search, Archon, Neo4j schemas, CI) are treated as first-class components of system architecture.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-30-c4f5926d"
+    ],
+    "created_at": "2025-12-30T12:01:42.734961",
+    "last_updated": "2025-12-30T12:01:42.734962",
+    "metadata": {},
+    "rationale": "Engineering practices must be embedded in architecture to ensure reliability, traceability, and maintainability.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-9eb7469e",
+    "type": "mental_model",
+    "name": "Visualization and Narration for Interpretability",
+    "summary": "Visualization and narration (cartpole_live, cartpole_narrated) provide interpretable traces of internal thinking, aiding validation and trust.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-30-c4f5926d"
+    ],
+    "created_at": "2025-12-30T12:01:42.734984",
+    "last_updated": "2025-12-30T12:01:42.734985",
+    "metadata": {},
+    "core_logic": "External traces map internal decisions to observable narratives for auditing.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-fe07f5fb",
+    "type": "strategic_principle",
+    "name": "Explicit Provenance and Logging",
+    "summary": "Provenance is preserved through explicit session IDs, milestone logs, commits, test coverage, and documented architecture decisions.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-30-c4f5926d"
+    ],
+    "created_at": "2025-12-30T12:01:42.735010",
+    "last_updated": "2025-12-30T12:01:42.735011",
+    "metadata": {},
+    "rationale": "Preserving provenance enables reproducibility, auditing, and trust.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-6bc915d0",
+    "type": "mental_model",
+    "name": "System-First Mental Model",
+    "summary": "Mental Model: System-first orientation, observe-before-action, iterative learning, and provenance-centric analytics.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-03"
+    ],
+    "created_at": "2025-12-30T12:01:42.735036",
+    "last_updated": "2025-12-30T12:01:42.735037",
+    "metadata": {},
+    "core_logic": "Prioritize holistic system understanding before optimizing parts.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-3fe57983",
+    "type": "mental_model",
+    "name": "Observe\u2013Orient\u2013Decide\u2013Act (OODA) in Codebase",
+    "summary": "Observe \u2192 Orient \u2192 Decide \u2192 Act: the log demonstrates an OODA-like cycle with observing the codebase and system state, orienting to tasks, deciding on the next actions, and acting by exploring pages and directories.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-03"
+    ],
+    "created_at": "2025-12-30T12:01:42.735068",
+    "last_updated": "2025-12-30T12:01:42.735070",
+    "metadata": {},
+    "core_logic": "Cycle-based reasoning aligns observation with task-driven action.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-1ddccb88",
+    "type": "strategic_principle",
+    "name": "Exploration Discipline: Understand Before Acting",
+    "summary": "Exploration discipline: Start with understanding the environment (codebase, status of Archon) before taking concrete actions.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-03"
+    ],
+    "created_at": "2025-12-30T12:01:42.735095",
+    "last_updated": "2025-12-30T12:01:42.735096",
+    "metadata": {},
+    "rationale": "A foundational discipline to prevent rash changes and improve alignment with goals.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-18618c66",
+    "type": "strategic_principle",
+    "name": "Provenance Emphasis in Exploration",
+    "summary": "Provenance emphasis: Metadata and session provenance are treated as core elements to preserve during exploration.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-03"
+    ],
+    "created_at": "2025-12-30T12:01:42.735119",
+    "last_updated": "2025-12-30T12:01:42.735120",
+    "metadata": {},
+    "rationale": "Preserves context and decisions across exploration sessions.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-48ee6bdf",
+    "type": "strategic_principle",
+    "name": "Plan-Based Phased Deployment",
+    "summary": "Plan-based phased deployment (Phases A/B) with staged milestones.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-21-bb7a1a3e"
+    ],
+    "created_at": "2025-12-30T12:01:42.735142",
+    "last_updated": "2025-12-30T12:01:42.735143",
+    "metadata": {},
+    "rationale": "Phased deployment reduces risk and enables incremental validation.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-68579969",
+    "type": "strategic_principle",
+    "name": "Spec-Driven Governance (SpecKit)",
+    "summary": "Spec-driven governance (SpecKit, 001-006 specs, checklists, /speckit workflows)",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-21-bb7a1a3e"
+    ],
+    "created_at": "2025-12-30T12:01:42.735170",
+    "last_updated": "2025-12-30T12:01:42.735172",
+    "metadata": {},
+    "rationale": "Explicit specifications and workflows govern behavior and quality.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-b473c703",
+    "type": "strategic_principle",
+    "name": "MultiEnvironmentDeploymentWithSecureNetworking",
+    "summary": "Multi-environment deployment pattern (local dev vs VPS deployment) with explicit networking (docker networks) and secure access controls",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-21-bb7a1a3e"
+    ],
+    "created_at": "2025-12-30T12:03:33.116460",
+    "last_updated": "2025-12-30T12:03:33.116467",
+    "metadata": {},
+    "rationale": "Ensures consistent deployment across environments and enforces network isolation and secure access policies.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-2663ad94",
+    "type": "strategic_principle",
+    "name": "IncrementalKnowledgeGraphConstruction",
+    "summary": "Incremental knowledge graph construction (Graphiti ingestion, entity/relationship extraction, provenance)",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-21-bb7a1a3e"
+    ],
+    "created_at": "2025-12-30T12:03:33.116534",
+    "last_updated": "2025-12-30T12:03:33.116536",
+    "metadata": {},
+    "rationale": "Builds a living semantic model with traceable provenance for every inference.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-ff7fb1f8",
+    "type": "strategic_principle",
+    "name": "MemoryArchitectureAndSelfStructureAwareness",
+    "summary": "Memory architecture framing (5-layer memory + autobiographical layer) and self-structure awareness",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-21-bb7a1a3e"
+    ],
+    "created_at": "2025-12-30T12:03:33.116582",
+    "last_updated": "2025-12-30T12:03:33.116584",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-37bd80bb",
+    "type": "strategic_principle",
+    "name": "OODAInspiredDecisionCycle",
+    "summary": "OODA-like decision cycles evidenced by Observe (state discovery), Orient (plan/architecture), Decide (deployment/testing), Act (ingest/test/commit)",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-21-bb7a1a3e"
+    ],
+    "created_at": "2025-12-30T12:03:33.116623",
+    "last_updated": "2025-12-30T12:03:33.116625",
+    "metadata": {},
+    "rationale": "Implements a rapid, looped feedback mechanism for deployment and data ingestion with disciplined branching.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-1657fc6c",
+    "type": "strategic_principle",
+    "name": "ProvenanceCentricWorkflow",
+    "summary": "Provenance-centric workflow (plan docs, commits, Archon/Plan mode, memory of decisions)",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-21-bb7a1a3e"
+    ],
+    "created_at": "2025-12-30T12:03:33.116665",
+    "last_updated": "2025-12-30T12:03:33.116667",
+    "metadata": {},
+    "rationale": "Anchors decisions in traceable plans and commit histories to improve auditability.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-e1020bee",
+    "type": "strategic_principle",
+    "name": "BatchProcessingToManageComplexity",
+    "summary": "Batch processing approach (Batch 1 complete, Batch 2 pending) to manage complexity",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-21-bb7a1a3e"
+    ],
+    "created_at": "2025-12-30T12:03:33.116707",
+    "last_updated": "2025-12-30T12:03:33.116710",
+    "metadata": {},
+    "rationale": "Segments work to reduce cognitive load and validate increments before proceeding.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-dcdd2c6e",
+    "type": "strategic_principle",
+    "name": "RiskMitigationAndAccessControlPatterns",
+    "summary": "Risk/mitigation patterns (revoking SSH access, environment variable handling, health checks)",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-21-bb7a1a3e"
+    ],
+    "created_at": "2025-12-30T12:03:33.116749",
+    "last_updated": "2025-12-30T12:03:33.116751",
+    "metadata": {},
+    "rationale": "Defines concrete controls to reduce security and reliability risks during operations.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-d795418a",
+    "type": "mental_model",
+    "name": "ConstraintAwareProblemSolving",
+    "summary": "Operate within explicit capabilities and read-only limits; plan tasks accordingly.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-16"
+    ],
+    "created_at": "2025-12-30T12:03:33.116791",
+    "last_updated": "2025-12-30T12:03:33.116793",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-f2b2b9de",
+    "type": "mental_model",
+    "name": "ReadOnlyExploration",
+    "summary": "Search and analyze codebase with non-destructive methods (Glob, Grep, Read tools).",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-16"
+    ],
+    "created_at": "2025-12-30T12:03:33.116834",
+    "last_updated": "2025-12-30T12:03:33.116836",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-47adc6bd",
+    "type": "mental_model",
+    "name": "ExplicitCapabilityDeclaration",
+    "summary": "Clearly state what I can do and what I cannot do to avoid scope creep.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-16"
+    ],
+    "created_at": "2025-12-30T12:03:33.116876",
+    "last_updated": "2025-12-30T12:03:33.116878",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-72915dad",
+    "type": "mental_model",
+    "name": "ModularAnalysis",
+    "summary": "Break problem into code search, file navigation, and pattern reporting.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-16"
+    ],
+    "created_at": "2025-12-30T12:03:33.116938",
+    "last_updated": "2025-12-30T12:03:33.116940",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-92e0398c",
+    "type": "mental_model",
+    "name": "ProvenanceFirstReporting",
+    "summary": "Preserve origin metadata for all findings to support traceability.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-16"
+    ],
+    "created_at": "2025-12-30T12:03:33.116979",
+    "last_updated": "2025-12-30T12:03:33.116981",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-76280e5f",
+    "type": "mental_model",
+    "name": "MetaLearningFromLogs",
+    "summary": "Infer patterns and opportunities for improvement from transcript data.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-10-agent-16"
+    ],
+    "created_at": "2025-12-30T12:03:33.117018",
+    "last_updated": "2025-12-30T12:03:33.117020",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-020197de",
+    "type": "mental_model",
+    "name": "DependencyAwareWorkflow",
+    "summary": "Design processes with explicit checks for essential services (e.g., Archon MCP) and define fallback paths when dependencies are unavailable.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-3f0b71cc"
+    ],
+    "created_at": "2025-12-30T12:03:33.117059",
+    "last_updated": "2025-12-30T12:03:33.117061",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-ed38ca05",
+    "type": "mental_model",
+    "name": "ProvenanceFirstDesign",
+    "summary": "Preserve and attach provenance metadata to outputs to enable traceability across the wisdom extraction workflow.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-3f0b71cc"
+    ],
+    "created_at": "2025-12-30T12:03:33.117096",
+    "last_updated": "2025-12-30T12:03:33.117098",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-3231fc35",
+    "type": "mental_model",
+    "name": "Fault-tolerant orchestration",
+    "summary": "Recognize that optional components or non-critical services can be skipped or rerouted when unavailable, enabling graceful degradation.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-3f0b71cc"
+    ],
+    "created_at": "2025-12-30T12:01:38.070375",
+    "last_updated": "2025-12-30T12:01:38.070382",
+    "metadata": {},
+    "core_logic": "Graceful degradation achieved by skipping or rerouting non-critical components when unavailable.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-1aac1f97",
+    "type": "mental_model",
+    "name": "Observability-driven decision making",
+    "summary": "Use observable states (server connectivity, task discovery status) to orient and decide on next actions.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-3f0b71cc"
+    ],
+    "created_at": "2025-12-30T12:01:38.070448",
+    "last_updated": "2025-12-30T12:01:38.070450",
+    "metadata": {},
+    "core_logic": "Decisions are guided by real-time observable system states.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-eebf4e65",
+    "type": "mental_model",
+    "name": "Modular task discovery",
+    "summary": "Separate discovery (what tasks exist) from execution (performing tasks) to enable flexible adaptation when blockers occur.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-3f0b71cc"
+    ],
+    "created_at": "2025-12-30T12:01:38.070499",
+    "last_updated": "2025-12-30T12:01:38.070502",
+    "metadata": {},
+    "core_logic": "Decouple discovery from execution to adapt to blockers without stalling progress.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-ed682ad6",
+    "type": "strategic_principle",
+    "name": "Decompose-and-Phase",
+    "summary": "Break complex initiatives into well-defined phases (ingestion, metadata, deduplication, CLI, search, maintenance) to constrain scope and enable staged value delivery.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-agent-73"
+    ],
+    "created_at": "2025-12-30T12:01:38.070547",
+    "last_updated": "2025-12-30T12:01:38.070550",
+    "metadata": {},
+    "rationale": "Constrains scope and enables staged value delivery by dividing work into phases.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-458fa938",
+    "type": "strategic_principle",
+    "name": "Provenance-First",
+    "summary": "Capture and preserve metadata about decisions, actions, and sources at every step to enable auditability and reproducibility.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-agent-73"
+    ],
+    "created_at": "2025-12-30T12:01:38.070593",
+    "last_updated": "2025-12-30T12:01:38.070595",
+    "metadata": {},
+    "rationale": "Ensures traceability and reproducibility of outcomes.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-ed63db5e",
+    "type": "strategic_principle",
+    "name": "Prioritized Execution",
+    "summary": "Sort tasks by descending priority (100 to 60) to tackle high-impact work first.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-agent-73"
+    ],
+    "created_at": "2025-12-30T12:01:38.070634",
+    "last_updated": "2025-12-30T12:01:38.070636",
+    "metadata": {},
+    "rationale": "Focuses on high-value work and reduces resistance from lower-priority tasks.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-6121d6a1",
+    "type": "strategic_principle",
+    "name": "Automation-Driven Creation",
+    "summary": "Automate project creation and artifact generation from source docs to reduce drift.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-agent-73"
+    ],
+    "created_at": "2025-12-30T12:01:38.070675",
+    "last_updated": "2025-12-30T12:01:38.070677",
+    "metadata": {},
+    "rationale": "Minimizes drift between source documents and produced artifacts.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-e267df35",
+    "type": "strategic_principle",
+    "name": "Iterative Refinement",
+    "summary": "Use short feedback loops to validate alignment and adapt plans accordingly.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-agent-73"
+    ],
+    "created_at": "2025-12-30T12:01:38.070736",
+    "last_updated": "2025-12-30T12:01:38.070738",
+    "metadata": {},
+    "rationale": "Enables course correction through rapid feedback.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-8994da85",
+    "type": "strategic_principle",
+    "name": "Observe stage",
+    "summary": "Scan the log and docs to understand landscape",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-agent-73"
+    ],
+    "created_at": "2025-12-30T12:01:38.070791",
+    "last_updated": "2025-12-30T12:01:38.070793",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-f039c999",
+    "type": "strategic_principle",
+    "name": "Orient stage",
+    "summary": "Infer project goals, architecture, and constraints from logs",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-agent-73"
+    ],
+    "created_at": "2025-12-30T12:01:38.070832",
+    "last_updated": "2025-12-30T12:01:38.070834",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-1070b950",
+    "type": "strategic_principle",
+    "name": "Decide stage",
+    "summary": "Determine priority ordering and default assignments",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-agent-73"
+    ],
+    "created_at": "2025-12-30T12:01:38.070872",
+    "last_updated": "2025-12-30T12:01:38.070874",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-f69c6a94",
+    "type": "strategic_principle",
+    "name": "Act stage",
+    "summary": "Execute project creation, task instantiation, and provenance logging",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-agent-73"
+    ],
+    "created_at": "2025-12-30T12:01:38.071051",
+    "last_updated": "2025-12-30T12:01:38.071055",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-a035a306",
+    "type": "strategic_principle",
+    "name": "Feedback stage",
+    "summary": "Review outcomes (task counts, IDs) and refine next steps",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-agent-73"
+    ],
+    "created_at": "2025-12-30T12:01:38.071098",
+    "last_updated": "2025-12-30T12:01:38.071100",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-e6a3ef62",
+    "type": "strategic_principle",
+    "name": "Readiness and Compliance Posture",
+    "summary": "Readiness and compliance posture (evidenced by 'Core CLAUDE.md read')",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-08-agent-bf"
+    ],
+    "created_at": "2025-12-30T12:01:38.071138",
+    "last_updated": "2025-12-30T12:01:38.071140",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-edd0dcab",
+    "type": "strategic_principle",
+    "name": "System-State Awareness",
+    "summary": "System-state awareness (evidenced by 'Archon MCP active (TodoWrite disabled)')",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-08-agent-bf"
+    ],
+    "created_at": "2025-12-30T12:01:38.071194",
+    "last_updated": "2025-12-30T12:01:38.071196",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-c18a8dd9",
+    "type": "strategic_principle",
+    "name": "Warmup-driven Interaction Pattern",
+    "summary": "A deliberate pre-action phase that seeks tasks before acting to reduce misalignment and wasted effort. It involves prompting for objectives, confirming scope, and aligning expectations before proceeding.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-08-agent-bf"
+    ],
+    "created_at": "2025-12-30T12:03:41.416488",
+    "last_updated": "2025-12-30T12:03:41.416495",
+    "metadata": {},
+    "rationale": "Reduces scope drift and improves task relevance by frontloading task discovery.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-4c0df46b",
+    "type": "strategic_principle",
+    "name": "Explicit Task Scoping",
+    "summary": "Before acting, ask clarifying questions to define goals, success criteria, and boundaries; enumerate the tasks required to complete the objective.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-08-agent-bf"
+    ],
+    "created_at": "2025-12-30T12:03:41.416576",
+    "last_updated": "2025-12-30T12:03:41.416579",
+    "metadata": {},
+    "rationale": "Prevents ambiguity and guides subsequent decisions and actions.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-8cbb90e6",
+    "type": "mental_model",
+    "name": "Observe: System State and Active Tasks",
+    "summary": "Perform a structured observation: check current system state (resources, context) and assess active tasks to establish a baseline before choosing next steps.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-08-agent-bf"
+    ],
+    "created_at": "2025-12-30T12:03:41.416735",
+    "last_updated": "2025-12-30T12:03:41.416740",
+    "metadata": {},
+    "core_logic": "Monitor environment, detect tasks, update situational awareness, and feed into subsequent Orientation.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-e0515428",
+    "type": "mental_model",
+    "name": "Orient: Interpret Constraints and Warmup Context",
+    "summary": "Interpret external constraints (e.g., CLAUDE.md, MCP) and recognize warmup context to frame actions within permitted boundaries.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-08-agent-bf"
+    ],
+    "created_at": "2025-12-30T12:03:41.416841",
+    "last_updated": "2025-12-30T12:03:41.416845",
+    "metadata": {},
+    "core_logic": "Map constraints and contextual cues to capability space; maintain policy alignment.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-6c555639",
+    "type": "strategic_principle",
+    "name": "Decide: Seek User Instruction Before Action",
+    "summary": "Prefer requesting explicit user instructions over autonomous action; defer decision-making until guidance is obtained.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-08-agent-bf"
+    ],
+    "created_at": "2025-12-30T12:03:41.416933",
+    "last_updated": "2025-12-30T12:03:41.416937",
+    "metadata": {},
+    "rationale": "Maintains alignment with user goals and reduces risk of unintended actions.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-6bf2c632",
+    "type": "strategic_principle",
+    "name": "Act: Await User Instruction; No Action Prematurely",
+    "summary": "Do not execute actions until explicit instruction is provided; conserve cognitive and operational resources until confirmed tasks exist.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-08-agent-bf"
+    ],
+    "created_at": "2025-12-30T12:03:41.417063",
+    "last_updated": "2025-12-30T12:03:41.417066",
+    "metadata": {},
+    "rationale": "Prevents unintended consequences and drift from user intent.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-e9713f05",
+    "type": "mental_model",
+    "name": "Provenance-aware Logging",
+    "summary": "Preserve provenance for traceability by capturing source logs, session IDs, timestamps, and notes; feed into knowledge-graph ingestion for traceable lineage.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-08-agent-bf"
+    ],
+    "created_at": "2025-12-30T12:03:41.417126",
+    "last_updated": "2025-12-30T12:03:41.417128",
+    "metadata": {},
+    "core_logic": "Systematically structure provenance metadata for future retrieval.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-69c43c62",
+    "type": "mental_model",
+    "name": "Session Continuity via Attractor Memory",
+    "summary": "Startup context is reconstructed by an attractor-based memory pipeline and injected at session start to maintain continuity across sessions.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-ed616f3b"
+    ],
+    "created_at": "2025-12-30T12:03:41.417185",
+    "last_updated": "2025-12-30T12:03:41.417188",
+    "metadata": {},
+    "core_logic": "Use attractor-based memory to retrieve and inject startup context.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-15c8abb4",
+    "type": "mental_model",
+    "name": "Prefetched Tasks Pattern",
+    "summary": "Prefetch local Archon tasks and send to VPS to bridge network isolation while preserving latency bounds, ensuring readiness to act when permitted.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-ed616f3b"
+    ],
+    "created_at": "2025-12-30T12:03:41.417308",
+    "last_updated": "2025-12-30T12:03:41.417314",
+    "metadata": {},
+    "core_logic": "Pre-fetch and forward tasks to maintain responsiveness under isolation.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-7cb063cd",
+    "type": "mental_model",
+    "name": "Episodic Memory Retrieval via Graphiti",
+    "summary": "When Archon data is insufficient, prefer graph-backed episodic memories to support reasoning and decision making.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-ed616f3b"
+    ],
+    "created_at": "2025-12-30T12:03:41.417499",
+    "last_updated": "2025-12-30T12:03:41.417504",
+    "metadata": {},
+    "core_logic": "Query graph-backed memories to fill gaps.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-ed7730ee",
+    "type": "strategic_principle",
+    "name": "Progressive Disclosure",
+    "summary": "Inject only compact, provenance-rich context; store raw memories for future expansion to balance immediacy with long-term knowledge growth.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-ed616f3b"
+    ],
+    "created_at": "2025-12-30T12:03:41.417560",
+    "last_updated": "2025-12-30T12:03:41.417562",
+    "metadata": {},
+    "rationale": "Ensures usable context now while preserving richer data for future expansion.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-a9c463ae",
+    "type": "mental_model",
+    "name": "Provenance Preservation",
+    "summary": "Maintain source metadata (project, task IDs, fragment types, and lineage) to support traceability and provenance across fragments.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-ed616f3b"
+    ],
+    "created_at": "2025-12-30T12:03:41.417595",
+    "last_updated": "2025-12-30T12:03:41.417596",
+    "metadata": {},
+    "core_logic": "Design and enforce a provenance metadata schema.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-5c8f466b",
+    "type": "strategic_principle",
+    "name": "Constraint-driven Analysis",
+    "summary": "Operate within read-only constraints and plan steps before acting to minimize risky or unauthorized actions.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-agent-16"
+    ],
+    "created_at": "2025-12-30T12:03:41.417625",
+    "last_updated": "2025-12-30T12:03:41.417627",
+    "metadata": {},
+    "rationale": "Policy-compliant pre-planning reduces risk.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-cadf8d3e",
+    "type": "strategic_principle",
+    "name": "Scope-first Inquiry",
+    "summary": "Ask clarifying questions about what to search and analyze to define scope early and avoid drift.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-agent-16"
+    ],
+    "created_at": "2025-12-30T12:03:41.417653",
+    "last_updated": "2025-12-30T12:03:41.417655",
+    "metadata": {},
+    "rationale": "Clarifies objectives and boundaries.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-6a31a3e6",
+    "type": "mental_model",
+    "name": "Observability and Meta-data Awareness",
+    "summary": "Capture session IDs, timestamps, platform; maintain provenance for visibility and auditability across interactions.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-agent-16"
+    ],
+    "created_at": "2025-12-30T12:03:41.417681",
+    "last_updated": "2025-12-30T12:03:41.417682",
+    "metadata": {},
+    "core_logic": "Instrumentation and logging hooks to gather and preserve session metadata.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-67eb099c",
+    "type": "strategic_principle",
+    "name": "Search-First Information Gathering",
+    "summary": "Leverage retrieval to build understanding before coding.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-agent-16"
+    ],
+    "created_at": "2025-12-30T12:01:42.913540",
+    "last_updated": "2025-12-30T12:01:42.913546",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-1b3b35bc",
+    "type": "strategic_principle",
+    "name": "Non-destructive Exploration",
+    "summary": "Prefer exploration of logs and data rather than altering files.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-agent-16"
+    ],
+    "created_at": "2025-12-30T12:01:42.913676",
+    "last_updated": "2025-12-30T12:01:42.913681",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-70ea75ba",
+    "type": "strategic_principle",
+    "name": "Provenance-First Governance",
+    "summary": "Preserve provenance metadata and reproducibility.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-24-agent-16"
+    ],
+    "created_at": "2025-12-30T12:01:42.913767",
+    "last_updated": "2025-12-30T12:01:42.913770",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-14fc1c9b",
+    "type": "strategic_principle",
+    "name": "Ontological Framing and Credibility",
+    "summary": "Mental models: Problems are framed in ontological terms (empty/hollow) rather than mere situational pain; credibility relies on data, peer validation, and transparent trade-offs; avoid 'inner work' framing; present authenticity as strategic, not therapeutic.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-27-agent-a2"
+    ],
+    "created_at": "2025-12-30T12:01:42.913819",
+    "last_updated": "2025-12-30T12:01:42.913821",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-bdd7cafd",
+    "type": "strategic_principle",
+    "name": "OODA-Oriented Communication",
+    "summary": "OODA-oriented communication: Observe credibility signals (data, credentials, peer reps); Orient by mapping values to measurable outcomes (performance, risk management, isolation); Decide to present precise, evidence-based claims with explicit trade-offs; Act with actionable, high-signal content and references.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-27-agent-a2"
+    ],
+    "created_at": "2025-12-30T12:01:42.913861",
+    "last_updated": "2025-12-30T12:01:42.913862",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-5681ba65",
+    "type": "strategic_principle",
+    "name": "Sensitive Topics - Skill-Building Framing",
+    "summary": "Frame emotional work as skill-building (not therapy), acknowledge shame without judgment, use mechanical/somatic metaphors, and maintain a focus on performance and mastery rather than healing.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-27-agent-a2"
+    ],
+    "created_at": "2025-12-30T12:01:42.913901",
+    "last_updated": "2025-12-30T12:01:42.913903",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-1dda4f94",
+    "type": "strategic_principle",
+    "name": "Intellectual Expectations and Precision",
+    "summary": "Respect complexity, use precise language, cite research, acknowledge trade-offs, tailor messaging to their field (surgeon, founder, tech exec).",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-27-agent-a2"
+    ],
+    "created_at": "2025-12-30T12:01:42.913940",
+    "last_updated": "2025-12-30T12:01:42.913942",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-8d47d57e",
+    "type": "strategic_principle",
+    "name": "Seen vs Sold: Authentic Competence",
+    "summary": "What makes them feel seen vs sold: See their isolation and paradoxes, validate real pain despite success, avoid patronizing or overpromising language; emphasize competence, ROI, and authentic expertise.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-27-agent-a2"
+    ],
+    "created_at": "2025-12-30T12:01:42.913980",
+    "last_updated": "2025-12-30T12:01:42.913982",
+    "metadata": {},
+    "rationale": null,
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-ea49b071",
+    "type": "mental_model",
+    "name": "Big-Picture Architecture First",
+    "summary": "Prioritize understanding the overall system structure and cross-file relationships before delving into code or implementation details.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-01-f174c163"
+    ],
+    "created_at": "2025-12-30T12:01:42.914039",
+    "last_updated": "2025-12-30T12:01:42.914041",
+    "metadata": {},
+    "core_logic": "Global view before detail.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-23deb572",
+    "type": "mental_model",
+    "name": "DRY / Avoid Redundancy",
+    "summary": "Minimize repetition; avoid duplicating analysis; compile insights with provenance.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-01-f174c163"
+    ],
+    "created_at": "2025-12-30T12:01:42.914084",
+    "last_updated": "2025-12-30T12:01:42.914086",
+    "metadata": {},
+    "core_logic": "Do not repeat yourself; consolidate with provenance.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-c868f43e",
+    "type": "mental_model",
+    "name": "Layered Architecture & Separation of Concerns",
+    "summary": "Treat infra DI framework, BlockSuite integration, frontend/backend/native modules as distinct layers with defined interaction surfaces.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-01-f174c163"
+    ],
+    "created_at": "2025-12-30T12:01:42.914125",
+    "last_updated": "2025-12-30T12:01:42.914127",
+    "metadata": {},
+    "core_logic": "Layered design with clear interfaces.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-cbf365fb",
+    "type": "mental_model",
+    "name": "Provenance-Aware Reasoning",
+    "summary": "Record and attach provenance to each insight (session IDs, source URLs, files) for traceability.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-01-f174c163"
+    ],
+    "created_at": "2025-12-30T12:01:42.914164",
+    "last_updated": "2025-12-30T12:01:42.914165",
+    "metadata": {},
+    "core_logic": "Attach provenance to all reasoning.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-0b69217d",
+    "type": "mental_model",
+    "name": "Incremental / Guided Delivery",
+    "summary": "Provide high-level guidance first, then more detail; avoid overwhelming with low-value content.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-01-f174c163"
+    ],
+    "created_at": "2025-12-30T12:01:42.914205",
+    "last_updated": "2025-12-30T12:01:42.914207",
+    "metadata": {},
+    "core_logic": "Progress from high-level to detail to prevent overload.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-a3e1abde",
+    "type": "mental_model",
+    "name": "OODA Loop in Workflow",
+    "summary": "Observe repository state, Orient by synthesizing findings, Decide on deliverable, Act by producing the artifact; iterate.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-01-f174c163"
+    ],
+    "created_at": "2025-12-30T12:01:42.914245",
+    "last_updated": "2025-12-30T12:01:42.914247",
+    "metadata": {},
+    "core_logic": "Cycle Observe-Orient-Decide-Act within workflows.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-f8e69eb5",
+    "type": "strategic_principle",
+    "name": "CTC Core Philosophy",
+    "summary": "Coaching The Conversion: transformation must occur within the prospect before, during, and through the sales process; the conversion coach guides belief shifts across the entire funnel.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-2e"
+    ],
+    "created_at": "2025-12-30T12:01:42.914287",
+    "last_updated": "2025-12-30T12:01:42.914288",
+    "metadata": {},
+    "rationale": "Principles: Transformation-before-sale; Coaching conversion through copy; Build prospect responsiveness; Applications: Frame messaging, structure copy hierarchy, increase engagement.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-c0013f13",
+    "type": "mental_model",
+    "name": "SPIAD Framework",
+    "summary": "Sales Page In A Day: a 15-section template organized to coach transformation across a single asset.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-2e"
+    ],
+    "created_at": "2025-12-30T12:01:41.678985",
+    "last_updated": "2025-12-30T12:01:41.678990",
+    "metadata": {},
+    "core_logic": "A modular, 15-section sequence guiding transformation of a single asset from gap discovery to exit gap.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-6f7c22fe",
+    "type": "mental_model",
+    "name": "3D Avatar: Prospect Dimensions",
+    "summary": "Dynamic, living understanding of the prospect across three dimensions: Demographics, Everyday Psychographics, and Charged-Up Ethos Graphics.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-2e"
+    ],
+    "created_at": "2025-12-30T12:01:41.679112",
+    "last_updated": "2025-12-30T12:01:41.679118",
+    "metadata": {},
+    "core_logic": "An evolving, multi-dimensional representation of the prospect used for personalization and targeting.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-873fa9da",
+    "type": "mental_model",
+    "name": "MoHT & MoHP (Moment of Highest Tension / Moment of Highest Pleasure)",
+    "summary": "MoHT captures a hyper-specific, filmable problem moment; MoHP captures the redemption point after the problem is solved.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-2e"
+    ],
+    "created_at": "2025-12-30T12:01:41.679218",
+    "last_updated": "2025-12-30T12:01:41.679222",
+    "metadata": {},
+    "core_logic": "Center messaging on concrete tensions and redemption to drive action.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-af6b9149",
+    "type": "mental_model",
+    "name": "Sacred Cows",
+    "summary": "Identify and slaughter limiting beliefs and paradigms that hinder progress; replace with empowering beliefs.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-2e"
+    ],
+    "created_at": "2025-12-30T12:01:41.679292",
+    "last_updated": "2025-12-30T12:01:41.679295",
+    "metadata": {},
+    "core_logic": "Diagnose false beliefs and reframe objections as opportunities via new beliefs.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-dc57c0d1",
+    "type": "mental_model",
+    "name": "The Starbucks Test (100 Words per Minute Rule)",
+    "summary": "Copy length should align with the time needed to coach the conversion; longer assets for longer decisions, shorter for quick decisions.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-2e"
+    ],
+    "created_at": "2025-12-30T12:01:41.679376",
+    "last_updated": "2025-12-30T12:01:41.679379",
+    "metadata": {},
+    "core_logic": "Match length to decision complexity and pacing to optimize engagement and comprehension.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-5942ceac",
+    "type": "mental_model",
+    "name": "Enrollment Extractor & Launch Bible",
+    "summary": "Mining high-conversion calls to extract messaging; the Launch Bible compiles all insights for funnel creation.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-2e"
+    ],
+    "created_at": "2025-12-30T12:01:41.679461",
+    "last_updated": "2025-12-30T12:01:41.679469",
+    "metadata": {},
+    "core_logic": "Preserve client voice and aha moments; sign off on insights before heavy writing.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-133ab68e",
+    "type": "mental_model",
+    "name": "Divergent Roads & Market's Search for Meaning",
+    "summary": "Present parallel realities (with/without product) at multiple time checkpoints; reframe past failures as prerequisites for progress.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-05-agent-2e"
+    ],
+    "created_at": "2025-12-30T12:01:41.679565",
+    "last_updated": "2025-12-30T12:01:41.679569",
+    "metadata": {},
+    "core_logic": "Frame decision points by showing two viable realities to illuminate risk and opportunity.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-cc42f640",
+    "type": "strategic_principle",
+    "name": "Migration-driven OpenSpec Consolidation: WHAT vs HOW",
+    "summary": "Migration-driven consolidation: unify legacy specs into a single OpenSpec capability with distinct WHAT vs HOW.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-15-agent-48"
+    ],
+    "created_at": "2025-12-30T12:01:41.679674",
+    "last_updated": "2025-12-30T12:01:41.679678",
+    "metadata": {},
+    "rationale": "Consolidates legacy specs into a unified capability with clear WHAT vs HOW distinctions.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-cd4a2f42",
+    "type": "strategic_principle",
+    "name": "Governance-first Architecture: Graph Channel Enforcement",
+    "summary": "Governance-first architecture: enforce Graph Channel usage and CI checks to block direct driver access.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-15-agent-48"
+    ],
+    "created_at": "2025-12-30T12:01:41.679761",
+    "last_updated": "2025-12-30T12:01:41.679765",
+    "metadata": {},
+    "rationale": "Enforce governance to ensure auditable, secure access.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-3890af3a",
+    "type": "strategic_principle",
+    "name": "Staged Validation Mindset: Tiered Migration Checks",
+    "summary": "Staged validation mindset: guide migration with Tiered checks (count, content, functional).",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-15-agent-48"
+    ],
+    "created_at": "2025-12-30T12:01:41.679840",
+    "last_updated": "2025-12-30T12:01:41.679844",
+    "metadata": {},
+    "rationale": "Mitigate risk by validating across dimensions before progression.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-4ad29fcf",
+    "type": "strategic_principle",
+    "name": "Provenance-centric Engineering: Lineage through Session Metadata",
+    "summary": "Provenance-centric engineering: preserve session metadata and source logs for lineage tracking.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-15-agent-48"
+    ],
+    "created_at": "2025-12-30T12:01:41.679895",
+    "last_updated": "2025-12-30T12:01:41.679898",
+    "metadata": {},
+    "rationale": "Maintain traceability of insights and decisions.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-aeb3180a",
+    "type": "strategic_principle",
+    "name": "Hybrid Search Philosophy: Vector, Full-Text, and Graph Discovery",
+    "summary": "Hybrid search philosophy: blend vector indexing, full-text, and graph traversal for robust discovery.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-15-agent-48"
+    ],
+    "created_at": "2025-12-30T12:01:41.679952",
+    "last_updated": "2025-12-30T12:01:41.679956",
+    "metadata": {},
+    "rationale": "",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-ec14aff5",
+    "type": "strategic_principle",
+    "name": "Provenance-aware Design: Auditable Metadata for Wisdom Extraction",
+    "summary": "Provenance-aware design: maintain explicit metadata for auditable wisdom extraction.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-15-agent-48"
+    ],
+    "created_at": "2025-12-30T12:01:41.680044",
+    "last_updated": "2025-12-30T12:01:41.680048",
+    "metadata": {},
+    "rationale": "",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-9917cf83",
+    "type": "strategic_principle",
+    "name": "Performance-first Constraints: Latency Targets Early",
+    "summary": "Performance-first constraints: embed latency targets early to steer architecture decisions.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-15-agent-48"
+    ],
+    "created_at": "2025-12-30T12:01:41.680098",
+    "last_updated": "2025-12-30T12:01:41.680100",
+    "metadata": {},
+    "rationale": "",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-448a3c3f",
+    "type": "strategic_principle",
+    "name": "Entity-centric Evolution: Migrate Core Ontology for Graph Integrity",
+    "summary": "Entity-centric evolution: migrate core ontology (Architecture, Episode, Attractor Basin, etc.) to preserve graph integrity.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-15-agent-48"
+    ],
+    "created_at": "2025-12-30T12:01:41.680146",
+    "last_updated": "2025-12-30T12:01:41.680149",
+    "metadata": {},
+    "rationale": "",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-5ddc95f8",
+    "type": "mental_model",
+    "name": "Safe, Read-Only Exploration",
+    "summary": "Operate in a safe, non-destructive mode (read-only) to minimize risk while exploring.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-20-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:03:30.442263",
+    "last_updated": "2025-12-30T12:03:30.442270",
+    "metadata": {},
+    "core_logic": "Inspect and reason without mutating state; rely on observation and non-destructive queries to gather information.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-64da71f3",
+    "type": "mental_model",
+    "name": "Scoped Discovery Before Deep Dive",
+    "summary": "Start with scoped discovery (search for files, patterns) before deep-diving into code or conversations.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-20-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:03:30.442347",
+    "last_updated": "2025-12-30T12:03:30.442351",
+    "metadata": {},
+    "core_logic": "Limit initial scope to high-signal areas; gather context before committing cognitive effort to deep analysis.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-ab92dae1",
+    "type": "mental_model",
+    "name": "Provenance & Reproducibility Emphasis",
+    "summary": "Prioritize provenance and auditability; capture sources, decisions, and context for reproducibility.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-20-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:03:30.442494",
+    "last_updated": "2025-12-30T12:03:30.442500",
+    "metadata": {},
+    "core_logic": "Record sources, decisions, and context so analyses can be traced and reproduced.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-b3eaa1b2",
+    "type": "mental_model",
+    "name": "Pattern Extraction Across Interactions",
+    "summary": "Extract recurring themes across interactions to build transferable patterns (patterns over single data points).",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-20-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:03:30.442585",
+    "last_updated": "2025-12-30T12:03:30.442588",
+    "metadata": {},
+    "core_logic": "Cluster observations to reveal stable patterns rather than overfitting to isolated data points.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-15165d2e",
+    "type": "mental_model",
+    "name": "Clarification-Driven Scope Bounding",
+    "summary": "Use clarifying questions to bound scope and reduce cognitive load; iterative refinement is preferred.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-20-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:03:30.442645",
+    "last_updated": "2025-12-30T12:03:30.442647",
+    "metadata": {},
+    "core_logic": "Ask targeted questions to tighten requirements and progressively refine the task.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-6356dbea",
+    "type": "mental_model",
+    "name": "OODA Loop in Practice",
+    "summary": "OODA loop as a fundamental pattern: Observe status, Orient to architecture and dependencies, Decide on the next phase, and Act through concrete commands and commits, iterating rapidly.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-a5b690a5"
+    ],
+    "created_at": "2025-12-30T12:03:30.442699",
+    "last_updated": "2025-12-30T12:03:30.442702",
+    "metadata": {},
+    "core_logic": "Cycle through Observe-Orient-Decide-Act to make fast, informed decisions and take concrete actions.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-df5b349f",
+    "type": "strategic_principle",
+    "name": "Phase-based Orchestration with Gates",
+    "summary": "Work is organized into clearly defined phases (Import, Sync, Archive, Documentation) with explicit gates and milestones, enabling risk-managed progression.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-a5b690a5"
+    ],
+    "created_at": "2025-12-30T12:03:30.442753",
+    "last_updated": "2025-12-30T12:03:30.442756",
+    "metadata": {},
+    "rationale": "Defines stopping points to manage risk and ensure readiness before moving to the next phase.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-4e0fad9e",
+    "type": "strategic_principle",
+    "name": "Bidirectional Synchronization",
+    "summary": "Maintain a two-way linkage between OpenSpec and Archon via .archon-project-id to preserve provenance and ensure consistent state across systems.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-a5b690a5"
+    ],
+    "created_at": "2025-12-30T12:03:30.442810",
+    "last_updated": "2025-12-30T12:03:30.442812",
+    "metadata": {},
+    "rationale": "Two-way linkage ensures updates propagate and provenance remains intact across systems.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-aafe092f",
+    "type": "strategic_principle",
+    "name": "Provenance & Auditability",
+    "summary": "Preserve provenance metadata (session IDs, commit IDs, timestamps, task IDs) to support traceability and reproducibility.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-a5b690a5"
+    ],
+    "created_at": "2025-12-30T12:03:30.442871",
+    "last_updated": "2025-12-30T12:03:30.442874",
+    "metadata": {},
+    "rationale": "Metadata-driven traceability enables auditability and reproducibility of outcomes.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-6e6f64d8",
+    "type": "mental_model",
+    "name": "Authoritative State Priority in Conflicts",
+    "summary": "When conflict arises between sources, give priority to the authoritative state (Archon) for updates; manual overrides can prevent regression.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-a5b690a5"
+    ],
+    "created_at": "2025-12-30T12:03:30.442926",
+    "last_updated": "2025-12-30T12:03:30.442928",
+    "metadata": {},
+    "core_logic": "Favor canonical or authoritative source to resolve conflicts and avoid regressions.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-d8c304f8",
+    "type": "mental_model",
+    "name": "Automation-First Ethos",
+    "summary": "Rely on automation (slash commands, scripts) to minimize manual toil and reduce human error in repetitive coordination tasks.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-a5b690a5"
+    ],
+    "created_at": "2025-12-30T12:03:30.442977",
+    "last_updated": "2025-12-30T12:03:30.442979",
+    "metadata": {},
+    "core_logic": "Automate repetitive workflows to reduce errors and speed up coordination.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-809d4e59",
+    "type": "strategic_principle",
+    "name": "Validation-Driven Archiving",
+    "summary": "Archive is conditioned on complete validation; provide actionable remediation guidance and explicit error messages for incomplete states.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-a5b690a5"
+    ],
+    "created_at": "2025-12-30T12:03:30.443045",
+    "last_updated": "2025-12-30T12:03:30.443047",
+    "metadata": {},
+    "rationale": "Ensure archives reflect validated states and guide remediation when validation fails.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-fe35e4ce",
+    "type": "strategic_principle",
+    "name": "Documentation as Living Artifact",
+    "summary": "Docs (AGENTS.md, CLAUDE.md) evolve with the system, embedding current capabilities and usage patterns to keep mental models aligned.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-16-a5b690a5"
+    ],
+    "created_at": "2025-12-30T12:03:30.443095",
+    "last_updated": "2025-12-30T12:03:30.443097",
+    "metadata": {},
+    "rationale": "Living documentation aligns users with current capabilities and practices.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-6297a7e6",
+    "type": "mental_model",
+    "name": "Startup Readiness Gate",
+    "summary": "Startup protocol as a readiness gate: perform core checks before diving into tasks (e.g., 'Core CLAUDE.md read', 'Archon MCP active').",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:03:30.443156",
+    "last_updated": "2025-12-30T12:03:30.443158",
+    "metadata": {},
+    "core_logic": "Require essential prerequisites to be verified before task engagement.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-29a99d52",
+    "type": "mental_model",
+    "name": "Early Task Discovery",
+    "summary": "Task discovery early: performing OpenSpec checks and task discovery to constrain scope and align expectations.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:03:30.443202",
+    "last_updated": "2025-12-30T12:03:30.443204",
+    "metadata": {},
+    "core_logic": "Identify high-signal tasks early to bound scope and set expectations.",
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-4aa7f0c9",
+    "type": "mental_model",
+    "name": "OODA Pattern for System Startup",
+    "summary": "Observe-Orient-Decide-Act (OODA) pattern visible in sequence: Observe system state (docs read, components), Orient to capabilities (OpenSpec, MCP), Decide on next steps (task discovery), Act (initiate startup steps).",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:01:30.793262",
+    "last_updated": "2025-12-30T12:01:30.793268",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-1593f61f",
+    "type": "strategic_principle",
+    "name": "Provenance-Preserving Output",
+    "summary": "Explicit provenance consideration: metadata like session IDs, timestamps, and source references should be preserved in outputs.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:01:30.793342",
+    "last_updated": "2025-12-30T12:01:30.793347",
+    "metadata": {},
+    "rationale": "Preserve traceability and auditability of outputs.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-5c0ea524",
+    "type": "mental_model",
+    "name": "Modularity and Pluggability",
+    "summary": "Modularity and pluggability: reliance on OpenSpec suggests a mental model favoring modular specs for scalable capability.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:01:30.793387",
+    "last_updated": "2025-12-30T12:01:30.793388",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-495ea88f",
+    "type": "mental_model",
+    "name": "Warmup as Risk Reduction",
+    "summary": "Warmup checks serve as preflight to validate readiness and reduce downstream errors.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-12-23-agent-a1"
+    ],
+    "created_at": "2025-12-30T12:01:30.793416",
+    "last_updated": "2025-12-30T12:01:30.793418",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-391f3add",
+    "type": "mental_model",
+    "name": "Environment-First Mental Model",
+    "summary": "Prioritize understanding the information ecology (inputs, context, constraints) before acting; reduces misinterpretation and guides targeted analysis.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-25-agent-82"
+    ],
+    "created_at": "2025-12-30T12:01:30.793445",
+    "last_updated": "2025-12-30T12:01:30.793447",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-ff54a64f",
+    "type": "strategic_principle",
+    "name": "Provenance-Preserving Practice",
+    "summary": "Capture source metadata and lineage for every insight to enable traceability and auditability.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-25-agent-82"
+    ],
+    "created_at": "2025-12-30T12:01:30.793473",
+    "last_updated": "2025-12-30T12:01:30.793474",
+    "metadata": {},
+    "rationale": "Anchors insights to their origins to support accountability.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-a8258f19",
+    "type": "mental_model",
+    "name": "Iterative Refinement",
+    "summary": "Initiate with coarse summaries and progressively refine as more content becomes available or clarified.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-25-agent-82"
+    ],
+    "created_at": "2025-12-30T12:01:30.793499",
+    "last_updated": "2025-12-30T12:01:30.793500",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-b4ad8453",
+    "type": "mental_model",
+    "name": "OODA-Driven Operation",
+    "summary": "Favor rapid Observe-Orient-Decide-Act cycles with explicit feedback loops to stabilize understanding in sparse-content scenarios.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-25-agent-82"
+    ],
+    "created_at": "2025-12-30T12:01:30.793535",
+    "last_updated": "2025-12-30T12:01:30.793536",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-5fb77f7c",
+    "type": "mental_model",
+    "name": "Sparseness-Resilient Reasoning",
+    "summary": "When data is sparse, declare assumptions clearly and avoid over-claiming; build insights from minimal viable signals.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "claude-conversation-2025-11-25-agent-82"
+    ],
+    "created_at": "2025-12-30T12:01:30.793559",
+    "last_updated": "2025-12-30T12:01:30.793560",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-4f1837ed",
+    "type": "strategic_principle",
+    "name": "Fidelity-First Funnel Replication",
+    "summary": "In high-conversion workflows, replicating a proven template (Todd's OTO page) with exact typography, colors, and structure tends to preserve performance and avoid regressions caused by superficial changes.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:01:30.793585",
+    "last_updated": "2025-12-30T12:01:30.793586",
+    "metadata": {},
+    "rationale": "Preserves performance by avoiding uncontrolled changes.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-5c173704",
+    "type": "mental_model",
+    "name": "OODA Loop: Observation \u2192 Decide \u2192 Act",
+    "summary": "Constantly observe asset integrity (hero image presence, font sizing, color palette) and promptly decide to revert to or copy proven assets when deviations threaten conversions; act by updating HTML/CSS to align with the reference.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:01:30.793612",
+    "last_updated": "2025-12-30T12:01:30.793613",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-b1739df0",
+    "type": "strategic_principle",
+    "name": "Provenance-anchored Adaptation",
+    "summary": "All changes and decisions are anchored to the origin: the original Unbounce/Todd pages and the supplied content. This ensures traceability and defensibility of design choices.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:01:30.793744",
+    "last_updated": "2025-12-30T12:01:30.793747",
+    "metadata": {},
+    "rationale": "Anchored to origin for traceability and defensibility.",
+    "application_context": null,
+    "actionable_directive": null
+  },
+  {
+    "wisdom_id": "distilled-bce30bfb",
+    "type": "mental_model",
+    "name": "Mosaic-Mapping Readiness",
+    "summary": "Capturing Senses, Actions, Emotions, Impulses, Cognitions (S.A.E.I.C.) reveals tensions between aesthetic fidelity and functional constraints (e.g., missing hero image, asset URLs).",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:01:30.793787",
+    "last_updated": "2025-12-30T12:01:30.793788",
+    "metadata": {},
+    "core_logic": null,
+    "application_context": null,
+    "principles": [],
+    "anti_patterns": []
+  },
+  {
+    "wisdom_id": "distilled-bc77b772",
+    "type": "strategic_principle",
+    "name": "Voice Consistency Principle",
+    "summary": "Maintaining the established page voice (conversational, direct, conversion-focused) is critical to sustaining audience trust and conversions across sections.",
+    "confidence": 0.5,
+    "richness_score": 0.0,
+    "provenance_chain": [
+      "unknown"
+    ],
+    "created_at": "2025-12-30T12:01:30.793819",
+    "last_updated": "2025-12-30T12:01:30.793820",
+    "metadata": {},
+    "rationale": "Consistent voice sustains trust and conversions.",
+    "application_context": null,
+    "actionable_directive": null
+  }
+]

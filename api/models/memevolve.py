@@ -4,6 +4,16 @@ MemEvolve Integration Models
 Pydantic models for MemEvolve-Dionysus integration.
 Feature: 009-memevolve-integration
 Phase: 1 - Foundation
+
+TERMINOLOGY NOTE:
+"Trajectory" in this module refers to EXECUTION TRACES (operational),
+NOT state-space trajectories (theoretical/IWMT).
+
+- TrajectoryData = sequence of agent steps during a run (audit trail)
+- TrajectoryStep = single action/observation pair
+
+For state-space dynamics, see specs/038-thoughtseeds-framework/.
+Full disambiguation: docs/TERMINOLOGY.md
 """
 
 from pydantic import BaseModel, Field, ConfigDict

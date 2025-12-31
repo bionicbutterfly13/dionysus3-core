@@ -222,56 +222,59 @@ class ConsciousnessManager:
 
 ---
 
-## Phase 5: Trajectory Persistence (Day 3-4)
+## Phase 5: Execution Trace Persistence (Day 3-4)
 
-### T011: Define AgentTrajectory Neo4j schema
-**File**: `neo4j/schema/agent_trajectory.cypher` (new)
+> **Terminology Note**: "ExecutionTrace" = agent step logs (operational).
+> Distinct from "StateTrajectory" = state-space paths in thoughtseeds/IWMT (theoretical).
+
+### T011: Define AgentExecutionTrace Neo4j schema
+**File**: `neo4j/schema/agent_execution_trace.cypher` (new)
 **Effort**: 30 min
 **Status**: [ ] Todo
 
 ```cypher
-// Constraint for trajectory uniqueness
-CREATE CONSTRAINT agent_trajectory_id IF NOT EXISTS
-FOR (t:AgentTrajectory) REQUIRE t.id IS UNIQUE;
+// Constraint for execution trace uniqueness
+CREATE CONSTRAINT agent_execution_trace_id IF NOT EXISTS
+FOR (t:AgentExecutionTrace) REQUIRE t.id IS UNIQUE;
 
 // Index for querying by agent
-CREATE INDEX agent_trajectory_agent IF NOT EXISTS
-FOR (t:AgentTrajectory) ON (t.agent_name);
+CREATE INDEX agent_execution_trace_agent IF NOT EXISTS
+FOR (t:AgentExecutionTrace) ON (t.agent_name);
 
 // Index for time-based queries
-CREATE INDEX agent_trajectory_time IF NOT EXISTS
-FOR (t:AgentTrajectory) ON (t.started_at);
+CREATE INDEX agent_execution_trace_time IF NOT EXISTS
+FOR (t:AgentExecutionTrace) ON (t.started_at);
 ```
 
-### T012: Implement trajectory persistence service
-**File**: `api/services/trajectory_service.py` (new)
+### T012: Implement execution trace persistence service
+**File**: `api/services/execution_trace_service.py` (new)
 **Effort**: 1.5 hours
 **Status**: [ ] Todo
 
-- [ ] `create_trajectory(agent_name, run_id)` -> trajectory_id
-- [ ] `add_step(trajectory_id, step_data)` -> step_id
-- [ ] `complete_trajectory(trajectory_id, success, summary)`
-- [ ] `link_basin(trajectory_id, basin_id, strength)`
-- [ ] `get_trajectory(trajectory_id)` -> full trajectory
+- [ ] `create_trace(agent_name, run_id)` -> trace_id
+- [ ] `add_step(trace_id, step_data)` -> step_id
+- [ ] `complete_trace(trace_id, success, summary)`
+- [ ] `link_basin(trace_id, basin_id, strength)`
+- [ ] `get_trace(trace_id)` -> full execution trace
 
 ### T013: Implement post-run persistence callback
-**File**: `api/agents/callbacks/trajectory_callback.py` (new)
+**File**: `api/agents/callbacks/execution_trace_callback.py` (new)
 **Effort**: 1 hour
 **Status**: [ ] Todo
 
 - [ ] Register as final callback after agent.run() completes
 - [ ] Extract all steps from agent.memory
-- [ ] Call trajectory_service to persist
+- [ ] Call execution_trace_service to persist
 - [ ] Link activated basins from basin_activation_callback
 
-### T014: Add trajectory query endpoints
+### T014: Add execution trace query endpoints
 **File**: `api/routers/agents.py` (new)
 **Effort**: 1 hour
 **Status**: [ ] Todo
 
-- [ ] `GET /api/agents/trajectories` - list recent trajectories
-- [ ] `GET /api/agents/trajectories/{id}` - get full trajectory
-- [ ] `GET /api/agents/trajectories/{id}/replay` - formatted replay view
+- [ ] `GET /api/agents/traces` - list recent execution traces
+- [ ] `GET /api/agents/traces/{id}` - get full execution trace
+- [ ] `GET /api/agents/traces/{id}/replay` - formatted replay view
 
 ---
 
@@ -305,7 +308,7 @@ FOR (t:AgentTrajectory) ON (t.started_at);
 
 - [ ] Document ManagedAgent hierarchy
 - [ ] Document callback flow
-- [ ] Document trajectory query endpoints
+- [ ] Document execution trace query endpoints
 - [ ] Add mermaid diagram for OODA + callbacks
 
 ---
@@ -314,23 +317,23 @@ FOR (t:AgentTrajectory) ON (t.started_at);
 
 | Phase | Tasks | Effort | Status |
 |-------|-------|--------|--------|
-| 1. Planning Interval | T001-T002 | 1 hour | [ ] |
-| 2. Callback Registry | T003-T005 | 3 hours | [ ] |
-| 3. Memory Pruning | T006-T007 | 1.25 hours | [ ] |
-| 4. ManagedAgent | T008-T010 | 4 hours | [ ] |
-| 5. Trajectory Persistence | T011-T014 | 4 hours | [ ] |
-| 6. Integration | T015-T017 | 2.75 hours | [ ] |
+| 1. Planning Interval | T001-T002 | 1 hour | [X] Complete |
+| 2. Callback Registry | T003-T005 | 3 hours | [X] Complete |
+| 3. Memory Pruning | T006-T007 | 1.25 hours | [X] Complete |
+| 4. ManagedAgent | T008-T010 | 4 hours | [X] Complete |
+| 5. Execution Trace Persistence | T011-T014 | 4 hours | [ ] Todo |
+| 6. Integration | T015-T017 | 2.75 hours | [ ] Todo |
 | **Total** | **17 tasks** | **~16 hours** | |
 
 ---
 
 ## Acceptance Checklist
 
-- [ ] `planning_interval=3` on HeartbeatAgent, visible in logs
-- [ ] IWMT coherence injected into planning phases
-- [ ] Basin activation logged on semantic_recall
-- [ ] Memory pruning reduces tokens by 30%+
-- [ ] ConsciousnessManager uses native ManagedAgent
-- [ ] Trajectories queryable via `/api/agents/trajectories`
+- [X] `planning_interval=3` on HeartbeatAgent, visible in logs
+- [X] IWMT coherence injected into planning phases
+- [X] Basin activation logged on semantic_recall
+- [X] Memory pruning reduces tokens by 30%+
+- [X] ConsciousnessManager uses native ManagedAgent
+- [ ] Execution traces queryable via `/api/agents/traces`
 - [ ] All existing tests pass
 - [ ] New integration test passes

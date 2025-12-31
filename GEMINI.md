@@ -3,6 +3,8 @@
 Dionysus is a VPS-native cognitive engine designed for autonomous reasoning, long-term session continuity, and structured memory management. It operates on a Neo4j-only, webhook-driven architecture, orchestrated by a multi-agent hierarchy.
 
 ## Active Technologies
+- Python 3.11+ + smolagents, litellm, pydantic, numpy, scipy, neo4j (Graphiti) (038-thoughtseeds-framework)
+- Neo4j (Memory Graph) (038-thoughtseeds-framework)
 
 - **Python 3.11+**: Core language (async/await, Pydantic v2).
 - **FastAPI**: Web framework for the API.
@@ -101,8 +103,6 @@ docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py
 ```
 
 ## Recent Changes
+- 038-thoughtseeds-framework: Added Python 3.11+ + smolagents, litellm, pydantic, numpy, scipy, neo4j (Graphiti)
 - 022-agentic-kg-learning: Implemented dynamic relationship extraction with provenance and low-confidence gating. Added review queue API.
 - 024-mosaeic-protocol: Implemented full capture and persistence flow for experiential windows.
-- 023-migration-observability: Implemented unified metrics aggregator, performance monitoring, and system alerts. Added contract tests.
-- 021-rollback-safety-net: Verified checkpointing and rollback logic with unit tests.
-- 020-daedalus-coordination-pool: Completed context isolation, task routing, and retry implementation.
