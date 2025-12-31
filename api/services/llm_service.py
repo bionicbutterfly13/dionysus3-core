@@ -24,9 +24,9 @@ OLLAMA_MODEL = "ollama/llama3.2" # Using locally available model
 OLLAMA_FLEET_MODEL = "ollama/qwen2.5:14b"
 
 # Model constants - GPT-5 Nano with fallback chain
-GPT5_NANO = "openai/gpt-5-nano-2025-08-07"
-GPT5_MINI = "openai/gpt-5-mini"
-GPT4O_MINI = "openai/gpt-4o-mini"
+GPT5_NANO = "openai/gpt-5-nano"
+GPT5_MINI = "openai/gpt-5-nano"
+GPT4O_MINI = "openai/gpt-5-nano"
 HAIKU = "anthropic/claude-3-haiku-20240307"
 SONNET = "anthropic/claude-3-5-sonnet-20240620"
 
@@ -38,26 +38,12 @@ def get_router_model(model_id: str = "dionysus-agents") -> LiteLLMRouterModel:
     from smolagents import LiteLLMRouterModel
     
     # Use consistent model_name across deployments for the router group
-    # Fallback order: GPT5_NANO -> GPT5_MINI -> GPT4O_MINI -> OLLAMA
+    # Fallback order: GPT5_NANO -> OLLAMA
     model_list = [
         {
             "model_name": model_id,
             "litellm_params": {
                 "model": GPT5_NANO,
-                "api_key": os.getenv("OPENAI_API_KEY"),
-            }
-        },
-        {
-            "model_name": model_id,
-            "litellm_params": {
-                "model": GPT5_MINI,
-                "api_key": os.getenv("OPENAI_API_KEY"),
-            }
-        },
-        {
-            "model_name": model_id,
-            "litellm_params": {
-                "model": GPT4O_MINI,
                 "api_key": os.getenv("OPENAI_API_KEY"),
             }
         },

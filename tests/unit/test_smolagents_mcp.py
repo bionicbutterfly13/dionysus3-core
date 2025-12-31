@@ -11,7 +11,7 @@ def test_mcp_client_usage():
         env={**os.environ, "PYTHONPATH": "."}
     )
     
-    model = LiteLLMModel(model_id="openai/gpt-5-nano-2025-08-07")
+    model = LiteLLMModel(model_id="openai/gpt-5-nano")
     
     with MCPClient(server_params) as tools:
         assert len(tools) > 0

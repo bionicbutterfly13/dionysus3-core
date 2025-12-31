@@ -11,7 +11,7 @@ async def main():
     print("=== Testing smolagents MCP Tool Bridge ===")
     
     # 1. Setup Model
-    model_id = os.getenv("OPENAI_MODEL", "openai/gpt-5-nano-2025-08-07")
+    model_id = os.getenv("OPENAI_MODEL", "openai/gpt-5-nano")
     api_key = os.getenv("OPENAI_API_KEY")
 
     if not api_key:

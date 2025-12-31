@@ -14,9 +14,11 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from api.models.kg_learning import ExtractionResult, RelationshipProposal, AttractorBasin, CognitionStrategy
+from api.models.sync import MemoryType
 from api.services.graphiti_service import get_graphiti_service
 from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.webhook_neo4j_driver import get_neo4j_driver
+from api.services.memory_basin_router import get_memory_basin_router, BASIN_MAPPING
 from api.models.network_state import get_network_state_config
 
 logger = logging.getLogger(__name__)
@@ -91,6 +93,110 @@ class KGLearningService:
         if evaluation.get("precision_score", 0.0) > 0.8:
             await self._record_learning(result.relationships)
             logger.info(f"Automatic Strategy Boost applied for run {run_id}")
+
+        result.end_time = datetime.utcnow()
+        return result
+
+    async def extract_and_learn_typed(
+        self,
+        content: str,
+        source_id: str,
+        memory_type: Optional[MemoryType] = None,
+    ) -> ExtractionResult:
+        """
+        Extract relationships with memory-type-aware basin routing.
+        
+        This method extends extract_and_learn by first classifying the content
+        into a memory type (EPISODIC, SEMANTIC, PROCEDURAL, STRATEGIC) and
+        routing through the appropriate attractor basin.
+        
+        Args:
+            content: Text content to extract from
+            source_id: Source identifier for provenance
+            memory_type: Optional pre-classified type; auto-classifies if None
+            
+        Returns:
+            ExtractionResult with extracted entities and relationships
+        """
+        router = get_memory_basin_router()
+        
+        # 1. Classify memory type if not provided
+        if memory_type is None:
+            memory_type = await router.classify_memory_type(content)
+        
+        logger.info(f"Processing {memory_type.value} memory for source {source_id}")
+        
+        # 2. Get memory-type-specific basin context
+        basin_config = BASIN_MAPPING[memory_type]
+        basin_name = basin_config["basin_name"]
+        basin_context = await router._activate_basin(basin_name, content)
+        
+        # 3. Get strategy context (existing behavior)
+        strategy_context = await self._get_active_strategies()
+        # Augment with memory type info
+        strategy_context += f"\nMemory Type: {memory_type.value.upper()}"
+        strategy_context += f"\nExtraction Focus: {basin_config['extraction_focus']}"
+        
+        # 4. Extract via consolidated GraphitiService extractor
+        CONFIDENCE_THRESHOLD = 0.6
+        graphiti = await get_graphiti_service()
+        
+        extraction = await graphiti.extract_with_context(
+            content=content,
+            basin_context=basin_context,
+            strategy_context=strategy_context,
+            confidence_threshold=CONFIDENCE_THRESHOLD,
+        )
+        
+        # 5. Build ExtractionResult from GraphitiService response
+        run_id = str(uuid4())
+        relationships = []
+        
+        for rel_dict in extraction.get("relationships", []):
+            rel = RelationshipProposal(
+                source=rel_dict["source"],
+                target=rel_dict["target"],
+                relation_type=rel_dict["relation_type"],
+                confidence=rel_dict["confidence"],
+                evidence=rel_dict.get("evidence", ""),
+                status=rel_dict["status"],
+                run_id=run_id,
+                model_id=extraction.get("model_used", str(GPT5_NANO)),
+            )
+            relationships.append(rel)
+            
+            # Persist the proposal for tracking/review
+            await self._persist_proposal(rel)
+        
+        result = ExtractionResult(
+            run_id=run_id,
+            entities=extraction.get("entities", []),
+            relationships=relationships,
+        )
+        
+        # 6. Ingest approved relationships via GraphitiService
+        approved_rels = [r for r in extraction.get("relationships", []) if r["status"] == "approved"]
+        if approved_rels:
+            await graphiti.ingest_extracted_relationships(
+                relationships=approved_rels,
+                source_id=f"typed_extraction:{memory_type.value}:{source_id}:{run_id}",
+            )
+        
+        # Log pending reviews
+        pending_count = extraction.get("pending_count", 0)
+        if pending_count > 0:
+            logger.info(f"{pending_count} low-confidence extractions queued for review")
+
+        # 7. Update basins and learn - strengthen the memory-type-specific basin
+        await self._strengthen_basins(result.entities)
+        await router._record_basin_memory(basin_name, memory_type, extraction)
+        
+        # T010: Automatic Feedback Loop
+        evaluation = await self.evaluate_extraction(result, content)
+        
+        if evaluation.get("precision_score", 0.0) > 0.8:
+            await self._record_learning(result.relationships)
+            logger.info(f"Automatic Strategy Boost applied for typed run {run_id}")
 
         result.end_time = datetime.utcnow()
         return result
