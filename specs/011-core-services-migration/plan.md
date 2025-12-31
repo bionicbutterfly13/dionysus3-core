@@ -4,7 +4,7 @@
 
 ## Summary
 
-Complete the transition to Neo4j by refactoring the three primary cognitive services. This involves replacing all `asyncpg` pool calls with `WebhookNeo4jDriver` sessions and converting SQL queries to Cypher statements.
+Complete the transition to Neo4j by refactoring the three primary cognitive services. This involves replacing all `asyncpg` pool calls with the Graphiti-backed driver shim sessions and converting SQL queries to Cypher statements.
 
 ## Technical Context
 

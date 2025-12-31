@@ -101,14 +101,15 @@ class ThoughtSeedParticleBridge:
             blanket=blanket
         )
 
-        # Create particle
+        # Create particle (ensure level is at least 1 per model constraint)
+        effective_level = max(1, level)
         particle = MetacognitiveParticle(
             id=str(thought.id),
             name=f"Particle from ThoughtSeed {thought.layer.value}",
             particle_type=particle_type,
-            metacognition_depth=level,
+            metacognition_depth=effective_level,
             has_sense_of_agency=has_agency,
-            cognitive_core_level=level if level > 0 else None,
+            cognitive_core_level=effective_level if level > 0 else None,
             blanket_id=str(uuid4()),  # New blanket ID
             source_paper="dionysus-bridge",
         )

@@ -6,7 +6,7 @@
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [x] T001 Audit `api/services/` for any remaining `db_pool` usages
-- [x] T002 Ensure `WebhookNeo4jDriver` supports parallel transactional execution if needed
+- [x] T002 Ensure the Graphiti-backed driver shim supports parallel transactional execution if needed
 
 ---
 

@@ -1,21 +1,20 @@
 """
-Graphiti Neo4j Driver Adapter
+Webhook Neo4j Driver (Authorized via Graphiti only)
 
-Provides a minimal async session/run interface compatible with legacy
-WebhookNeo4jDriver usage, now backed by Graphiti's Neo4j driver.
+REPAIRED: This driver no longer calls n8n or Neo4j directly.
+It proxies all requests through GraphitiService, which is the sole
+authorized component for direct Bolt/Neo4j communication.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Optional
 
-from api.services.graphiti_service import get_graphiti_service, GraphitiService
+logger = logging.getLogger("dionysus.webhook_driver")
 
-logger = logging.getLogger(__name__)
-
-
-class GraphitiNeo4jResult:
+class WebhookNeo4jResult:
     def __init__(self, records: list[dict[str, Any]]):
         self._records = records
 
@@ -26,60 +25,51 @@ class GraphitiNeo4jResult:
         return self._records[0] if self._records else None
 
 
-class GraphitiNeo4jSession:
-    def __init__(self, graphiti_service: Optional[GraphitiService] = None):
-        self._graphiti_service = graphiti_service
+class WebhookNeo4jSession:
+    def __init__(self):
+        pass
 
-    async def __aenter__(self) -> GraphitiNeo4jSession:
+    async def __aenter__(self) -> WebhookNeo4jSession:
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
         return None
 
-    async def _get_graphiti(self) -> GraphitiService:
-        if self._graphiti_service is None:
-            self._graphiti_service = await get_graphiti_service()
-        return self._graphiti_service
-
     async def run(self, statement: str, parameters: Optional[dict[str, Any]] = None, **kwargs):
-        if parameters is None and "params" in kwargs:
-            parameters = kwargs.pop("params")
-        graphiti = await self._get_graphiti()
-        rows = await graphiti.execute_cypher(statement, parameters or {})
-        return GraphitiNeo4jResult(rows)
+        """
+        Proxies query to GraphitiService.
+        """
+        from api.services.graphiti_service import get_graphiti_service
+        graphiti = await get_graphiti_service()
+        
+        records = await graphiti.execute_cypher(statement, parameters or {})
+        return WebhookNeo4jResult(records)
 
 
-class GraphitiNeo4jDriver:
-    def __init__(self, graphiti_service: Optional[GraphitiService] = None):
-        self._graphiti_service = graphiti_service
-
-    async def _get_graphiti(self) -> GraphitiService:
-        if self._graphiti_service is None:
-            self._graphiti_service = await get_graphiti_service()
-        return self._graphiti_service
-
-    def session(self) -> GraphitiNeo4jSession:
-        return GraphitiNeo4jSession(self._graphiti_service)
+class WebhookNeo4jDriver:
+    """
+    Compatibility shim that enforces Graphiti-only access.
+    """
+    def session(self) -> WebhookNeo4jSession:
+        return WebhookNeo4jSession()
 
     async def execute_query(self, statement: str, parameters: Optional[dict[str, Any]] = None, **kwargs):
-        if parameters is None and "params" in kwargs:
-            parameters = kwargs.pop("params")
-        graphiti = await self._get_graphiti()
+        """
+        Execute a Cypher query via Graphiti and return results.
+        """
+        from api.services.graphiti_service import get_graphiti_service
+        graphiti = await get_graphiti_service()
         return await graphiti.execute_cypher(statement, parameters or {})
 
     async def close(self) -> None:
         return None
 
 
-# Backwards-compatible alias
-WebhookNeo4jDriver = GraphitiNeo4jDriver
+_driver: Optional[WebhookNeo4jDriver] = None
 
 
-_driver: Optional[GraphitiNeo4jDriver] = None
-
-
-def get_neo4j_driver() -> GraphitiNeo4jDriver:
+def get_neo4j_driver() -> WebhookNeo4jDriver:
     global _driver
     if _driver is None:
-        _driver = GraphitiNeo4jDriver()
+        _driver = WebhookNeo4jDriver()
     return _driver

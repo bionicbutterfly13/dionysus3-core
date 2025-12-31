@@ -55,13 +55,15 @@ class TestProceduralMetacognition:
     @pytest.mark.asyncio
     async def test_monitor_detects_high_prediction_error(self, custom_service):
         """Test detection of HIGH_PREDICTION_ERROR issue."""
-        # Mock high prediction error state
-        custom_service._get_agent_state = lambda _: {
-            "progress": 0.5,
-            "confidence": 0.6,
-            "prediction_error": 0.8,  # High error
-            "spotlight_precision": 0.5
-        }
+        # Mock high prediction error state (async coroutine)
+        async def mock_state(_):
+            return {
+                "progress": 0.5,
+                "confidence": 0.6,
+                "prediction_error": 0.8,  # High error
+                "spotlight_precision": 0.5
+            }
+        custom_service._get_agent_state = mock_state
 
         assessment = await custom_service.monitor("test_agent")
 
@@ -70,12 +72,14 @@ class TestProceduralMetacognition:
     @pytest.mark.asyncio
     async def test_monitor_detects_low_confidence(self, custom_service):
         """Test detection of LOW_CONFIDENCE issue."""
-        custom_service._get_agent_state = lambda _: {
-            "progress": 0.5,
-            "confidence": 0.2,  # Low confidence
-            "prediction_error": 0.1,
-            "spotlight_precision": 0.5
-        }
+        async def mock_state(_):
+            return {
+                "progress": 0.5,
+                "confidence": 0.2,  # Low confidence
+                "prediction_error": 0.1,
+                "spotlight_precision": 0.5
+            }
+        custom_service._get_agent_state = mock_state
 
         assessment = await custom_service.monitor("test_agent")
 
@@ -84,12 +88,14 @@ class TestProceduralMetacognition:
     @pytest.mark.asyncio
     async def test_monitor_detects_attention_scattered(self, custom_service):
         """Test detection of ATTENTION_SCATTERED issue."""
-        custom_service._get_agent_state = lambda _: {
-            "progress": 0.5,
-            "confidence": 0.6,
-            "prediction_error": 0.1,
-            "spotlight_precision": 0.1  # Low spotlight precision
-        }
+        async def mock_state(_):
+            return {
+                "progress": 0.5,
+                "confidence": 0.6,
+                "prediction_error": 0.1,
+                "spotlight_precision": 0.1  # Low spotlight precision
+            }
+        custom_service._get_agent_state = mock_state
 
         assessment = await custom_service.monitor("test_agent")
 

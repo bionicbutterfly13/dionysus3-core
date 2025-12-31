@@ -39,11 +39,12 @@ async def test_evaluate_policy():
     )
     
     with patch("api.services.action_planner_service.chat_completion", new_callable=AsyncMock) as mock_llm:
-        # Mocking the _simulate_step_efe JSON response
-        mock_llm.return_value = '{"total": 0.5}'
+        # Mocking the batched JSON response: a list of one object for one action
+        mock_llm.return_value = '[{"uncertainty": 0.2, "divergence": 0.3}]'
         
         evaluated = await planner.evaluate_policy(policy, "task", {}, "goal")
         
+        # total_efe = 0.2 + 0.3 = 0.5
         assert evaluated.total_efe == 0.5
         assert evaluated.confidence > 0.0
 
@@ -59,7 +60,6 @@ async def test_select_best_policy():
          patch.object(planner, "evaluate_policy", new_callable=AsyncMock) as mock_eval:
         
         mock_gen.return_value = [p1, p2]
-        # mock_eval returns the input policy (simulating no change to efe for simplicity in this mock)
         mock_eval.side_effect = lambda p, t, c, g: p
         
         result = await planner.select_best_policy("task", {}, "goal")

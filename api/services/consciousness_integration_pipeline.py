@@ -15,6 +15,7 @@ from api.models.meta_cognition import CognitiveEpisode
 from api.services.autobiographical_service import get_autobiographical_service
 from api.services.graphiti_service import get_graphiti_service
 from api.services.meta_cognitive_service import get_meta_learner
+from api.services.multi_tier_service import get_multi_tier_service
 
 logger = logging.getLogger("dionysus.consciousness_pipeline")
 
@@ -39,6 +40,7 @@ class ConsciousnessIntegrationPipeline:
         1. Autobiographical recording (Self-story)
         2. Graphiti ingestion (Entity extraction)
         3. Meta-Cognitive recording (Strategy learning)
+        4. Tiered Memory storage (HOT cache)
         """
         event_id = str(uuid.uuid4())
         timestamp = datetime.utcnow()
@@ -46,7 +48,21 @@ class ConsciousnessIntegrationPipeline:
         
         logger.info(f"Initiating Unified Consciousness Integration for event {event_id}")
         
-        # --- 1. AUTOBIOGRAPHICAL BRANCH ---
+        # --- 1. TIERED MEMORY BRANCH (HOT Cache) ---
+        try:
+            tiered_svc = get_multi_tier_service()
+            await tiered_svc.store_memory(
+                content=reasoning_trace,
+                importance=context.get("importance", 0.5),
+                id=event_id,
+                project_id=context.get("project_id", "default"),
+                metadata={"problem": problem, "outcome": outcome}
+            )
+            logger.info(f"Event {event_id}: Stored in HOT tiered memory.")
+        except Exception as e:
+            logger.error(f"Event {event_id}: Tiered memory storage failed: {e}")
+
+        # --- 2. AUTOBIOGRAPHICAL BRANCH ---
         try:
             auto_svc = get_autobiographical_service()
             dev_event = DevelopmentEvent(

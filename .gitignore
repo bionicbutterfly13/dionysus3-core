@@ -63,3 +63,6 @@ logs/
 .tmp/.venv/
 .serena/
 gemini_to_restore.txt
+
+# Auto Claude data directory
+.auto-claude/

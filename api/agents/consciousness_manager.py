@@ -196,8 +196,24 @@ The agents will return structured results for synthesis.""",
                 initial_context["meta_cognitive_lessons"] = lessons_learned
                 print(f"DEBUG: Meta-Cognitive Learner injected lessons from {len(past_episodes)} past episodes.")
 
+        # FEATURE 049: Cognitive Meta-Coordinator
+        # Dynamically selects reasoning mode and afforded tools
+        from api.services.cognitive_meta_coordinator import get_meta_coordinator
+        coordinator = get_meta_coordinator()
+        
+        # Get list of available tools from reasoning agent
+        available_tools = list(self._reasoning_managed.tools.keys()) if self._reasoning_managed else []
+        
+        coordination_plan = await coordinator.coordinate(task_query, available_tools, initial_context)
+        initial_context["coordination_plan"] = {
+            "mode": coordination_plan.mode.value,
+            "afforded_tools": coordination_plan.afforded_tools,
+            "enforce_checklist": coordination_plan.enforce_checklist,
+            "rationale": coordination_plan.rationale
+        }
+
         # Meta-ToT decision and optional pre-run (threshold gating)
-        if initial_context.get("meta_tot_enabled", True):
+        if coordination_plan.mode == "meta_tot" and initial_context.get("meta_tot_enabled", True):
             from api.services.meta_tot_decision import get_meta_tot_decision_service
             from api.services.meta_tot_engine import get_meta_tot_engine
 
@@ -226,7 +242,9 @@ The agents will return structured results for synthesis.""",
            NOTE: Check 'bootstrap_past_context' in initial_context for automatic grounding.
         2. Delegate to 'reasoning' to analyze the perception results and initial context.
            NOTE: Apply 'meta_cognitive_lessons' if present.
-           PROTOCOL: For complex or high-uncertainty tasks, instruct 'reasoning' to follow the 
+           COORDINATION: Follow the 'coordination_plan' mode: {initial_context['coordination_plan']['mode']}.
+           AFFORDANCES: Prioritize using these tools if relevant: {', '.join(initial_context['coordination_plan']['afforded_tools'])}.
+           PROTOCOL: If 'enforce_checklist' is true, instruct 'reasoning' to follow the 
            'Checklist-Driven Surgeon' protocol: Understand Question -> Recall Related -> Reason -> Examine Answer -> Backtrack (if needed).
         3. Delegate to 'metacognition' to review goals and decide on strategic updates.
         4. Synthesize everything into a final actionable plan.

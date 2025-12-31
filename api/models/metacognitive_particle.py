@@ -108,6 +108,11 @@ class MentalActionType(str, Enum):
     ATTENTION_CONTROL = "attention_control"        # Direct attention
     BELIEF_REVISION = "belief_revision"            # Update belief parameters
     POLICY_SELECTION = "policy_selection"          # Select action policies
+    # T005: Additional mental action types per spec
+    PRECISION_DELTA = "precision_delta"            # Change precision by delta
+    SET_PRECISION = "set_precision"                # Set absolute precision
+    FOCUS_TARGET = "focus_target"                  # Set attention focus target
+    SPOTLIGHT_PRECISION = "spotlight_precision"    # Precision of attentional spotlight
 
 
 class ModulatedParameter(str, Enum):

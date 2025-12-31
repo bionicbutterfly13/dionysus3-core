@@ -129,7 +129,7 @@ class TestParticleToThoughtSeed:
         return MetacognitiveParticle(
             name="Basic Particle",
             particle_type=ParticleType.COGNITIVE,
-            metacognition_depth=0,
+            metacognition_depth=1,  # Minimum valid depth
             has_sense_of_agency=False
         )
 
@@ -182,7 +182,7 @@ class TestParticleToThoughtSeed:
         low_particle = MetacognitiveParticle(
             name="Low",
             particle_type=ParticleType.COGNITIVE,
-            metacognition_depth=0,
+            metacognition_depth=1,  # Minimum valid depth
             has_sense_of_agency=False
         )
         low_thought = await bridge.particle_to_thoughtseed(low_particle)

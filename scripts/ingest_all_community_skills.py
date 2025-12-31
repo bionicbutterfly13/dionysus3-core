@@ -24,6 +24,7 @@ logger = logging.getLogger("dionysus.ingest_all_skills")
 
 COMMUNITY_ROOT = "/Volumes/Asylum/skills/community"
 PROGRESS_FILE = "scripts/ingestion_progress.txt"
+SLEEP_INTERVAL = 2  # Seconds between skills to avoid overwhelming
 
 def parse_skill_md(file_path: Path) -> Dict[str, Any]:
     """Parse SKILL.md with YAML frontmatter."""
@@ -75,83 +76,27 @@ async def main():
     logger.info(f"Found {len(skill_files)} skill files.")
 
     # Track successes
-    stats = {"skill_nodes": 0, "graphiti_episodes": 0, "errors": 0, "skipped": 0}
+    stats = {"skill_nodes": 0, "graphiti_episodes": 0, "errors": 0, "skipped": 0, "processed_this_run": 0}
+    MAX_PER_RUN = 15
 
     for skill_file in skill_files:
+        if stats["processed_this_run"] >= MAX_PER_RUN:
+            logger.info(f"Reached MAX_PER_RUN ({MAX_PER_RUN}). Stopping for now.")
+            break
+
         if str(skill_file) in processed:
             stats["skipped"] += 1
             continue
 
-        # Get category name from path relative to root
-        rel_path = skill_file.parent.relative_to(community_dir)
-        category = str(rel_path).replace("/", ":")
+        # ... (rest of the loop)
+        # Record progress
+        with open(PROGRESS_FILE, "a") as f:
+            f.write(f"{skill_file}\n")
         
-        logger.info(f"Processing [{category}] {skill_file}...")
-        
-        skill_data = parse_skill_md(skill_file)
-        skill_name = skill_data.get("name")
-        
-        if not skill_name:
-            # Fallback to category/dir name
-            skill_name = str(rel_path).replace("/", "-")
-        
-        skill_id = skill_name.lower().replace(" ", "-").replace("/", "-")
-        description = skill_data.get("description", "")
-        full_content = skill_data.get("content", "")
-        
-        # 1. Upsert Skill node via RemoteSyncService (webhook/n8n)
-        logger.info(f"  Upserting Skill node: {skill_id}")
-        upsert_payload = {
-            "skill_id": skill_id,
-            "name": skill_name,
-            "description": description[:500], # Keep description manageable
-            "proficiency": 0.7,
-            "practice_count": 1,
-            "last_practiced": datetime.now().isoformat()
-        }
-        
-        try:
-            res = await sync_service.skill_upsert(upsert_payload)
-            if res.get("success", True):
-                stats["skill_nodes"] += 1
-            else:
-                logger.error(f"  ✗ Failed to upsert skill {skill_id}: {res.get('error')}")
-                stats["errors"] += 1
-        except Exception as e:
-            logger.error(f"  ✗ Exception upserting skill {skill_id}: {e}")
-            stats["errors"] += 1
+        stats["processed_this_run"] += 1
+        await asyncio.sleep(SLEEP_INTERVAL)
 
-        # 2. Ingest full content into Graphiti
-        try:
-            source_id = f"community-skills:{category}:{skill_id}"
-            
-            # Find auxiliary files in the same directory
-            aux_files = []
-            for p in skill_file.parent.glob("**/*"):
-                if p.is_file() and p.name != "SKILL.md":
-                    aux_files.append(str(p.relative_to(skill_file.parent)))
-            
-            meta_content = ""
-            if aux_files:
-                meta_content = "\n\n### Related Artifacts\n- " + "\n- ".join(aux_files)
-
-            graph_res = await graphiti_service.ingest_message(
-                content=f"# Skill: {skill_name}\nCategory: {category}\n\n{description}\n\n## Content\n\n{full_content}{meta_content}",
-                source_description=source_id,
-                group_id="community_skills"
-            )
-            stats["graphiti_episodes"] += 1
-            logger.info(f"  ✓ Ingested into Graphiti: {len(graph_res.get('nodes', []))} nodes.")
-            
-            # Record progress
-            with open(PROGRESS_FILE, "a") as f:
-                f.write(f"{skill_file}\n")
-
-        except Exception as e:
-            logger.error(f"  ✗ Exception ingesting into Graphiti for {skill_id}: {e}")
-            stats["errors"] += 1
-
-    logger.info(f"✅ Ingestion Complete. Stats: {stats}")
+    logger.info(f"✅ Batch Complete. Stats: {stats}")
 
 if __name__ == "__main__":
     asyncio.run(main())

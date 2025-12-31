@@ -121,6 +121,7 @@ async def integrity_check():
     from api.services.remote_sync import RemoteSyncService
     from api.services.graphiti_service import get_graphiti_service
     from api.services.archon_integration import get_archon_service
+    from api.services.meta_tot_decision import get_meta_tot_decision_service
     
     sync = RemoteSyncService()
     graphiti = await get_graphiti_service()
@@ -131,5 +132,9 @@ async def integrity_check():
         "graphiti_health": await graphiti.health_check(),
         "archon_connectivity": await archon.check_health(),
     }
+    try:
+        results["meta_tot_thresholds"] = await get_meta_tot_decision_service().get_thresholds_snapshot()
+    except Exception as exc:
+        results["meta_tot_thresholds"] = {"error": str(exc)}
     
     return results

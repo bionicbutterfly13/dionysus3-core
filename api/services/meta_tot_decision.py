@@ -53,6 +53,7 @@ class MetaToTDecisionService:
     _UTILITY_LOW = 0.4
     _UTILITY_HIGH = 0.6
     _EMA_ALPHA = 0.1
+    _WARMUP_TIMEOUT = float(os.getenv("META_TOT_WARMUP_TIMEOUT", "5"))
 
     def __init__(self, config: Optional[MetaToTDecisionConfig] = None):
         self.config = config or MetaToTDecisionConfig.from_env()
@@ -155,7 +156,10 @@ class MetaToTDecisionService:
         if self._loading_task is not None:
             await self._loading_task
             return
-        await self._load_state()
+        try:
+            await asyncio.wait_for(self._load_state(), timeout=self._WARMUP_TIMEOUT)
+        except asyncio.TimeoutError:
+            logger.warning("Meta-ToT threshold warmup timed out.")
 
     async def get_thresholds_snapshot(self) -> Dict[str, float]:
         if self._state is not None:
@@ -163,7 +167,7 @@ class MetaToTDecisionService:
         if self._loading_task is not None:
             await self._loading_task
             return self._thresholds()
-        await self._load_state()
+        await asyncio.wait_for(self._load_state(), timeout=self._WARMUP_TIMEOUT)
         return self._thresholds()
 
     async def _load_state(self) -> None:
@@ -202,35 +206,38 @@ class MetaToTDecisionService:
     async def update_from_result(self, decision: Optional[MetaToTDecision], result) -> None:
         if decision is None or not decision.use_meta_tot:
             return
-        metrics = getattr(result, "metrics", {}) or {}
-        confidence = float(getattr(result, "confidence", 0.0))
-        processing_time = float(metrics.get("processing_time", 0.0))
-        time_budget = float(metrics.get("time_budget_seconds", 5.0))
-        if time_budget <= 0:
-            time_budget = 5.0
+        try:
+            metrics = getattr(result, "metrics", {}) or {}
+            confidence = float(getattr(result, "confidence", 0.0))
+            processing_time = float(metrics.get("processing_time", 0.0))
+            time_budget = float(metrics.get("time_budget_seconds", 5.0))
+            if time_budget <= 0:
+                time_budget = 5.0
 
-        utility = confidence - min(processing_time / time_budget, 1.0)
-        utility = max(0.0, min(1.0, utility))
+            utility = confidence - min(processing_time / time_budget, 1.0)
+            utility = max(0.0, min(1.0, utility))
 
-        if self._state is None:
-            await self._load_state()
-        if self._state is None:
-            return
+            if self._state is None:
+                await self._load_state()
+            if self._state is None:
+                return
 
-        state = self._state
-        state.ema_utility = (self._EMA_ALPHA * utility) + ((1 - self._EMA_ALPHA) * state.ema_utility)
-        state.sample_count += 1
-        state.updated_at = datetime.utcnow()
+            state = self._state
+            state.ema_utility = (self._EMA_ALPHA * utility) + ((1 - self._EMA_ALPHA) * state.ema_utility)
+            state.sample_count += 1
+            state.updated_at = datetime.utcnow()
 
-        if state.ema_utility > self._UTILITY_HIGH:
-            state.complexity_threshold -= self._ADJUST_STEP
-            state.uncertainty_threshold -= self._ADJUST_STEP
-        elif state.ema_utility < self._UTILITY_LOW:
-            state.complexity_threshold += self._ADJUST_STEP
-            state.uncertainty_threshold += self._ADJUST_STEP
+            if state.ema_utility > self._UTILITY_HIGH:
+                state.complexity_threshold -= self._ADJUST_STEP
+                state.uncertainty_threshold -= self._ADJUST_STEP
+            elif state.ema_utility < self._UTILITY_LOW:
+                state.complexity_threshold += self._ADJUST_STEP
+                state.uncertainty_threshold += self._ADJUST_STEP
 
-        self._clamp_state(state)
-        await self._persist_state(state)
+            self._clamp_state(state)
+            await self._persist_state(state)
+        except Exception as exc:
+            logger.warning(f"Meta-ToT adaptive threshold update skipped: {exc}")
 
     def _clamp_state(self, state: MetaToTAdaptiveState) -> None:
         state.complexity_threshold = float(

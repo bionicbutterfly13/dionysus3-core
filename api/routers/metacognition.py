@@ -161,7 +161,7 @@ class ControlRequest(BaseModel):
 
 class ControlResult(BaseModel):
     """Response model for control action."""
-    recommended_actions: List[MentalActionRequest] = Field(default_factory=list)
+    recommended_actions: List[Dict[str, Any]] = Field(default_factory=list)
     rationale: str = Field(default="")
 
 
@@ -427,8 +427,11 @@ async def apply_control_action(request: ControlRequest) -> ControlResult:
     service = ProceduralMetacognition()
     try:
         actions = await service.control(request.assessment)
+        # Convert dataclass instances to dicts for Pydantic response
+        from dataclasses import asdict
+        action_dicts = [asdict(a) for a in actions]
         return ControlResult(
-            recommended_actions=actions,
+            recommended_actions=action_dicts,
             rationale=f"Generated {len(actions)} control actions based on assessment"
         )
     except Exception as e:

@@ -31,7 +31,7 @@ class NetworkStateService:
 
     Implements:
     - T004: state_to_vector() for L2 norm delta calculation
-    - T006: Webhook persistence helper for Neo4j storage
+    - T006: Graphiti-backed driver persistence helper for Neo4j storage
     - T014-T017: Core service methods
     """
 
@@ -124,7 +124,7 @@ class NetworkStateService:
         if agent_id in self._cache:
             return self._cache[agent_id]
 
-        # Query Neo4j via webhook
+        # Query Neo4j via Graphiti-backed driver
         cypher = """
         MATCH (s:NetworkState {agent_id: $agent_id})
         RETURN s
@@ -211,7 +211,7 @@ class NetworkStateService:
         # Compute checksum
         state.checksum = state.compute_checksum()
 
-        # Persist to Neo4j via webhook (T006)
+        # Persist to Neo4j via Graphiti-backed driver (T006)
         await self._persist_snapshot(state)
 
         # Update cache
@@ -326,7 +326,7 @@ class NetworkStateService:
             return None
 
     async def _persist_snapshot(self, state: NetworkState) -> None:
-        """Persist network state to Neo4j via webhook (T006).
+        """Persist network state to Neo4j via Graphiti-backed driver (T006).
 
         Args:
             state: NetworkState to persist

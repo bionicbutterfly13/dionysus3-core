@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Archon MCP server configuration
 ARCHON_MCP_URL = os.getenv("ARCHON_MCP_URL", "http://archon-mcp:8051")
 ARCHON_TIMEOUT = float(os.getenv("ARCHON_TIMEOUT", "10.0"))
+ARCHON_ENABLED = os.getenv("ARCHON_ENABLED", "true").lower() not in {"0", "false", "no", "off"}
 
 
 # =============================================================================
@@ -59,6 +60,7 @@ class ArchonIntegrationService:
         self,
         base_url: Optional[str] = None,
         timeout: float = ARCHON_TIMEOUT,
+        enabled: Optional[bool] = None,
     ):
         """
         Initialize Archon integration service.
@@ -69,7 +71,9 @@ class ArchonIntegrationService:
         """
         self.base_url = base_url or ARCHON_MCP_URL
         self.timeout = timeout
-        self._enabled = True
+        self._enabled = ARCHON_ENABLED if enabled is None else enabled
+        if not self._enabled:
+            logger.info("Archon integration disabled via ARCHON_ENABLED.")
         self._cached_task: Optional[dict[str, Any]] = None
         self._cached_project: Optional[dict[str, Any]] = None
         self._cache_ttl = 30.0  # seconds

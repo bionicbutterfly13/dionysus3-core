@@ -82,14 +82,16 @@ app.add_middleware(
 @app.get("/health")
 async def health_check():
     thresholds: dict[str, float] | dict[str, str] | None = None
+    status = "healthy"
     try:
         from api.services.meta_tot_decision import get_meta_tot_decision_service
 
         thresholds = await get_meta_tot_decision_service().get_thresholds_snapshot()
     except Exception as exc:
         thresholds = {"error": str(exc)}
+        status = "degraded"
     return {
-        "status": "healthy",
+        "status": status,
         "service": "dionysus-core",
         "meta_tot_thresholds": thresholds,
     }

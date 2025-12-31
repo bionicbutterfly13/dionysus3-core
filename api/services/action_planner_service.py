@@ -94,65 +94,62 @@ class ActionPlannerService:
             return [self._get_fallback_policy()]
 
     async def evaluate_policy(
-        self,
-        policy: ActionPolicy,
-        task: str,
-        context: Dict[str, Any],
+        self, 
+        policy: ActionPolicy, 
+        task: str, 
+        context: Dict[str, Any], 
         goal: str
     ) -> ActionPolicy:
         """
-        Simulate the path and calculate cumulative EFE.
-        """
-        total_efe = 0.0
-        current_context_desc = str(context)
-        
-        for action in policy.actions:
-            # Simulating outcome via LLM heuristic (simplified for performance)
-            # Higher uncertainty in outcome = higher entropy (EFE component)
-            # Divergence from goal = goal divergence (EFE component)
-            
-            # For this lightweight version, we ask the LLM to score the step's EFE
-            # based on (Uncertainty + Distance to Goal).
-            step_efe = await self._simulate_step_efe(action, current_context_desc, goal)
-            total_efe += step_efe
-            
-            # Update simulated context
-            current_context_desc += f"\n[Action: {action.tool_name} -> {action.expected_outcome}]"
-            
-        policy.total_efe = total_efe
-        # Confidence is inverse of EFE (normalized)
-        policy.confidence = max(0.0, 1.0 - (total_efe / (len(policy.actions) * 2.0 or 1)))
-        
-        return policy
-
-    async def _simulate_step_efe(self, action: PolicyAction, context: str, goal: str) -> float:
-        """
-        Ask the LLM to estimate the Expected Free Energy of an action step.
+        Simulate the entire path in one batch LLM call to calculate cumulative EFE.
         """
         prompt = f"""
-        Context: {context[:500]}
-        Action: {action.tool_name} ({action.rationale})
+        Initial Context: {str(context)[:1000]}
+        Policy to Evaluate: {policy.name}
         Goal: {goal}
         
-        Score this action step's Expected Free Energy (EFE).
-        EFE = Uncertainty (0.0-1.0) + Goal Divergence (0.0-1.0).
-        - Uncertainty: How likely is this action to fail or produce ambiguous results?
-        - Goal Divergence: How much does this action NOT move us closer to the final goal?
+        Proposed Actions:
+        {json.dumps([{"tool": a.tool_name, "rationale": a.rationale} for a in policy.actions], indent=2)}
         
-        Respond ONLY with a JSON object: {{"uncertainty": 0.5, "divergence": 0.5, "total": 1.0}}
+        Analyze this sequence of actions. For EACH step, provide:
+        1. uncertainty (0.0 - 1.0): Probability of ambiguous results or failure.
+        2. divergence (0.0 - 1.0): Distance from the final goal state.
+        
+        Respond ONLY with a JSON list of objects, one per action:
+        [
+          {{"uncertainty": 0.2, "divergence": 0.8}},
+          ...
+        ]
         """
         
         response = await chat_completion(
             messages=[{"role": "user", "content": prompt}],
-            system_prompt="You are an Active Inference scoring engine.",
-            max_tokens=128
+            system_prompt="You are a strategic Active Inference simulator.",
+            max_tokens=512
         )
         
         try:
-            data = json.loads(response.strip())
-            return float(data.get("total", 1.0))
-        except:
-            return 1.0
+            # Cleanup JSON
+            cleaned = response.strip()
+            if "```json" in cleaned:
+                cleaned = cleaned.split("```json")[1].split("```")[0].strip()
+            scores = json.loads(cleaned)
+            
+            total_efe = 0.0
+            for i, score in enumerate(scores):
+                if i < len(policy.actions):
+                    step_efe = float(score.get("uncertainty", 0.5)) + float(score.get("divergence", 0.5))
+                    total_efe += step_efe
+            
+            policy.total_efe = total_efe
+            policy.confidence = max(0.0, 1.0 - (total_efe / (len(policy.actions) * 2.0 or 1)))
+            
+        except Exception as e:
+            logger.error(f"Batch evaluation failed: {e}. Falling back to default EFE.")
+            policy.total_efe = len(policy.actions) * 1.0
+            policy.confidence = 0.5
+            
+        return policy
 
     def _get_fallback_policy(self) -> ActionPolicy:
         return ActionPolicy(

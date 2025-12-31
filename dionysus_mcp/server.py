@@ -1601,6 +1601,31 @@ async def cognitive_backtrack(question: str, current_reasoning: str, context: Op
 
 
 # =============================================================================
+# INTEGRATION TOOLS (Feature 045)
+# =============================================================================
+
+from dionysus_mcp.tools.integration import process_cognitive_event_tool
+
+@app.tool()
+async def integrate_cognitive_event(
+    problem: str,
+    reasoning_trace: str,
+    outcome: Optional[str] = None,
+    context: Optional[dict] = None
+) -> dict:
+    """
+    Unified integration of a reasoning event into semantic and episodic memory.
+    
+    Args:
+        problem: The task or query addressed.
+        reasoning_trace: The thought process or tool trace.
+        outcome: The final result or answer.
+        context: Optional metadata context.
+    """
+    return await process_cognitive_event_tool(problem, reasoning_trace, outcome, context)
+
+
+# =============================================================================
 # SERVER LIFECYCLE
 # =============================================================================
 

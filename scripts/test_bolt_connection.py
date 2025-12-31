@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # DEV-ONLY UTILITY - NOT USED IN PRODUCTION
 # Direct Neo4j connection for local testing only
-# Production code uses webhook_neo4j_driver.py exclusively
+# Production code uses Graphiti-backed driver shim for Cypher access
 
 import os
 from neo4j import GraphDatabase
