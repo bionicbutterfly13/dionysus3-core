@@ -19,7 +19,9 @@ This document disambiguates terms that have multiple meanings across different c
 | `TrajectoryData` | Pydantic model containing agent execution steps |
 | `TrajectoryStep` | Single action/observation pair from agent run |
 | `TrajectoryMetadata` | Run metadata (agent_name, timestamps, energy) |
-| `:Trajectory` (Neo4j) | Node storing persisted execution trace |
+| `ExecutionTraceData` | Full trace with steps and basin links (spec-039) |
+| `AgentExecutionTrace` | Neo4j node storing persisted execution trace |
+| `AgentExecutionStep` | Neo4j node for individual step in trace |
 
 **Example**:
 ```python

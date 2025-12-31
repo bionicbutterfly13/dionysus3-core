@@ -40,7 +40,7 @@ As a cognitive system, I want to reason over my recent agent trajectories (exper
 - **FR-002**: Agent MUST have access to the following MCP tools: `semantic_recall`, `reflect_on_topic`, `synthesize_information`, and `manage_energy`.
 - **FR-003**: System MUST provide the agent with a comprehensive context snapshot (Energy, Goals, Memories, Trajectories).
 - **FR-004**: Agent MUST be able to prioritize goals based on current environmental urgency.
-- **FR-005**: Model IDs MUST be configurable via environment variables (`SMOLAGENTS_MODEL`) and default to `openai/gpt-5-nano-2025-08-07`.
+- **FR-005**: Model IDs MUST be configurable via environment variables (`SMOLAGENTS_MODEL`) and default to `openai/gpt-5-nano`.
 
 ## Key Entities
 

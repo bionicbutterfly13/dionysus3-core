@@ -156,11 +156,18 @@ class SelfModelingCallback(AgentLogger):
                     f"Step {step_number} prediction error: {resolved.prediction_error:.4f}"
                 )
 
-                # If error is high, log for potential regularization action
+                # ACTIVE METACOGNITION: Trigger correction when error exceeds threshold
+                # Per Metacognitive Particles paper: mental actions modulate precision
                 if resolved.prediction_error > 0.15:
                     logger.warning(
                         f"High prediction error ({resolved.prediction_error:.2%}) - "
-                        f"agent may benefit from regularization"
+                        f"triggering active metacognitive correction"
+                    )
+                    # Trigger active correction via metacognition agent
+                    await self._trigger_active_correction(
+                        prediction_error=resolved.prediction_error,
+                        step_number=step_number,
+                        step=step
                     )
 
         except Exception as e:
@@ -169,6 +176,67 @@ class SelfModelingCallback(AgentLogger):
         finally:
             self._pending_prediction_id = None
             self._pre_step_state = None
+
+    async def _trigger_active_correction(
+        self,
+        prediction_error: float,
+        step_number: int,
+        step: ActionStep
+    ) -> None:
+        """
+        Trigger active metacognitive correction when prediction error is high.
+
+        This is the bridge between passive observation (self-modeling) and
+        active metacognition (mental actions). When prediction error exceeds
+        threshold, we engage the metacognition agent to modulate precision.
+
+        Per Metacognitive Particles paper:
+        - High prediction error -> decrease precision (be more open to surprise)
+        - Mental actions modulate parameters, not content
+
+        Args:
+            prediction_error: The magnitude of prediction error
+            step_number: Current step number
+            step: The ActionStep that produced the error
+        """
+        try:
+            # Import here to avoid circular imports
+            from api.agents.metacognition_agent import MetacognitionAgent
+
+            # Build error context for potentially more targeted correction
+            error_context = {
+                "step_number": step_number,
+                "prediction_error": prediction_error,
+            }
+
+            # Extract any useful context from the step
+            if step and hasattr(step, 'tool_calls') and step.tool_calls:
+                # If we can identify what tools were used, include that context
+                tool_names = [tc.name for tc in step.tool_calls if hasattr(tc, 'name')]
+                if tool_names:
+                    error_context["tools_used"] = tool_names
+
+            # Use a temporary metacognition agent for the correction
+            # Note: In production, this should use a singleton or pool
+            metacog = MetacognitionAgent()
+
+            # Execute active correction
+            correction_result = await metacog.active_correction(
+                agent_name=self.agent_id,
+                prediction_error=prediction_error,
+                error_context=error_context
+            )
+
+            if correction_result.get("correction_type") != "none":
+                logger.info(
+                    f"Active correction applied for '{self.agent_id}': "
+                    f"type={correction_result['correction_type']}, "
+                    f"actions={len(correction_result.get('actions_taken', []))}"
+                )
+
+        except Exception as e:
+            # Active correction should not crash the callback
+            logger.warning(f"Active correction failed for '{self.agent_id}': {e}")
 
 
 def create_self_modeling_callback(agent_id: str) -> Optional[SelfModelingCallback]:

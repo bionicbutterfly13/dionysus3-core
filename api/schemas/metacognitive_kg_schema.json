@@ -1,0 +1,668 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Metacognitive Knowledge Graph Schema",
+  "description": "Knowledge graph entities from Sandved-Smith & Da Costa (2024) 'Metacognitive Particles' and Seragnoli et al. (2025) 'Metacognitive Feelings of Epistemic Gain' for Graphiti ingestion into Neo4j",
+  "version": "1.0.0",
+  "metadata": {
+    "papers": [
+      {
+        "id": "sandved-smith-2024",
+        "title": "Metacognitive particles, mental action and the sense of agency",
+        "authors": ["Lars Sandved-Smith", "Lancelot Da Costa"],
+        "year": 2024,
+        "arxiv": "2405.12941v2"
+      },
+      {
+        "id": "seragnoli-2025",
+        "title": "Metacognitive Feelings of Epistemic Gain",
+        "authors": ["Seragnoli et al."],
+        "year": 2025
+      }
+    ],
+    "integration_target": "dionysus3-core",
+    "feature": "038-thoughtseeds-framework"
+  },
+
+  "node_types": {
+    "MetacognitiveParticle": {
+      "description": "A cognitive particle possessing beliefs about its own beliefs (about external states). Central entity from Sandved-Smith & Da Costa (2024).",
+      "label": "MetacognitiveParticle",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "name": {"type": "string", "required": true},
+        "particle_type": {
+          "type": "string",
+          "enum": ["passive", "active", "strange", "nested", "multiply_nested"],
+          "description": "Passive: beliefs about subset of parameters via blanket. Active: higher-level internal paths with internal Markov blanket. Strange: active paths hidden from internal paths. Nested: particle within particle."
+        },
+        "metacognition_depth": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "N levels of nested metacognition (N-times comprehensively metacognitive)"
+        },
+        "has_sense_of_agency": {
+          "type": "boolean",
+          "description": "Whether particle can form belief about causal dependency of a^(1) on mu^(1)"
+        },
+        "cognitive_core_level": {
+          "type": "integer",
+          "description": "The innermost level mu^(N) that cannot be target of further metacognitive beliefs"
+        },
+        "created_at": {"type": "string", "format": "date-time"}
+      },
+      "equations": {
+        "passive_metacognitive_belief": "Q^(2)_{mu^(2)}(mu^(1)) = integral of Q^(2)_{mu^(2)}(eta, a, mu^(1)) d_eta d_a",
+        "active_metacognitive_belief": "Q_{mu^(2)}(mu^(1)) = P(mu^(1) | s^(2), a^(2))",
+        "sense_of_agency": "D_KL[Q_{mu^(2)}(mu^(1), a^(1)) | Q_{mu^(2)}(mu^(1))Q_{mu^(2)}(a^(1))]"
+      }
+    },
+
+    "MarkovBlanket": {
+      "description": "Boundary separating internal from external paths. b = (s, a) where s=sensory, a=active.",
+      "label": "MarkovBlanket",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "level": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Hierarchy level (0 = outermost/base, higher = more nested)"
+        },
+        "external_paths": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "eta - environmental/external state identifiers"
+        },
+        "sensory_paths": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "s - input surface paths that influence internal but not influenced by internal"
+        },
+        "active_paths": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "a - output surface paths that influence external but not influenced by external"
+        },
+        "internal_paths": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "mu - internal state identifiers"
+        },
+        "conditional_independence_valid": {
+          "type": "boolean",
+          "description": "Whether mu _|_ eta | b holds (internal independent of external given blanket)"
+        },
+        "nesting_valid": {
+          "type": "boolean",
+          "description": "Whether mu^(n+1) subset of mu^n (higher-level internal subset of lower-level)"
+        },
+        "parent_blanket_id": {"type": "string", "format": "uuid"},
+        "child_blanket_ids": {"type": "array", "items": {"type": "string", "format": "uuid"}}
+      },
+      "equations": {
+        "markov_property": "P(eta, mu | b) = P(eta | b) * P(mu | b)",
+        "conditional_independence": "P(mu | b, eta) = P(mu | b)",
+        "nesting_constraint": "mu^(n+1) subset_of mu^n"
+      }
+    },
+
+    "MetacognitiveBelief": {
+      "description": "Belief parameterized by internal paths about external paths or lower-level internal paths.",
+      "label": "MetacognitiveBelief",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "belief_type": {
+          "type": "string",
+          "enum": ["first_order", "second_order", "higher_order"],
+          "description": "First-order: beliefs about world. Second-order: beliefs about beliefs. Higher-order: N-th level."
+        },
+        "level": {"type": "integer", "minimum": 1},
+        "target_type": {
+          "type": "string",
+          "enum": ["external_paths", "internal_paths", "active_paths", "joint"],
+          "description": "What this belief is about"
+        },
+        "parameterizing_paths": {
+          "type": "string",
+          "description": "mu^(n) - the internal paths that parameterize this belief"
+        },
+        "target_paths": {
+          "type": "string",
+          "description": "What is being believed about (eta, mu^(n-1), a, or joint)"
+        },
+        "posterior_form": {
+          "type": "string",
+          "description": "Mathematical form: Q_{mu^(n)}(target) = P(target | s^(n), a^(n))"
+        },
+        "is_comprehensive": {
+          "type": "boolean",
+          "description": "True if beliefs about ALL sufficient statistics of lower-level beliefs"
+        }
+      }
+    },
+
+    "MentalAction": {
+      "description": "Higher-level active paths a^(2) that modulate parameters of lower-level beliefs. From active metacognition.",
+      "label": "MentalAction",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "action_type": {
+          "type": "string",
+          "enum": ["precision_modulation", "attention_control", "belief_revision", "policy_selection"],
+          "description": "Type of mental action"
+        },
+        "source_level": {
+          "type": "integer",
+          "description": "Level of internal paths initiating action (n+1)"
+        },
+        "target_level": {
+          "type": "integer",
+          "description": "Level of internal paths being modulated (n)"
+        },
+        "modulated_parameter": {
+          "type": "string",
+          "enum": ["mean", "precision", "covariance", "policy_prior"],
+          "description": "Which sufficient statistic is being modulated"
+        },
+        "expected_free_energy_reduction": {
+          "type": "number",
+          "description": "EFE minimization achieved by this mental action"
+        }
+      },
+      "equations": {
+        "action_influence": "a^(2) -> mu^(1) via f_{mu^(1)}(s^(1), mu^(1), b^(2))",
+        "precision_modulation": "Pi = Pi(mu^(1)) modulated by a^(2)"
+      }
+    },
+
+    "SenseOfAgency": {
+      "description": "Joint probability distribution over internal and active paths capturing statistical relationship. D_KL measure of agency strength.",
+      "label": "SenseOfAgency",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "particle_id": {"type": "string", "format": "uuid", "required": true},
+        "joint_distribution": {
+          "type": "string",
+          "description": "Q_{mu^(2)}(mu^(1), a^(1)) = joint over internal and active paths"
+        },
+        "agency_strength": {
+          "type": "number",
+          "minimum": 0,
+          "description": "D_KL[Q(mu^(1), a^(1)) | Q(mu^(1))Q(a^(1))] - mutual information measure"
+        },
+        "no_agency_condition": {
+          "type": "boolean",
+          "description": "True when Q(mu^(1), a^(1)) = Q(mu^(1)) * Q(a^(1)) - independence"
+        }
+      },
+      "equations": {
+        "sense_of_agency_kl": "D_KL[Q_{mu^(2)}(mu^(1), a^(1)) | Q_{mu^(2)}(mu^(1)) * Q_{mu^(2)}(a^(1))]",
+        "joint_belief": "Q_{mu^(2)}(mu^(1), a^(1)) = P(mu^(1) | s^(2), a^(2)) * P(a^(1) | s^(1))"
+      }
+    },
+
+    "CognitiveCore": {
+      "description": "Innermost internal paths mu^(N) that cannot be target of further metacognitive beliefs. Fundamental limitation on self-representation.",
+      "label": "CognitiveCore",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "particle_id": {"type": "string", "format": "uuid", "required": true},
+        "max_recursion_level": {
+          "type": "integer",
+          "description": "N - the maximum level of metacognitive recursion"
+        },
+        "complexity_bound": {
+          "type": "number",
+          "description": "Free energy complexity cost that limits further nesting"
+        },
+        "beliefs_encoded": {
+          "type": "string",
+          "description": "Q_{mu^(N)}(eta, mu^(1), ..., mu^(N-1)) - unified experience"
+        }
+      },
+      "theoretical_notes": {
+        "limitation": "I can never conceive of what it is like to be me, because that would require the number of recursions I can physically entertain, plus one",
+        "unified_experience": "Despite nested separation, innermost beliefs capture all information on lower blankets"
+      }
+    },
+
+    "MetacognitiveFeeling": {
+      "description": "Phenomenal experience arising from cognitive action outcomes. From Seragnoli et al. (2025).",
+      "label": "MetacognitiveFeeling",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "feeling_type": {
+          "type": "string",
+          "enum": ["tip_of_tongue", "aha_eureka", "curiosity", "confusion", "fluency", "difficulty", "familiarity", "novelty"],
+          "description": "Type of metacognitive feeling"
+        },
+        "feeling_category": {
+          "type": "string",
+          "enum": ["goal_related", "process_related", "outcome_related"],
+          "description": "When in cognitive action cycle this feeling arises"
+        },
+        "valence": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Affective valence (-1 = negative, +1 = positive)"
+        },
+        "epistemic_value": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Information gain associated with this feeling"
+        },
+        "noetic_quality": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Sense of direct knowing/insight (high in mystical experiences)"
+        }
+      }
+    },
+
+    "EpistemicGain": {
+      "description": "Outcome-related feeling from successful cognitive action. The 'Aha!' or 'Eureka' moment.",
+      "label": "EpistemicGain",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "cognitive_action_id": {"type": "string", "format": "uuid"},
+        "gain_type": {
+          "type": "string",
+          "enum": ["insight", "resolution", "verification", "discovery"],
+          "description": "Type of epistemic gain"
+        },
+        "surprise_reduction": {
+          "type": "number",
+          "description": "Reduction in variational free energy / prediction error"
+        },
+        "belief_confidence_change": {
+          "type": "number",
+          "description": "Change in posterior precision"
+        },
+        "noetic_intensity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Intensity of 'knowing' quality"
+        },
+        "is_veridical": {
+          "type": "boolean",
+          "description": "True insight vs false insight (FIBUS model consideration)"
+        }
+      },
+      "theoretical_models": {
+        "REBUS": "Relaxed Beliefs Under Psychedelics - flattened precision landscape",
+        "FIBUS": "False Insights and Beliefs Under Psychedelics - high noetic quality but non-veridical"
+      }
+    },
+
+    "CognitiveAction": {
+      "description": "Deliberate cognitive operation: hypothesis formation, verification, appraisal. Procedural metacognition.",
+      "label": "CognitiveAction",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "action_phase": {
+          "type": "string",
+          "enum": ["hypothesis", "exploration", "verification", "appraisal"],
+          "description": "Phase in cognitive action cycle"
+        },
+        "monitoring_active": {
+          "type": "boolean",
+          "description": "Whether metacognitive monitoring is engaged"
+        },
+        "control_engaged": {
+          "type": "boolean",
+          "description": "Whether metacognitive control is engaged"
+        },
+        "goal_state": {
+          "type": "string",
+          "description": "Target epistemic/pragmatic goal"
+        },
+        "current_feeling": {
+          "type": "string",
+          "enum": ["curiosity", "confusion", "fluency", "difficulty", "tip_of_tongue", "aha"],
+          "description": "Current metacognitive feeling"
+        },
+        "expected_epistemic_value": {
+          "type": "number",
+          "description": "Expected information gain from this action"
+        },
+        "expected_pragmatic_value": {
+          "type": "number",
+          "description": "Expected goal fulfillment from this action"
+        }
+      }
+    },
+
+    "AttractorBasin": {
+      "description": "Stable attentional/cognitive state in free energy landscape. Training target for Dionysus.",
+      "label": "AttractorBasin",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "basin_name": {"type": "string", "required": true},
+        "basin_category": {
+          "type": "string",
+          "enum": ["metacognition", "agency", "epistemic", "affect", "consciousness", "cognitive_science"],
+          "description": "High-level category for this attractor basin"
+        },
+        "depth": {
+          "type": "number",
+          "description": "Binding energy / stability of attractor"
+        },
+        "width": {
+          "type": "number",
+          "description": "Volume of state space captured by this attractor"
+        },
+        "core_concepts": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Central concepts defining this basin"
+        },
+        "transition_barriers": {
+          "type": "object",
+          "description": "Energy barriers to neighboring attractors"
+        }
+      }
+    }
+  },
+
+  "relationship_types": {
+    "PARAMETERIZES": {
+      "description": "Internal paths parameterize beliefs: mu -> Q_mu(target)",
+      "source_types": ["MarkovBlanket"],
+      "target_types": ["MetacognitiveBelief"],
+      "properties": {
+        "parameter_type": {"type": "string", "enum": ["mean", "precision", "full_distribution"]}
+      }
+    },
+
+    "MONITORS": {
+      "description": "Higher-level metacognition monitors lower-level processes",
+      "source_types": ["MetacognitiveParticle", "MetacognitiveBelief"],
+      "target_types": ["MetacognitiveParticle", "MetacognitiveBelief", "CognitiveAction"],
+      "properties": {
+        "monitoring_precision": {"type": "number"},
+        "level_difference": {"type": "integer"}
+      }
+    },
+
+    "CONTROLS": {
+      "description": "Active paths control/modulate internal paths at lower level",
+      "source_types": ["MentalAction", "MarkovBlanket"],
+      "target_types": ["MarkovBlanket", "MetacognitiveBelief"],
+      "properties": {
+        "control_type": {"type": "string", "enum": ["precision", "mean", "policy"]},
+        "strength": {"type": "number"}
+      }
+    },
+
+    "TRIGGERS": {
+      "description": "Cognitive action triggers metacognitive feeling",
+      "source_types": ["CognitiveAction"],
+      "target_types": ["MetacognitiveFeeling", "EpistemicGain"],
+      "properties": {
+        "trigger_phase": {"type": "string", "enum": ["initiation", "process", "outcome"]},
+        "intensity": {"type": "number"}
+      }
+    },
+
+    "MODULATES": {
+      "description": "Mental action modulates belief parameters (precision, attention)",
+      "source_types": ["MentalAction"],
+      "target_types": ["MetacognitiveBelief", "MarkovBlanket"],
+      "properties": {
+        "modulated_parameter": {"type": "string"},
+        "modulation_strength": {"type": "number"}
+      }
+    },
+
+    "NESTS_WITHIN": {
+      "description": "Higher-level blanket nested within lower-level blanket",
+      "source_types": ["MarkovBlanket"],
+      "target_types": ["MarkovBlanket"],
+      "properties": {
+        "level_difference": {"type": "integer", "minimum": 1},
+        "nesting_valid": {"type": "boolean"}
+      }
+    },
+
+    "SEPARATES": {
+      "description": "Blanket separates internal from external paths",
+      "source_types": ["MarkovBlanket"],
+      "target_types": ["MetacognitiveParticle"],
+      "properties": {
+        "separation_type": {"type": "string", "enum": ["internal_external", "higher_lower"]}
+      }
+    },
+
+    "GROUNDS_AGENCY": {
+      "description": "Metacognitive architecture grounds sense of agency",
+      "source_types": ["MetacognitiveParticle", "MetacognitiveBelief"],
+      "target_types": ["SenseOfAgency"],
+      "properties": {
+        "agency_type": {"type": "string", "enum": ["bodily", "mental", "phenomenal"]}
+      }
+    },
+
+    "LIMITS": {
+      "description": "Cognitive core represents fundamental limit on self-representation",
+      "source_types": ["CognitiveCore"],
+      "target_types": ["MetacognitiveParticle"],
+      "properties": {
+        "limitation_type": {"type": "string", "enum": ["recursion_depth", "complexity", "irreducibility"]}
+      }
+    },
+
+    "RESOLVES_TO": {
+      "description": "Cognitive action resolves to epistemic gain",
+      "source_types": ["CognitiveAction"],
+      "target_types": ["EpistemicGain"],
+      "properties": {
+        "resolution_type": {"type": "string", "enum": ["insight", "verification", "refutation"]},
+        "veridical": {"type": "boolean"}
+      }
+    },
+
+    "ACTIVATES": {
+      "description": "Concept/feeling activates attractor basin",
+      "source_types": ["MetacognitiveFeeling", "EpistemicGain", "CognitiveAction"],
+      "target_types": ["AttractorBasin"],
+      "properties": {
+        "activation_strength": {"type": "number"},
+        "decay_rate": {"type": "number"}
+      }
+    },
+
+    "BELONGS_TO_BASIN": {
+      "description": "Entity belongs to attractor basin category",
+      "source_types": ["MetacognitiveParticle", "MetacognitiveBelief", "MentalAction", "MetacognitiveFeeling"],
+      "target_types": ["AttractorBasin"],
+      "properties": {
+        "membership_strength": {"type": "number"}
+      }
+    }
+  },
+
+  "attractor_basin_training_targets": {
+    "metacognition_basin": {
+      "name": "Metacognition",
+      "core_concepts": [
+        "beliefs_about_beliefs",
+        "metacognitive_particle",
+        "passive_metacognition",
+        "active_metacognition",
+        "metacognitive_monitoring",
+        "metacognitive_control",
+        "higher_order_thought",
+        "self_representation",
+        "introspection",
+        "meta_awareness"
+      ],
+      "related_basins": ["consciousness", "agency", "epistemic"],
+      "key_equations": [
+        "Q^(2)_{mu^(2)}(mu^(1))",
+        "mu^(2) -> Q_{mu^(2)}(mu^(1))"
+      ]
+    },
+
+    "agency_basin": {
+      "name": "Agency",
+      "core_concepts": [
+        "sense_of_agency",
+        "action_internal_coupling",
+        "mental_action",
+        "active_paths",
+        "strange_particle",
+        "empowerment",
+        "control",
+        "voluntary_action",
+        "self_as_agent"
+      ],
+      "related_basins": ["metacognition", "consciousness"],
+      "key_equations": [
+        "D_KL[Q(mu^(1), a^(1)) | Q(mu^(1))Q(a^(1))]",
+        "a^(2) -> mu^(1)"
+      ]
+    },
+
+    "epistemic_basin": {
+      "name": "Epistemic",
+      "core_concepts": [
+        "epistemic_gain",
+        "insight",
+        "aha_moment",
+        "eureka",
+        "learning",
+        "information_gain",
+        "surprise_reduction",
+        "curiosity",
+        "exploration",
+        "hypothesis_verification"
+      ],
+      "related_basins": ["metacognition", "affect"],
+      "key_equations": [
+        "expected_information_gain",
+        "VFE_reduction",
+        "posterior_precision_increase"
+      ]
+    },
+
+    "affect_basin": {
+      "name": "Affect",
+      "core_concepts": [
+        "metacognitive_feeling",
+        "valence",
+        "tip_of_tongue",
+        "confusion",
+        "fluency",
+        "difficulty",
+        "noetic_quality",
+        "feeling_of_knowing",
+        "cognitive_emotion"
+      ],
+      "related_basins": ["epistemic", "metacognition"],
+      "key_equations": [
+        "valence = f(surprise_reduction)",
+        "noetic_intensity"
+      ]
+    },
+
+    "consciousness_basin": {
+      "name": "Consciousness",
+      "core_concepts": [
+        "cognitive_core",
+        "unified_experience",
+        "inner_screen",
+        "phenomenal_experience",
+        "self_model",
+        "markov_blanket",
+        "irreducible_blanket",
+        "non_dual_experience",
+        "subject_object_separation"
+      ],
+      "related_basins": ["metacognition", "agency"],
+      "key_equations": [
+        "Q_{mu^(N)}(eta, mu^(1), ..., mu^(N-1))",
+        "unified_belief_product"
+      ]
+    },
+
+    "bayesian_mechanics_basin": {
+      "name": "Bayesian Mechanics",
+      "core_concepts": [
+        "free_energy_principle",
+        "active_inference",
+        "markov_blanket",
+        "langevin_equation",
+        "variational_free_energy",
+        "expected_free_energy",
+        "generative_model",
+        "posterior_belief",
+        "precision_weighting"
+      ],
+      "related_basins": ["metacognition", "consciousness", "epistemic"],
+      "key_equations": [
+        "x_dot = f(x) + w(t)",
+        "VFE = E_q[log q - log p]",
+        "EFE = epistemic + pragmatic"
+      ]
+    }
+  },
+
+  "graphiti_ingestion_format": {
+    "episode_template": {
+      "name": "metacognitive_concept_{concept_id}",
+      "episode_body": "{concept_description}",
+      "source": "message",
+      "source_description": "metacognitive_particles_synthesis",
+      "group_id": "dionysus_metacognition",
+      "reference_time": "{timestamp}"
+    },
+    "entity_extraction_prompt": "Extract metacognitive concepts, Markov blanket structures, belief hierarchies, and agency-related entities from this content. Focus on: particle types (passive, active, strange, nested), blanket partitions (eta, s, a, mu), belief levels (first-order, second-order), mental actions, sense of agency, and metacognitive feelings.",
+    "relationship_extraction_prompt": "Extract relationships: PARAMETERIZES (internal paths to beliefs), MONITORS (higher to lower level), CONTROLS (active paths to internal), TRIGGERS (cognitive action to feeling), MODULATES (mental action to precision), NESTS_WITHIN (blanket hierarchy), GROUNDS_AGENCY (architecture to agency), ACTIVATES (concept to basin)."
+  },
+
+  "neo4j_schema": {
+    "node_labels": [
+      "MetacognitiveParticle",
+      "MarkovBlanket",
+      "MetacognitiveBelief",
+      "MentalAction",
+      "SenseOfAgency",
+      "CognitiveCore",
+      "MetacognitiveFeeling",
+      "EpistemicGain",
+      "CognitiveAction",
+      "AttractorBasin"
+    ],
+    "relationship_types": [
+      "PARAMETERIZES",
+      "MONITORS",
+      "CONTROLS",
+      "TRIGGERS",
+      "MODULATES",
+      "NESTS_WITHIN",
+      "SEPARATES",
+      "GROUNDS_AGENCY",
+      "LIMITS",
+      "RESOLVES_TO",
+      "ACTIVATES",
+      "BELONGS_TO_BASIN"
+    ],
+    "indexes": [
+      {"label": "MetacognitiveParticle", "property": "id"},
+      {"label": "MetacognitiveParticle", "property": "particle_type"},
+      {"label": "MarkovBlanket", "property": "id"},
+      {"label": "MarkovBlanket", "property": "level"},
+      {"label": "AttractorBasin", "property": "basin_name"},
+      {"label": "AttractorBasin", "property": "basin_category"},
+      {"label": "MetacognitiveFeeling", "property": "feeling_type"},
+      {"label": "EpistemicGain", "property": "gain_type"}
+    ],
+    "constraints": [
+      {"label": "MetacognitiveParticle", "property": "id", "type": "UNIQUE"},
+      {"label": "MarkovBlanket", "property": "id", "type": "UNIQUE"},
+      {"label": "AttractorBasin", "property": "id", "type": "UNIQUE"}
+    ]
+  }
+}

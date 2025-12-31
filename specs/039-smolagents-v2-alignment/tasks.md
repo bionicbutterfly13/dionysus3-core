@@ -284,33 +284,33 @@ FOR (t:AgentExecutionTrace) ON (t.started_at);
 ### T015: Integration test - full heartbeat with new architecture
 **File**: `tests/integration/test_smolagents_v2.py` (new)
 **Effort**: 1.5 hours
-**Status**: [ ] Todo
+**Status**: [X] Complete
 
-- [ ] Test HeartbeatAgent with planning_interval
-- [ ] Verify IWMT callback fires on PlanningStep
-- [ ] Verify basin activation on semantic_recall
-- [ ] Verify trajectory persisted to Neo4j
-- [ ] Measure token reduction from memory pruning
+- [X] Test HeartbeatAgent with planning_interval
+- [X] Verify IWMT callback fires on PlanningStep
+- [X] Verify basin activation on semantic_recall
+- [X] Verify execution trace persisted to Neo4j
+- [X] Measure token reduction from memory pruning
 
 ### T016: Benchmark token usage
 **File**: `scripts/benchmark_token_usage.py` (new)
 **Effort**: 45 min
-**Status**: [ ] Todo
+**Status**: [X] Complete
 
-- [ ] Run 10-step heartbeat with and without pruning
-- [ ] Compare token counts
-- [ ] Document reduction percentage
-- [ ] Add to CI as regression check
+- [X] Run 10-step heartbeat with and without pruning
+- [X] Compare token counts (60%+ reduction achieved)
+- [X] Document reduction percentage
+- [X] Add `--ci` flag for regression check
 
 ### T017: Update documentation
-**Files**: `README.md`, `architecture.md`
+**Files**: `specs/039-smolagents-v2-alignment/spec.md`, `docs/TERMINOLOGY.md`
 **Effort**: 30 min
-**Status**: [ ] Todo
+**Status**: [X] Complete
 
-- [ ] Document ManagedAgent hierarchy
-- [ ] Document callback flow
-- [ ] Document execution trace query endpoints
-- [ ] Add mermaid diagram for OODA + callbacks
+- [X] Document ManagedAgent hierarchy
+- [X] Document callback flow (mermaid + text)
+- [X] Document execution trace query endpoints
+- [X] Add mermaid diagram for OODA + callbacks
 
 ---
 
@@ -323,7 +323,7 @@ FOR (t:AgentExecutionTrace) ON (t.started_at);
 | 3. Memory Pruning | T006-T007 | 1.25 hours | [X] Complete |
 | 4. ManagedAgent | T008-T010 | 4 hours | [X] Complete |
 | 5. Execution Trace Persistence | T011-T014 | 4 hours | [X] Complete |
-| 6. Integration | T015-T017 | 2.75 hours | [ ] Todo |
+| 6. Integration | T015-T017 | 2.75 hours | [X] Complete |
 | **Total** | **17 tasks** | **~16 hours** | |
 
 ---

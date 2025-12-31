@@ -57,38 +57,39 @@ class ConsciousnessManager:
         # Initialize Audit Registry
         audit = get_audit_callback()
         
-        # Feature 039 (T009): Get ManagedAgent instances from wrappers
-        # The wrappers handle lazy initialization and context management
+        # Feature 039 (T009): Get ToolCallingAgent instances from wrappers
+        # smolagents 1.23+: agents have name/description directly, no ManagedAgent wrapper
         self._perception_managed = self.perception_wrapper.get_managed()
         self._reasoning_managed = self.reasoning_wrapper.get_managed()
         self._metacognition_managed = self.metacognition_wrapper.get_managed()
         
-        # Apply audit callbacks to the underlying agents
+        # Apply audit callbacks to the agents directly (they ARE ToolCallingAgents now)
         perception_callbacks = audit.get_registry("perception")
-        self._perception_managed.agent.step_callbacks = perception_callbacks
+        self._perception_managed.step_callbacks = perception_callbacks
         
         reasoning_callbacks = audit.get_registry("reasoning")
-        self._reasoning_managed.agent.step_callbacks = reasoning_callbacks
+        self._reasoning_managed.step_callbacks = reasoning_callbacks
         
         metacognition_callbacks = audit.get_registry("metacognition")
-        self._metacognition_managed.agent.step_callbacks = metacognition_callbacks
+        self._metacognition_managed.step_callbacks = metacognition_callbacks
         
         # T037: Add opt-in self-modeling callbacks (conditional on SELF_MODELING_ENABLED)
-        for agent_name, managed_agent in [
+        for agent_name, agent in [
             ("perception", self._perception_managed),
             ("reasoning", self._reasoning_managed),
             ("metacognition", self._metacognition_managed)
         ]:
             self_modeling_cb = create_self_modeling_callback(agent_id=agent_name)
             if self_modeling_cb:
-                # Add to the underlying agent's callbacks
-                current_callbacks = managed_agent.agent.step_callbacks or {}
+                # smolagents 1.23+: agent IS the ToolCallingAgent directly
+                current_callbacks = agent.step_callbacks or {}
                 # Note: step_callbacks is a dict in smolagents, we extend via audit registry
                 print(f"DEBUG: Self-modeling callback enabled for {agent_name}")
         
         # Add Explorer and Cognitive tools to Reasoning specifically
-        self._reasoning_managed.agent.tools[context_explorer.name] = context_explorer
-        self._reasoning_managed.agent.tools[cognitive_check.name] = cognitive_check
+        # smolagents 1.23+: _reasoning_managed IS the ToolCallingAgent
+        self._reasoning_managed.tools[context_explorer.name] = context_explorer
+        self._reasoning_managed.tools[cognitive_check.name] = cognitive_check
         
         # Feature 039 (T009): Create orchestrator with native ManagedAgent instances
         # The ManagedAgent wrappers provide rich descriptions that guide delegation
@@ -231,10 +232,10 @@ The agents will return structured results for synthesis.""",
         print(f"DEBUG: Metaplasticity adjusted learning_rate={adjusted_lr:.4f}, max_steps={new_max_steps} (surprise={surprise_level:.2f})")
         
         # Note: In smolagents, we update the agent properties directly
-        # Feature 039: Access underlying agents via ManagedAgent instances
+        # smolagents 1.23+: managed instances ARE ToolCallingAgents directly
         if self._perception_managed and self._reasoning_managed and self._metacognition_managed:
-            for managed in [self._perception_managed, self._reasoning_managed, self._metacognition_managed]:
-                managed.agent.max_steps = new_max_steps
+            for agent in [self._perception_managed, self._reasoning_managed, self._metacognition_managed]:
+                agent.max_steps = new_max_steps
         
         print("\n=== CONSCIOUSNESS OODA CYCLE COMPLETE ===")
 
