@@ -35,10 +35,12 @@ class HeartbeatAgent:
         audit = get_audit_callback()
         
         # T1.1: Migrate to ToolCallingAgent
+        # T039-001: Enable planning_interval for periodic replanning
         self.agent = ToolCallingAgent(
             tools=tools,
             model=self.model,
-            max_steps=5,
+            max_steps=10,  # Increased to accommodate planning phases
+            planning_interval=3,  # Re-plan every 3 action steps (FR-039-002)
             name="heartbeat_agent",
             description="Autonomous cognitive decision cycle agent.",
             verbosity_level=1,

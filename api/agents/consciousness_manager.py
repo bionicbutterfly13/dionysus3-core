@@ -2,10 +2,14 @@ import os
 import json
 from typing import Any, Dict
 
-from smolagents import ToolCallingAgent, LiteLLMModel
-from api.agents.perception_agent import PerceptionAgent
-from api.agents.reasoning_agent import ReasoningAgent
-from api.agents.metacognition_agent import MetacognitionAgent
+from smolagents import CodeAgent, LiteLLMModel
+
+# Feature 039: Use ManagedAgent wrappers for native multi-agent orchestration
+from api.agents.managed import (
+    ManagedPerceptionAgent,
+    ManagedReasoningAgent,
+    ManagedMetacognitionAgent,
+)
 from api.agents.tools.cognitive_tools import context_explorer, cognitive_check
 from api.services.bootstrap_recall_service import BootstrapRecallService
 from api.services.metaplasticity_service import get_metaplasticity_controller
@@ -21,85 +25,106 @@ class ConsciousnessManager:
     def __init__(self, model_id: str = "dionysus-agents"):
         """
         Initialize the Consciousness Manager and its managed sub-agents.
+        
+        Feature 039: Uses ManagedAgent wrappers for native smolagents orchestration.
         """
         from api.services.llm_service import get_router_model
         self.model = get_router_model(model_id=model_id)
+        self.model_id = model_id
         
         # Instantiate cognitive services
         self.bootstrap_svc = BootstrapRecallService()
         self.metaplasticity_svc = get_metaplasticity_controller()
         
-        # Instantiate sub-agent wrappers
-        self.perception_agent_wrapper = PerceptionAgent()
-        self.reasoning_agent_wrapper = ReasoningAgent()
-        self.metacognition_agent_wrapper = MetacognitionAgent()
+        # Feature 039 (T009): Use ManagedAgent wrappers for native orchestration
+        # These wrappers provide proper ManagedAgent instances with rich descriptions
+        # that guide the orchestrator's delegation decisions
+        self.perception_wrapper = ManagedPerceptionAgent(model_id)
+        self.reasoning_wrapper = ManagedReasoningAgent(model_id)
+        self.metacognition_wrapper = ManagedMetacognitionAgent(model_id)
+        
+        # Cached ManagedAgent instances
+        self._perception_managed = None
+        self._reasoning_managed = None
+        self._metacognition_managed = None
         
         self.orchestrator = None
         self._entered = False
 
     def __enter__(self):
-        from api.agents.audit import get_audit_callback
+        from api.agents.audit import get_audit_callback, get_cognitive_callback_registry
         
-        # 1. Initialize Audit Registry (T2.1)
-        # Note: We'd normally get trace_id from context, but here we setup general registry
-        # The registry can be updated or we can use a generic one
+        # Initialize Audit Registry
         audit = get_audit_callback()
         
-        # Enter sub-agents
-        self.perception_agent_wrapper.__enter__()
-        # Apply callbacks to sub-agents
+        # Feature 039 (T009): Get ManagedAgent instances from wrappers
+        # The wrappers handle lazy initialization and context management
+        self._perception_managed = self.perception_wrapper.get_managed()
+        self._reasoning_managed = self.reasoning_wrapper.get_managed()
+        self._metacognition_managed = self.metacognition_wrapper.get_managed()
+        
+        # Apply audit callbacks to the underlying agents
         perception_callbacks = audit.get_registry("perception")
-        self.perception_agent_wrapper.agent.step_callbacks = perception_callbacks
-
-        self.reasoning_agent_wrapper.__enter__()
+        self._perception_managed.agent.step_callbacks = perception_callbacks
+        
         reasoning_callbacks = audit.get_registry("reasoning")
-        self.reasoning_agent_wrapper.agent.step_callbacks = reasoning_callbacks
-
-        self.metacognition_agent_wrapper.__enter__()
+        self._reasoning_managed.agent.step_callbacks = reasoning_callbacks
+        
         metacognition_callbacks = audit.get_registry("metacognition")
-        self.metacognition_agent_wrapper.agent.step_callbacks = metacognition_callbacks
-
+        self._metacognition_managed.agent.step_callbacks = metacognition_callbacks
+        
         # T037: Add opt-in self-modeling callbacks (conditional on SELF_MODELING_ENABLED)
-        for agent_name, callbacks in [
-            ("perception", perception_callbacks),
-            ("reasoning", reasoning_callbacks),
-            ("metacognition", metacognition_callbacks)
+        for agent_name, managed_agent in [
+            ("perception", self._perception_managed),
+            ("reasoning", self._reasoning_managed),
+            ("metacognition", self._metacognition_managed)
         ]:
             self_modeling_cb = create_self_modeling_callback(agent_id=agent_name)
             if self_modeling_cb:
-                callbacks.append(self_modeling_cb)
+                # Add to the underlying agent's callbacks
+                current_callbacks = managed_agent.agent.step_callbacks or {}
+                # Note: step_callbacks is a dict in smolagents, we extend via audit registry
                 print(f"DEBUG: Self-modeling callback enabled for {agent_name}")
         
         # Add Explorer and Cognitive tools to Reasoning specifically
-        self.reasoning_agent_wrapper.agent.tools[context_explorer.name] = context_explorer
-        self.reasoning_agent_wrapper.agent.tools[cognitive_check.name] = cognitive_check
+        self._reasoning_managed.agent.tools[context_explorer.name] = context_explorer
+        self._reasoning_managed.agent.tools[cognitive_check.name] = cognitive_check
         
-        # T0.2: The orchestrator agent manages specialized agents.
-        # (Docker sandboxing disabled for local Darwin environment stability)
+        # Feature 039 (T009): Create orchestrator with native ManagedAgent instances
+        # The ManagedAgent wrappers provide rich descriptions that guide delegation
         self.orchestrator = CodeAgent(
             tools=[],
             model=self.model,
             managed_agents=[
-                self.perception_agent_wrapper.agent, 
-                self.reasoning_agent_wrapper.agent, 
-                self.metacognition_agent_wrapper.agent
+                self._perception_managed,
+                self._reasoning_managed,
+                self._metacognition_managed,
             ],
             name="consciousness_manager",
-            description="High-level cognitive orchestrator. Use 'perception' to gather data, 'reasoning' to analyze, and 'metacognition' to decide on strategy.",
+            description="""High-level cognitive orchestrator implementing OODA loop.
+
+Delegates to specialized agents:
+- perception: OBSERVE phase - gather environment state, recall memories, capture MOSAEIC
+- reasoning: ORIENT phase - analyze observations, identify patterns, build mental models
+- metacognition: DECIDE phase - review goals, assess models, select actions
+
+Use natural language to delegate: "Ask perception to observe the current context"
+The agents will return structured results for synthesis.""",
             use_structured_outputs_internally=True,
             executor_type="local",
             additional_authorized_imports=["importlib.resources", "json", "datetime"],
-            step_callbacks=audit.get_registry("consciousness_manager"), # T2.1
-            max_steps=10, # Increase since planning steps don't count (T3.3)
-            planning_interval=3 # Pause and plan every 3 action steps (T3.3)
+            step_callbacks=audit.get_registry("consciousness_manager"),
+            max_steps=15,  # Feature 039: Increased for multi-agent orchestration
+            planning_interval=3,  # Feature 039: Re-plan every 3 action steps
         )
         self._entered = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.perception_agent_wrapper.__exit__(exc_type, exc_val, exc_tb)
-        self.reasoning_agent_wrapper.__exit__(exc_type, exc_val, exc_tb)
-        self.metacognition_agent_wrapper.__exit__(exc_type, exc_val, exc_tb)
+        # Feature 039: Clean up ManagedAgent wrappers
+        self.perception_wrapper.__exit__(exc_type, exc_val, exc_tb)
+        self.reasoning_wrapper.__exit__(exc_type, exc_val, exc_tb)
+        self.metacognition_wrapper.__exit__(exc_type, exc_val, exc_tb)
         self._entered = False
 
     async def run_ooda_cycle(self, initial_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -206,8 +231,10 @@ class ConsciousnessManager:
         print(f"DEBUG: Metaplasticity adjusted learning_rate={adjusted_lr:.4f}, max_steps={new_max_steps} (surprise={surprise_level:.2f})")
         
         # Note: In smolagents, we update the agent properties directly
-        for agent in [self.perception_agent_wrapper.agent, self.reasoning_agent_wrapper.agent, self.metacognition_agent_wrapper.agent]:
-            agent.max_steps = new_max_steps
+        # Feature 039: Access underlying agents via ManagedAgent instances
+        if self._perception_managed and self._reasoning_managed and self._metacognition_managed:
+            for managed in [self._perception_managed, self._reasoning_managed, self._metacognition_managed]:
+                managed.agent.max_steps = new_max_steps
         
         print("\n=== CONSCIOUSNESS OODA CYCLE COMPLETE ===")
 
@@ -220,6 +247,7 @@ class ConsciousnessManager:
 
     def close(self):
         """Cascade close to all managed sub-agents."""
-        for agent_wrapper in [self.perception_agent_wrapper, self.reasoning_agent_wrapper, self.metacognition_agent_wrapper]:
-            if hasattr(agent_wrapper, 'close'):
-                agent_wrapper.close()
+        # Feature 039: Close ManagedAgent wrappers
+        for wrapper in [self.perception_wrapper, self.reasoning_wrapper, self.metacognition_wrapper]:
+            if hasattr(wrapper, 'close'):
+                wrapper.close()

@@ -14,6 +14,12 @@ from api.agents.decision_adapter import (
     AgentDecisionConfig,
     get_agent_decision_adapter,
 )
+# Feature 039: ManagedAgent wrappers for multi-agent orchestration
+from api.agents.managed import (
+    ManagedPerceptionAgent,
+    ManagedReasoningAgent,
+    ManagedMetacognitionAgent,
+)
 
 __all__ = [
     "HeartbeatAgent",
@@ -24,4 +30,8 @@ __all__ = [
     "AgentDecisionAdapter",
     "AgentDecisionConfig",
     "get_agent_decision_adapter",
+    # Feature 039: ManagedAgent wrappers
+    "ManagedPerceptionAgent",
+    "ManagedReasoningAgent",
+    "ManagedMetacognitionAgent",
 ]
