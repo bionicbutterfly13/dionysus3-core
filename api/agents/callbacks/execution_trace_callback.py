@@ -253,10 +253,19 @@ def create_trace_collector(
 # =============================================================================
 
 _active_collectors: Dict[str, ExecutionTraceCollector] = {}
+_MAX_COLLECTORS = 100  # Safety limit to prevent unbounded growth
 
 
 def register_collector(agent_name: str, collector: ExecutionTraceCollector) -> None:
-    """Register a collector for basin callback integration."""
+    """
+    Register a collector for basin callback integration.
+
+    Includes safety cleanup of stale collectors if limit is reached.
+    """
+    # Safety: cleanup finalized collectors if nearing limit
+    if len(_active_collectors) >= _MAX_COLLECTORS:
+        _cleanup_stale_collectors()
+
     _active_collectors[agent_name] = collector
 
 
@@ -268,6 +277,23 @@ def get_active_collector(agent_name: str) -> Optional[ExecutionTraceCollector]:
 def unregister_collector(agent_name: str) -> None:
     """Unregister a collector after run completion."""
     _active_collectors.pop(agent_name, None)
+
+
+def _cleanup_stale_collectors() -> int:
+    """
+    Remove collectors that have been finalized.
+
+    Called automatically when collector limit is reached.
+    Returns number of collectors removed.
+    """
+    stale = [name for name, c in _active_collectors.items() if c._finalized]
+    for name in stale:
+        del _active_collectors[name]
+
+    if stale:
+        logger.info(f"Cleaned up {len(stale)} stale execution trace collectors")
+
+    return len(stale)
 
 
 __all__ = [

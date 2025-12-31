@@ -8,9 +8,19 @@ NOT state-space trajectories. See docs/TERMINOLOGY.md for disambiguation.
 """
 
 from typing import List, Optional
+from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import BaseModel, Field
+
+
+def validate_uuid(trace_id: str) -> str:
+    """Validate trace_id is a valid UUID format."""
+    try:
+        UUID(trace_id)
+        return trace_id
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid trace_id format: {trace_id}")
 
 from api.services.execution_trace_service import (
     ExecutionTraceData,
@@ -121,7 +131,7 @@ async def list_traces(
 
 
 @router.get("/traces/{trace_id}", response_model=ExecutionTraceData)
-async def get_trace(trace_id: str):
+async def get_trace(trace_id: str = Path(..., description="Trace UUID")):
     """
     Get full details of an execution trace.
 
@@ -131,6 +141,7 @@ async def get_trace(trace_id: str):
     Returns:
         Full execution trace with steps and activated basins
     """
+    validate_uuid(trace_id)
     service = get_execution_trace_service()
     trace = await service.get_trace(trace_id)
 
@@ -141,7 +152,7 @@ async def get_trace(trace_id: str):
 
 
 @router.get("/traces/{trace_id}/replay", response_model=TraceReplayResponse)
-async def get_trace_replay(trace_id: str):
+async def get_trace_replay(trace_id: str = Path(..., description="Trace UUID")):
     """
     Get a formatted replay view of an execution trace.
 
@@ -154,6 +165,7 @@ async def get_trace_replay(trace_id: str):
     Returns:
         Formatted replay with step descriptions
     """
+    validate_uuid(trace_id)
     service = get_execution_trace_service()
     trace = await service.get_trace(trace_id)
 
