@@ -251,6 +251,7 @@ class MetaToTEngine:
             metrics=metrics,
             decision=decision,
             trace_id=trace_id,
+            active_inference_state=initial_state.__dict__ if initial_state else None,
         )
 
         if decision is not None:

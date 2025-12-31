@@ -50,6 +50,7 @@ class MultiTierLifecycleService:
         threshold = (datetime.utcnow() - timedelta(hours=age_hours)).isoformat()
         
         # Find unsummarized episodic memories
+        # We look for nodes labeled Memory with memory_type episodic
         cypher = """
         MATCH (m:Memory)
         WHERE m.memory_type = 'episodic'
@@ -59,37 +60,48 @@ class MultiTierLifecycleService:
         LIMIT 20
         """
         
-        result = await self._driver.execute_query(cypher, {"threshold": threshold})
-        memories = [row["m"] for row in result]
+        try:
+            result = await self._driver.execute_query(cypher, {"threshold": threshold})
+            memories = [row["m"] for row in result]
+        except Exception as e:
+            logger.error(f"Failed to fetch hot memories for migration: {e}")
+            return 0
         
         if not memories:
             return 0
             
         count = 0
         for m in memories:
-            # Compress / Summarize
-            summary = await self._compress_memory(m.get("content", ""))
-            
-            # Create Warm Memory node
-            warm_id = str(uuid4())
-            create_warm_cypher = """
-            MATCH (m:Memory {id: $id})
-            CREATE (s:WarmMemory {
-                id: $warm_id,
-                content: $summary,
-                original_id: $id,
-                created_at: datetime(),
-                access_count: 0
-            })
-            CREATE (m)-[:SUMMARIZED_BY]->(s)
-            SET m.tier = 'warm'
-            """
-            await self._driver.execute_query(create_warm_cypher, {
-                "id": m["id"],
-                "warm_id": warm_id,
-                "summary": summary
-            })
-            count += 1
+            try:
+                # Compress / Summarize
+                content = m.get("content") or m.get("text") or ""
+                if not content:
+                    continue
+                    
+                summary = await self._compress_memory(content)
+                
+                # Create Warm Memory node
+                warm_id = str(uuid4())
+                create_warm_cypher = """
+                MATCH (m:Memory {id: $id})
+                CREATE (s:WarmMemory {
+                    id: $warm_id,
+                    content: $summary,
+                    original_id: $id,
+                    created_at: datetime(),
+                    access_count: 0
+                })
+                CREATE (m)-[:SUMMARIZED_BY]->(s)
+                SET m.tier = 'warm'
+                """
+                await self._driver.execute_query(create_warm_cypher, {
+                    "id": m["id"],
+                    "warm_id": warm_id,
+                    "summary": summary
+                })
+                count += 1
+            except Exception as e:
+                logger.warning(f"Failed to migrate individual memory {m.get('id')}: {e}")
             
         logger.info(f"Migrated {count} memories from Hot to Warm.")
         return count
@@ -105,33 +117,45 @@ class MultiTierLifecycleService:
         LIMIT 20
         """
         
-        result = await self._driver.execute_query(cypher)
-        warm_memories = [row["s"] for row in result]
+        try:
+            result = await self._driver.execute_query(cypher)
+            warm_memories = [row["s"] for row in result]
+        except Exception as e:
+            logger.error(f"Failed to fetch warm memories for migration: {e}")
+            return 0
         
         if not warm_memories:
             return 0
             
-        graphiti = await get_graphiti_service()
+        try:
+            graphiti = await get_graphiti_service()
+        except Exception as e:
+            logger.error(f"Could not initialize Graphiti for cold migration: {e}")
+            return 0
+
         count = 0
         for s in warm_memories:
-            # Ingest to Graphiti
-            extraction = await graphiti.ingest_message(
-                content=s["content"],
-                source_description=f"warm_migration_of_{s['original_id']}"
-            )
-            
-            if extraction.get("episode_uuid"):
-                link_cypher = """
-                MATCH (s:WarmMemory {id: $warm_id})
-                MERGE (e:Episode {uuid: $ep_id})
-                CREATE (s)-[:CONSOLIDATED_TO]->(e)
-                SET s.tier = 'cold'
-                """
-                await self._driver.execute_query(link_cypher, {
-                    "warm_id": s["id"],
-                    "ep_id": extraction["episode_uuid"]
-                })
-                count += 1
+            try:
+                # Ingest to Graphiti
+                extraction = await graphiti.ingest_message(
+                    content=s["content"],
+                    source_description=f"warm_migration_of_{s['original_id']}"
+                )
+                
+                if extraction.get("episode_uuid"):
+                    link_cypher = """
+                    MATCH (s:WarmMemory {id: $warm_id})
+                    MERGE (e:Episode {uuid: $ep_id})
+                    CREATE (s)-[:CONSOLIDATED_TO]->(e)
+                    SET s.tier = 'cold'
+                    """
+                    await self._driver.execute_query(link_cypher, {
+                        "warm_id": s["id"],
+                        "ep_id": extraction["episode_uuid"]
+                    })
+                    count += 1
+            except Exception as e:
+                logger.warning(f"Failed to migrate warm memory {s.get('id')} to cold: {e}")
                 
         logger.info(f"Migrated {count} warm memories to Cold storage (Graphiti).")
         return count

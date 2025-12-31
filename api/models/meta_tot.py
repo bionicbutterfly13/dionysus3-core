@@ -61,6 +61,7 @@ class MetaToTResult(BaseModel):
     metrics: Dict[str, Any]
     decision: Optional[MetaToTDecision] = None
     trace_id: Optional[str] = None
+    active_inference_state: Optional[Dict[str, Any]] = None
 
 
 class MetaToTRunRequest(BaseModel):

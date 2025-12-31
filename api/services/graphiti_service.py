@@ -60,17 +60,53 @@ class GraphitiConfig:
         neo4j_password: Optional[str] = None,
         openai_api_key: Optional[str] = None,
         group_id: str = "dionysus",
+        index_build_timeout_seconds: Optional[float] = None,
+        cypher_timeout_seconds: Optional[float] = None,
+        health_check_timeout_seconds: Optional[float] = None,
+        skip_index_build: Optional[bool] = None,
     ):
-        # Force VPS IP if not explicitly provided
-        self.neo4j_uri = neo4j_uri or os.getenv("NEO4J_URI", "bolt://72.61.78.89:7687")
-        
-        if "neo4j" in self.neo4j_uri and not os.path.exists("/.dockerenv"):
-            self.neo4j_uri = self.neo4j_uri.replace("neo4j", "72.61.78.89")
+        # 1. Start with provided or env URI
+        raw_uri = neo4j_uri or os.getenv("NEO4J_URI", "bolt://localhost:7687")
 
+        # 2. Auto-detection for local vs docker vs VPS
+        import platform
+
+        # Default to localhost if host.docker.internal is present but we are on Darwin (local Mac)
+        if "host.docker.internal" in raw_uri and platform.system() == "Darwin":
+            logger.info("Local environment detected. Switching host.docker.internal -> localhost")
+            raw_uri = raw_uri.replace("host.docker.internal", "localhost")
+
+        # If using docker-internal host outside Docker, fall back to external host/URI
+        if "neo4j" in raw_uri and not os.path.exists("/.dockerenv"):
+            external_uri = os.getenv("NEO4J_EXTERNAL_URI")
+            external_host = os.getenv("NEO4J_EXTERNAL_HOST", "72.61.78.89")
+            raw_uri = external_uri or raw_uri.replace("neo4j", external_host)
+            
+        self.neo4j_uri = raw_uri
         self.neo4j_user = neo4j_user or os.getenv("NEO4J_USER", "neo4j")
         self.neo4j_password = neo4j_password or os.getenv("NEO4J_PASSWORD")
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         self.group_id = group_id
+        self.index_build_timeout_seconds = (
+            index_build_timeout_seconds
+            if index_build_timeout_seconds is not None
+            else float(os.getenv("GRAPHITI_INDEX_BUILD_TIMEOUT", "20"))
+        )
+        self.cypher_timeout_seconds = (
+            cypher_timeout_seconds
+            if cypher_timeout_seconds is not None
+            else float(os.getenv("GRAPHITI_CYPHER_TIMEOUT", "20"))
+        )
+        self.health_check_timeout_seconds = (
+            health_check_timeout_seconds
+            if health_check_timeout_seconds is not None
+            else float(os.getenv("GRAPHITI_HEALTH_TIMEOUT", "5"))
+        )
+        self.skip_index_build = (
+            skip_index_build
+            if skip_index_build is not None
+            else os.getenv("GRAPHITI_SKIP_INDEX_BUILD", "false").lower() == "true"
+        )
 
         if not self.neo4j_password:
             raise ValueError("NEO4J_PASSWORD environment variable required")
@@ -121,6 +157,7 @@ class GraphitiService:
     def __init__(self, config: Optional[GraphitiConfig] = None):
         self.config = config or GraphitiConfig()
         self._initialized = False
+        self._index_build_task: Optional[asyncio.Task] = None
 
     @classmethod
     async def get_instance(cls, config: Optional[GraphitiConfig] = None) -> "GraphitiService":
@@ -144,11 +181,37 @@ class GraphitiService:
                     user=self.config.neo4j_user,
                     password=self.config.neo4j_password,
                 )
-                # Build indexes (safe, won't delete existing)
-                await _global_graphiti.build_indices_and_constraints(delete_existing=False)
+                # Build indexes (safe, won't delete existing) in background
+                if self.config.skip_index_build:
+                    logger.info("Skipping Graphiti index build (GRAPHITI_SKIP_INDEX_BUILD=true).")
+                elif self._index_build_task is None:
+                    self._index_build_task = asyncio.create_task(
+                        _global_graphiti.build_indices_and_constraints(delete_existing=False)
+                    )
+                    self._index_build_task.add_done_callback(self._handle_index_build_result)
+
+                if self._index_build_task is not None:
+                    try:
+                        await asyncio.wait_for(
+                            asyncio.shield(self._index_build_task),
+                            timeout=self.config.index_build_timeout_seconds,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            "Graphiti index build timed out; continuing in background."
+                        )
 
         self._initialized = True
         logger.info("Graphiti Service initialized successfully")
+
+    @staticmethod
+    def _handle_index_build_result(task: asyncio.Task) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            return
+        except Exception as exc:
+            logger.warning(f"Graphiti index build failed: {exc}")
 
     async def close(self) -> None:
         """Note: Global instance is not closed per-request."""
@@ -598,14 +661,51 @@ IMPORTANT:
         statement: str,
         params: Optional[dict[str, Any]] = None,
     ) -> list[dict[str, Any]]:
-        """Run a Cypher query via Graphiti's Neo4j driver."""
+        """
+        Sole authorized gateway for direct Cypher execution.
+        Proxies through Graphiti's internal driver with a Destruction Gate.
+        """
+        import re
+        params = params or {}
+        
+        # 1. Destruction Gate: Scan for destructive keywords
+        destructive_pattern = re.compile(r"\b(DELETE|DETACH|DROP|REMOVE)\b", re.IGNORECASE)
+        is_destructive = destructive_pattern.search(statement)
+        
+        if is_destructive:
+            # Check for two-step authorization flags
+            authorized = params.get("fingerprint_authorized", False)
+            confirmed = params.get("user_confirmed", False)
+            
+            if not (authorized and confirmed):
+                logger.warning(f"BLOCKING destructive Cypher: {statement}")
+                return [{
+                    "error": "DESTRUCTION_GATE_TRIGGERED",
+                    "requires": ["fingerprint", "confirmation"],
+                    "statement": statement,
+                    "reason": "Destructive operations require biometric (fingerprint) and manual confirmation."
+                }]
+
+        # 2. Proxy to internal driver
         graphiti = self._get_graphiti()
-        result = await graphiti.driver.execute_query(statement, params=params or {})
-        records = getattr(result, "records", None)
-        if records is None:
-            raw = result if isinstance(result, list) else []
-            return [_normalize_neo4j_value(row) for row in raw]
-        return [_normalize_neo4j_value(record.data()) for record in records]
+        try:
+            result = await asyncio.wait_for(
+                graphiti.driver.execute_query(statement, params=params),
+                timeout=self.config.cypher_timeout_seconds,
+            )
+            
+            records = getattr(result, "records", None)
+            if records is None:
+                raw = result if isinstance(result, list) else []
+                return [_normalize_neo4j_value(row) for row in raw]
+            return [_normalize_neo4j_value(record.data()) for record in records]
+            
+        except asyncio.TimeoutError:
+            logger.warning("Graphiti Cypher execution timed out.")
+            raise
+        except Exception as e:
+            logger.error(f"Cypher execution via Graphiti failed: {e}")
+            raise
 
     async def get_entity(self, name: str, group_id: Optional[str] = None) -> Optional[dict[str, Any]]:
         """Get entity by name."""
@@ -619,10 +719,15 @@ IMPORTANT:
             graphiti = self._get_graphiti()
 
             # Simple search to verify connectivity
-            await graphiti.search(
-                query="test",
-                group_ids=[self.config.group_id],
-                num_results=1,
+            await asyncio.wait_for(
+                asyncio.shield(
+                    graphiti.search(
+                        query="test",
+                        group_ids=[self.config.group_id],
+                        num_results=1,
+                    )
+                ),
+                timeout=self.config.health_check_timeout_seconds,
             )
 
             return {
@@ -630,8 +735,10 @@ IMPORTANT:
                 "neo4j_uri": self.config.neo4j_uri,
                 "group_id": self.config.group_id,
             }
+        except asyncio.TimeoutError:
+            return {"healthy": False, "error": "timeout"}
         except Exception as e:
-            return {"healthy": False, "error": str(e)}
+            return {"healthy": False, "error": str(e) or type(e).__name__}
 
 
 # Convenience function

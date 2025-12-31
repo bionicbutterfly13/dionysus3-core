@@ -286,17 +286,33 @@ The agents will return structured results for synthesis.""",
         # Ensures every cognitive event updates internal physics and self-story
         try:
             from api.services.consciousness_integration_pipeline import get_consciousness_pipeline
+            from api.services.meta_tot_engine import ActiveInferenceState
             pipeline = get_consciousness_pipeline()
-            # Extract ActiveInferenceState from Meta-ToT results if available
+            
+            # Reconstruct ActiveInferenceState from Meta-ToT results if available
             ai_state = None
-            if "meta_tot_trace" in initial_context:
-                # Mock or reconstruct from trace if needed
-                pass
+            if "meta_tot_result" in initial_context:
+                res_data = initial_context["meta_tot_result"]
+                state_data = res_data.get("active_inference_state")
+                if state_data:
+                    # state_data is a dict from ActiveInferenceState.__dict__
+                    ai_state = ActiveInferenceState()
+                    for k, v in state_data.items():
+                        if hasattr(ai_state, k):
+                            setattr(ai_state, k, v)
+            
+            # Fallback: estimate state from OODA confidence if no Meta-ToT
+            if ai_state is None:
+                ai_state = ActiveInferenceState(
+                    surprise=1.0 - confidence,
+                    prediction_error=1.0 - confidence,
+                    precision=confidence
+                )
             
             await pipeline.process_cognitive_event(
                 problem=task_query,
                 reasoning_trace=structured_result.get("reasoning", str(raw_result)),
-                active_inference_state=None, # Future: pass actual state
+                active_inference_state=ai_state,
                 context=initial_context
             )
             print("DEBUG: Consciousness Integration Pipeline processed cognitive event.")
