@@ -17,6 +17,7 @@ Implements Bayesian mechanics framework for metacognition:
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime
 from enum import Enum
 from typing import Optional, List, Dict, Any
@@ -26,6 +27,27 @@ from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger("dionysus.metacognitive_particle")
 
+# ---------------------------------------------------------------------------
+# Configuration (Feature 040)
+# ---------------------------------------------------------------------------
+
+MAX_NESTING_DEPTH = int(os.getenv("METACOGNITIVE_MAX_DEPTH", "5"))
+
+
+# ---------------------------------------------------------------------------
+# Exceptions (Feature 040)
+# ---------------------------------------------------------------------------
+
+
+class CognitiveCoreViolation(Exception):
+    """
+    Raised when attempting to exceed the maximum nesting depth.
+
+    Per the paper: "I can never conceive what it is like to be me"
+    The innermost cognitive core μ^N cannot be the target of higher beliefs.
+    """
+    pass
+
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -33,12 +55,36 @@ logger = logging.getLogger("dionysus.metacognitive_particle")
 
 
 class ParticleType(str, Enum):
-    """Type of metacognitive particle from Sandved-Smith & Da Costa (2024)."""
-    PASSIVE = "passive"  # Beliefs about subset of parameters via blanket
-    ACTIVE = "active"    # Higher-level internal paths with internal Markov blanket
-    STRANGE = "strange"  # Active paths hidden from internal paths
-    NESTED = "nested"    # Particle within particle
-    MULTIPLY_NESTED = "multiply_nested"  # N levels of nesting
+    """
+    Type of metacognitive particle from Sandved-Smith & Da Costa (2024).
+
+    Classification based on Markov blanket structure:
+    - COGNITIVE: Has belief mapping μ → Q_μ(η), basic level
+    - PASSIVE: Beliefs about subset of parameters via blanket (no direct control)
+    - ACTIVE: Higher-level internal paths with internal Markov blanket
+    - STRANGE: Active paths hidden from internal paths (a¹ does NOT influence μ¹)
+    - NESTED: Particle within particle
+    - MULTIPLY_NESTED: N levels of nesting
+
+    Feature 040 aliases for API compatibility:
+    - PASSIVE_METACOGNITIVE = PASSIVE
+    - ACTIVE_METACOGNITIVE = ACTIVE
+    - STRANGE_METACOGNITIVE = STRANGE
+    - NESTED_N_LEVEL = MULTIPLY_NESTED
+    """
+    # Original types from Spec 038
+    PASSIVE = "passive"
+    ACTIVE = "active"
+    STRANGE = "strange"
+    NESTED = "nested"
+    MULTIPLY_NESTED = "multiply_nested"
+
+    # Feature 040 additions
+    COGNITIVE = "cognitive"  # Base cognitive particle with beliefs about external
+    PASSIVE_METACOGNITIVE = "passive_metacognitive"  # Alias for PASSIVE
+    ACTIVE_METACOGNITIVE = "active_metacognitive"    # Alias for ACTIVE
+    STRANGE_METACOGNITIVE = "strange_metacognitive"  # Alias for STRANGE
+    NESTED_N_LEVEL = "nested_n_level"                # Alias for MULTIPLY_NESTED
 
 
 class BeliefType(str, Enum):
@@ -695,3 +741,43 @@ def create_all_training_basins() -> List[MetacognitiveAttractorBasin]:
         create_affect_basin(),
         create_consciousness_basin()
     ]
+
+
+# ---------------------------------------------------------------------------
+# Feature 040: Classification API Models
+# ---------------------------------------------------------------------------
+
+
+class ClassificationResult(BaseModel):
+    """
+    Result of particle classification from ParticleClassifier service.
+
+    Contains the classification outcome with confidence score and metadata.
+    Used as response model for POST /api/v1/metacognition/classify endpoint.
+    """
+    particle_id: str = Field(description="UUID of the classified particle")
+    particle_type: ParticleType = Field(description="Classification result")
+    confidence: float = Field(
+        ge=0.0, le=1.0,
+        description="Confidence score (0.0 to 1.0)"
+    )
+    level: int = Field(ge=0, description="Nesting level detected")
+    has_agency: bool = Field(description="Whether particle has sense of agency")
+    classified_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+def enforce_cognitive_core(level: int) -> None:
+    """
+    Enforce the cognitive core nesting limit.
+
+    Args:
+        level: The nesting level to validate
+
+    Raises:
+        CognitiveCoreViolation: If level exceeds MAX_NESTING_DEPTH
+    """
+    if level > MAX_NESTING_DEPTH:
+        raise CognitiveCoreViolation(
+            f"Cannot create metacognitive level {level}. "
+            f"Cognitive core reached at level {MAX_NESTING_DEPTH}."
+        )

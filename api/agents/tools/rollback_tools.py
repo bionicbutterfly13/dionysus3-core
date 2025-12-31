@@ -4,7 +4,7 @@ Feature: 021-rollback-safety-net
 Tasks: T4.1, T4.2
 """
 
-from typing import List, Optional
+from typing import Optional
 from pydantic import BaseModel, Field
 from smolagents import Tool
 

@@ -6,8 +6,6 @@ Aggregates metrics from Discovery, Coordination, and Rollback services.
 """
 
 import logging
-import time
-import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
 

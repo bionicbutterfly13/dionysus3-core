@@ -1,7 +1,7 @@
 import os
 import logging
 from typing import Dict, Any, Optional
-from smolagents import ToolCallingAgent, LiteLLMModel, MCPClient
+from smolagents import ToolCallingAgent, MCPClient
 from mcp import StdioServerParameters
 
 logger = logging.getLogger("dionysus.metacognition")
@@ -130,8 +130,7 @@ class MetacognitionAgent:
         """
         from api.services.efe_engine import (
             get_agent_precision,
-            set_agent_precision,
-            adjust_agent_precision
+            set_agent_precision
         )
 
         result = {

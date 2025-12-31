@@ -208,7 +208,6 @@ class EFEEngine:
         Returns:
             Agency-weighted EFE score (lower = better)
         """
-        from api.models.agency import AgencyWeightedEFE, AgencyAttributionType, DEFAULT_AGENCY_THRESHOLDS
         
         base_efe = self.calculate_efe(prediction_probs, thought_vector, goal_vector)
         

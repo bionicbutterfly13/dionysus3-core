@@ -7,33 +7,27 @@ Service for mental model management including CRUD operations, prediction
 generation, error tracking, and model revision.
 Based on Yufik's neuronal packet theory (2019, 2021).
 
-Database: Neo4j via WebhookNeo4jDriver (n8n webhooks)
+Database: Neo4j via Graphiti-backed driver
 """
 
 import json
 import logging
-import time
-from datetime import datetime, timedelta
-from typing import Any, Optional, List
+from datetime import datetime
+from typing import Any, Dict, Optional, List
 from uuid import UUID, uuid4
 
 from api.models.mental_model import (
     BasinRelationships,
     CreateModelRequest,
     MentalModel,
-    ModelDetailResponse,
     ModelDomain,
     ModelListResponse,
     ModelPrediction,
     ModelResponse,
     ModelRevision,
     ModelStatus,
-    PredictionListResponse,
-    PredictionResponse,
     PredictionTemplate,
     ReviseModelRequest,
-    RevisionListResponse,
-    RevisionResponse,
     RevisionTrigger,
     UpdateModelRequest,
 )
@@ -56,7 +50,7 @@ REVISION_ERROR_THRESHOLD = 0.5
 # =============================================================================
 
 
-from api.models.cognitive import NeuronalPacketModel, EFEResponse
+from api.models.cognitive import NeuronalPacketModel
 
 # =============================================================================
 # NeuronalPacket (Synergistic Whole)
@@ -617,8 +611,7 @@ class ModelService:
         )
 
     async def validate_basin_ids(self, basin_ids: list[UUID]) -> list[UUID]:
-        """
-        Validate that basin IDs exist in Neo4j.
+        """Validate that basin IDs exist in the database.
 
         Args:
             basin_ids: List of basin UUIDs to validate
@@ -644,6 +637,7 @@ class ModelService:
         except Exception as e:
             logger.warning(f"Basin validation failed: {e}")
             return []
+
 
 # Singleton factory
 _model_service_instance: Optional[ModelService] = None

@@ -1,12 +1,10 @@
-import os
 import json
-from typing import Any, Dict, List, Optional
-from smolagents import CodeAgent, ToolCallingAgent, LiteLLMModel
+from smolagents import CodeAgent, ToolCallingAgent
 from api.agents.tools.avatar_tools import ingest_avatar_insight, query_avatar_graph, synthesize_avatar_profile
 from api.agents.tools.wisdom_tools import ingest_wisdom_insight, query_wisdom_graph
 from api.agents.tools.mosaeic_tools import mosaeic_capture
 from api.services.bootstrap_recall_service import BootstrapRecallService
-from api.services.llm_service import get_router_model, GPT5_NANO
+from api.services.llm_service import get_router_model
 from api.models.bootstrap import BootstrapConfig
 
 class KnowledgeAgent:

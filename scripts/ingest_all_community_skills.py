@@ -23,6 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger("dionysus.ingest_all_skills")
 
 COMMUNITY_ROOT = "/Volumes/Asylum/skills/community"
+PROGRESS_FILE = "scripts/ingestion_progress.txt"
 
 def parse_skill_md(file_path: Path) -> Dict[str, Any]:
     """Parse SKILL.md with YAML frontmatter."""
@@ -62,15 +63,25 @@ async def main():
         logger.error(f"Community directory not found: {COMMUNITY_ROOT}")
         return
 
+    # Load progress
+    processed = set()
+    if os.path.exists(PROGRESS_FILE):
+        with open(PROGRESS_FILE, "r") as f:
+            processed = {line.strip() for line in f if line.strip()}
+
     # 3. Find all SKILL.md files recursively
     # Note: some categories might have nested skills or just one SKILL.md at the top
     skill_files = list(community_dir.glob("**/SKILL.md"))
     logger.info(f"Found {len(skill_files)} skill files.")
 
     # Track successes
-    stats = {"skill_nodes": 0, "graphiti_episodes": 0, "errors": 0}
+    stats = {"skill_nodes": 0, "graphiti_episodes": 0, "errors": 0, "skipped": 0}
 
     for skill_file in skill_files:
+        if str(skill_file) in processed:
+            stats["skipped"] += 1
+            continue
+
         # Get category name from path relative to root
         rel_path = skill_file.parent.relative_to(community_dir)
         category = str(rel_path).replace("/", ":")
@@ -131,6 +142,11 @@ async def main():
             )
             stats["graphiti_episodes"] += 1
             logger.info(f"  ✓ Ingested into Graphiti: {len(graph_res.get('nodes', []))} nodes.")
+            
+            # Record progress
+            with open(PROGRESS_FILE, "a") as f:
+                f.write(f"{skill_file}\n")
+
         except Exception as e:
             logger.error(f"  ✗ Exception ingesting into Graphiti for {skill_id}: {e}")
             stats["errors"] += 1

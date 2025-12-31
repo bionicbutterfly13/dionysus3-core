@@ -467,7 +467,7 @@ class NetworkStateService:
         Returns:
             Tuple of (NetworkState, TimingState) or (None, None) if disabled
         """
-        from api.models.network_state import TimingState, SelfModelState
+        from api.models.network_state import SelfModelState
         from api.services.metaplasticity_service import get_metaplasticity_controller
 
         # Create base network state snapshot

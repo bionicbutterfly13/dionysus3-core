@@ -3,6 +3,9 @@ from smolagents import CodeAgent, LiteLLMModel, MCPClient
 from mcp import StdioServerParameters
 import os
 
+
+# Skip in unit tests - requires MCP server process
+@pytest.mark.skip(reason="Integration test - requires MCP server running")
 def test_mcp_client_usage():
     """Verify that MCPClient works as expected."""
     server_params = StdioServerParameters(

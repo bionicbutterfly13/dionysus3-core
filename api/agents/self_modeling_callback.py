@@ -8,7 +8,7 @@ Implements T033-T034: Prediction/resolution cycle during agent execution.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Optional
 
 from smolagents.memory import ActionStep
 from smolagents.monitoring import AgentLogger

@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from api.models.kg_learning import ExtractionResult, RelationshipProposal, AttractorBasin, CognitionStrategy
+from api.models.kg_learning import ExtractionResult, RelationshipProposal
 from api.models.sync import MemoryType
 from api.services.graphiti_service import get_graphiti_service
 from api.services.llm_service import chat_completion, GPT5_NANO

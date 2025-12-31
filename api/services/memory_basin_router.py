@@ -12,9 +12,8 @@ import logging
 from typing import Any, Dict, Optional
 
 from api.models.sync import MemoryType
-from api.services.webhook_neo4j_driver import get_neo4j_driver, WebhookNeo4jDriver
 from api.services.llm_service import chat_completion, GPT5_NANO
-from api.services.graphiti_service import get_graphiti_service
+from api.services.graphiti_service import get_graphiti_service, GraphitiService
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +61,13 @@ class MemoryBasinRouter:
     3. Context-aware ingestion through Graphiti with basin context
     """
 
-    def __init__(self, driver: Optional[WebhookNeo4jDriver] = None):
-        self._driver = driver or get_neo4j_driver()
+    def __init__(self, graphiti_service: Optional[GraphitiService] = None):
+        self._graphiti_service = graphiti_service
+
+    async def _get_graphiti_service(self) -> GraphitiService:
+        if self._graphiti_service is None:
+            self._graphiti_service = await get_graphiti_service()
+        return self._graphiti_service
 
     async def classify_memory_type(self, content: str) -> MemoryType:
         """
@@ -222,7 +226,8 @@ Respond with ONLY the memory type name in uppercase (EPISODIC, SEMANTIC, PROCEDU
         }
         
         try:
-            rows = await self._driver.execute_query(create_cypher, params)
+            graphiti = await self._get_graphiti_service()
+            rows = await graphiti.execute_cypher(create_cypher, params)
             
             if rows:
                 basin = rows[0]
@@ -347,7 +352,8 @@ When extracting entities and relationships, prioritize:
         }
         
         try:
-            await self._driver.execute_query(cypher, params)
+            graphiti = await self._get_graphiti_service()
+            await graphiti.execute_cypher(cypher, params)
         except Exception as e:
             logger.warning(f"Failed to record basin-memory stats: {e}")
 
@@ -382,7 +388,8 @@ When extracting entities and relationships, prioritize:
             params = {}
         
         try:
-            rows = await self._driver.execute_query(cypher, params)
+            graphiti = await self._get_graphiti_service()
+            rows = await graphiti.execute_cypher(cypher, params)
             return {"basins": rows}
         except Exception as e:
             logger.error(f"Failed to get basin stats: {e}")

@@ -8,8 +8,7 @@ Implements all action handlers for the heartbeat cognitive loop.
 
 import logging
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
-from typing import Any
+from datetime import datetime
 from uuid import UUID
 
 from api.models.action import (
@@ -17,9 +16,7 @@ from api.models.action import (
     ActionResult,
     ActionStatus,
     EnvironmentSnapshot,
-    GoalsSnapshot,
 )
-from api.models.goal import GoalAssessment
 from api.services.energy_service import ActionType, EnergyService
 
 logger = logging.getLogger("dionysus.action_executor")
@@ -673,7 +670,7 @@ class InquireShallowHandler(ActionHandler):
 
             # 1. Quick search via vector store
             from api.services.vector_search import get_vector_search_service
-            from api.services.llm_service import chat_completion, HAIKU
+            from api.services.llm_service import chat_completion
             
             search_service = get_vector_search_service()
             results = await search_service.semantic_search(question, top_k=3)
@@ -999,7 +996,7 @@ class BrainstormGoalsHandler(ActionHandler):
             count = request.params.get("count", 3)
 
             # 1. Generate goal ideas via LLM
-            from api.services.llm_service import chat_completion, HAIKU
+            from api.services.llm_service import chat_completion
             import json
             
             system_prompt = f"""You are Dionysus's creative goal-setting faculty.

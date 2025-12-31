@@ -15,7 +15,7 @@ import uuid
 from smolagents.memory import ActionStep, PlanningStep
 
 if TYPE_CHECKING:
-    from smolagents.agents import Agent
+    pass
 
 logger = logging.getLogger(__name__)
 

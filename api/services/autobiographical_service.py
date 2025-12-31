@@ -8,7 +8,6 @@ Ensures the system remembers its own evolution and rationale.
 import logging
 from datetime import datetime
 from typing import List, Optional
-from uuid import uuid4
 
 from api.models.autobiographical import DevelopmentEvent, DevelopmentEventType
 from api.services.webhook_neo4j_driver import get_neo4j_driver

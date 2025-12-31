@@ -5,11 +5,10 @@ Multi-agent coordinator for comprehensive avatar research using smolagents.
 Feature: 019-avatar-knowledge-graph
 """
 
-import os
 import logging
-from typing import List, Optional, Dict, Any
+from typing import Dict, Any
 
-from smolagents import CodeAgent, LiteLLMModel
+from smolagents import CodeAgent
 
 from api.agents.tools.avatar_tools import (
     ingest_avatar_insight,

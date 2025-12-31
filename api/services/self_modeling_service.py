@@ -3,9 +3,8 @@ Self-Modeling Service - Predicts and resolves agent internal states.
 """
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Optional
 from datetime import datetime, timedelta
-from uuid import UUID
 
 import numpy as np
 from api.models.prediction import PredictionRecord, PredictionAccuracy

@@ -1,10 +1,9 @@
 import logging
-import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from smolagents.memory import AgentMemory
-from api.services.remote_sync import RemoteSyncService, get_neo4j_driver
+from api.services.remote_sync import RemoteSyncService
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ Emergence: The combined signal that drives ThoughtSeed activation.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 from pydantic import BaseModel
 
 logger = logging.getLogger("dionysus.clause")

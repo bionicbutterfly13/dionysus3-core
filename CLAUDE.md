@@ -50,7 +50,7 @@ api/
 │   ├── callbacks/               # Step callbacks (memory pruning, tracing)
 │   └── tools/                   # Class-based smolagents Tools
 ├── services/            # Business logic
-│   ├── remote_sync.py          # WebhookNeo4jDriver for Neo4j access
+│   ├── remote_sync.py          # Graphiti-backed driver shim + n8n sync utilities
 │   ├── graphiti_service.py     # Temporal knowledge graph (Graphiti)
 │   └── llm_service.py          # LiteLLM router configuration
 ├── routers/             # FastAPI endpoints
@@ -71,15 +71,15 @@ dionysus_mcp/
 
 ### Database Access Pattern
 
-**CRITICAL**: All Neo4j access must go through n8n webhooks. No direct Bolt connections.
+**CRITICAL**: Cypher access is Graphiti-backed (direct Neo4j). n8n webhooks are used for sync pipelines.
 
 ```python
-# Correct - use WebhookNeo4jDriver
+# Correct - use Graphiti-backed driver shim
 from api.services.remote_sync import get_neo4j_driver
 driver = get_neo4j_driver()
 result = await driver.execute_query(cypher, params)
 
-# Exception: Graphiti is approved for direct Neo4j access
+# Graphiti service for temporal KG operations
 from api.services.graphiti_service import get_graphiti_service
 ```
 
@@ -105,7 +105,7 @@ class MyTool(Tool):
 
 - **Python**: 3.11+ async/await, Pydantic v2 models
 - **Naming**: snake_case for functions/vars, PascalCase for classes
-- **All queries**: Must be Cypher (via WebhookNeo4jDriver)
+- **All queries**: Must be Cypher (via Graphiti-backed driver)
 - **Webhooks**: Must use HMAC-SHA256 verification (`verify_memevolve_signature`)
 
 ## Architecture Constraints

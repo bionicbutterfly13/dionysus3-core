@@ -10,12 +10,7 @@ Per Metacognitive Particles paper:
 """
 
 import pytest
-import sys
 from unittest.mock import AsyncMock, MagicMock, patch
-
-# Workaround for smolagents ManagedAgent import issue in tests
-# Import directly from module files to avoid __init__.py chain
-sys.modules['api.agents'] = MagicMock()
 
 from api.services.efe_engine import (
     get_agent_precision,
@@ -24,23 +19,11 @@ from api.services.efe_engine import (
     _agent_precision_registry,
 )
 
-# Import metacognition module directly
-import importlib.util
-spec = importlib.util.spec_from_file_location(
-    "metacognition_agent",
-    "api/agents/metacognition_agent.py"
+from api.agents.metacognition_agent import (
+    MetacognitionAgent,
+    get_attentional_spotlight,
+    _attentional_spotlight_registry,
 )
-metacog_module = importlib.util.module_from_spec(spec)
-
-# Mock smolagents imports for the module
-sys.modules['smolagents'] = MagicMock()
-sys.modules['mcp'] = MagicMock()
-
-spec.loader.exec_module(metacog_module)
-
-MetacognitionAgent = metacog_module.MetacognitionAgent
-get_attentional_spotlight = metacog_module.get_attentional_spotlight
-_attentional_spotlight_registry = metacog_module._attentional_spotlight_registry
 
 
 @pytest.fixture(autouse=True)

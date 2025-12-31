@@ -38,21 +38,21 @@ class ManagedReasoningAgent:
 
     # Description used by the manager to decide when to delegate
     DESCRIPTION = """ORIENT phase specialist for the OODA cognitive loop.
+    
+    Implements the 'Checklist-Driven Surgeon' protocol for high-accuracy reasoning.
 
-Capabilities:
-- reflect_on_topic: Deep analysis of a topic with multiple perspectives
-- synthesize_information: Combine observations into coherent understanding
-- identify_patterns: Recognize recurring themes and relationships
-- build_mental_model: Create predictive models from observations
+    Capabilities:
+    - understand_question: Deconstruct complex problems before solving
+    - recall_related: Verify and ground reasoning in analogous solved examples
+    - examine_answer: Self-critique and verification of reasoning traces
+    - backtracking: Recover from errors by revising approach
+    - meta_tot_run: Execute non-linear probabilistic planning (Meta-Tree-of-Thought)
+    - reflect_on_topic: Deep analysis of a topic with multiple perspectives
+    - identify_patterns: Recognize recurring themes and relationships
 
-Use this agent when you need to:
-1. Make sense of observations gathered by the perception agent
-2. Identify what the observations mean in context
-3. Recognize patterns that inform decision-making
-4. Build or update mental models of the situation
-
-This agent should be called AFTER perception to transform raw observations
-into actionable understanding. It bridges observation and decision."""
+    Use this agent when accuracy is critical, when the task is complex/uncertain, 
+    or when you need a rigorous verification of a proposed solution.
+    It bridges observation and decision by transforming raw data into verified wisdom."""
 
     def __init__(self, model_id: str = "dionysus-agents"):
         """

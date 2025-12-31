@@ -1,8 +1,7 @@
-import os
 import json
 import logging
-from typing import Any, Dict, List, Optional
-from smolagents import ToolCallingAgent, LiteLLMModel
+from typing import Any, Dict
+from smolagents import ToolCallingAgent
 
 from api.agents.tools.wisdom_tools import query_wisdom_graph
 from api.services.bootstrap_recall_service import BootstrapRecallService

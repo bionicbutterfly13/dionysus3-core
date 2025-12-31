@@ -4,14 +4,12 @@ Feature: 003-thoughtseed-active-inference, 042-cognitive-tools-upgrade
 Tasks: T4.1, T4.2, T042.1-4
 """
 
-import json
 import logging
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from smolagents import Tool
 
 from api.services.graphiti_service import get_graphiti_service
-from api.services.efe_engine import get_efe_engine
 from api.services.llm_service import chat_completion
 from api.agents.resource_gate import async_tool_wrapper
 

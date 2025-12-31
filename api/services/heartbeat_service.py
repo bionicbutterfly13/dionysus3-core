@@ -18,14 +18,12 @@ from uuid import UUID, uuid4
 from api.models.action import (
     ActionPlan,
     ActionRequest,
-    ActionResult,
-    ActionStatus,
     EnvironmentSnapshot,
     GoalsSnapshot,
     HeartbeatDecision,
     HeartbeatSummary,
 )
-from api.models.goal import Goal, GoalAssessment
+from api.models.goal import GoalAssessment
 from api.services.action_executor import ActionExecutor, get_action_executor
 from api.services.energy_service import ActionType, EnergyService, get_energy_service
 
@@ -524,6 +522,16 @@ class HeartbeatService:
 
         # Store as episodic memory and heartbeat log
         await self._record_heartbeat(summary)
+
+        # FEATURE 044: Multi-Tier Memory Lifecycle Management
+        # Perform background consolidation and compression
+        try:
+            from api.services.multi_tier_memory_service import get_multi_tier_service
+            multi_tier_svc = get_multi_tier_service()
+            lifecycle_result = await multi_tier_svc.run_lifecycle_management()
+            logger.info(f"Multi-tier memory lifecycle completed: {lifecycle_result}")
+        except Exception as e:
+            logger.error(f"Multi-tier memory lifecycle failed: {e}")
 
         logger.info(f"=== HEARTBEAT #{heartbeat_number} COMPLETE ===")
         return summary

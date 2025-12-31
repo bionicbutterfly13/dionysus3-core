@@ -2,12 +2,11 @@
 Wisdom Distiller Agent - Synthesis and Canonicalization.
 """
 
-import os
 import json
-from typing import Any, Dict, List, Optional
-from smolagents import CodeAgent, LiteLLMModel
+from typing import Any, Dict, List
+from smolagents import CodeAgent
 from api.agents.tools.wisdom_tools import distill_wisdom_cluster, query_wisdom_graph
-from api.services.llm_service import get_router_model, GPT5_NANO
+from api.services.llm_service import get_router_model
 
 class WisdomDistiller:
     """

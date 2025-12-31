@@ -59,8 +59,8 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 
 - **Database Access:**
     - **Neo4j-Only:** Relational databases (PostgreSQL) have been removed.
-    - **Strict Rule:** Direct Bolt connections are **FORBIDDEN** for general services. Use Cypher via `WebhookNeo4jDriver` (orchestrated by n8n).
-    - **Exception:** `graphiti-core` is the only component authorized for direct Neo4j access.
+    - **Cypher Access:** Services use a Graphiti-backed driver shim for direct Neo4j queries.
+    - **n8n Webhooks:** Ingest/recall/traverse workflows remain webhook-orchestrated.
 - **Security:** Webhook communication is secured via **HMAC-SHA256** signatures (`verify_memevolve_signature`).
 - **Memory Management:**
     - **Episodic:** Temporal sequences of events.
@@ -70,7 +70,7 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 ## Roadmap & Pending Tasks
 
 1.  **Feature 010: Heartbeat Agent Handoff (Completed)**: Full cognitive loop migrated to `smolagents.CodeAgent`. OODA logic delegated to hierarchical managed agents.
-2.  **Feature 011: Core Services Neo4j Migration (Completed)**: `Worldview`, `ThoughtSeed`, and `Model` services refactored to use `WebhookNeo4jDriver`. Precision-weighted belief updates implemented.
+2.  **Feature 011: Core Services Neo4j Migration (Completed)**: `Worldview`, `ThoughtSeed`, and `Model` services refactored to use the Graphiti-backed driver shim. Precision-weighted belief updates implemented.
 3.  **Feature 012: Historical Task Reconstruction (Completed)**: Mirror local Archon task history into VPS Neo4j graph for longitudinal continuity.
 4.  **System Consolidation (Completed)**: Standardized smolagents usage, moved tools to MCP server, and purged legacy PostgreSQL stubs.
 5.  **Agentic Unified Model (Completed)**: Unified all 3 pillars (Engine, Marketing, KB) under smolagents. Hierarchical OODA loop implemented. Unified Aspect Service with Graphiti temporal snapshots active. Human-in-the-loop review queue operational.

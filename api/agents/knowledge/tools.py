@@ -6,16 +6,12 @@ Feature: 019-avatar-knowledge-graph
 """
 
 import os
-import json
 import logging
 import asyncio
-from typing import Any, Dict, List, Optional
-from datetime import datetime
+from typing import Optional
 
-from smolagents import tool
 from openai import AsyncOpenAI
 
-from api.models.avatar import InsightType, AvatarInsight
 from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger(__name__)
@@ -56,12 +52,6 @@ def run_sync(coro):
     finally:
         loop.close()
 
-from api.agents.tools.avatar_tools import (
-    ingest_avatar_insight, 
-    query_avatar_graph, 
-    synthesize_avatar_profile, 
-    bulk_ingest_document
-)
 
 # The following functions are kept for direct API usage if needed
 async def async_query_avatar_graph(query: str, insight_types: Optional[str] = None, limit: int = 10) -> dict:

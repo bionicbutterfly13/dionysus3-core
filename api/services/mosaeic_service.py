@@ -7,10 +7,9 @@ Mental Observation of Senses, Actions, Emotions, Impulses, Cognitions.
 
 import json
 import logging
-from datetime import datetime
 from typing import Optional
 
-from api.models.mosaeic import MOSAEICCapture, MOSAEICWindow
+from api.models.mosaeic import MOSAEICCapture
 from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.graphiti_service import get_graphiti_service
 

@@ -22,6 +22,33 @@ from api.services.llm_service import chat_completion, GPT5_NANO
 
 logger = logging.getLogger(__name__)
 
+try:
+    from neo4j.graph import Node, Relationship, Path
+    from neo4j.time import DateTime, Date, Time, Duration
+except Exception:  # pragma: no cover - optional import guard
+    Node = Relationship = Path = DateTime = Date = Time = Duration = ()
+
+
+def _normalize_neo4j_value(value: Any) -> Any:
+    if isinstance(value, Node) or isinstance(value, Relationship):
+        return {k: _normalize_neo4j_value(v) for k, v in dict(value).items()}
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (DateTime, Date, Time)):
+        return value.to_native().isoformat()
+    if isinstance(value, Duration):
+        return {
+            "months": value.months,
+            "days": value.days,
+            "seconds": value.seconds,
+            "nanoseconds": value.nanoseconds,
+        }
+    if isinstance(value, list):
+        return [_normalize_neo4j_value(item) for item in value]
+    if isinstance(value, dict):
+        return {k: _normalize_neo4j_value(v) for k, v in value.items()}
+    return value
+
 
 class GraphitiConfig:
     """Configuration for Graphiti service."""
@@ -565,6 +592,20 @@ IMPORTANT:
             ],
             "count": len(edges),
         }
+
+    async def execute_cypher(
+        self,
+        statement: str,
+        params: Optional[dict[str, Any]] = None,
+    ) -> list[dict[str, Any]]:
+        """Run a Cypher query via Graphiti's Neo4j driver."""
+        graphiti = self._get_graphiti()
+        result = await graphiti.driver.execute_query(statement, params=params or {})
+        records = getattr(result, "records", None)
+        if records is None:
+            raw = result if isinstance(result, list) else []
+            return [_normalize_neo4j_value(row) for row in raw]
+        return [_normalize_neo4j_value(record.data()) for record in records]
 
     async def get_entity(self, name: str, group_id: Optional[str] = None) -> Optional[dict[str, Any]]:
         """Get entity by name."""

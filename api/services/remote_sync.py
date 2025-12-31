@@ -6,7 +6,8 @@ Tasks: T020, T021
 Handles synchronization between local PostgreSQL and remote Neo4j via n8n webhooks.
 Includes queue management, retry logic, and recovery operations.
 
-IMPORTANT: All Neo4j access goes through n8n webhooks. No direct Neo4j connections.
+IMPORTANT: Sync operations use n8n webhooks. Direct Cypher access is handled
+by Graphiti-backed drivers for services that need Neo4j queries.
 """
 
 import hashlib
@@ -25,39 +26,32 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 # =========================================================================
-# Webhook Neo4j "Driver" (compatibility layer)
+# Neo4j "Driver" (compatibility layer)
 # =========================================================================
 
-_webhook_neo4j_driver = None
+_neo4j_driver = None
 
 
 def get_neo4j_driver():
     """
     Compatibility shim for services that expect a Neo4j driver.
 
-    Returns a webhook-backed driver that executes Cypher via n8n.
+    Returns a Graphiti-backed driver for direct Neo4j access.
     """
-    global _webhook_neo4j_driver
-    if _webhook_neo4j_driver is None:
+    global _neo4j_driver
+    if _neo4j_driver is None:
         from api.services.webhook_neo4j_driver import WebhookNeo4jDriver
 
-        _webhook_neo4j_driver = WebhookNeo4jDriver(
-            config=SyncConfig(
-                webhook_token=os.getenv("MEMORY_WEBHOOK_TOKEN", ""),
-                cypher_webhook_url=os.getenv(
-                    "N8N_CYPHER_URL", "http://n8n:5678/webhook/neo4j/v1/cypher"
-                ),
-            )
-        )
-    return _webhook_neo4j_driver
+        _neo4j_driver = WebhookNeo4jDriver()
+    return _neo4j_driver
 
 
 
 async def close_neo4j_driver() -> None:
-    global _webhook_neo4j_driver
-    if _webhook_neo4j_driver is not None:
-        await _webhook_neo4j_driver.close()
-        _webhook_neo4j_driver = None
+    global _neo4j_driver
+    if _neo4j_driver is not None:
+        await _neo4j_driver.close()
+        _neo4j_driver = None
 
 # =========================================================================
 # Configuration

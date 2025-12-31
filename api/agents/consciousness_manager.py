@@ -1,8 +1,7 @@
-import os
 import json
 from typing import Any, Dict
 
-from smolagents import CodeAgent, LiteLLMModel
+from smolagents import CodeAgent
 
 # Feature 039: Use ManagedAgent wrappers for native multi-agent orchestration
 from api.agents.managed import (
@@ -18,9 +17,12 @@ from api.agents.tools.cognitive_tools import (
     examine_answer,
     backtracking
 )
+from api.agents.tools.planning_tools import active_planner
 from api.agents.tools.meta_tot_tools import meta_tot_decide, meta_tot_run
 from api.services.bootstrap_recall_service import BootstrapRecallService
 from api.services.metaplasticity_service import get_metaplasticity_controller
+from api.services.meta_cognitive_service import get_meta_learner
+from api.models.meta_cognition import CognitiveEpisode
 from api.models.bootstrap import BootstrapConfig
 from api.agents.self_modeling_callback import create_self_modeling_callback
 
@@ -43,6 +45,7 @@ class ConsciousnessManager:
         # Instantiate cognitive services
         self.bootstrap_svc = BootstrapRecallService()
         self.metaplasticity_svc = get_metaplasticity_controller()
+        self.meta_learner = get_meta_learner()
         
         # Feature 039 (T009): Use ManagedAgent wrappers for native orchestration
         # These wrappers provide proper ManagedAgent instances with rich descriptions
@@ -60,7 +63,7 @@ class ConsciousnessManager:
         self._entered = False
 
     def __enter__(self):
-        from api.agents.audit import get_audit_callback, get_cognitive_callback_registry
+        from api.agents.audit import get_audit_callback
         
         # Initialize Audit Registry
         audit = get_audit_callback()
@@ -102,6 +105,7 @@ class ConsciousnessManager:
         self._reasoning_managed.tools[recall_related.name] = recall_related
         self._reasoning_managed.tools[examine_answer.name] = examine_answer
         self._reasoning_managed.tools[backtracking.name] = backtracking
+        self._reasoning_managed.tools[active_planner.name] = active_planner
         self._reasoning_managed.tools[meta_tot_decide.name] = meta_tot_decide
         self._reasoning_managed.tools[meta_tot_run.name] = meta_tot_run
         
@@ -182,6 +186,14 @@ The agents will return structured results for synthesis.""",
             initial_context["bootstrap_past_context"] = bootstrap_result.formatted_context
             print(f"DEBUG: Bootstrap Recall injected {bootstrap_result.source_count} sources (summarized={bootstrap_result.summarized})")
 
+        # T005 (043): Meta-Cognitive Episodic Retrieval
+        if initial_context.get("meta_learning_enabled", True):
+            past_episodes = await self.meta_learner.retrieve_relevant_episodes(task_query)
+            if past_episodes:
+                lessons_learned = await self.meta_learner.synthesize_lessons(past_episodes)
+                initial_context["meta_cognitive_lessons"] = lessons_learned
+                print(f"DEBUG: Meta-Cognitive Learner injected lessons from {len(past_episodes)} past episodes.")
+
         # Meta-ToT decision and optional pre-run (threshold gating)
         if initial_context.get("meta_tot_enabled", True):
             from api.services.meta_tot_decision import get_meta_tot_decision_service
@@ -211,8 +223,15 @@ The agents will return structured results for synthesis.""",
         1. Delegate to 'perception' to gather current state and relevant memories. 
            NOTE: Check 'bootstrap_past_context' in initial_context for automatic grounding.
         2. Delegate to 'reasoning' to analyze the perception results and initial context.
+           NOTE: Apply 'meta_cognitive_lessons' if present.
+           PROTOCOL: For complex or high-uncertainty tasks, instruct 'reasoning' to follow the 
+           'Checklist-Driven Surgeon' protocol: Understand Question -> Recall Related -> Reason -> Examine Answer -> Backtrack (if needed).
         3. Delegate to 'metacognition' to review goals and decide on strategic updates.
         4. Synthesize everything into a final actionable plan.
+        
+        META-ToT GUIDANCE:
+        If 'meta_tot_result' is present in initial_context, incorporate its best_path and 
+        confidence into your final strategy. It represents deep probabilistic planning.
         
         SELF-HEALING PROTOCOL:
         If a sub-agent returns a "RECOVERY_HINT", you MUST prioritize that advice in your 
@@ -261,6 +280,51 @@ The agents will return structured results for synthesis.""",
         adjusted_lr = self.metaplasticity_svc.calculate_learning_rate(surprise_level)
         new_max_steps = self.metaplasticity_svc.calculate_max_steps(surprise_level)
         
+        # FEATURE 045: Unified Consciousness Integration Pipeline
+        # Ensures every cognitive event updates internal physics and self-story
+        try:
+            from api.services.consciousness_integration_pipeline import get_consciousness_pipeline
+            pipeline = get_consciousness_pipeline()
+            # Extract ActiveInferenceState from Meta-ToT results if available
+            ai_state = None
+            if "meta_tot_trace" in initial_context:
+                # Mock or reconstruct from trace if needed
+                pass
+            
+            await pipeline.process_cognitive_event(
+                problem=task_query,
+                reasoning_trace=structured_result.get("reasoning", str(raw_result)),
+                active_inference_state=None, # Future: pass actual state
+                context=initial_context
+            )
+            print("DEBUG: Consciousness Integration Pipeline processed cognitive event.")
+        except Exception as e:
+            print(f"DEBUG: Consciousness Pipeline integration failed: {e}")
+
+        # T006 (043): Record Cognitive Episode for Meta-Learning
+        if initial_context.get("meta_learning_enabled", True):
+            try:
+                # Extract tools used from orchestrator memory
+                tools_used = []
+                for step in self.orchestrator.memory.steps:
+                    if hasattr(step, 'tool_calls') and step.tool_calls:
+                        for tc in step.tool_calls:
+                            tools_used.append(tc.name)
+                
+                episode = CognitiveEpisode(
+                    task_query=task_query,
+                    task_context={k: v for k, v in initial_context.items() if isinstance(v, (str, int, float, bool))},
+                    tools_used=list(set(tools_used)),
+                    reasoning_trace=structured_result.get("reasoning", ""),
+                    success=confidence > 0.6,
+                    outcome_summary=structured_result.get("reasoning", ""),
+                    surprise_score=surprise_level,
+                    lessons_learned=f"Used tools {tools_used}. Confidence: {confidence:.2f}"
+                )
+                await self.meta_learner.record_episode(episode)
+            except Exception as e:
+                print(f"DEBUG: Failed to record cognitive episode: {e}")
+
         # Log adjustment for observability
         print(f"DEBUG: Metaplasticity adjusted learning_rate={adjusted_lr:.4f}, max_steps={new_max_steps} (surprise={surprise_level:.2f})")
         

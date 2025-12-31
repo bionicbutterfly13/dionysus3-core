@@ -9,14 +9,14 @@ Provides:
 - Conditional independence verification
 - Neo4j schema operations for [:SENSORY] and [:ACTIVE] edges
 
-Database: Neo4j via WebhookNeo4jDriver (n8n webhooks)
+Database: Neo4j via Graphiti-backed driver
 """
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Optional, List, Set
+from typing import Optional, Set
 from uuid import uuid4
 
 from api.models.markov_blanket import (

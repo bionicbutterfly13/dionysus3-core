@@ -4,7 +4,7 @@ Feature: 019-legacy-component-discovery
 Tasks: T4.1, T4.2
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 from smolagents import Tool
 

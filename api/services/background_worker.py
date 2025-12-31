@@ -9,7 +9,7 @@ Handles neighborhood recomputation, episode summarization, and health monitoring
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
@@ -608,6 +608,14 @@ class BackgroundWorker:
                     # Episode summarization
                     episodes = await self._episode_task.run()
                     self._health.episodes_summarized += episodes
+
+                    # FEATURE 044: Multi-Tier Memory Lifecycle
+                    try:
+                        from api.services.multi_tier_memory_service import get_multi_tier_service
+                        multi_tier_svc = get_multi_tier_service()
+                        await multi_tier_svc.run_lifecycle_management()
+                    except Exception as e:
+                        logger.error(f"Multi-tier memory lifecycle error in background worker: {e}")
 
                     # Periodic health check
                     if cycle_count % self._config.health_check_interval_cycles == 0:
