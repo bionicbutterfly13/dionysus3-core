@@ -617,6 +617,33 @@ class ModelService:
         )
 
     async def validate_basin_ids(self, basin_ids: list[UUID]) -> list[UUID]:
+        """
+        Validate that basin IDs exist in Neo4j.
+
+        Args:
+            basin_ids: List of basin UUIDs to validate
+
+        Returns:
+            List of valid basin IDs that exist in the database
+        """
+        if not basin_ids:
+            return []
+
+        cypher = """
+        UNWIND $ids AS id
+        MATCH (b:MemoryCluster {id: id})
+        RETURN b.id AS valid_id
+        """
+
+        try:
+            result = await self._driver.execute_query(
+                cypher,
+                {"ids": [str(bid) for bid in basin_ids]}
+            )
+            return [UUID(r["valid_id"]) for r in result if r.get("valid_id")]
+        except Exception as e:
+            logger.warning(f"Basin validation failed: {e}")
+            return []
 
 # Singleton factory
 _model_service_instance: Optional[ModelService] = None

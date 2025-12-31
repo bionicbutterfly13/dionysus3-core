@@ -1471,6 +1471,44 @@ async def fetch_archon_tasks() -> list[dict]:
 
 
 # =============================================================
+# META-TOT TOOLS (Feature 041)
+# =============================================================
+
+from dionysus_mcp.tools.meta_tot import (
+    meta_tot_run_tool,
+    meta_tot_trace_tool,
+)
+
+
+@app.tool()
+async def meta_tot_run(
+    task: str,
+    context: Optional[dict] = None,
+    config: Optional[dict] = None,
+) -> dict:
+    """
+    Run Meta-ToT reasoning with active inference scoring.
+
+    Args:
+        task: Problem statement or task prompt
+        context: Optional context data for scoring
+        config: Optional Meta-ToT config overrides
+    """
+    return await meta_tot_run_tool(task, context=context, config=config)
+
+
+@app.tool()
+async def meta_tot_trace(trace_id: str) -> dict:
+    """
+    Retrieve a Meta-ToT trace by id.
+
+    Args:
+        trace_id: Trace identifier returned by meta_tot_run
+    """
+    return await meta_tot_trace_tool(trace_id)
+
+
+# =============================================================
 # MOSAEIC TOOLS (Feature 024)
 # =============================================================
 
@@ -1498,6 +1536,68 @@ async def mosaeic_capture(text: str, source_id: str = "agent_observation") -> st
     summary += f"- Cognitions: {capture.cognitions.content} (Intensity: {capture.cognitions.intensity})\n"
     
     return summary
+
+
+# =============================================================================
+# COGNITIVE TOOLS (Feature 042)
+# =============================================================================
+
+from dionysus_mcp.tools.cognitive import (
+    cognitive_understand_tool,
+    cognitive_recall_tool,
+    cognitive_examine_tool,
+    cognitive_backtrack_tool,
+)
+
+@app.tool()
+async def cognitive_understand(question: str, context: Optional[str] = None) -> dict:
+    """
+    Decompose a complex problem using research-validated cognitive prompts.
+    
+    Use this tool FIRST when facing a complex or ambiguous task.
+    
+    Args:
+        question: The problem statement
+        context: Optional background context
+    """
+    return await cognitive_understand_tool(question, context)
+
+@app.tool()
+async def cognitive_recall(question: str, context: Optional[str] = None) -> dict:
+    """
+    Retrieve analogous examples to guide reasoning.
+    
+    Args:
+        question: The problem statement
+        context: Optional context (e.g. from understand_question)
+    """
+    return await cognitive_recall_tool(question, context)
+
+@app.tool()
+async def cognitive_examine(question: str, current_reasoning: str, context: Optional[str] = None) -> dict:
+    """
+    Critically examine reasoning for errors and improvements.
+    
+    Use this to self-correct before finalizing an answer.
+    
+    Args:
+        question: The original problem
+        current_reasoning: The proposed solution or thought trace
+        context: Optional context
+    """
+    return await cognitive_examine_tool(question, current_reasoning, context)
+
+@app.tool()
+async def cognitive_backtrack(question: str, current_reasoning: str, context: Optional[str] = None) -> dict:
+    """
+    Propose alternative strategies when errors are found.
+    
+    Args:
+        question: The original problem
+        current_reasoning: The flawed reasoning trace
+        context: Optional context
+    """
+    return await cognitive_backtrack_tool(question, current_reasoning, context)
 
 
 # =============================================================================

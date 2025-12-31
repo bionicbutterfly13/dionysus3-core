@@ -10,7 +10,15 @@ from api.agents.managed import (
     ManagedReasoningAgent,
     ManagedMetacognitionAgent,
 )
-from api.agents.tools.cognitive_tools import context_explorer, cognitive_check
+from api.agents.tools.cognitive_tools import (
+    context_explorer,
+    cognitive_check,
+    understand_question,
+    recall_related,
+    examine_answer,
+    backtracking
+)
+from api.agents.tools.meta_tot_tools import meta_tot_decide, meta_tot_run
 from api.services.bootstrap_recall_service import BootstrapRecallService
 from api.services.metaplasticity_service import get_metaplasticity_controller
 from api.models.bootstrap import BootstrapConfig
@@ -90,6 +98,12 @@ class ConsciousnessManager:
         # smolagents 1.23+: _reasoning_managed IS the ToolCallingAgent
         self._reasoning_managed.tools[context_explorer.name] = context_explorer
         self._reasoning_managed.tools[cognitive_check.name] = cognitive_check
+        self._reasoning_managed.tools[understand_question.name] = understand_question
+        self._reasoning_managed.tools[recall_related.name] = recall_related
+        self._reasoning_managed.tools[examine_answer.name] = examine_answer
+        self._reasoning_managed.tools[backtracking.name] = backtracking
+        self._reasoning_managed.tools[meta_tot_decide.name] = meta_tot_decide
+        self._reasoning_managed.tools[meta_tot_run.name] = meta_tot_run
         
         # Feature 039 (T009): Create orchestrator with native ManagedAgent instances
         # The ManagedAgent wrappers provide rich descriptions that guide delegation
@@ -167,6 +181,25 @@ The agents will return structured results for synthesis.""",
             # Inject into context
             initial_context["bootstrap_past_context"] = bootstrap_result.formatted_context
             print(f"DEBUG: Bootstrap Recall injected {bootstrap_result.source_count} sources (summarized={bootstrap_result.summarized})")
+
+        # Meta-ToT decision and optional pre-run (threshold gating)
+        if initial_context.get("meta_tot_enabled", True):
+            from api.services.meta_tot_decision import get_meta_tot_decision_service
+            from api.services.meta_tot_engine import get_meta_tot_engine
+
+            decision_service = get_meta_tot_decision_service()
+            meta_tot_decision = decision_service.decide(task_query, initial_context)
+            initial_context["meta_tot_decision"] = meta_tot_decision.model_dump()
+
+            if meta_tot_decision.use_meta_tot and initial_context.get("meta_tot_auto_run", True):
+                try:
+                    engine = get_meta_tot_engine()
+                    result, trace = await engine.run(task_query, initial_context, decision=meta_tot_decision)
+                    initial_context["meta_tot_result"] = result.model_dump()
+                    if trace is not None:
+                        initial_context["meta_tot_trace"] = trace.model_dump()
+                except Exception as exc:
+                    initial_context["meta_tot_error"] = str(exc)
 
         prompt = f"""
         Execute a full OODA (Observe-Orient-Decide-Act) cycle based on the current context.
