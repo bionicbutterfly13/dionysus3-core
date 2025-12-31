@@ -230,7 +230,7 @@ class ConsciousnessManager:
 ### T011: Define AgentExecutionTrace Neo4j schema
 **File**: `neo4j/schema/agent_execution_trace.cypher` (new)
 **Effort**: 30 min
-**Status**: [ ] Todo
+**Status**: [X] Complete
 
 ```cypher
 // Constraint for execution trace uniqueness
@@ -249,32 +249,33 @@ FOR (t:AgentExecutionTrace) ON (t.started_at);
 ### T012: Implement execution trace persistence service
 **File**: `api/services/execution_trace_service.py` (new)
 **Effort**: 1.5 hours
-**Status**: [ ] Todo
+**Status**: [X] Complete
 
-- [ ] `create_trace(agent_name, run_id)` -> trace_id
-- [ ] `add_step(trace_id, step_data)` -> step_id
-- [ ] `complete_trace(trace_id, success, summary)`
-- [ ] `link_basin(trace_id, basin_id, strength)`
-- [ ] `get_trace(trace_id)` -> full execution trace
+- [X] `create_trace(agent_name, run_id)` -> trace_id
+- [X] `add_step(trace_id, step_data)` -> step_id
+- [X] `complete_trace(trace_id, success, summary)`
+- [X] `link_basin(trace_id, basin_id, strength)`
+- [X] `get_trace(trace_id)` -> full execution trace
 
 ### T013: Implement post-run persistence callback
 **File**: `api/agents/callbacks/execution_trace_callback.py` (new)
 **Effort**: 1 hour
-**Status**: [ ] Todo
+**Status**: [X] Complete
 
-- [ ] Register as final callback after agent.run() completes
-- [ ] Extract all steps from agent.memory
-- [ ] Call execution_trace_service to persist
-- [ ] Link activated basins from basin_activation_callback
+- [X] Register as final callback after agent.run() completes
+- [X] Extract all steps from agent.memory
+- [X] Call execution_trace_service to persist
+- [X] Link activated basins from basin_activation_callback
 
 ### T014: Add execution trace query endpoints
 **File**: `api/routers/agents.py` (new)
 **Effort**: 1 hour
-**Status**: [ ] Todo
+**Status**: [X] Complete
 
-- [ ] `GET /api/agents/traces` - list recent execution traces
-- [ ] `GET /api/agents/traces/{id}` - get full execution trace
-- [ ] `GET /api/agents/traces/{id}/replay` - formatted replay view
+- [X] `GET /api/agents/traces` - list recent execution traces
+- [X] `GET /api/agents/traces/{id}` - get full execution trace
+- [X] `GET /api/agents/traces/{id}/replay` - formatted replay view
+- [X] `GET /api/agents/token-usage` - token statistics (bonus)
 
 ---
 
@@ -321,7 +322,7 @@ FOR (t:AgentExecutionTrace) ON (t.started_at);
 | 2. Callback Registry | T003-T005 | 3 hours | [X] Complete |
 | 3. Memory Pruning | T006-T007 | 1.25 hours | [X] Complete |
 | 4. ManagedAgent | T008-T010 | 4 hours | [X] Complete |
-| 5. Execution Trace Persistence | T011-T014 | 4 hours | [ ] Todo |
+| 5. Execution Trace Persistence | T011-T014 | 4 hours | [X] Complete |
 | 6. Integration | T015-T017 | 2.75 hours | [ ] Todo |
 | **Total** | **17 tasks** | **~16 hours** | |
 
@@ -334,6 +335,6 @@ FOR (t:AgentExecutionTrace) ON (t.started_at);
 - [X] Basin activation logged on semantic_recall
 - [X] Memory pruning reduces tokens by 30%+
 - [X] ConsciousnessManager uses native ManagedAgent
-- [ ] Execution traces queryable via `/api/agents/traces`
+- [X] Execution traces queryable via `/api/agents/traces`
 - [ ] All existing tests pass
 - [ ] New integration test passes
