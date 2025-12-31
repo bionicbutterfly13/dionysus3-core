@@ -611,8 +611,8 @@ class BackgroundWorker:
 
                     # FEATURE 044: Multi-Tier Memory Lifecycle
                     try:
-                        from api.services.multi_tier_memory_service import get_multi_tier_service
-                        multi_tier_svc = get_multi_tier_service()
+                        from api.services.multi_tier_lifecycle_service import get_multi_tier_lifecycle_service
+                        multi_tier_svc = get_multi_tier_lifecycle_service()
                         await multi_tier_svc.run_lifecycle_management()
                     except Exception as e:
                         logger.error(f"Multi-tier memory lifecycle error in background worker: {e}")

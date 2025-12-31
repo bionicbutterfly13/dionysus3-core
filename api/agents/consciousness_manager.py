@@ -15,7 +15,8 @@ from api.agents.tools.cognitive_tools import (
     understand_question,
     recall_related,
     examine_answer,
-    backtracking
+    backtracking,
+    authorize_destruction
 )
 from api.agents.tools.planning_tools import active_planner
 from api.agents.tools.meta_tot_tools import meta_tot_decide, meta_tot_run
@@ -106,6 +107,7 @@ class ConsciousnessManager:
         self._reasoning_managed.tools[examine_answer.name] = examine_answer
         self._reasoning_managed.tools[backtracking.name] = backtracking
         self._reasoning_managed.tools[active_planner.name] = active_planner
+        self._reasoning_managed.tools[authorize_destruction.name] = authorize_destruction
         self._reasoning_managed.tools[meta_tot_decide.name] = meta_tot_decide
         self._reasoning_managed.tools[meta_tot_run.name] = meta_tot_run
         

@@ -108,6 +108,22 @@ When reading existing code:
 
 ---
 
+## Metaphors
+
+### Checklist-Driven Surgeon
+
+**Location**: `specs/047-checklist-driven-surgeon/`, `api/agents/tools/cognitive_tools.py`
+
+**Meaning**: A rigorous, multi-step verification protocol for complex reasoning tasks. It mandates that agents slow down and follow a checklist:
+1. **Understand Question**: Deconstruct problem before solving.
+2. **Recall Related**: Ground reasoning in analogous examples.
+3. **Examine Answer**: Critique reasoning before concluding.
+4. **Backtrack**: Recover if errors are found during verification.
+
+**Goal**: Minimize hallucinations and logical errors by mimicking surgical discipline.
+
+---
+
 ## References
 
 - [Smolagents Documentation](https://huggingface.co/docs/smolagents)

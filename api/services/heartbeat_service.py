@@ -526,8 +526,8 @@ class HeartbeatService:
         # FEATURE 044: Multi-Tier Memory Lifecycle Management
         # Perform background consolidation and compression
         try:
-            from api.services.multi_tier_memory_service import get_multi_tier_service
-            multi_tier_svc = get_multi_tier_service()
+            from api.services.multi_tier_lifecycle_service import get_multi_tier_lifecycle_service
+            multi_tier_svc = get_multi_tier_lifecycle_service()
             lifecycle_result = await multi_tier_svc.run_lifecycle_management()
             logger.info(f"Multi-tier memory lifecycle completed: {lifecycle_result}")
         except Exception as e:
