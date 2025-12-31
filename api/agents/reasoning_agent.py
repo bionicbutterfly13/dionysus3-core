@@ -33,13 +33,15 @@ class ReasoningAgent:
         audit = get_audit_callback()
         
         # T1.1: Migrate to ToolCallingAgent
+        # T039-002: Enable planning_interval for OODA agents
         self.agent = ToolCallingAgent(
             tools=tools,
             model=self.model,
             name=self.name,
             description=self.description,
             max_steps=5,
-            max_tool_threads=4, # Enable parallel tool execution (T1.3)
+            planning_interval=2,  # Re-plan every 2 steps (FR-039-002)
+            max_tool_threads=4,  # Enable parallel tool execution (T1.3)
             step_callbacks=audit.get_registry("reasoning")
         )
         return self

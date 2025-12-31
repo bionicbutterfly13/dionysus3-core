@@ -1,0 +1,26 @@
+openapi: 3.0.0
+info:
+  title: Thoughtseeds Inner Screen API
+  version: 1.0.0
+paths:
+  /api/cognition/screen:
+    get:
+      summary: Get current Inner Screen projection
+      responses:
+        '200':
+          description: Current conscious attention
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  thought_id:
+                    type: string
+                    format: uuid
+                  content:
+                    type: string
+                  brightness:
+                    type: number
+                  timestamp:
+                    type: string
+                    format: date-time
