@@ -9,6 +9,9 @@ Tests for:
 - Basin activation on semantic_recall
 - Execution trace persistence
 - Memory pruning token reduction
+
+Note: Some tests require smolagents>=1.23 with ManagedAgent.
+Tests will skip gracefully when ManagedAgent is not available.
 """
 
 import pytest
@@ -17,6 +20,19 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 from smolagents.memory import ActionStep, PlanningStep
+
+# Check if ManagedAgent is available (requires smolagents>=1.23)
+try:
+    from smolagents import ManagedAgent
+    HAS_MANAGED_AGENT = True
+except ImportError:
+    HAS_MANAGED_AGENT = False
+
+# Marker for tests requiring ManagedAgent
+requires_managed_agent = pytest.mark.skipif(
+    not HAS_MANAGED_AGENT,
+    reason="ManagedAgent not available in installed smolagents version"
+)
 
 
 # =============================================================================
@@ -60,6 +76,7 @@ def mock_agent():
 # =============================================================================
 
 
+@requires_managed_agent
 class TestPlanningInterval:
     """Tests for planning_interval configuration."""
 
@@ -106,6 +123,7 @@ class TestPlanningInterval:
 # =============================================================================
 
 
+@requires_managed_agent
 class TestCallbackRegistry:
     """Tests for DionysusCognitiveCallbackRegistry."""
 
@@ -184,6 +202,7 @@ class TestCallbackRegistry:
 # =============================================================================
 
 
+@requires_managed_agent
 class TestMemoryPruning:
     """Tests for memory pruning callback."""
 
@@ -231,6 +250,7 @@ class TestMemoryPruning:
 # =============================================================================
 
 
+@requires_managed_agent
 class TestManagedAgents:
     """Tests for ManagedAgent wrappers."""
 
@@ -328,6 +348,7 @@ class TestExecutionTracePersistence:
         # Verify buffer has the link
         assert len(service._buffers[trace_id].basin_links) == 1
 
+    @requires_managed_agent
     @pytest.mark.asyncio
     async def test_execution_trace_collector(self, mock_action_step, mock_planning_step):
         """ExecutionTraceCollector collects steps during run."""
@@ -349,6 +370,7 @@ class TestExecutionTracePersistence:
 # =============================================================================
 
 
+@requires_managed_agent
 class TestFullFlow:
     """End-to-end integration tests."""
 
@@ -423,6 +445,7 @@ class TestFullFlow:
 # =============================================================================
 
 
+@requires_managed_agent
 class TestAgentsRouter:
     """Tests for /api/agents endpoints."""
 
