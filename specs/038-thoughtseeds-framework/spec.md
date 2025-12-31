@@ -4,6 +4,7 @@
 **Created**: 2025-12-30
 **Status**: Draft
 **Input**: Thoughtseeds (Kavi et al., 2025), Bayesian Inference (Context-Engineering), smolagents architecture.
+**Terminology**: See [docs/TERMINOLOGY.md](../../docs/TERMINOLOGY.md) - this spec uses "trajectory" to mean STATE-SPACE paths (theoretical), not execution traces (operational)
 
 ## Clarifications
 
