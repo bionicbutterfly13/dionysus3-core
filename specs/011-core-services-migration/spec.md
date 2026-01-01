@@ -39,7 +39,6 @@ As a cognitive system, I want my worldview confidence updated mathematically bas
 
 - **OR-001**: `dionysus-api` MUST retain stable DNS resolution for `neo4j` and `n8n` across container re-creates.
 - **OR-002**: Graphiti index builds MUST not block API startup (use a runbook/job).
-- **OR-003**: Archon MCP integration MUST be disable-able via `ARCHON_ENABLED`.
 
 ## Key Entities
 

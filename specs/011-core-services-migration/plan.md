@@ -17,7 +17,6 @@ Complete the transition to Neo4j by refactoring the three primary cognitive serv
 
 - Persist Docker network attachment so `dionysus-api` can always resolve `neo4j` and `n8n` after container re-creates.
 - Maintain a safe Graphiti index build runbook/job that does not block API startup.
-- Keep Archon connectivity optional via `ARCHON_ENABLED` in `.env`.
 
 ## Constitution Check
 

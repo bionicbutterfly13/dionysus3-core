@@ -62,7 +62,7 @@ class ReconstructRequest(BaseModel):
     )
     prefetched_tasks: Optional[list[dict]] = Field(
         None,
-        description="Pre-fetched tasks from Archon (bypasses VPS→Archon call)",
+        description="Optional task list supplied by the caller",
         json_schema_extra={"examples": [[{"id": "abc", "title": "Task 1", "status": "todo"}]]}
     )
 
@@ -169,7 +169,7 @@ async def reconstruct_session(request: ReconstructRequest) -> ReconstructRespons
     
     Uses attractor-based resonance to surface relevant:
     - Recent session summaries
-    - Active tasks from Archon
+    - Optional tasks provided by the caller
     - Key entities from Graphiti
     - Recent decisions and commitments
     """
@@ -296,7 +296,6 @@ async def session_health() -> dict:
     Health check for session reconstruction service.
     
     Checks:
-    - Archon connectivity
     - n8n webhook connectivity
     - Graphiti (if enabled)
     """
@@ -304,25 +303,11 @@ async def session_health() -> dict:
     
     health = {
         "healthy": True,
-        "archon": {"status": "unknown"},
         "n8n": {"status": "unknown"},
         "graphiti": {"status": "disabled"},
     }
     
     service = get_reconstruction_service()
-    
-    # Check Archon
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{service.archon_url}/health")
-            if response.status_code == 200:
-                health["archon"] = {"status": "healthy"}
-            else:
-                health["archon"] = {"status": "unhealthy", "code": response.status_code}
-                health["healthy"] = False
-    except Exception as e:
-        health["archon"] = {"status": "unreachable", "error": str(e)}
-        health["healthy"] = False
     
     # Check n8n
     try:

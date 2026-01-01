@@ -221,7 +221,7 @@
 - [x] T073 Run quickstart.md validation - verify all examples work
 - [x] T074 Validate API contract compliance with contracts/metacognitive_api.yaml
 - [x] T075 Performance validation: all endpoints <200ms (SC-006) - Achieved <7ms avg
-- [ ] T076 [P] Add Neo4j indexes from data-model.md if using Graphiti persistence
+- [x] T076 [P] Add Neo4j indexes from data-model.md - scripts/init_metacognitive_schema.py
 
 ---
 
