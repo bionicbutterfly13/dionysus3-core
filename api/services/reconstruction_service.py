@@ -251,13 +251,9 @@ class ReconstructionService:
     
     def __init__(
         self,
-        archon_url: Optional[str] = None,
         n8n_recall_url: Optional[str] = None,
         graphiti_enabled: bool = False,
     ):
-        self.archon_url = archon_url or os.getenv(
-            "ARCHON_API_URL", "http://localhost:8100"
-        )
         self.n8n_recall_url = n8n_recall_url or os.getenv(
             "N8N_RECALL_URL", "http://n8n:5678/webhook/memory/v1/recall"
         )
@@ -282,7 +278,7 @@ class ReconstructionService:
 
         Args:
             context: Reconstruction context with project info and cues
-            prefetched_tasks: Pre-fetched tasks from caller (bypasses Archon call)
+            prefetched_tasks: Optional task list provided by the caller
 
         Returns:
             ReconstructedMemory with coherent context for injection

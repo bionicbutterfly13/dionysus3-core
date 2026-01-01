@@ -36,7 +36,7 @@ pytest.ini is configured with `asyncio_mode = auto` for async test support.
 
 ## Architecture
 
-**Ports**: API (8000), n8n webhooks (5678), Archon local (8181)
+**Ports**: API (8000), n8n webhooks (5678)
 
 ### Core Components
 
@@ -111,7 +111,6 @@ class MyTool(Tool):
 ## Architecture Constraints
 
 - **Shell Safety**: The shell parser is sensitive to nested code (e.g., `python -c`). Use script files (`scripts/`) and sync via `git` instead of inline shell pipes.
-- **Archon-First**: Archon remains local (port 8181). Dionysus receives tasks via prefetched payloads in hooks.
 
 ## Commit Guidelines
 

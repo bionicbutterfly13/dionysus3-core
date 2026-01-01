@@ -25,7 +25,7 @@ This feature adds metacognitive capabilities to Dionysus agents:
 pip install scipy numpy pydantic
 
 # Verify existing infrastructure
-python -c "from api.models.markov_blanket import MarkovBlanket; print('OK')"
+python -c "from api.models.markov_blanket import MarkovBlanketPartition; print('OK')"
 python -c "from api.agents.metacognition_agent import MetacognitionAgent; print('OK')"
 ```
 

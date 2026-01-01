@@ -39,3 +39,11 @@
 
 - [x] T011 Delete `migrations/008_create_mental_models.sql` (PostgreSQL)
 - [x] T012 Remove `asyncpg` from `requirements.txt` and `pyproject.toml`
+
+---
+
+## Phase 6: Operational Hardening
+
+- [ ] T013 Persist Docker network attachment so `dionysus-api` can resolve `neo4j` and `n8n` across container re-creates
+- [ ] T014 Create a safe, non-blocking Graphiti index build runbook/job (do not block API startup)
+- [x] T015 Add `ARCHON_ENABLED` toggle with default enabled and allow disabling in `.env`

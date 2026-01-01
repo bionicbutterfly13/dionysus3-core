@@ -62,21 +62,25 @@ class EFEEngine:
         self,
         prediction_probs: List[float],
         thought_vector: np.ndarray,
-        goal_vector: np.ndarray
+        goal_vector: np.ndarray,
+        precision: float = 1.0
     ) -> float:
         """
         Calculates the cumulative Expected Free Energy for a candidate thought.
-        Lower EFE = More valuable thought (balance of epistemic gain and pragmatic goal alignment).
+        Lower EFE = More valuable thought.
+        
+        FEATURE 048: Precision Weighting.
+        EFE = (1/Precision) * Uncertainty + Precision * Divergence
         """
         uncertainty = self.calculate_entropy(prediction_probs)
         divergence = self.calculate_goal_divergence(thought_vector, goal_vector)
 
-        # Weighted sum (could be tuned)
-        # Higher uncertainty makes the agent "curious" (epistemic value)
-        # Higher divergence makes the agent "unfocused" (pragmatic cost)
-        efe = uncertainty + divergence
+        # Apply precision weighting
+        # Precision clamps to [0.1, 5.0] elsewhere, but we safe-guard here
+        safe_precision = max(0.01, precision)
+        efe = (1.0 / safe_precision) * uncertainty + safe_precision * divergence
 
-        logger.debug(f"EFE Calculation: Uncertainty={uncertainty:.4f}, Divergence={divergence:.4f}, Total={efe:.4f}")
+        logger.debug(f"EFE Calculation (Prec={safe_precision:.2f}): Uncertainty={uncertainty:.4f}, Divergence={divergence:.4f}, Total={efe:.4f}")
         return efe
 
     def calculate_precision_weighted_efe(
@@ -88,52 +92,15 @@ class EFEEngine:
         agent_name: Optional[str] = None
     ) -> float:
         """
-        Calculates precision-weighted Expected Free Energy.
-
-        Per Metacognitive Particles paper: mental actions modulate precision (inverse variance),
-        not belief content directly. Higher precision = more confident = less exploratory.
-
-        Formula: EFE_precision = (1/precision) * uncertainty + precision * divergence
-
-        Rationale:
-        - High precision (attention focused): Downweight uncertainty (less exploration),
-          upweight divergence penalty (stay focused on goal)
-        - Low precision (attention diffuse): Upweight uncertainty (more exploration),
-          downweight divergence penalty (allow wandering)
-
-        Args:
-            prediction_probs: Probability distribution for uncertainty calculation
-            thought_vector: Embedding of candidate thought
-            goal_vector: Embedding of current goal
-            precision: Precision weight (inverse variance). Default 1.0.
-            agent_name: Optional agent name to use agent-specific precision from registry
-
-        Returns:
-            Precision-weighted EFE score (lower = better)
+        Legacy wrapper for Feature 048 logic.
         """
-        # Use agent-specific precision if agent_name provided and no explicit precision
         if agent_name and precision == 1.0:
-            precision = get_agent_precision(agent_name)
+            from api.services.metaplasticity_service import get_metaplasticity_controller
+            precision = get_metaplasticity_controller().get_precision(agent_name)
 
-        # Clamp precision to reasonable bounds
-        precision = max(0.01, min(10.0, precision))
+        return self.calculate_efe(prediction_probs, thought_vector, goal_vector, precision)
 
-        uncertainty = self.calculate_entropy(prediction_probs)
-        divergence = self.calculate_goal_divergence(thought_vector, goal_vector)
-
-        # Precision-weighted formula
-        # High precision -> less weight on uncertainty, more on goal adherence
-        # Low precision -> more weight on uncertainty (exploration), less on goal
-        efe_precision = (1.0 / precision) * uncertainty + precision * divergence
-
-        logger.debug(
-            f"Precision-Weighted EFE: precision={precision:.4f}, "
-            f"uncertainty={uncertainty:.4f}, divergence={divergence:.4f}, "
-            f"total={efe_precision:.4f}"
-        )
-        return efe_precision
-
-    def select_dominant_thought(self, candidates: List[Dict[str, Any]], goal_vector: List[float]) -> EFEResponse:
+    def select_dominant_thought(self, candidates: List[Dict[str, Any]], goal_vector: List[float], precision: float = 1.0) -> EFEResponse:
         """
         Winner-take-all selection of the dominant ThoughtSeed based on minimal EFE.
         """
@@ -145,16 +112,16 @@ class EFEEngine:
         
         for candidate in candidates:
             seed_id = candidate.get("id")
-            uncertainty = self.calculate_entropy(candidate.get("probabilities", [0.5, 0.5]))
-            divergence = self.calculate_goal_divergence(np.array(candidate.get("vector")), goal_vec)
+            probs = candidate.get("probabilities", [0.5, 0.5])
+            thought_vec = np.array(candidate.get("vector", [0.0]*len(goal_vector)))
             
-            efe = uncertainty + divergence
+            efe = self.calculate_efe(probs, thought_vec, goal_vec, precision)
             
             results[seed_id] = EFEResult(
                 seed_id=seed_id,
                 efe_score=efe,
-                uncertainty=uncertainty,
-                goal_divergence=divergence
+                uncertainty=self.calculate_entropy(probs),
+                goal_divergence=self.calculate_goal_divergence(thought_vec, goal_vec)
             )
 
         # Select dominant seed (minimum EFE)

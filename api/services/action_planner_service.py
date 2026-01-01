@@ -27,13 +27,16 @@ class ActionPlannerService:
         """
         Orchestrates the policy generation, evaluation, and selection.
         """
+        from api.services.metaplasticity_service import get_metaplasticity_controller
+        precision = get_metaplasticity_controller().get_precision("reasoning")
+        
         # 1. Generate candidate policies
         candidates = await self.generate_policies(task, context, goal)
         
         # 2. Evaluate each policy (Active Inference Lookahead)
         evaluated_candidates = []
         for policy in candidates:
-            evaluated = await self.evaluate_policy(policy, task, context, goal)
+            evaluated = await self.evaluate_policy(policy, task, context, goal, precision=precision)
             evaluated_candidates.append(evaluated)
             
         # 3. Select policy with minimum EFE
@@ -45,7 +48,7 @@ class ActionPlannerService:
         return PolicyResult(
             best_policy=best_policy,
             candidates=evaluated_candidates,
-            planning_trace=f"Selected '{best_policy.name}' with EFE {best_policy.total_efe:.2f}."
+            planning_trace=f"Selected '{best_policy.name}' with EFE {best_policy.total_efe:.2f} (Prec: {precision:.2f})."
         )
 
     async def generate_policies(
@@ -98,7 +101,8 @@ class ActionPlannerService:
         policy: ActionPolicy, 
         task: str, 
         context: Dict[str, Any], 
-        goal: str
+        goal: str,
+        precision: float = 1.0
     ) -> ActionPolicy:
         """
         Simulate the entire path in one batch LLM call to calculate cumulative EFE.
@@ -107,6 +111,7 @@ class ActionPlannerService:
         Initial Context: {str(context)[:1000]}
         Policy to Evaluate: {policy.name}
         Goal: {goal}
+        Current System Precision: {precision:.2f}
         
         Proposed Actions:
         {json.dumps([{"tool": a.tool_name, "rationale": a.rationale} for a in policy.actions], indent=2)}
@@ -136,9 +141,13 @@ class ActionPlannerService:
             scores = json.loads(cleaned)
             
             total_efe = 0.0
+            safe_precision = max(0.01, precision)
             for i, score in enumerate(scores):
                 if i < len(policy.actions):
-                    step_efe = float(score.get("uncertainty", 0.5)) + float(score.get("divergence", 0.5))
+                    unc = float(score.get("uncertainty", 0.5))
+                    div = float(score.get("divergence", 0.5))
+                    # Precision weighting: (1/P)*U + P*D
+                    step_efe = (1.0 / safe_precision) * unc + safe_precision * div
                     total_efe += step_efe
             
             policy.total_efe = total_efe

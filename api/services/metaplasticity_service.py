@@ -47,6 +47,42 @@ class MetaplasticityController:
         self._current_stress: float = 0.0
         self._adaptation_mode: AdaptationMode = AdaptationMode.STABLE
         self._last_prediction_errors: list[float] = []
+        
+        # FEATURE 048: Precision Registry (Inverse Variance)
+        # Default precision is 1.0 (Focused). Range [0.1, 5.0]
+        self._precision_registry: Dict[str, float] = {}
+
+    # -------------------------------------------------------------------------
+    # FEATURE 048: Precision Modulation
+    # -------------------------------------------------------------------------
+
+    def get_precision(self, agent_id: str) -> float:
+        """Get current precision for an agent (T048)."""
+        return self._precision_registry.get(agent_id, 1.0)
+
+    def set_precision(self, agent_id: str, value: float) -> None:
+        """Set precision for an agent. Clamped to [0.1, 5.0]."""
+        self._precision_registry[agent_id] = max(0.1, min(5.0, value))
+        logger.info(f"Precision for '{agent_id}' set to {self._precision_registry[agent_id]:.2f}")
+
+    def update_precision_from_surprise(self, agent_id: str, surprise_score: float) -> float:
+        """
+        Dynamically tune precision based on Surprise (Prediction Error).
+        High Surprise -> Decrease Precision (Zoom Out / Curiosity)
+        Low Surprise -> Increase Precision (Zoom In / Focus)
+        """
+        current = self.get_precision(agent_id)
+        
+        # alpha is the modulation sensitivity
+        alpha = 0.2
+        
+        # If surprise is high (>0.5), we decrease precision
+        # If surprise is low (<0.5), we increase precision
+        delta = (0.5 - surprise_score) * alpha
+        new_value = current + delta
+        
+        self.set_precision(agent_id, new_value)
+        return self.get_precision(agent_id)
 
     # -------------------------------------------------------------------------
     # T068: H-State Tracking

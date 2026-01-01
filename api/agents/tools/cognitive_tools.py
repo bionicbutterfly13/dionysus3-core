@@ -461,6 +461,51 @@ class DestructionAuthorizationTool(Tool):
         except Exception as e:
             return {"status": "failed", "error": str(e)}
 
+class SetMentalFocusOutput(BaseModel):
+    agent_id: str
+    new_precision: float
+    mode: str
+    message: str
+
+class SetMentalFocusTool(Tool):
+    name = "set_mental_focus"
+    description = "Modulates the 'Mental Zoom Lens'. Zoom In (>1.0) for pragmatic focus. Zoom Out (<1.0) for epistemic curiosity."
+    
+    inputs = {
+        "agent_id": {
+            "type": "string",
+            "description": "The sub-agent to modulate: 'perception', 'reasoning', or 'metacognition'."
+        },
+        "precision_level": {
+            "type": "number",
+            "description": "Target precision [0.1 to 5.0]. High = Focus, Low = Curiosity."
+        },
+        "rationale": {
+            "type": "string",
+            "description": "Why this focus shift is required."
+        }
+    }
+    output_type = "any"
+
+    def forward(self, agent_id: str, precision_level: float, rationale: str) -> dict:
+        from api.services.metaplasticity_service import get_metaplasticity_controller
+        controller = get_metaplasticity_controller()
+        
+        # Clamp input
+        target = max(0.1, min(5.0, precision_level))
+        controller.set_precision(agent_id, target)
+        
+        mode = "PRAGMATIC (Focus)" if target > 1.0 else "EPISTEMIC (Curiosity)"
+        if target == 1.0: mode = "BALANCED"
+        
+        output = SetMentalFocusOutput(
+            agent_id=agent_id,
+            new_precision=target,
+            mode=mode,
+            message=f"Agent '{agent_id}' zoom adjusted to {target:.2f} due to: {rationale}"
+        )
+        return output.model_dump()
+
 # Export tool instances
 context_explorer = ContextExplorerTool()
 cognitive_check = CognitiveCheckTool()
@@ -469,3 +514,4 @@ recall_related = RecallRelatedTool()
 examine_answer = ExamineAnswerTool()
 backtracking = BacktrackingTool()
 authorize_destruction = DestructionAuthorizationTool()
+set_mental_focus = SetMentalFocusTool()

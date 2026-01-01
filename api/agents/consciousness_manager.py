@@ -9,6 +9,7 @@ from api.agents.managed import (
     ManagedReasoningAgent,
     ManagedMetacognitionAgent,
 )
+from api.agents.managed.marketing import ManagedMarketingStrategist
 from api.agents.tools.cognitive_tools import (
     context_explorer,
     cognitive_check,
@@ -55,6 +56,7 @@ class ConsciousnessManager:
         self.perception_wrapper = ManagedPerceptionAgent(model_id)
         self.reasoning_wrapper = ManagedReasoningAgent(model_id)
         self.metacognition_wrapper = ManagedMetacognitionAgent(model_id)
+        self.marketing_wrapper = ManagedMarketingStrategist(model_id)
         
         # Cached ManagedAgent instances
         self._perception_managed = None
@@ -122,6 +124,7 @@ class ConsciousnessManager:
                 self._perception_managed,
                 self._reasoning_managed,
                 self._metacognition_managed,
+                self.marketing_wrapper.get_managed(),
             ],
             name="consciousness_manager",
             description="""High-level cognitive orchestrator implementing OODA loop.
@@ -130,8 +133,9 @@ Delegates to specialized agents:
 - perception: OBSERVE phase - gather environment state, recall memories, capture MOSAEIC
 - reasoning: ORIENT phase - analyze observations, identify patterns, build mental models
 - metacognition: DECIDE phase - review goals, assess models, select actions
+- marketing: EXECUTE phase - draft emails, Substack articles, and conversion copy using Analytical Empath research.
 
-Use natural language to delegate: "Ask perception to observe the current context"
+Use natural language to delegate: "Ask marketing to draft the New Year email"
 The agents will return structured results for synthesis.""",
             use_structured_outputs_internally=True,
             executor_type="local",

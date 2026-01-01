@@ -13,6 +13,12 @@ Complete the transition to Neo4j by refactoring the three primary cognitive serv
 **Storage**: Neo4j (via n8n Cypher webhook)  
 **Testing**: `pytest`, integration tests against Neo4j
 
+## Operational Follow-ups
+
+- Persist Docker network attachment so `dionysus-api` can always resolve `neo4j` and `n8n` after container re-creates.
+- Maintain a safe Graphiti index build runbook/job that does not block API startup.
+- Keep Archon connectivity optional via `ARCHON_ENABLED` in `.env`.
+
 ## Constitution Check
 
 - [x] **I. Data Integrity First**: All Cypher queries use parameterized inputs to prevent injection.
