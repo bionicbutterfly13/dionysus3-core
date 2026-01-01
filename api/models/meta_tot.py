@@ -3,12 +3,45 @@ Meta-ToT Models
 Feature: 041-meta-tot-engine
 """
 
-from __future__ import annotations
-
+import json
+import math
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
+
+
+class ActiveInferenceState(BaseModel):
+    """Active inference currency state."""
+
+    state_id: str = Field(default_factory=lambda: str(uuid4()))
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    prediction_error: float = 0.0
+    free_energy: float = 0.0
+    surprise: float = 0.0
+    precision: float = 1.0
+    beliefs: Dict[str, float] = Field(default_factory=dict)
+    prediction_updates: Dict[str, float] = Field(default_factory=dict)
+    reasoning_level: int = 0
+    parent_state_id: Optional[str] = None
+
+    def compute_prediction_error(self, observation: Dict[str, float]) -> float:
+        total_error = 0.0
+        for key, observed_value in observation.items():
+            predicted_value = self.beliefs.get(key, observed_value)
+            error = abs(observed_value - predicted_value)
+            total_error += error * self.precision
+        self.prediction_error = total_error
+        return total_error
+
+    def update_beliefs(self, prediction_error: float, learning_rate: float = 0.1) -> None:
+        for belief_key, belief_value in list(self.beliefs.items()):
+            gradient = self.prediction_updates.get(belief_key, 0.0)
+            belief_update = -learning_rate * gradient * prediction_error
+            self.beliefs[belief_key] = max(0.0, min(1.0, belief_value + belief_update))
+        self.free_energy = prediction_error + 0.01 * len(self.beliefs)
+        self.surprise = -math.log(max(0.001, 1.0 - min(prediction_error, 0.99)))
 
 
 class MetaToTDecision(BaseModel):
@@ -61,7 +94,7 @@ class MetaToTResult(BaseModel):
     metrics: Dict[str, Any]
     decision: Optional[MetaToTDecision] = None
     trace_id: Optional[str] = None
-    active_inference_state: Optional[Dict[str, Any]] = None
+    active_inference_state: Optional[ActiveInferenceState] = None
 
 
 class MetaToTRunRequest(BaseModel):

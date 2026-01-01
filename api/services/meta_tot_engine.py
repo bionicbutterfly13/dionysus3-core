@@ -16,10 +16,9 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from api.models.meta_tot import MetaToTDecision, MetaToTNodeTrace, MetaToTResult, MetaToTTracePayload
+from api.models.meta_tot import ActiveInferenceState, MetaToTDecision, MetaToTNodeTrace, MetaToTResult, MetaToTTracePayload
 from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.meta_tot_trace_service import get_meta_tot_trace_service
-from api.services.meta_tot_decision import get_meta_tot_decision_service
 from api.services.memory_basin_router import get_memory_basin_router
 from api.models.sync import MemoryType
 
@@ -28,51 +27,12 @@ logger = logging.getLogger("dionysus.meta_tot")
 
 class MetaToTNodeType(str, Enum):
     ROOT = "root"
-    EXPLORATION = "exploration"
+    SEARCH = "search"
     CHALLENGE = "challenge"
     EVOLUTION = "evolution"
     INTEGRATION = "integration"
-    LEAF = "leaf"
+    OUTCOME = "outcome"
 
-
-class ExplorationStrategy(str, Enum):
-    UCB_PREDICTION_ERROR = "ucb_prediction_error"
-    THOMPSON_SAMPLING = "thompson_sampling"
-    SURPRISE_MAXIMIZATION = "surprise_maximization"
-    FREE_ENERGY_MINIMIZATION = "free_energy_minimization"
-
-
-@dataclass
-class ActiveInferenceState:
-    """Active inference currency state."""
-
-    state_id: str = field(default_factory=lambda: str(uuid4()))
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    prediction_error: float = 0.0
-    free_energy: float = 0.0
-    surprise: float = 0.0
-    precision: float = 1.0
-    beliefs: Dict[str, float] = field(default_factory=dict)
-    prediction_updates: Dict[str, float] = field(default_factory=dict)
-    reasoning_level: int = 0
-    parent_state_id: Optional[str] = None
-
-    def compute_prediction_error(self, observation: Dict[str, float]) -> float:
-        total_error = 0.0
-        for key, observed_value in observation.items():
-            predicted_value = self.beliefs.get(key, observed_value)
-            error = abs(observed_value - predicted_value)
-            total_error += error * self.precision
-        self.prediction_error = total_error
-        return total_error
-
-    def update_beliefs(self, prediction_error: float, learning_rate: float = 0.1) -> None:
-        for belief_key, belief_value in list(self.beliefs.items()):
-            gradient = self.prediction_updates.get(belief_key, 0.0)
-            belief_update = -learning_rate * gradient * prediction_error
-            self.beliefs[belief_key] = max(0.0, min(1.0, belief_value + belief_update))
-        self.free_energy = prediction_error + 0.01 * len(self.beliefs)
-        self.surprise = -math.log(max(0.001, 1.0 - min(prediction_error, 0.99)))
 
 
 @dataclass
@@ -251,7 +211,7 @@ class MetaToTEngine:
             metrics=metrics,
             decision=decision,
             trace_id=trace_id,
-            active_inference_state=initial_state.__dict__ if initial_state else None,
+            active_inference_state=initial_state,
         )
 
         if decision is not None:

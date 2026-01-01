@@ -16,7 +16,8 @@ from api.agents.tools.cognitive_tools import (
     recall_related,
     examine_answer,
     backtracking,
-    authorize_destruction
+    authorize_destruction,
+    set_mental_focus
 )
 from api.agents.tools.planning_tools import active_planner
 from api.agents.tools.meta_tot_tools import meta_tot_decide, meta_tot_run
@@ -84,6 +85,7 @@ class ConsciousnessManager:
         
         metacognition_callbacks = audit.get_registry("metacognition")
         self._metacognition_managed.step_callbacks = metacognition_callbacks
+        self._metacognition_managed.tools[set_mental_focus.name] = set_mental_focus
         
         # T037: Add opt-in self-modeling callbacks (conditional on SELF_MODELING_ENABLED)
         for agent_name, agent in [
@@ -300,42 +302,51 @@ The agents will return structured results for synthesis.""",
         adjusted_lr = self.metaplasticity_svc.calculate_learning_rate(surprise_level)
         new_max_steps = self.metaplasticity_svc.calculate_max_steps(surprise_level)
         
-        # FEATURE 045: Unified Consciousness Integration Pipeline
+        # FEATURE 048: Update Dynamic Precision
+        for agent_name in ["perception", "reasoning", "metacognition"]:
+            new_prec = self.metaplasticity_svc.update_precision_from_surprise(agent_name, surprise_level)
+            print(f"DEBUG: Agent '{agent_name}' Precision adjusted to {new_prec:.2f}")
+
+        # FEATURE 045 & 050: Unified Consciousness Integration Pipeline via EventBus
         # Ensures every cognitive event updates internal physics and self-story
         try:
-            from api.services.consciousness_integration_pipeline import get_consciousness_pipeline
-            from api.services.meta_tot_engine import ActiveInferenceState
-            pipeline = get_consciousness_pipeline()
+            from api.utils.event_bus import get_event_bus
+            from api.models.meta_tot import ActiveInferenceState
+            bus = get_event_bus()
             
-            # Reconstruct ActiveInferenceState from Meta-ToT results if available
+            # Extract or estimate ActiveInferenceState
             ai_state = None
             if "meta_tot_result" in initial_context:
+                # If meta_tot_result was passed back, it's already a dict or model
                 res_data = initial_context["meta_tot_result"]
-                state_data = res_data.get("active_inference_state")
-                if state_data:
-                    # state_data is a dict from ActiveInferenceState.__dict__
-                    ai_state = ActiveInferenceState()
-                    for k, v in state_data.items():
-                        if hasattr(ai_state, k):
-                            setattr(ai_state, k, v)
+                if isinstance(res_data, dict):
+                    ai_state_data = res_data.get("active_inference_state")
+                    if ai_state_data:
+                        ai_state = ActiveInferenceState(**ai_state_data)
+                elif hasattr(res_data, "active_inference_state"):
+                    ai_state = res_data.active_inference_state
             
-            # Fallback: estimate state from OODA confidence if no Meta-ToT
+            # Fallback: REPAIRED HONEST ESTIMATION
+            # If no Meta-ToT, we use confidence to derive a grounded physics state
             if ai_state is None:
+                surprise = 1.0 - confidence
                 ai_state = ActiveInferenceState(
-                    surprise=1.0 - confidence,
-                    prediction_error=1.0 - confidence,
-                    precision=confidence
+                    surprise=surprise,
+                    prediction_error=surprise * 0.8, # Scaled error
+                    precision=confidence,
+                    beliefs={"context_certainty": confidence}
                 )
             
-            await pipeline.process_cognitive_event(
+            await bus.emit_cognitive_event(
+                source="consciousness_manager",
                 problem=task_query,
-                reasoning_trace=structured_result.get("reasoning", str(raw_result)),
-                active_inference_state=ai_state,
+                reasoning=structured_result.get("reasoning", str(raw_result)),
+                state=ai_state,
                 context=initial_context
             )
-            print("DEBUG: Consciousness Integration Pipeline processed cognitive event.")
+            print(f"DEBUG: EventBus emitted cognitive event (Mode: {initial_context['coordination_plan']['mode']}).")
         except Exception as e:
-            print(f"DEBUG: Consciousness Pipeline integration failed: {e}")
+            print(f"DEBUG: EventBus cognitive emission failed: {e}")
 
         # T006 (043): Record Cognitive Episode for Meta-Learning
         if initial_context.get("meta_learning_enabled", True):

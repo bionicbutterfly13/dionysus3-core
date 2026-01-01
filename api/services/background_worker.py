@@ -600,22 +600,58 @@ class BackgroundWorker:
 
                 # Run maintenance tasks
                 try:
+                    from api.utils.event_bus import get_event_bus
+                    bus = get_event_bus()
+
                     # Neighborhood recomputation
                     neighborhoods = await self._neighborhood_task.run()
                     self._health.neighborhoods_recomputed += neighborhoods
                     self._health.stale_items_found += neighborhoods
+                    
+                    if neighborhoods > 0:
+                        await bus.emit_system_event(
+                            source="background_worker",
+                            event_type="neighborhood_recompute",
+                            summary=f"Recomputed {neighborhoods} memory neighborhoods.",
+                            metadata={"count": neighborhoods}
+                        )
 
                     # Episode summarization
                     episodes = await self._episode_task.run()
                     self._health.episodes_summarized += episodes
+                    
+                    if episodes > 0:
+                        await bus.emit_system_event(
+                            source="background_worker",
+                            event_type="episode_summarization",
+                            summary=f"Summarized {episodes} closed memory episodes.",
+                            metadata={"count": episodes}
+                        )
 
-                    # FEATURE 044: Multi-Tier Memory Lifecycle
+                    # FEATURE 047: Unified Multi-Tier Memory Lifecycle
                     try:
-                        from api.services.multi_tier_lifecycle_service import get_multi_tier_lifecycle_service
-                        multi_tier_svc = get_multi_tier_lifecycle_service()
+                        from api.services.multi_tier_service import get_multi_tier_service
+                        multi_tier_svc = get_multi_tier_service()
                         await multi_tier_svc.run_lifecycle_management()
                     except Exception as e:
                         logger.error(f"Multi-tier memory lifecycle error in background worker: {e}")
+
+                    # FEATURE 049: Continuous Self-Monitoring (System Moments)
+                    # Run every cycle (30s) or controlled by config
+                    try:
+                        from api.services.meta_evolution_service import get_meta_evolution_service
+                        evo_svc = get_meta_evolution_service()
+                        await evo_svc.capture_system_moment()
+                    except Exception as e:
+                        logger.error(f"Failed to capture system moment: {e}")
+
+                    # FEATURE 049: Meta-Evolutionary Cycle
+                    # Run every 100 cycles (~50 minutes) or controlled by config
+                    if cycle_count % 100 == 0:
+                        try:
+                            await evo_svc.run_evolution_cycle()
+                        except Exception as e:
+                            logger.error(f"Meta-evolution cycle failed: {e}")
 
                     # Periodic health check
                     if cycle_count % self._config.health_check_interval_cycles == 0:
