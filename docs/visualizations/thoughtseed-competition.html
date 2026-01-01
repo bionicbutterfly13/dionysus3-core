@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thoughtseed Competition Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #e0e0e0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #64ffda;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 0 0 10px rgba(100, 255, 218, 0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #8892b0;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .viz-container {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 255, 218, 0.1);
+        }
+
+        svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .metric-card {
+            background: rgba(100, 255, 218, 0.05);
+            border: 1px solid rgba(100, 255, 218, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .metric-label {
+            color: #8892b0;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            color: #64ffda;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .narrative {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 4px solid #64ffda;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .step {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(100, 255, 218, 0.05);
+            border-radius: 8px;
+        }
+
+        .step-number {
+            display: inline-block;
+            background: #64ffda;
+            color: #0a0e27;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .thoughtseed {
+            transition: all 0.3s ease;
+        }
+
+        .thoughtseed:hover {
+            filter: brightness(1.3);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .winner {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Thoughtseed Competition</h1>
+        <p class="subtitle">Real-time visualization of consciousness as attractor basin competition</p>
+
+        <div class="viz-container">
+            <div class="controls">
+                <button onclick="startCompetition()">▶ Start Competition</button>
+                <button onclick="resetCompetition()">↺ Reset</button>
+                <button onclick="toggleAnimation()" id="animBtn">⏸ Pause</button>
+                <button onclick="triggerAha()">💡 Trigger Aha!</button>
+            </div>
+
+            <svg id="mainViz" viewBox="0 0 1200 700">
+                <!-- Background gradient -->
+                <defs>
+                    <radialGradient id="bgGrad">
+                        <stop offset="0%" style="stop-color:#1a1f3a;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#0a0e27;stop-opacity:1" />
+                    </radialGradient>
+
+                    <!-- Glow filters -->
+                    <filter id="glow">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                        <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+
+                    <filter id="strongGlow">
+                        <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
+                        <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+
+                <rect width="1200" height="700" fill="url(#bgGrad)"/>
+
+                <!-- Title -->
+                <text x="600" y="30" text-anchor="middle" fill="#64ffda" font-size="20" font-weight="bold">
+                    Consciousness as Attractor Basin Competition
+                </text>
+
+                <!-- Thoughtseeds (circles representing competing ideas) -->
+                <g id="thoughtseeds"></g>
+
+                <!-- Attractor basins (background wells) -->
+                <g id="basins"></g>
+
+                <!-- Energy landscape -->
+                <g id="landscape"></g>
+
+                <!-- Prediction error arrows -->
+                <g id="errors"></g>
+
+                <!-- Free energy meter -->
+                <g id="feMeter"></g>
+
+                <!-- Status text -->
+                <text id="statusText" x="600" y="680" text-anchor="middle" fill="#8892b0" font-size="16"/>
+            </svg>
+
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-label">Current Winner</div>
+                    <div class="metric-value" id="winnerName">—</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Free Energy (F)</div>
+                    <div class="metric-value" id="freeEnergy">0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Surprise Score</div>
+                    <div class="metric-value" id="surprise">0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Basin Stability</div>
+                    <div class="metric-value" id="stability">—</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Metacognitive Feeling</div>
+                    <div class="metric-value" id="feeling">Neutral</div>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #667eea;"></div>
+                    <span>Declarative Metacognition</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f093fb;"></div>
+                    <span>Procedural Metacognition</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #64ffda;"></div>
+                    <span>Agency Hierarchy</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f5576c;"></div>
+                    <span>Psychedelic State</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #feca57;"></div>
+                    <span>Winner (Aha!)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="viz-container narrative">
+            <h2 style="color: #64ffda; margin-bottom: 20px;">⚡ The Process (Feynman Style)</h2>
+
+            <div class="step">
+                <span class="step-number">1</span>
+                <strong>Multiple thoughtseeds enter the arena</strong>
+                <p style="margin: 10px 0 0 40px; color: #8892b0;">
+                    Think of thoughtseeds like radio stations broadcasting simultaneously. Each one is a potential insight,
+                    a hypothesis about what's important right now. They all want your conscious attention.
+                </p>
+            </div>
+
+            <div class="step">
+                <span class="step-number">2</span>
+                <strong>Each thoughtseed has an "activation energy"</strong>
+                <p style="margin: 10px 0 0 40px; color: #8892b0;">
+                    Like a ball sitting in different hills, each thoughtseed has a certain energy level.
+                    Lower energy = more stable = more likely to win. This energy is the "free energy" from active inference.
+                </p>
+            </div>
+
+            <div class="step">
+                <span class="step-number">3</span>
+                <strong>Competition happens through prediction error</strong>
+                <p style="margin: 10px 0 0 40px; color: #8892b0;">
+                    Your brain predicts what should happen. When reality differs (prediction error), that's a signal.
+                    The thoughtseed that best explains/reduces the prediction error gets stronger.
+                </p>
+            </div>
+
+            <div class="step">
+                <span class="step-number">4</span>
+                <strong>The winner creates an attractor basin</strong>
+                <p style="margin: 10px 0 0 40px; color: #8892b0;">
+                    When one thoughtseed wins, it's like a ball settling into a valley. That valley is an "attractor basin" -
+                    a stable mental state. You're now "in" that idea. It feels coherent, clear.
+                </p>
+            </div>
+
+            <div class="step">
+                <span class="step-number">5</span>
+                <strong>Winning generates a metacognitive feeling</strong>
+                <p style="margin: 10px 0 0 40px; color: #8892b0;">
+                    The moment a thoughtseed wins and free energy drops suddenly = <strong>Aha! moment</strong>.
+                    High prediction error that stays high = <strong>Confusion</strong>.
+                    Gradual reduction = <strong>Sense of understanding building</strong>.
+                </p>
+            </div>
+
+            <div class="step">
+                <span class="step-number">6</span>
+                <strong>Basin stability determines how long the idea "sticks"</strong>
+                <p style="margin: 10px 0 0 40px; color: #8892b0;">
+                    Deep basins = stable ideas (hard to disrupt). Shallow basins = fleeting thoughts (easily displaced).
+                    New prediction errors can destabilize the basin and trigger a new competition.
+                </p>
+            </div>
+
+            <div class="step">
+                <span class="step-number">7</span>
+                <strong>The cycle repeats: OODA loop</strong>
+                <p style="margin: 10px 0 0 40px; color: #8892b0;">
+                    <strong>OBSERVE</strong> new inputs → <strong>ORIENT</strong> (assess basins) →
+                    <strong>DECIDE</strong> (pick thoughtseed) → <strong>ACT</strong> (execute) → new observations → repeat.
+                    This IS consciousness: continuous thoughtseed competition.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let thoughtseeds = [];
+        let animating = false;
+        let animationFrame;
+        let time = 0;
+        let currentWinner = null;
+
+        // Thoughtseed definitions
+        const seedConfigs = [
+            { name: "Declarative\nMetacognition", color: "#667eea", x: 200, y: 300, energy: 2.5 },
+            { name: "Procedural\nMetacognition", color: "#f093fb", x: 400, y: 250, energy: 1.8 },
+            { name: "Agency\nHierarchy", color: "#64ffda", x: 600, y: 300, energy: 2.2 },
+            { name: "Psychedelic\nState", color: "#f5576c", x: 800, y: 350, energy: 3.5 },
+            { name: "Aha!\nMoment", color: "#feca57", x: 1000, y: 280, energy: 1.2 }
+        ];
+
+        function initThoughtseeds() {
+            thoughtseeds = seedConfigs.map((config, i) => ({
+                ...config,
+                id: i,
+                activationLevel: Math.random() * 0.5 + 0.3,
+                predictionError: Math.random() * 0.3,
+                vx: 0,
+                vy: 0
+            }));
+            renderThoughtseeds();
+        }
+
+        function renderThoughtseeds() {
+            const container = document.getElementById('thoughtseeds');
+            container.innerHTML = '';
+
+            thoughtseeds.forEach(seed => {
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('class', 'thoughtseed');
+
+                // Radius based on activation
+                const radius = 30 + (seed.activationLevel * 40);
+
+                // Circle
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', seed.x);
+                circle.setAttribute('cy', seed.y + 100);
+                circle.setAttribute('r', radius);
+                circle.setAttribute('fill', seed.color);
+                circle.setAttribute('opacity', 0.3 + (seed.activationLevel * 0.5));
+                circle.setAttribute('filter', seed.id === currentWinner ? 'url(#strongGlow)' : 'url(#glow)');
+                if (seed.id === currentWinner) {
+                    circle.setAttribute('class', 'winner');
+                }
+
+                // Border
+                const border = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                border.setAttribute('cx', seed.x);
+                border.setAttribute('cy', seed.y + 100);
+                border.setAttribute('r', radius);
+                border.setAttribute('fill', 'none');
+                border.setAttribute('stroke', seed.color);
+                border.setAttribute('stroke-width', seed.id === currentWinner ? 4 : 2);
+
+                // Label
+                const lines = seed.name.split('\n');
+                lines.forEach((line, i) => {
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', seed.x);
+                    text.setAttribute('y', seed.y + 100 + (i - 0.5) * 16);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('fill', '#fff');
+                    text.setAttribute('font-size', '13');
+                    text.setAttribute('font-weight', seed.id === currentWinner ? 'bold' : 'normal');
+                    text.textContent = line;
+                    g.appendChild(text);
+                });
+
+                // Energy level indicator
+                const energyBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                energyBar.setAttribute('x', seed.x - 20);
+                energyBar.setAttribute('y', seed.y + 100 + radius + 10);
+                energyBar.setAttribute('width', 40);
+                energyBar.setAttribute('height', 4);
+                energyBar.setAttribute('fill', '#333');
+                g.appendChild(energyBar);
+
+                const energyFill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                energyFill.setAttribute('x', seed.x - 20);
+                energyFill.setAttribute('y', seed.y + 100 + radius + 10);
+                energyFill.setAttribute('width', 40 * seed.activationLevel);
+                energyFill.setAttribute('height', 4);
+                energyFill.setAttribute('fill', seed.color);
+                g.appendChild(energyFill);
+
+                g.appendChild(circle);
+                g.appendChild(border);
+                container.appendChild(g);
+            });
+
+            updateMetrics();
+        }
+
+        function updateMetrics() {
+            if (currentWinner !== null) {
+                const winner = thoughtseeds[currentWinner];
+                document.getElementById('winnerName').textContent = winner.name.replace('\n', ' ');
+                document.getElementById('freeEnergy').textContent = winner.energy.toFixed(2);
+                document.getElementById('surprise').textContent = (winner.predictionError * 10).toFixed(2);
+
+                // Basin stability
+                const stability = winner.activationLevel > 0.7 ? "Deep" :
+                                 winner.activationLevel > 0.4 ? "Moderate" : "Shallow";
+                document.getElementById('stability').textContent = stability;
+
+                // Metacognitive feeling
+                let feeling = "Neutral";
+                if (winner.energy < 1.5 && winner.predictionError < 0.2) {
+                    feeling = "Aha! 💡";
+                } else if (winner.predictionError > 0.5) {
+                    feeling = "Confused 🤔";
+                } else if (winner.activationLevel > 0.8) {
+                    feeling = "Flow ✨";
+                } else {
+                    feeling = "Thinking 🧠";
+                }
+                document.getElementById('feeling').textContent = feeling;
+            } else {
+                document.getElementById('winnerName').textContent = "—";
+                document.getElementById('feeling').textContent = "Neutral";
+            }
+        }
+
+        function animate() {
+            if (!animating) return;
+
+            time += 0.02;
+
+            // Update activation levels based on competition
+            thoughtseeds.forEach((seed, i) => {
+                // Oscillate activation with some noise
+                const base = Math.sin(time + i) * 0.1 + 0.5;
+                const noise = Math.random() * 0.1;
+                seed.activationLevel = Math.max(0.2, Math.min(1, base + noise));
+
+                // Update prediction error
+                seed.predictionError = Math.max(0, Math.min(1,
+                    Math.abs(Math.sin(time * 1.5 + i * 0.5)) * 0.5
+                ));
+
+                // Calculate effective energy
+                seed.energy = 4 - (seed.activationLevel * 2) + (seed.predictionError * 2);
+            });
+
+            // Find winner (lowest free energy)
+            const minEnergy = Math.min(...thoughtseeds.map(s => s.energy));
+            currentWinner = thoughtseeds.findIndex(s => s.energy === minEnergy);
+
+            renderThoughtseeds();
+
+            // Update status
+            const status = thoughtseeds[currentWinner];
+            document.getElementById('statusText').textContent =
+                `Competition active | Winner: ${status.name.replace('\n', ' ')} | F = ${minEnergy.toFixed(2)}`;
+
+            animationFrame = requestAnimationFrame(animate);
+        }
+
+        function startCompetition() {
+            if (!animating) {
+                animating = true;
+                document.getElementById('animBtn').textContent = '⏸ Pause';
+                animate();
+            }
+        }
+
+        function resetCompetition() {
+            animating = false;
+            cancelAnimationFrame(animationFrame);
+            time = 0;
+            currentWinner = null;
+            document.getElementById('animBtn').textContent = '▶ Resume';
+            document.getElementById('statusText').textContent = 'Ready to start competition';
+            initThoughtseeds();
+        }
+
+        function toggleAnimation() {
+            animating = !animating;
+            document.getElementById('animBtn').textContent = animating ? '⏸ Pause' : '▶ Resume';
+            if (animating) animate();
+        }
+
+        function triggerAha() {
+            // Force "Aha! Moment" to win
+            thoughtseeds.forEach((seed, i) => {
+                if (seed.name.includes('Aha!')) {
+                    seed.activationLevel = 0.95;
+                    seed.energy = 0.8;
+                    seed.predictionError = 0.05;
+                } else {
+                    seed.activationLevel *= 0.5;
+                }
+            });
+            currentWinner = thoughtseeds.findIndex(s => s.name.includes('Aha!'));
+            renderThoughtseeds();
+
+            // Flash effect
+            setTimeout(() => {
+                document.getElementById('statusText').textContent =
+                    '💡 AHA! MOMENT - Large free energy reduction detected!';
+            }, 100);
+        }
+
+        // Initialize
+        initThoughtseeds();
+        document.getElementById('statusText').textContent = 'Ready to start competition';
+    </script>
+</body>
+</html>
