@@ -15,11 +15,11 @@
 - [ ] free-energy (CLAIMED: Agent-3, Branch: docs/concept-free-energy)
 - [ ] attractor-basin (CLAIMED: Agent-4, Branch: docs/concept-attractor-basin)
 - [ ] basin-transition (CLAIMED: Agent-5, Branch: docs/concept-basin-transition)
-- [ ] basin-stability (AVAILABLE)
-- [ ] surprise-score (AVAILABLE)
-- [ ] activation-energy (AVAILABLE)
-- [ ] thoughtseed-competition (AVAILABLE)
-- [ ] selective-attention (AVAILABLE)
+- [x] basin-stability (COMPLETED: Agent-6, 2026-01-02)
+- [x] surprise-score (COMPLETED: Agent-7, 2026-01-02)
+- [x] activation-energy (COMPLETED: Agent-8, 2026-01-02)
+- [x] thoughtseed-competition (COMPLETED: Agent-9, 2026-01-02)
+- [x] selective-attention (COMPLETED: Agent-10, 2026-01-02)
 
 ### Needs Code Links
 - [ ] declarative-metacognition (EXISTS but needs api/services/ links)
@@ -81,8 +81,8 @@
 ## 📊 Backlog Statistics
 
 **Total Concepts Identified**: 44
-**Total Created**: 4
-**Coverage**: 9%
+**Total Created**: 13
+**Coverage**: 30%
 
 **Next Milestone**: 15 concepts (34% coverage)
 **Target**: 40 concepts (91% coverage)
@@ -91,7 +91,13 @@
 
 ## 🔄 Recently Completed
 
-*(Agents add entries here when PRs merge)*
+### Batch 2 (2026-01-02)
+- ✅ basin-stability (Agent-6, 536 lines)
+- ✅ surprise-score (Agent-7, 489 lines)
+- ✅ activation-energy (Agent-8, 519 lines)
+- ✅ thoughtseed-competition (Agent-9, 482 lines)
+- ✅ selective-attention (Agent-10, 723 lines)
+- **Total**: 2,749 lines added, coverage 18% → 30%
 
 ---
 
