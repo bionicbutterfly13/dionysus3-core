@@ -187,17 +187,76 @@ dionysus_mcp/
 
 ### Database Access Pattern
 
-**CRITICAL**: Cypher access is Graphiti-backed (direct Neo4j). n8n webhooks are used for sync pipelines.
+## ⛔ ABSOLUTE PROHIBITION: NEVER ACCESS NEO4J DIRECTLY ⛔
+
+**THIS IS THE HIGHEST PRIORITY RULE IN THIS ENTIRE FILE.**
+
+### FORBIDDEN ACTIONS (PRIME DIRECTIVE - VIOLATION = IMMEDIATE STOP)
+
+**NEVER, UNDER ANY CIRCUMSTANCES:**
+1. Read or use `NEO4J_PASSWORD` environment variable
+2. Execute direct Cypher queries outside n8n
+3. Use `neo4j-driver` connections
+4. Run `cypher-shell` commands via SSH or Docker
+5. Use `docker exec` into neo4j container
+6. Create bolt:// connections
+7. Import Neo4j driver modules directly
+8. Read .env for database credentials
+9. Pass database passwords to any script
+
+**IF YOU FIND YOURSELF ABOUT TO DO ANY OF THE ABOVE: STOP IMMEDIATELY AND ASK USER.**
+
+### APPROVED ACCESS METHODS (ONLY THESE)
+
+**For IAS Curriculum and High-Value Business Assets:**
+- ✅ **n8n webhooks ONLY**: `POST https://72.61.78.89:5678/webhook/ias/*`
+- ✅ Use Python `requests` library to call webhooks
+- ✅ Never touch Neo4j directly - all operations via n8n
+
+**For Graphiti Temporal Knowledge Graph (Development Only):**
+- ✅ **Graphiti service wrapper**: `await get_graphiti_service()`
+- ✅ Graphiti manages its own Neo4j connection internally
+- ✅ Never access Graphiti's Neo4j connection directly
 
 ```python
-# Correct - use Graphiti-backed driver shim
-from api.services.remote_sync import get_neo4j_driver
-driver = get_neo4j_driver()
-result = await driver.execute_query(cypher, params)
+# ✅ CORRECT - IAS Curriculum via n8n webhook
+import requests
+response = requests.post(
+    "https://72.61.78.89:5678/webhook/ias/create-curriculum",
+    json=curriculum_data
+)
 
-# Graphiti service for temporal KG operations
+# ✅ CORRECT - Graphiti service (manages Neo4j internally)
 from api.services.graphiti_service import get_graphiti_service
+graphiti = await get_graphiti_service()
+results = await graphiti.search("query")
+
+# ❌ FORBIDDEN - Direct Neo4j access
+from neo4j import GraphDatabase  # NEVER DO THIS
+driver = GraphDatabase.driver(...)  # NEVER DO THIS
 ```
+
+### Why This Rule Exists
+
+1. **Data Integrity**: Direct access bypasses validation and business logic
+2. **Security**: Prevents credential exposure and unauthorized access
+3. **Audit Trail**: All operations logged through n8n workflows
+4. **Business Protection**: IAS curriculum is HIGH VALUE - must be protected
+
+### If You Need Neo4j Data
+
+1. **Check existing n8n webhooks**: `n8n-workflows/` directory
+2. **Create new n8n workflow** if needed (export JSON)
+3. **Call webhook from Python**: Use `requests` library
+4. **Update this file**: Document new webhook endpoint
+
+### Enforcement
+
+If you violated this rule:
+1. Acknowledge the violation immediately
+2. Delete any code that accessed Neo4j directly
+3. Implement proper n8n webhook alternative
+4. Update CLAUDE.md if pattern was unclear
 
 ### Tool Pattern
 
