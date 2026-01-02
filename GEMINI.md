@@ -1,6 +1,6 @@
 # Dionysus Core
 
-Dionysus is a VPS-native cognitive engine designed for autonomous reasoning, long-term session continuity, and structured memory management. It operates on a Neo4j-only, webhook-driven architecture, orchestrated by a multi-agent hierarchy.
+Dionysus is a VPS-native cognitive engine designed for autonomous reasoning, long-term session continuity, and structured memory management. It operates on a Neo4j-only, webhook-driven architecture orchestrated by a multi-agent hierarchy.
 
 ## Active Technologies
 - Python 3.11+ + smolagents, litellm, pydantic, numpy, scipy, neo4j (Graphiti) (038-thoughtseeds-framework)
@@ -9,7 +9,7 @@ Dionysus is a VPS-native cognitive engine designed for autonomous reasoning, lon
 - **Python 3.11+**: Core language (async/await, Pydantic v2).
 - **FastAPI**: Web framework for the API.
 - **Neo4j**: Primary persistence for episodic, semantic, and procedural memory.
-- **Graphiti**: Temporal knowledge graph interface (authorized for direct Neo4j access).
+- **Graphiti**: Temporal knowledge graph interface for extraction and search.
 - **smolagents**: Multi-agent framework (CodeAgent) providing the cognitive orchestration layer.
 - **n8n**: Workflow orchestration for memory synchronization and background processes.
 - **Docker & Docker Compose**: Containerization and VPS-native orchestration.
@@ -59,7 +59,7 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 
 - **Database Access:**
     - **Neo4j-Only:** Relational databases (PostgreSQL) have been removed.
-    - **Cypher Access:** Services use a Graphiti-backed driver shim for direct Neo4j queries.
+    - **Cypher Access:** Services use a Graphiti-backed driver shim for Neo4j queries.
     - **n8n Webhooks:** Ingest/recall/traverse workflows remain webhook-orchestrated.
 - **Security:** Webhook communication is secured via **HMAC-SHA256** signatures (`verify_memevolve_signature`).
 - **Memory Management:**

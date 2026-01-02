@@ -10,7 +10,7 @@ All core services run containerized on a central VPS (72.61.78.89). This elimina
 ### 2. Neo4j-Only Persistence
 Dionysus has migrated entirely to a Neo4j-only architecture.
 *   **n8n Webhooks:** Ingest/recall/traverse workflows are orchestrated via n8n webhooks.
-*   **Graphiti-backed Driver:** Services run Cypher through a Graphiti-backed driver shim for direct Neo4j access.
+*   **Graphiti-backed Driver:** Services run Cypher through a Graphiti-backed driver shim for Neo4j operations.
 *   **Graphiti:** Provides temporal knowledge graph extraction and search.
 
 ### 3. Agentic Orchestration
