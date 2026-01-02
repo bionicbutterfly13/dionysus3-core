@@ -122,6 +122,18 @@ See `docs/silver-bullets/` for detailed explanations of declarative/procedural d
 
 **Best Practice**: For features affecting 3+ files or architectural components, ALWAYS use Ralph + SpecKit together.
 
+### External Ralph Orchestrator
+
+The `dionysus-ralph-orchestrator/` directory contains a separate autonomous orchestration system (~200 MB). This is an external dependency with its own git repository, documentation, and deployment pipeline.
+
+**Important**:
+- **Not tracked** in dionysus3-core repository (.gitignored)
+- **Separate concerns**: Orchestration layer vs cognitive engine
+- **Documentation**: See `dionysus-ralph-orchestrator/README.md` for setup
+- **Integration**: Coordinates with Dionysus via API and shared context
+
+If you need to work with the Ralph orchestrator, navigate to that directory independently.
+
 ## Build & Deploy
 
 ```bash

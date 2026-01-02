@@ -69,3 +69,6 @@ gemini_to_restore.txt
 
 # Backups
 data/backups/
+
+# External dependencies (separate repositories)
+dionysus-ralph-orchestrator/
