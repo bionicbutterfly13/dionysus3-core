@@ -3,11 +3,10 @@ Remote Sync Service
 Feature: 002-remote-persistence-safety
 Tasks: T020, T021
 
-Handles synchronization between local PostgreSQL and remote Neo4j via n8n webhooks.
+Handles synchronization of memory payloads to Neo4j via n8n webhooks.
 Includes queue management, retry logic, and recovery operations.
 
-IMPORTANT: Sync operations use n8n webhooks. Direct Cypher access is handled
-by Graphiti-backed drivers for services that need Neo4j queries.
+IMPORTANT: Sync operations use n8n webhooks.
 """
 
 import hashlib
@@ -36,7 +35,7 @@ def get_neo4j_driver():
     """
     Compatibility shim for services that expect a Neo4j driver.
 
-    Returns a Graphiti-backed driver for direct Neo4j access.
+    Returns a Graphiti-backed driver for Neo4j access.
     """
     global _neo4j_driver
     if _neo4j_driver is None:
@@ -166,7 +165,7 @@ class RemoteSyncService:
     """
     Service for synchronizing memories to remote Neo4j via n8n webhooks.
 
-    All Neo4j access goes through n8n - no direct database connections.
+    Sync operations go through n8n webhooks.
 
     Features:
     - Queue management for pending sync operations

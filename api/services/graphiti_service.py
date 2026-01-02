@@ -1,7 +1,6 @@
 """
 Graphiti Service - Real-time knowledge graph for entity tracking.
 
-Direct Neo4j access (exception to n8n-only rule for this trusted component).
 Uses Graphiti for temporal entity extraction and hybrid search.
 """
 

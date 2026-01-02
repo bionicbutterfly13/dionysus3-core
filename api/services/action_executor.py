@@ -249,7 +249,7 @@ class RememberHandler(ActionHandler):
                     ended_at=datetime.utcnow(),
                 )
 
-            # Create memory using MCP or direct Neo4j
+            # Create memory using MCP or Neo4j driver
             driver = self._get_driver()
             async with driver.session() as session:
                 result = await session.run(

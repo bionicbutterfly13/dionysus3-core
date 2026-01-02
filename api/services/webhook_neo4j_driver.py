@@ -3,7 +3,7 @@ Webhook Neo4j Driver (Authorized via Graphiti only)
 
 REPAIRED: This driver no longer calls n8n or Neo4j directly.
 It proxies all requests through GraphitiService, which is the sole
-authorized component for direct Bolt/Neo4j communication.
+authorized component for Neo4j communication.
 """
 
 from __future__ import annotations
