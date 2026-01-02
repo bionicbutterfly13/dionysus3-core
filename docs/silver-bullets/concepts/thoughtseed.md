@@ -225,7 +225,7 @@ Imagine each thoughtseed as a **ball on a hillside**:
 
 - **[Thoughtseed Competition](./thoughtseed-competition.md)** - How selection works
 - **[Free Energy](./free-energy.md)** - Selection criterion
-- **[Attractor Basin](./attractor-basin.md)** - Stable outcome state
+- **[Attractor Basin](./attractor-basin.md)** - Stable outcome state (winning thoughtseed becomes basin)
 - **[Metacognitive Feelings](./metacognitive-feelings.md)** - Subjective experience
 - **[Meta-ToT](./meta-tot.md)** - Generation mechanism
 
