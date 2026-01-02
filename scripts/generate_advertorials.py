@@ -5,7 +5,7 @@ import sys
 from api.agents.marketing_agent import MarketingAgent
 
 async def generate_advertorials():
-    print("🚀 Starting Advertorial Generation with Claude Opus 4.5...")
+    print("🚀 Starting Advertorial Generation with configured LLM...")
     
     agent = MarketingAgent()
     
@@ -40,8 +40,8 @@ async def generate_advertorials():
 
 if __name__ == "__main__":
     # Check for required env vars
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        print("Error: Missing ANTHROPIC_API_KEY")
+    if not os.getenv("OPENAI_API_KEY"):
+        print("Error: Missing OPENAI_API_KEY")
         sys.exit(1)
         
     asyncio.run(generate_advertorials())

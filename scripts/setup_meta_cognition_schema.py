@@ -1,19 +1,24 @@
 """
 Script to initialize Neo4j indices for Meta-Cognitive Learning (Feature 043).
-Uses Graphiti internal driver to bypass n8n for local setup.
+Uses n8n cypher webhook (Neo4j-only access).
 """
 import asyncio
 import os
-from api.services.graphiti_service import get_graphiti_service
+import sys
+
+
+def ensure_project_root_on_path() -> None:
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+
+ensure_project_root_on_path()
+
+from api.services.remote_sync import RemoteSyncService
 
 async def setup_meta_cognition_indices():
-    # Use GraphitiService to get a direct Bolt connection
-    # Ensure environment variables are set for Bolt
-    os.environ["NEO4J_URI"] = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-    
-    service = await get_graphiti_service()
-    graphiti = service._get_graphiti()
-    driver = graphiti.driver # This is the graphiti_core Neo4j driver
+    sync_service = RemoteSyncService()
     
     queries = [
         """
@@ -24,9 +29,11 @@ async def setup_meta_cognition_indices():
     
     for q in queries:
         try:
-            # graphiti driver has execute_query
-            await driver.execute_query(q)
-            print(f"Executed: {q.strip()}")
+            result = await sync_service.run_cypher(q, mode="write")
+            if not result.get("success", True):
+                print(f"Failed to execute query: {result.get('error', 'unknown error')}")
+            else:
+                print(f"Executed: {q.strip()}")
         except Exception as e:
             print(f"Failed to execute query: {e}")
 

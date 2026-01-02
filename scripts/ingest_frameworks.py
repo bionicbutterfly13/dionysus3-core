@@ -49,8 +49,8 @@ async def ingest_frameworks():
     print("\n✅ Framework ingestion complete.")
 
 if __name__ == "__main__":
-    if not os.getenv("NEO4J_PASSWORD") or not os.getenv("OPENAI_API_KEY") or not os.getenv("ANTHROPIC_API_KEY"):
-        print("Error: Missing environment variables")
+    if not os.getenv("NEO4J_PASSWORD") or not os.getenv("OPENAI_API_KEY"):
+        print("Error: Missing environment variables (NEO4J_PASSWORD or OPENAI_API_KEY)")
         sys.exit(1)
         
     asyncio.run(ingest_frameworks())

@@ -31,7 +31,7 @@ def save_manuscript_chapter(chapter_num: int, content: str) -> str:
     
     if agent:
         handle = agent.memory.save_asset(f"chapter_{chapter_num}", content)
-        return f"Successfully saved to {handle}. Pass this handle to the next agent."
+        return handle
     return "Error: Could not find agent memory store."
 
 @tool

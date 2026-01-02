@@ -42,7 +42,7 @@ Modify `_run_ooda_cycle`:
 3.  **POST-OODA**: Calculate `surprise` (confidence vs. actual outcome) and call `MetaCognitiveLearner.record_episode`.
 
 ## 4. Dependencies
-- `api.services.graphiti_service`: For vector indexing/search (or direct Neo4j).
+- `api.services.graphiti_service`: For vector indexing/search via Neo4j.
 - `smolagents`: For agent context manipulation.
 
 ## 5. Testing Strategy

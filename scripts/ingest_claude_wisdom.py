@@ -62,8 +62,8 @@ async def ingest_wisdom():
 
 if __name__ == "__main__":
     # Check for required env vars
-    if not os.getenv("ANTHROPIC_API_KEY") or not os.getenv("NEO4J_PASSWORD"):
-        print("Error: Missing ANTHROPIC_API_KEY or NEO4J_PASSWORD")
+    if not os.getenv("OPENAI_API_KEY") or not os.getenv("NEO4J_PASSWORD"):
+        print("Error: Missing OPENAI_API_KEY or NEO4J_PASSWORD")
         sys.exit(1)
         
     asyncio.run(ingest_wisdom())

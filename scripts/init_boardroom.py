@@ -56,8 +56,8 @@ async def initialize_system_soul():
 
 if __name__ == "__main__":
     # Check for required env vars
-    if not os.getenv("NEO4J_PASSWORD") or not os.getenv("ANTHROPIC_API_KEY"):
-        print("Error: Missing environment variables (NEO4J_PASSWORD or ANTHROPIC_API_KEY)")
+    if not os.getenv("NEO4J_PASSWORD") or not os.getenv("OPENAI_API_KEY"):
+        print("Error: Missing environment variables (NEO4J_PASSWORD or OPENAI_API_KEY)")
         sys.exit(1)
         
     asyncio.run(initialize_system_soul())
