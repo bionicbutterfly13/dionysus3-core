@@ -311,6 +311,80 @@ Active features:
 Required in `.env`:
 - `NEO4J_URI`, `NEO4J_PASSWORD` - Neo4j connection
 - `MEMEVOLVE_HMAC_SECRET` - Webhook signature verification
-- `ANTHROPIC_API_KEY` - For Graphiti extraction
-- `OPENAI_API_KEY` - For smolagents orchestration
+- `OPENAI_API_KEY` - For Graphiti extraction and smolagents orchestration
 - `N8N_CYPHER_URL` - Webhook endpoint for Cypher queries
+
+## 📚 Documentation Maintenance - Silver Bullets Pattern
+
+**Critical**: Documentation follows the "silver bullets" pattern - atomic concept pages with bidirectional links that mirror the graph structure of the codebase.
+
+### When to Document
+
+**ALWAYS document** when:
+- Adding new cognitive concepts (attractor basins, thoughtseeds, precision weighting, etc.)
+- Implementing new agent types or tools
+- Creating new services or architectural patterns
+- Adding to IAS curriculum content
+
+### Documentation Pattern
+
+**Silver Bullets Structure**:
+- `docs/silver-bullets/` - Main documentation hub
+- `docs/silver-bullets/00-INDEX.md` - Navigation index (always update)
+- `docs/silver-bullets/concepts/` - Atomic concept pages (one per concept)
+- `docs/IAS-INDEX.md` - IAS curriculum navigation hub
+
+**Atomic Concept Template**: See `docs/DOCUMENTATION-AGENT-GUIDE.md`
+
+### Parallel Documentation Agents
+
+Agents can work in parallel on documentation:
+
+**Agent Roles**:
+1. **Concept Extractor**: Identify undocumented concepts from code
+2. **Atomic Writer**: Create individual concept pages
+3. **Link Weaver**: Ensure bidirectional links
+4. **Index Curator**: Maintain navigation indexes
+5. **Code Linker**: Add implementation references
+6. **Visualization Builder**: Create interactive diagrams
+
+**Workflow**:
+```bash
+# 1. Check backlog
+cat docs/DOCUMENTATION_BACKLOG.md
+
+# 2. Claim task
+# Update backlog: (AVAILABLE) → (CLAIMED: AgentName, Branch: docs/concept-{name})
+
+# 3. Create branch
+git checkout -b docs/concept-{concept-name}
+
+# 4. Write concept page following template
+# See docs/DOCUMENTATION-AGENT-GUIDE.md for full template
+
+# 5. Create PR
+git add docs/silver-bullets/concepts/{concept-name}.md
+git commit -m "docs: add {concept-name} atomic concept page
+
+AUTHOR Mani Saint-Victor, MD"
+```
+
+**Branch Naming**:
+- Concept pages: `docs/concept-{concept-name}`
+- Link updates: `docs/links-{concept-name}`
+- Index updates: `docs/index-update`
+- Visualizations: `docs/viz-{topic}`
+
+**Conflict Avoidance**:
+- Only ONE agent per concept file at a time
+- Link Weaver waits for Atomic Writer to merge
+- Index Curator waits for batch completion
+
+**Integration with Ralph**:
+```bash
+# Spawn parallel documentation team
+/ralph spawn-docs-team --concepts "precision-weighting,basin-stability,selective-attention"
+```
+
+**Complete Guide**: `docs/DOCUMENTATION-AGENT-GUIDE.md`
+**Backlog**: `docs/DOCUMENTATION_BACKLOG.md`
