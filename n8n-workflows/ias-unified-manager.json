@@ -1,0 +1,242 @@
+{
+  "name": "IAS Unified Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ias/v1/manipulate",
+        "options": {"rawBody": true},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst payload = $input.first().binary?.data?.toString() || JSON.stringify($input.first().json);\nconst signature = $input.first().headers['x-dionysus-signature'];\nconst secret = $env.MEMEVOLVE_HMAC_SECRET;\n\nif (!signature) throw new Error('Missing X-Dionysus-Signature header');\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');\nconst valid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));\nif (!valid) throw new Error('Invalid signature');\n\nreturn $input.first();"
+      },
+      "id": "validate-sig",
+      "name": "Validate Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 400]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {"value1": "={{ $json.operation }}", "value2": "upsert_curriculum"},
+            {"value1": "={{ $json.operation }}", "value2": "upsert_module"},
+            {"value1": "={{ $json.operation }}", "value2": "upsert_lesson"},
+            {"value1": "={{ $json.operation }}", "value2": "link_asset"},
+            {"value1": "={{ $json.operation }}", "value2": "upsert_launch"},
+            {"value1": "={{ $json.operation }}", "value2": "upsert_step"},
+            {"value1": "={{ $json.operation }}", "value2": "upsert_obstacle"},
+            {"value1": "={{ $json.operation }}", "value2": "upsert_true_action"},
+            {"value1": "={{ $json.operation }}", "value2": "upsert_false_action"},
+            {"value1": "={{ $json.operation }}", "value2": "link_source_document"}
+          ]
+        }
+      },
+      "id": "router",
+      "name": "Operation Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json.data;\nconst statement = `\nMERGE (c:Curriculum {id: $id})\nSET c.title = $title,\n    c.description = $description,\n    c.target_audience = $target_audience,\n    c.total_modules = $total_modules,\n    c.total_lessons = $total_lessons,\n    c.updated_at = datetime()\nRETURN c.id as node_id\n`;\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: d }] });\nreturn [{ json: { ...d, requestBody } }];"
+      },
+      "id": "prep-curriculum",
+      "name": "Prep Curriculum",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json.data;\nconst statement = `\nMATCH (c:Curriculum {id: $parent_id})\nMERGE (m:Module {id: $id})\nMERGE (c)-[:HAS_MODULE {order: $order}]->(m)\nSET m.title = $title,\n    m.phase = $phase,\n    m.order = $order,\n    m.promise = $promise,\n    m.goal = $goal,\n    m.updated_at = datetime()\nRETURN m.id as node_id\n`;\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: d }] });\nreturn [{ json: { ...d, requestBody } }];"
+      },
+      "id": "prep-module",
+      "name": "Prep Module",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json.data;\nconst statement = `\nMATCH (m:Module {id: $parent_id})\nMERGE (l:Lesson {id: $id})\nMERGE (m)-[:CONTAINS {order: $order}]->(l)\nSET l.title = $title,\n    l.order = $order,\n    l.focus = $focus,\n    l.transformation = $transformation,\n    l.has_pedagogical_framework = COALESCE($has_pedagogical_framework, false),\n    l.updated_at = datetime()\nRETURN l.id as node_id\n`;\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: d }] });\nreturn [{ json: { ...d, requestBody } }];"
+      },
+      "id": "prep-lesson",
+      "name": "Prep Lesson",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json.data;\nconst statement = `\nMATCH (target {id: $parent_id})\nMERGE (a:Asset {id: $id})\nMERGE (target)-[:HAS_ASSET]->(a)\nSET a.type = $type,\n    a.path = $path,\n    a.description = $description,\n    a.updated_at = datetime()\nRETURN a.id as node_id\n`;\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: d }] });\nreturn [{ json: { ...d, requestBody } }];"
+      },
+      "id": "prep-asset",
+      "name": "Prep Asset",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json.data;\nconst statement = `\nMATCH (c:Curriculum {id: $parent_id})\nMERGE (l:LaunchEvent {id: $id})\nMERGE (c)-[:HAS_LAUNCH]->(l)\nSET l.deadline = datetime($deadline),\n    l.price_charter = $price_charter,\n    l.price_regular = $price_regular,\n    l.framework = $framework,\n    l.updated_at = datetime()\nRETURN l.id as node_id\n`;\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: d }] });\nreturn [{ json: { ...d, requestBody } }];"
+      },
+      "id": "prep-launch",
+      "name": "Prep Launch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json.data;\nconst statement = `\nMATCH (l:Lesson {id: $parent_id})\nMERGE (s:Step {id: $id})\nMERGE (l)-[:HAS_STEP {order: $order}]->(s)\nSET s.name = $name,\n    s.order = $order,\n    s.instruction = $instruction,\n    s.tagline = $tagline,\n    s.updated_at = datetime()\nRETURN s.id as node_id\n`;\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: d }] });\nreturn [{ json: { ...d, requestBody } }];"
+      },
+      "id": "prep-step",
+      "name": "Prep Step",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json.data;\nconst statement = `\nMATCH (s:Step {id: $parent_id})\nMERGE (o:Obstacle {id: $id})\nMERGE (s)-[:HAS_OBSTACLE]->(o)\nSET o.false_belief = $false_belief,\n    o.what_they_dread = $what_they_dread,\n    o.truth_they_dont_know = $truth_they_dont_know,\n    o.updated_at = datetime()\nRETURN o.id as node_id\n`;\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: d }] });\nreturn [{ json: { ...d, requestBody } }];"
+      },
+      "id": "prep-obstacle",
+      "name": "Prep Obstacle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json.data;\nconst statement = `\nMATCH (s:Step {id: $parent_id})\nMERGE (ta:TrueAction {id: $id})\nMERGE (s)-[:DO_ACTION]->(ta)\nSET ta.action = $action,\n    ta.description = $description,\n    ta.updated_at = datetime()\nRETURN ta.id as node_id\n`;\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: d }] });\nreturn [{ json: { ...d, requestBody } }];"
+      },
+      "id": "prep-true-action",
+      "name": "Prep True Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json.data;\nconst statement = `\nMATCH (s:Step {id: $parent_id})\nMERGE (fa:FalseAction {id: $id})\nMERGE (s)-[:AVOID_ACTION {order: $order}]->(fa)\nSET fa.action = $action,\n    fa.order = $order,\n    fa.why_unnecessary = $why_unnecessary,\n    fa.updated_at = datetime()\nRETURN fa.id as node_id\n`;\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: d }] });\nreturn [{ json: { ...d, requestBody } }];"
+      },
+      "id": "prep-false-action",
+      "name": "Prep False Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 900]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json.data;\nconst statement = `\nMATCH (c:Curriculum {id: $parent_id})\nMERGE (sd:SourceDocument {id: $id})\nMERGE (c)-[:DOCUMENTED_IN {doc_type: $doc_type}]->(sd)\nSET sd.title = $title,\n    sd.file_path = $file_path,\n    sd.doc_type = $doc_type,\n    sd.updated_at = datetime()\nRETURN sd.id as node_id\n`;\nconst requestBody = JSON.stringify({ statements: [{ statement, parameters: d }] });\nreturn [{ json: { ...d, requestBody } }];"
+      },
+      "id": "prep-source-doc",
+      "name": "Prep Source Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 1000]
+    },
+    {
+      "parameters": {
+        "url": "http://neo4j:7474/db/neo4j/tx/commit",
+        "method": "POST",
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "string",
+        "body": "={{ $json.requestBody }}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Basic ' + $env.NEO4J_BASIC_AUTH }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "neo4j-exec",
+      "name": "Execute Cypher",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 550]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $json;\nconst results = Array.isArray(res?.results) ? res.results : [];\nconst row = results?.[0]?.data?.[0]?.row;\nconst node_id = row?.[0] || 'unknown';\nconst errors = res.errors || [];\n\nif (errors.length > 0) throw new Error(errors.map(e => e.message).join('; '));\n\nreturn [{ json: {\n  success: true,\n  node_id,\n  operation: $('Operation Router').item.json.operation,\n  timestamp: new Date().toISOString()\n}}];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 550]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1500, 550]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Validate Signature", "type": "main", "index": 0}]]
+    },
+    "Validate Signature": {
+      "main": [[{"node": "Operation Router", "type": "main", "index": 0}]]
+    },
+    "Operation Router": {
+      "main": [
+        [{"node": "Prep Curriculum", "type": "main", "index": 0}],
+        [{"node": "Prep Module", "type": "main", "index": 0}],
+        [{"node": "Prep Lesson", "type": "main", "index": 0}],
+        [{"node": "Prep Asset", "type": "main", "index": 0}],
+        [{"node": "Prep Launch", "type": "main", "index": 0}],
+        [{"node": "Prep Step", "type": "main", "index": 0}],
+        [{"node": "Prep Obstacle", "type": "main", "index": 0}],
+        [{"node": "Prep True Action", "type": "main", "index": 0}],
+        [{"node": "Prep False Action", "type": "main", "index": 0}],
+        [{"node": "Prep Source Document", "type": "main", "index": 0}]
+      ]
+    },
+    "Prep Curriculum": {"main": [[{"node": "Execute Cypher", "type": "main", "index": 0}]]},
+    "Prep Module": {"main": [[{"node": "Execute Cypher", "type": "main", "index": 0}]]},
+    "Prep Lesson": {"main": [[{"node": "Execute Cypher", "type": "main", "index": 0}]]},
+    "Prep Asset": {"main": [[{"node": "Execute Cypher", "type": "main", "index": 0}]]},
+    "Prep Launch": {"main": [[{"node": "Execute Cypher", "type": "main", "index": 0}]]},
+    "Prep Step": {"main": [[{"node": "Execute Cypher", "type": "main", "index": 0}]]},
+    "Prep Obstacle": {"main": [[{"node": "Execute Cypher", "type": "main", "index": 0}]]},
+    "Prep True Action": {"main": [[{"node": "Execute Cypher", "type": "main", "index": 0}]]},
+    "Prep False Action": {"main": [[{"node": "Execute Cypher", "type": "main", "index": 0}]]},
+    "Prep Source Document": {"main": [[{"node": "Execute Cypher", "type": "main", "index": 0}]]},
+    "Execute Cypher": {"main": [[{"node": "Format Response", "type": "main", "index": 0}]]},
+    "Format Response": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{"name": "IAS", "id": "ias-unified"}],
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dionysus-ias-unified"
+  }
+}
