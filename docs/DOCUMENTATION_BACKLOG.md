@@ -10,10 +10,10 @@
 ## 🎯 Priority: High (Core Cognitive Architecture)
 
 ### Needs Creation
-- [ ] precision-weighting (AVAILABLE)
-- [ ] prediction-error (AVAILABLE)
-- [ ] free-energy (AVAILABLE)
-- [ ] attractor-basin (AVAILABLE)
+- [ ] precision-weighting (CLAIMED: Agent-1, Branch: docs/concept-precision-weighting)
+- [ ] prediction-error (CLAIMED: Agent-2, Branch: docs/concept-prediction-error)
+- [ ] free-energy (CLAIMED: Agent-3, Branch: docs/concept-free-energy)
+- [ ] attractor-basin (CLAIMED: Agent-4, Branch: docs/concept-attractor-basin)
 - [ ] basin-transition (AVAILABLE)
 - [ ] basin-stability (AVAILABLE)
 - [ ] surprise-score (AVAILABLE)
