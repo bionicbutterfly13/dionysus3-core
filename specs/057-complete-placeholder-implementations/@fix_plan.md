@@ -7,13 +7,13 @@
 
 ## Current Task
 
-> **T021: Un-skip test_service_creation, make it pass**
+> **T022: Un-skip test_get_epistemic_state, implement minimal service**
 >
-> Un-skip test_service_creation in tests/unit/test_epistemic_field_service.py.
-> Verify EpistemicFieldService can be instantiated and singleton works.
+> Un-skip test_get_epistemic_state in tests/unit/test_epistemic_field_service.py.
+> Verify get_epistemic_state() returns EpistemicState with correct structure.
 >
-> **Acceptance**: Test passes, service can be created
-> **Time**: 10 min
+> **Acceptance**: Test passes, EpistemicState returned with depth_score and luminosity_factors
+> **Time**: 15 min
 > **Type**: Test+Code
 
 ---
@@ -174,6 +174,13 @@
   - Missing: track_sharing_depth() and classify_process() methods (will add as tests require)
   - Singleton pattern already implemented with get_epistemic_field_service()
   - Ready for test un-skipping ✓
+
+- [x] **T021**: Un-skip test_service_creation, make it pass ✓
+  - Un-skipped test_service_creation in test_epistemic_field_service.py
+  - Added test for direct instantiation and singleton pattern
+  - Test PASSES - service creation successful ✓
+  - Committed: 2e999c6
+  - FR-005: EpistemicFieldService can be created ✓
 
 ---
 

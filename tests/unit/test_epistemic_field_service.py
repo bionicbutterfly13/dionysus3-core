@@ -35,9 +35,35 @@ class TestEpistemicFieldService:
         assert service1 is service2, "Singleton should return same instance"
 
     def test_get_epistemic_state(self):
-        """get_epistemic_state() returns EpistemicState."""
-        # TODO: Implement in T077
-        pytest.skip("T077: Write test before implementing EpistemicFieldService")
+        """
+        get_epistemic_state() returns EpistemicState.
+
+        Given the EpistemicFieldService is created,
+        When get_epistemic_state() is called,
+        Then it returns an EpistemicState with depth_score and luminosity_factors.
+
+        FR-018: System MUST compute an epistemic depth score (0-1) representing luminosity.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+        from api.models.beautiful_loop import EpistemicState
+
+        service = get_epistemic_field_service()
+        state = service.get_epistemic_state()
+
+        # Verify return type
+        assert isinstance(state, EpistemicState), "Should return EpistemicState"
+
+        # Verify core fields exist
+        assert hasattr(state, 'depth_score'), "Should have depth_score"
+        assert hasattr(state, 'luminosity_factors'), "Should have luminosity_factors"
+        assert hasattr(state, 'active_bindings'), "Should have active_bindings"
+        assert hasattr(state, 'transparent_processes'), "Should have transparent_processes"
+
+        # Verify depth_score is in valid range [0, 1]
+        assert 0.0 <= state.depth_score <= 1.0, f"depth_score must be in [0, 1], got {state.depth_score}"
+
+        # Verify luminosity_factors is a dict
+        assert isinstance(state.luminosity_factors, dict), "luminosity_factors must be dict"
 
 
 class TestRecursiveSharingDepth:
