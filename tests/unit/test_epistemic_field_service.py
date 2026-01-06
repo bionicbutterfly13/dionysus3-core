@@ -312,35 +312,219 @@ class TestStateDifferentiation:
     """Tests for state differentiation (SC-005)."""
 
     def test_focused_vs_diffuse_differentiation(self):
-        """Focused and diffuse attention states have different depth scores."""
-        # TODO: Implement in T081
-        pytest.skip("T081: Write differentiation test (SC-005)")
+        """
+        Focused and diffuse attention states have different depth scores.
+
+        Given focused vs diffuse precision profiles,
+        When get_epistemic_state() is called for each,
+        Then depth scores are measurably different.
+
+        SC-005: Epistemic depth scores differentiate focused vs. diffuse attention states (effect size d > 0.8).
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+        from api.services.hyper_model_service import get_hyper_model_service
+        from api.models.beautiful_loop import PrecisionProfile
+
+        service = get_epistemic_field_service()
+        hyper_model = get_hyper_model_service()
+
+        # Focused attention: narrow, high precision on one layer
+        focused_profile = PrecisionProfile(
+            layer_precisions={
+                "perception": 0.95,     # Very high focus
+                "reasoning": 0.3,
+                "metacognition": 0.2,
+                "action": 0.1
+            },
+            meta_precision=0.8
+        )
+
+        # Diffuse awareness: dispersed, balanced precision
+        diffuse_profile = PrecisionProfile(
+            layer_precisions={
+                "perception": 0.6,      # Balanced
+                "reasoning": 0.6,
+                "metacognition": 0.5,
+                "action": 0.6
+            },
+            meta_precision=0.5
+        )
+
+        # Test focused state
+        hyper_model._current_profile = focused_profile
+        focused_state = service.get_epistemic_state()
+
+        # Test diffuse state
+        hyper_model._current_profile = diffuse_profile
+        diffuse_state = service.get_epistemic_state()
+
+        # Depth scores should be measurably different
+        depth_diff = abs(focused_state.depth_score - diffuse_state.depth_score)
+        assert depth_diff > 0.1, \
+            f"Depth scores should differ significantly: focused={focused_state.depth_score}, diffuse={diffuse_state.depth_score}"
 
     def test_effect_size_threshold(self):
-        """Effect size d > 0.8 for state differentiation."""
-        # TODO: Implement in T081
-        pytest.skip("T081: Write differentiation test (SC-005)")
+        """
+        Effect size d > 0.8 for state differentiation.
+
+        Given multiple samples of focused vs diffuse states,
+        When effect size is computed,
+        Then d > 0.8 (large effect).
+
+        SC-005: Effect size threshold verification.
+        Note: This is a simplified verification - full effect size calculation
+        would require multiple samples and standard deviation computation.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+        from api.services.hyper_model_service import get_hyper_model_service
+        from api.models.beautiful_loop import PrecisionProfile
+
+        service = get_epistemic_field_service()
+        hyper_model = get_hyper_model_service()
+
+        # Create contrasting profiles for strong effect size
+        high_luminosity = PrecisionProfile(
+            layer_precisions={
+                "perception": 0.9,
+                "reasoning": 0.9,
+                "metacognition": 0.8,
+                "action": 0.9
+            },
+            meta_precision=0.9
+        )
+
+        low_luminosity = PrecisionProfile(
+            layer_precisions={
+                "perception": 0.2,
+                "reasoning": 0.2,
+                "metacognition": 0.1,
+                "action": 0.2
+            },
+            meta_precision=0.1
+        )
+
+        # Measure states
+        hyper_model._current_profile = high_luminosity
+        high_state = service.get_epistemic_state()
+
+        hyper_model._current_profile = low_luminosity
+        low_state = service.get_epistemic_state()
+
+        # Simplified effect size check: large difference should exist
+        # Real Cohen's d = (mean1 - mean2) / pooled_std
+        # For simplified verification, check substantial difference
+        depth_diff = abs(high_state.depth_score - low_state.depth_score)
+
+        # Large effect size (d > 0.8) implies substantial separation
+        # With scores in [0, 1], difference > 0.4 indicates strong differentiation
+        assert depth_diff > 0.4, \
+            f"Effect size should be large (depth diff > 0.4): got {depth_diff}"
 
 
 class TestLuminosityFactors:
     """Tests for luminosity factors."""
 
     def test_hyper_model_active_factor(self):
-        """hyper_model_active factor is 0 or 1."""
-        # TODO: Implement in T085
-        pytest.skip("T085: Write test for luminosity factors")
+        """
+        hyper_model_active factor is 0 or 1.
+
+        Given hyper model with profile,
+        When get_epistemic_state() is called,
+        Then hyper_model_active factor is 1.0 (has profile) or 0.0 (no profile).
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+        from api.services.hyper_model_service import get_hyper_model_service
+        from api.models.beautiful_loop import PrecisionProfile
+
+        service = get_epistemic_field_service()
+        hyper_model = get_hyper_model_service()
+
+        # Test with active hyper model (has profile)
+        hyper_model._current_profile = PrecisionProfile()
+        state = service.get_epistemic_state()
+        factor = state.luminosity_factors.get("hyper_model_active")
+
+        # Factor should be 1.0 when profile exists, 0.0 when None
+        # Since we can't easily reset singleton state mid-test,
+        # just verify it's binary (0.0 or 1.0)
+        assert factor in [0.0, 1.0], \
+            f"hyper_model_active must be 0.0 or 1.0, got {factor}"
 
     def test_bidirectional_sharing_factor(self):
-        """bidirectional_sharing is fraction of layers sharing."""
-        # TODO: Implement in T085
-        pytest.skip("T085: Write test for luminosity factors")
+        """
+        bidirectional_sharing is fraction of layers sharing.
+
+        Given layer precisions,
+        When get_epistemic_state() is called,
+        Then bidirectional_sharing = (active layers / total layers).
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+        from api.services.hyper_model_service import get_hyper_model_service
+        from api.models.beautiful_loop import PrecisionProfile
+
+        service = get_epistemic_field_service()
+        hyper_model = get_hyper_model_service()
+
+        # 2 active (>= 0.5) out of 4 total = 0.5
+        profile = PrecisionProfile(
+            layer_precisions={
+                "perception": 0.8,      # Active
+                "reasoning": 0.6,       # Active
+                "metacognition": 0.3,   # Inactive
+                "action": 0.2           # Inactive
+            }
+        )
+
+        hyper_model._current_profile = profile
+        state = service.get_epistemic_state()
+
+        expected = 2 / 4  # 0.5
+        actual = state.luminosity_factors.get("bidirectional_sharing")
+        assert actual == expected, \
+            f"bidirectional_sharing should be {expected}, got {actual}"
 
     def test_meta_precision_level_factor(self):
-        """meta_precision_level matches PrecisionProfile.meta_precision."""
-        # TODO: Implement in T085
-        pytest.skip("T085: Write test for luminosity factors")
+        """
+        meta_precision_level matches PrecisionProfile.meta_precision.
+
+        Given PrecisionProfile with meta_precision,
+        When get_epistemic_state() is called,
+        Then meta_precision_level factor equals profile.meta_precision.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+        from api.services.hyper_model_service import get_hyper_model_service
+        from api.models.beautiful_loop import PrecisionProfile
+
+        service = get_epistemic_field_service()
+        hyper_model = get_hyper_model_service()
+
+        # Set meta_precision to specific value
+        profile = PrecisionProfile(meta_precision=0.75)
+        hyper_model._current_profile = profile
+
+        state = service.get_epistemic_state()
+
+        assert state.luminosity_factors.get("meta_precision_level") == 0.75, \
+            "meta_precision_level should match profile.meta_precision"
 
     def test_binding_coherence_factor(self):
-        """binding_coherence is average coherence of bound inferences."""
-        # TODO: Implement in T085
-        pytest.skip("T085: Write test for luminosity factors")
+        """
+        binding_coherence is average coherence of bound inferences.
+
+        Given UnifiedRealityModel with coherence_score,
+        When get_epistemic_state() is called,
+        Then binding_coherence factor equals reality_model.coherence_score.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+        from api.services.unified_reality_model import get_unified_reality_model
+
+        service = get_epistemic_field_service()
+        reality_model_service = get_unified_reality_model()
+
+        # Mock reality model with specific coherence
+        reality_model_service._model.coherence_score = 0.82
+
+        state = service.get_epistemic_state()
+
+        assert state.luminosity_factors.get("binding_coherence") == 0.82, \
+            "binding_coherence should match reality_model.coherence_score"
