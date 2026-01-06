@@ -58,8 +58,9 @@ class MetaToTEngine:
                 depth=parent.depth + 1
             )
             
-            # Score the child
-            # TODO: Get real probabilities/vectors from Model Service
+            # Score the child using real active inference computation
+            # ActiveInferenceWrapper handles embedding generation and EFE calculation
+            # with precision-weighted prediction errors (FR-003, FR-004)
             child.score = await self.ai_wrapper.score_thought(
                 child, self.active_goal_vector
             )
