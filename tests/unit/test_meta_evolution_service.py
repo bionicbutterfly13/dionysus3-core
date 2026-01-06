@@ -216,6 +216,42 @@ class TestCaptureSystemMomentRealMetrics:
         # Value should be clamped to valid range
         assert 0.0 <= moment.energy_level <= 10.0, "energy_level must be clamped to [0, 10] range"
 
+    @pytest.mark.asyncio
+    async def test_capture_system_moment_populates_extended_metrics(self):
+        """Ensure extended SystemMoment fields are populated from data sources."""
+        service = MetaEvolutionService()
+
+        mock_basin_stats = {
+            "basins": [
+                {"name": "active_basin", "strength": 0.4, "stability": 0.6, "activation_count": 3},
+                {"name": "inactive_basin", "strength": 0.1, "stability": 0.2, "activation_count": 1},
+            ]
+        }
+
+        with patch('api.services.meta_evolution_service.get_memory_basin_router') as mock_router:
+            mock_router_instance = AsyncMock()
+            mock_router_instance.get_basin_stats = AsyncMock(return_value=mock_basin_stats)
+            mock_router.return_value = mock_router_instance
+
+            with patch('api.services.meta_evolution_service.get_neo4j_driver') as mock_driver:
+                mock_driver_instance = AsyncMock()
+                mock_driver_instance.execute_query = AsyncMock(side_effect=[
+                    [{"count": 7}],  # Memory count
+                    [{"avg_surprise": 0.2, "avg_success": 0.75, "episode_count": 4}],  # Episodes
+                    [{"title": "Primary Goal", "priority": "active", "last_touched": datetime.utcnow()}],  # Focus
+                    [{"actions": '[{"error": "boom"}, {"error": null}]'}],  # Logs
+                    [],  # Persist
+                ])
+                mock_driver.return_value = mock_driver_instance
+
+                moment = await service.capture_system_moment()
+
+        assert moment.total_memories_count == 7
+        assert moment.avg_surprise_score == pytest.approx(0.2, rel=0.01)
+        assert moment.avg_confidence_score == pytest.approx(0.75, rel=0.01)
+        assert moment.current_focus == "Primary Goal"
+        assert moment.recent_errors == ["boom"]
+
 
 class TestMetaEvolutionServiceSingleton:
     """Test singleton pattern for service."""

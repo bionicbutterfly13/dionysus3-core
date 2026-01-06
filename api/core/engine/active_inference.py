@@ -1,9 +1,12 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
+import logging
 import numpy as np
-from datetime import datetime
 
 from api.services.efe_engine import get_efe_engine, EFEEngine
 from api.core.engine.models import ThoughtNode, ActiveInferenceScore
+from api.services.embedding import get_embedding_service, EMBEDDING_DIMENSIONS
+
+logger = logging.getLogger("dionysus.active_inference")
 
 class ActiveInferenceWrapper:
     """
@@ -33,11 +36,29 @@ class ActiveInferenceWrapper:
             ActiveInferenceScore object attached to the thought.
         """
         
-        # TODO: Integrate with EmbeddingService if thought_vector is None
-        # For now, we assume vector is provided or use zero-vector placeholder for skeleton
         if thought_vector is None:
-            # Placeholder: In production, call embedding service here
-            thought_vector = [0.0] * len(goal_vector)
+            try:
+                service = get_embedding_service()
+                thought_vector = await service.generate_embedding(thought.content)
+            except Exception as exc:
+                logger.warning(f"Failed to generate thought embedding: {exc}")
+                fallback_dim = len(goal_vector) or EMBEDDING_DIMENSIONS
+                thought_vector = [0.0] * fallback_dim
+
+        if not goal_vector:
+            logger.warning("Goal vector missing; falling back to thought embedding.")
+            goal_vector = thought_vector.copy()
+
+        if len(thought_vector) != len(goal_vector):
+            logger.warning(
+                "Thought/goal vector length mismatch (thought=%s, goal=%s); resizing thought vector.",
+                len(thought_vector),
+                len(goal_vector),
+            )
+            if len(thought_vector) > len(goal_vector):
+                thought_vector = thought_vector[: len(goal_vector)]
+            else:
+                thought_vector = thought_vector + [0.0] * (len(goal_vector) - len(thought_vector))
             
         thought_np = np.array(thought_vector)
         goal_np = np.array(goal_vector)

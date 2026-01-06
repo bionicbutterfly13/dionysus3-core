@@ -9,6 +9,7 @@ Provides operations for creating/retrieving journeys, sessions, and documents.
 Database: Neo4j via Graphiti-backed driver
 """
 
+import json
 import logging
 import time
 from datetime import datetime

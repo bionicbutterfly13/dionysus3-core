@@ -38,17 +38,17 @@ class MetaEvolutionService:
         driver = get_neo4j_driver()
         query = """
         MATCH (e:CognitiveEpisode)
-        WHERE e.surprise_score > 0.5
+        WHERE (e.surprise_score > 0.5 OR e:MACERTrajectory)
           AND e.timestamp > $cutoff
         RETURN e
         ORDER BY e.surprise_score DESC
-        LIMIT 5
+        LIMIT 10
         """
         cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
         
         episodes_data = await driver.execute_query(query, {"cutoff": cutoff})
         if not episodes_data:
-            logger.info("No high-surprise episodes found. Evolution cycle idle.")
+            logger.info("No evolution-worthy episodes found. Evolution cycle idle.")
             return None
             
         # 2. Reflect and Propose
@@ -64,6 +64,18 @@ class MetaEvolutionService:
                 context={"project_id": "system_evolution", "confidence": 1.0}
             )
             logger.info(f"Evolution Update applied: {update.id}")
+        else:
+            # If no strategy shift proposed, trigger a DISCOVERY task to find gaps
+            from api.services.coordination_service import get_coordination_service, TaskType
+            pool = get_coordination_service()
+            task_id = pool.submit_task(
+                payload={
+                    "query": "Analyze high-surprise episodes and find missing contextual links in the graph.",
+                    "episodes": [e.get("id") for e in episodes_data]
+                },
+                task_type=TaskType.DISCOVERY
+            )
+            logger.info(f"Submitted DISCOVERY task {task_id} to resolve surprise gaps.")
             
         return update
 
@@ -112,9 +124,10 @@ class MetaEvolutionService:
         driver = get_neo4j_driver()
 
         # Gather memory count
-        query = "MATCH (n) RETURN labels(n) as l, count(*) as c"
-        results = await driver.execute_query(query)
-        total_nodes = sum(r["c"] for r in results)
+        memory_rows = await driver.execute_query(
+            "MATCH (m:Memory) RETURN count(m) as count"
+        )
+        total_memories = memory_rows[0]["count"] if memory_rows else 0
 
         # Query attractor basins for real metrics (FR-001, FR-002)
         basin_router = get_memory_basin_router()
@@ -138,10 +151,75 @@ class MetaEvolutionService:
             # Clamp to valid range
             energy_level = max(0.0, min(10.0, energy_level))
 
+        # Cognitive episode metrics (last 24h)
+        cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+        episode_rows = await driver.execute_query(
+            """
+            MATCH (e:CognitiveEpisode)
+            WHERE datetime(e.timestamp) > datetime($cutoff)
+            RETURN
+                avg(coalesce(e.surprise_score, 0.0)) as avg_surprise,
+                avg(CASE WHEN e.success THEN 1.0 ELSE 0.0 END) as avg_success,
+                count(e) as episode_count
+            """,
+            {"cutoff": cutoff},
+        )
+        episode_row = episode_rows[0] if episode_rows else {}
+        avg_surprise = float(episode_row.get("avg_surprise") or 0.0)
+        # Use success rate as a proxy for confidence until explicit confidence is tracked.
+        avg_confidence = float(episode_row.get("avg_success") or 0.0)
+
+        # Current focus: most recently touched active goal, fallback to queued.
+        focus_rows = await driver.execute_query(
+            """
+            MATCH (g:Goal)
+            WHERE g.priority IN ['active', 'queued']
+            RETURN g.title as title, g.priority as priority, g.last_touched as last_touched
+            ORDER BY CASE g.priority WHEN 'active' THEN 0 ELSE 1 END, g.last_touched DESC
+            LIMIT 1
+            """
+        )
+        current_focus = focus_rows[0]["title"] if focus_rows else None
+
+        # Recent errors from latest heartbeat logs.
+        recent_errors = []
+        log_rows = await driver.execute_query(
+            """
+            MATCH (l:HeartbeatLog)
+            RETURN l.actions_taken as actions
+            ORDER BY l.ended_at DESC
+            LIMIT 5
+            """
+        )
+        for row in log_rows:
+            raw_actions = row.get("actions")
+            if not raw_actions:
+                continue
+            if isinstance(raw_actions, str):
+                try:
+                    actions = json.loads(raw_actions)
+                except json.JSONDecodeError:
+                    continue
+            elif isinstance(raw_actions, list):
+                actions = raw_actions
+            else:
+                continue
+
+            for action in actions:
+                if not isinstance(action, dict):
+                    continue
+                error = action.get("error")
+                if error and error not in recent_errors:
+                    recent_errors.append(error)
+
         moment = SystemMoment(
-            total_memories_count=total_nodes,
+            total_memories_count=total_memories,
             energy_level=energy_level,
-            active_basins_count=active_basins_count
+            active_basins_count=active_basins_count,
+            avg_surprise_score=avg_surprise,
+            avg_confidence_score=avg_confidence,
+            current_focus=current_focus,
+            recent_errors=recent_errors,
         )
 
         # Persist moment
@@ -150,19 +228,28 @@ class MetaEvolutionService:
         SET m.timestamp = $timestamp,
             m.energy_level = $energy,
             m.total_memories_count = $mem_count,
-            m.active_basins_count = $basins
+            m.active_basins_count = $basins,
+            m.avg_surprise_score = $avg_surprise,
+            m.avg_confidence_score = $avg_confidence,
+            m.current_focus = $current_focus,
+            m.recent_errors = $recent_errors
         """
         await driver.execute_query(persist_query, {
             "id": moment.id,
             "timestamp": moment.timestamp.isoformat(),
             "energy": moment.energy_level,
             "mem_count": moment.total_memories_count,
-            "basins": moment.active_basins_count
+            "basins": moment.active_basins_count,
+            "avg_surprise": moment.avg_surprise_score,
+            "avg_confidence": moment.avg_confidence_score,
+            "current_focus": moment.current_focus,
+            "recent_errors": moment.recent_errors,
         })
 
         logger.info(
             f"Captured system moment: energy={energy_level:.2f}, "
-            f"active_basins={active_basins_count}, memories={total_nodes}"
+            f"active_basins={active_basins_count}, memories={total_memories}, "
+            f"avg_surprise={avg_surprise:.2f}, avg_confidence={avg_confidence:.2f}"
         )
 
         return moment

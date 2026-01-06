@@ -115,6 +115,16 @@ class ObserveHandler(ActionHandler):
                 )
                 goals_data = await goals_result.data()
 
+                # Count blocked goals
+                blocked_result = await session.run(
+                    """
+                    MATCH (g:Goal)
+                    WHERE g.blocked_by IS NOT NULL
+                    RETURN count(g) as blocked_count
+                    """
+                )
+                blocked_record = await blocked_result.single()
+
                 # Check last user interaction
                 user_result = await session.run(
                     """
@@ -128,6 +138,7 @@ class ObserveHandler(ActionHandler):
             # Build snapshot
             s = state_record["s"] if state_record else {}
             goals_by_priority = {r["priority"]: r["count"] for r in goals_data}
+            blocked_count = blocked_record["blocked_count"] if blocked_record else 0
 
             last_user = user_record["last_user"] if user_record else None
             time_since_user = None
@@ -143,9 +154,7 @@ class ObserveHandler(ActionHandler):
                 recent_memories_count=memory_record["recent_count"] if memory_record else 0,
                 active_goals_count=goals_by_priority.get("active", 0),
                 queued_goals_count=goals_by_priority.get("queued", 0),
-                blocked_goals_count=sum(
-                    1 for p, c in goals_by_priority.items() if p in ("active", "queued")
-                ),  # Simplified
+                blocked_goals_count=blocked_count,
                 current_energy=s.get("current_energy", 10.0),
                 heartbeat_number=s.get("heartbeat_count", 0),
             )

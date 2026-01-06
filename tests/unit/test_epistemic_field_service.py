@@ -97,14 +97,85 @@ class TestRecursiveSharingDepth:
         assert service.get_sharing_depth("unknown") == 0, "Unknown layer should return 0"
 
     def test_depth_increases_with_more_layers(self):
-        """More layers sharing = higher depth."""
-        # TODO: Implement in T078
-        pytest.skip("T078: Write test for recursive sharing (FR-017)")
+        """
+        More layers sharing = higher depth.
+
+        Given different numbers of layers sharing precision,
+        When sharing depths are tracked,
+        Then aggregate depth increases with more layers.
+
+        FR-017: Track recursive sharing depth.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+
+        service = get_epistemic_field_service()
+
+        # Scenario 1: Only 1 layer sharing
+        service._layer_sharing_depth = {}  # Reset
+        service.track_sharing_depth("perception", 1)
+        depth_1 = sum(service._layer_sharing_depth.values())
+        assert depth_1 == 1, "Single layer should have depth 1"
+
+        # Scenario 2: 3 layers sharing
+        service._layer_sharing_depth = {}  # Reset
+        service.track_sharing_depth("perception", 1)
+        service.track_sharing_depth("reasoning", 1)
+        service.track_sharing_depth("metacognition", 1)
+        depth_3 = sum(service._layer_sharing_depth.values())
+        assert depth_3 == 3, "Three layers should have depth 3"
+
+        # Scenario 3: 4 layers with deeper recursion
+        service._layer_sharing_depth = {}  # Reset
+        service.track_sharing_depth("perception", 2)
+        service.track_sharing_depth("reasoning", 3)
+        service.track_sharing_depth("metacognition", 2)
+        service.track_sharing_depth("action", 1)
+        depth_4 = sum(service._layer_sharing_depth.values())
+        assert depth_4 == 8, "Four layers with recursion should have higher aggregate depth"
+
+        # Verify increasing trend
+        assert depth_1 < depth_3 < depth_4, "Depth should increase with more layers"
 
     def test_bidirectional_sharing_counted(self):
-        """Only bidirectional sharing is counted."""
-        # TODO: Implement in T078
-        pytest.skip("T078: Write test for recursive sharing (FR-017)")
+        """
+        Only bidirectional sharing is counted.
+
+        Given layers with bidirectional vs unidirectional sharing,
+        When get_epistemic_state() computes luminosity,
+        Then bidirectional_sharing factor reflects active layers (precision >= 0.5).
+
+        FR-017: Bidirectional sharing means layers exchange precision mutually.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+        from api.services.hyper_model_service import get_hyper_model_service
+        from api.models.beautiful_loop import PrecisionProfile
+        from unittest.mock import Mock
+
+        service = get_epistemic_field_service()
+        hyper_model = get_hyper_model_service()
+
+        # Mock precision profile with bidirectional sharing (high precision on layers)
+        profile = PrecisionProfile(
+            layer_precisions={
+                "perception": 0.8,      # Active (>= 0.5)
+                "reasoning": 0.6,       # Active
+                "metacognition": 0.3,   # Inactive (< 0.5)
+                "action": 0.7           # Active
+            }
+        )
+
+        # Mock the hyper model to return this profile
+        hyper_model._current_profile = profile
+
+        state = service.get_epistemic_state()
+
+        # bidirectional_sharing should be fraction of active layers
+        # 3 active out of 4 total = 0.75
+        expected_sharing = 3 / 4
+        actual_sharing = state.luminosity_factors.get("bidirectional_sharing", 0.0)
+
+        assert actual_sharing == expected_sharing, \
+            f"Expected {expected_sharing}, got {actual_sharing} (3 active layers / 4 total)"
 
 
 class TestDepthScoreComputation:
