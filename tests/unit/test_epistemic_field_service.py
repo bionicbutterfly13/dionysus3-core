@@ -70,9 +70,31 @@ class TestRecursiveSharingDepth:
     """Tests for recursive sharing depth tracking (FR-017)."""
 
     def test_track_sharing_depth(self):
-        """Track how many layers exchange precision information."""
-        # TODO: Implement in T078
-        pytest.skip("T078: Write test for recursive sharing (FR-017)")
+        """
+        Track how many layers exchange precision information.
+
+        Given a layer ID and sharing depth,
+        When track_sharing_depth() is called,
+        Then the depth is recorded and can be retrieved.
+
+        FR-017: Track recursive sharing depth (how many layers exchange precision information).
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+
+        service = get_epistemic_field_service()
+
+        # Track sharing depth for multiple layers
+        service.track_sharing_depth("perception", 2)
+        service.track_sharing_depth("reasoning", 3)
+        service.track_sharing_depth("metacognition", 1)
+
+        # Verify depths are tracked
+        assert service.get_sharing_depth("perception") == 2, "Should track perception depth"
+        assert service.get_sharing_depth("reasoning") == 3, "Should track reasoning depth"
+        assert service.get_sharing_depth("metacognition") == 1, "Should track metacognition depth"
+
+        # Verify unknown layer returns 0
+        assert service.get_sharing_depth("unknown") == 0, "Unknown layer should return 0"
 
     def test_depth_increases_with_more_layers(self):
         """More layers sharing = higher depth."""
