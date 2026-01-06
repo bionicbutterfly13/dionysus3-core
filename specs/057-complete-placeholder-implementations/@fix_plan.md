@@ -7,16 +7,24 @@
 
 ## Current Task
 
-> **T037: Read OODA agent hierarchy to understand integration points**
+> **DECISION POINT: US4 Beautiful Loop OODA Integration Tests**
 >
-> Read ConsciousnessManager and OODA cycle code to understand:
-> - Where Beautiful Loop integrates (OBSERVE/ORIENT/DECIDE/ACT phases)
-> - How precision profiles are broadcast
-> - How errors are collected and fed back
+> T037 research complete. However, T038-T057 (20 tasks) are integration tests
+> that require the full OODA→Beautiful Loop integration to be implemented.
 >
-> **Acceptance**: Can explain integration in 3-4 sentences
-> **Time**: 10 min
-> **Type**: Research
+> Current state assessment needed:
+> 1. Beautiful Loop services exist (hyper_model_service, bayesian_binder, etc.)
+> 2. Test file exists with 36 skipped tests
+> 3. Integration with OODA heartbeat loop may not be complete
+> 4. FR-007 requires implementing event emissions (PrecisionForecastEvent, etc.)
+>
+> **Options**:
+> A) Continue with US4 (T038-T057) - implement integration + tests (~5-6 hours)
+> B) Skip to US5/US6 (simpler P3 tasks) - complete those first (~1-2 hours)
+> C) Document US4 as "deferred pending OODA integration completion"
+>
+> **Recommendation**: Option B - complete US5/US6 first (higher completion rate),
+> return to US4 if time permits.
 
 ---
 
@@ -231,6 +239,15 @@
   - 3 edge case tests added and passing ✓
   - Committed: 4c7197c
   - **US3 COMPLETE**: EpistemicFieldService tests ✓
+
+- [x] **T037**: Read OODA agent hierarchy to understand integration points ✓
+  - Beautiful Loop runs embedded in OODA (Observe-Orient-Decide-Act) heartbeat cycle
+  - START: Forecast Φ (precision profile) before OBSERVE (FR-020)
+  - OBSERVE/ORIENT: Apply Φ to weight observations/layers (FR-021)
+  - DECIDE: Bayesian binding selection
+  - ACT/END: Collect errors, update hyper-model, broadcast new Φ (FR-022, FR-023)
+  - Integration uses existing ActiveInferenceService, BeliefState, MetaplasticityService (FR-024 to FR-026)
+  - Research complete - ready for Beautiful Loop OODA tests ✓
 
 ---
 
