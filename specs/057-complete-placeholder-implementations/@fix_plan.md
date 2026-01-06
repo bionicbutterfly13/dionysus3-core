@@ -7,12 +7,12 @@
 
 ## Current Task
 
-> **T022: Un-skip test_get_epistemic_state, implement minimal service**
+> **T036: Add edge case tests for negative/invalid luminosity factors**
 >
-> Un-skip test_get_epistemic_state in tests/unit/test_epistemic_field_service.py.
-> Verify get_epistemic_state() returns EpistemicState with correct structure.
+> Add tests to verify service handles invalid inputs gracefully.
+> Test negative values, out-of-range values, None handling.
 >
-> **Acceptance**: Test passes, EpistemicState returned with depth_score and luminosity_factors
+> **Acceptance**: Edge case tests pass, service robust
 > **Time**: 15 min
 > **Type**: Test+Code
 
@@ -181,6 +181,21 @@
   - Test PASSES - service creation successful ✓
   - Committed: 2e999c6
   - FR-005: EpistemicFieldService can be created ✓
+
+- [x] **T022**: Un-skip test_get_epistemic_state, verify implementation ✓
+  - Un-skipped test_get_epistemic_state in test_epistemic_field_service.py
+  - Tests EpistemicState return type, depth_score range [0, 1], luminosity_factors dict
+  - Test PASSES - existing implementation from 056 works correctly ✓
+  - Committed: 7a5bf13
+  - FR-018: Epistemic depth score computation verified ✓
+
+- [x] **T023**: Un-skip test_track_sharing_depth ✓
+  - Added track_sharing_depth() and get_sharing_depth() methods to service
+  - Added classify_process() method (FR-019) for aware/transparent distinction
+  - Un-skipped test_track_sharing_depth with multi-layer verification
+  - Test PASSES - sharing depth tracking works ✓
+  - Committed: 9f468ea
+  - FR-017: Recursive sharing depth tracking implemented ✓
 
 ---
 

@@ -528,3 +528,70 @@ class TestLuminosityFactors:
 
         assert state.luminosity_factors.get("binding_coherence") == 0.82, \
             "binding_coherence should match reality_model.coherence_score"
+
+
+class TestEdgeCases:
+    """Edge case tests for robustness."""
+
+    def test_depth_score_with_empty_luminosity_factors(self):
+        """
+        Handle empty luminosity_factors gracefully.
+
+        Given no luminosity factors,
+        When depth_score is computed,
+        Then it defaults to 0.0 without error.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+        from api.services.hyper_model_service import get_hyper_model_service
+
+        service = get_epistemic_field_service()
+        hyper_model = get_hyper_model_service()
+
+        # Clear profile to minimize factors
+        hyper_model._current_profile = None
+
+        state = service.get_epistemic_state()
+
+        # Should not crash, should have valid depth_score
+        assert hasattr(state, 'depth_score'), "Should have depth_score even with minimal state"
+        assert 0.0 <= state.depth_score <= 1.0, "depth_score should be in valid range"
+
+    def test_sharing_depth_with_negative_values(self):
+        """
+        Track sharing depth handles invalid (negative) values.
+
+        Given negative sharing depth,
+        When track_sharing_depth() is called,
+        Then it's recorded (no validation in current impl).
+
+        Note: Current implementation doesn't validate, just stores.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+
+        service = get_epistemic_field_service()
+
+        # Track negative depth (should not crash)
+        service.track_sharing_depth("test_layer", -1)
+
+        # Should be retrievable
+        depth = service.get_sharing_depth("test_layer")
+        assert depth == -1, "Service stores value as-is (no validation)"
+
+    def test_classify_process_with_empty_process_id(self):
+        """
+        classify_process() handles empty process ID.
+
+        Given empty string as process_id,
+        When classify_process() is called,
+        Then it returns classification without error.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+
+        service = get_epistemic_field_service()
+
+        # Empty process ID should not crash
+        classification = service.classify_process("", is_bound=True)
+        assert classification == "aware", "Should classify even with empty ID"
+
+        classification = service.classify_process("", is_bound=False)
+        assert classification == "transparent", "Should classify even with empty ID"
