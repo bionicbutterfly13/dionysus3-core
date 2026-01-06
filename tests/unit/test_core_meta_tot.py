@@ -255,14 +255,44 @@ class TestExpandNodeRealScoring:
             # Simulate wrapper failure
             mock_score.side_effect = Exception("Model service unavailable")
 
-            # Should not crash, should handle gracefully
-            with pytest.raises(Exception):
-                # Currently raises - implementation in T018 should add graceful handling
-                await engine.expand_node(root.id, ["Option A", "Option B"])
+            # Should NOT crash - should use fallback neutral scores
+            children = await engine.expand_node(root.id, ["Option A", "Option B"])
 
-            # After T018 implementation, this test should be updated to:
-            # children = await engine.expand_node(root.id, ["Option A", "Option B"])
-            # assert all(c.score is not None for c in children), "Should have fallback scores"
+            # Verify children were created despite wrapper failure
+            assert len(children) == 2, "Should create children even when wrapper fails"
+
+            # Verify all children have fallback neutral scores (not None)
+            for child in children:
+                assert child.score is not None, f"Child '{child.content}' must have fallback score"
+                assert isinstance(child.score, ActiveInferenceScore), "Score must be ActiveInferenceScore"
+
+                # Neutral fallback should have high uncertainty (high EFE, surprise, error)
+                assert child.score.expected_free_energy > 0, "Fallback EFE should indicate high uncertainty"
+                assert child.score.precision > 0, "Fallback precision should be positive"
+
+    @pytest.mark.asyncio
+    async def test_expand_node_handles_wrapper_returning_none(self):
+        """
+        FR-012: Handle wrapper returning None gracefully.
+
+        Given active inference wrapper returns None instead of raising exception,
+        When expand_node() processes children,
+        Then system uses fallback neutral score.
+        """
+        engine = MetaToTEngine()
+
+        goal_vector = [0.5] * 768
+        root = await engine.initialize_session("Handle None returns", goal_vector)
+
+        with patch.object(engine.ai_wrapper, 'score_thought', new_callable=AsyncMock) as mock_score:
+            # Simulate wrapper returning None
+            mock_score.return_value = None
+
+            children = await engine.expand_node(root.id, ["Option A"])
+
+            assert len(children) == 1, "Should create child"
+            assert children[0].score is not None, "Should have fallback score when wrapper returns None"
+            assert isinstance(children[0].score, ActiveInferenceScore), "Fallback must be ActiveInferenceScore"
 
 
 class TestSelectBestBranchWithRealScores:
