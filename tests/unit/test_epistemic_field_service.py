@@ -182,38 +182,130 @@ class TestDepthScoreComputation:
     """Tests for depth score computation (FR-018)."""
 
     def test_depth_score_computed(self):
-        """Depth score is computed from luminosity factors."""
-        # TODO: Implement in T079
-        pytest.skip("T079: Write test for depth score (FR-018)")
+        """
+        Depth score is computed from luminosity factors.
+
+        Given luminosity factors exist,
+        When get_epistemic_state() is called,
+        Then depth_score is computed from those factors.
+
+        FR-018: System MUST compute an epistemic depth score (0-1) representing luminosity.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+
+        service = get_epistemic_field_service()
+        state = service.get_epistemic_state()
+
+        # Verify depth_score exists and is a float
+        assert hasattr(state, 'depth_score'), "Should have depth_score"
+        assert isinstance(state.depth_score, float), "depth_score should be float"
+
+        # Verify luminosity_factors exist
+        assert hasattr(state, 'luminosity_factors'), "Should have luminosity_factors"
+        assert len(state.luminosity_factors) > 0, "Should have at least one luminosity factor"
 
     def test_depth_score_in_range(self):
-        """Depth score is in [0, 1] range."""
-        # TODO: Implement in T079
-        pytest.skip("T079: Write test for depth score (FR-018)")
+        """
+        Depth score is in [0, 1] range.
+
+        Given any epistemic state,
+        When depth_score is computed,
+        Then it is constrained to [0, 1].
+
+        FR-018: Depth score is a normalized value (0-1).
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+
+        service = get_epistemic_field_service()
+        state = service.get_epistemic_state()
+
+        # Verify depth_score is in valid range
+        assert 0.0 <= state.depth_score <= 1.0, \
+            f"depth_score must be in [0, 1], got {state.depth_score}"
 
     def test_depth_score_weighted_average(self):
-        """Depth score is weighted average of luminosity factors."""
-        # TODO: Implement in T079
-        pytest.skip("T079: Write test for depth score (FR-018)")
+        """
+        Depth score is weighted average of luminosity factors.
+
+        Given luminosity factors with known values,
+        When depth_score is computed,
+        Then it equals the average of factor values.
+
+        FR-018: depth_score = weighted average of luminosity_factors.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+
+        service = get_epistemic_field_service()
+        state = service.get_epistemic_state()
+
+        # Calculate expected depth score from luminosity factors
+        factors = state.luminosity_factors
+        if factors:
+            expected_depth = sum(factors.values()) / len(factors)
+
+            # Allow small floating point tolerance
+            assert abs(state.depth_score - expected_depth) < 0.001, \
+                f"depth_score should be average of factors: expected {expected_depth}, got {state.depth_score}"
 
 
 class TestAwareTransparentDistinction:
     """Tests for aware vs transparent process distinction (FR-019)."""
 
     def test_bound_processes_are_aware(self):
-        """Bound processes are classified as aware."""
-        # TODO: Implement in T080
-        pytest.skip("T080: Write test for aware/transparent (FR-019)")
+        """
+        Bound processes are classified as aware.
+
+        Given a process bound into consciousness,
+        When classify_process() is called with is_bound=True,
+        Then it returns "aware".
+
+        FR-019: Distinguish between "aware" processes (bound) and "transparent" processes (unbound).
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+
+        service = get_epistemic_field_service()
+
+        # Bound process should be classified as "aware"
+        classification = service.classify_process("perception_001", is_bound=True)
+        assert classification == "aware", "Bound processes should be classified as 'aware'"
 
     def test_unbound_processes_are_transparent(self):
-        """Unbound processes are classified as transparent."""
-        # TODO: Implement in T080
-        pytest.skip("T080: Write test for aware/transparent (FR-019)")
+        """
+        Unbound processes are classified as transparent.
+
+        Given a process NOT bound into consciousness,
+        When classify_process() is called with is_bound=False,
+        Then it returns "transparent".
+
+        FR-019: Transparent processes run without being "known".
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+
+        service = get_epistemic_field_service()
+
+        # Unbound process should be classified as "transparent"
+        classification = service.classify_process("background_task_042", is_bound=False)
+        assert classification == "transparent", "Unbound processes should be classified as 'transparent'"
 
     def test_classify_process(self):
-        """classify_process() returns aware or transparent."""
-        # TODO: Implement in T080
-        pytest.skip("T080: Write test for aware/transparent (FR-019)")
+        """
+        classify_process() returns aware or transparent.
+
+        Given different process IDs and binding states,
+        When classify_process() is called,
+        Then it returns correct classification.
+
+        FR-019: Binary classification based on binding state.
+        """
+        from api.services.epistemic_field_service import get_epistemic_field_service
+
+        service = get_epistemic_field_service()
+
+        # Test multiple processes
+        assert service.classify_process("proc_1", is_bound=True) == "aware"
+        assert service.classify_process("proc_2", is_bound=False) == "transparent"
+        assert service.classify_process("proc_3", is_bound=True) == "aware"
+        assert service.classify_process("proc_4", is_bound=False) == "transparent"
 
 
 class TestStateDifferentiation:
