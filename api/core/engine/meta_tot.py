@@ -57,19 +57,54 @@ class MetaToTEngine:
                 parent_id=parent_id,
                 depth=parent.depth + 1
             )
-            
+
             # Score the child using real active inference computation
             # ActiveInferenceWrapper handles embedding generation and EFE calculation
             # with precision-weighted prediction errors (FR-003, FR-004)
-            child.score = await self.ai_wrapper.score_thought(
-                child, self.active_goal_vector
-            )
-            
+            try:
+                child.score = await self.ai_wrapper.score_thought(
+                    child, self.active_goal_vector
+                )
+
+                # Handle wrapper returning None (FR-012)
+                if child.score is None:
+                    logger.warning(
+                        f"Active inference wrapper returned None for thought '{content[:50]}...'. "
+                        "Using neutral fallback score."
+                    )
+                    child.score = self._create_neutral_fallback_score()
+
+            except Exception as e:
+                # Graceful fallback when wrapper fails (FR-012)
+                logger.warning(
+                    f"Active inference scoring failed for thought '{content[:50]}...': {e}. "
+                    "Using neutral fallback score."
+                )
+                child.score = self._create_neutral_fallback_score()
+
             self.nodes[child.id] = child
             parent.children_ids.append(child.id)
             new_nodes.append(child)
-            
+
         return new_nodes
+
+    def _create_neutral_fallback_score(self) -> "ActiveInferenceScore":
+        """
+        Creates a neutral fallback score for when active inference fails.
+
+        High EFE indicates high uncertainty - this thoughtseed will be
+        deprioritized but system continues functioning.
+
+        FR-012: Graceful handling of missing active inference scores.
+        """
+        from api.core.engine.models import ActiveInferenceScore
+
+        return ActiveInferenceScore(
+            expected_free_energy=5.0,  # High EFE = high uncertainty = deprioritized
+            surprise=1.0,              # Maximum surprise (unknown)
+            prediction_error=1.0,      # Maximum prediction error
+            precision=0.5              # Low precision (low confidence)
+        )
 
     async def select_best_branch(self, current_node_id: str) -> Optional[ThoughtNode]:
         """
