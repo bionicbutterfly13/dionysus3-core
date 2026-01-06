@@ -7,14 +7,16 @@
 
 ## Current Task
 
-> **T036: Add edge case tests for negative/invalid luminosity factors**
+> **T037: Read OODA agent hierarchy to understand integration points**
 >
-> Add tests to verify service handles invalid inputs gracefully.
-> Test negative values, out-of-range values, None handling.
+> Read ConsciousnessManager and OODA cycle code to understand:
+> - Where Beautiful Loop integrates (OBSERVE/ORIENT/DECIDE/ACT phases)
+> - How precision profiles are broadcast
+> - How errors are collected and fed back
 >
-> **Acceptance**: Edge case tests pass, service robust
-> **Time**: 15 min
-> **Type**: Test+Code
+> **Acceptance**: Can explain integration in 3-4 sentences
+> **Time**: 10 min
+> **Type**: Research
 
 ---
 
@@ -196,6 +198,39 @@
   - Test PASSES - sharing depth tracking works ✓
   - Committed: 9f468ea
   - FR-017: Recursive sharing depth tracking implemented ✓
+
+- [x] **T024-T025**: Un-skip depth tracking tests ✓
+  - test_depth_increases_with_more_layers: Verifies aggregate depth increases
+  - test_bidirectional_sharing_counted: Verifies 3/4 active layers = 0.75
+  - Both tests PASS ✓
+  - Committed: 69ff444
+
+- [x] **T026-T028**: TestDepthScoreComputation ✓
+  - test_depth_score_computed, test_depth_score_in_range, test_depth_score_weighted_average
+  - All 3 tests PASS ✓
+  - Committed: 55f8377
+  - FR-018: Depth score computation verified ✓
+
+- [x] **T029-T031**: TestAwareTransparentDistinction ✓
+  - test_bound_processes_are_aware, test_unbound_processes_are_transparent, test_classify_process
+  - All 3 tests PASS ✓
+  - Committed: 55f8377
+  - FR-019: Process classification verified ✓
+
+- [x] **T032-T034**: State differentiation and luminosity factors ✓
+  - test_focused_vs_diffuse_differentiation, test_effect_size_threshold (SC-005)
+  - 4 luminosity factor tests (hyper_model_active, bidirectional_sharing, meta_precision_level, binding_coherence)
+  - All 6 tests PASS ✓
+  - Committed: 0ae1d70
+
+- [x] **T035**: Run coverage report, verify >90% coverage ✓
+  - Coverage: 97% (exceeds requirement) ✓
+  - 20 tests total, all passing ✓
+
+- [x] **T036**: Add edge case tests ✓
+  - 3 edge case tests added and passing ✓
+  - Committed: 4c7197c
+  - **US3 COMPLETE**: EpistemicFieldService tests ✓
 
 ---
 
