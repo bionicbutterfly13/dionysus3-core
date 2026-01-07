@@ -368,19 +368,32 @@ class MemoryStorageDemo:
             }
         }
 
+        # Get multi-tier service
+        multi_tier = get_multi_tier_service()
+        stored_ids = []
+
         for pattern_name, pattern_config in patterns.items():
             print(f"⚙️  Pattern: {pattern_name}")
             print(f"   Trigger: {pattern_config['trigger']}")
 
-            # In production:
-            # await multi_tier_service.store_hot(
-            #     key=f"procedural_{pattern_name}",
-            #     value=pattern_config,
-            #     ttl=3600  # Fast access for 1 hour
-            # )
+            # Store in HOT tier with real multi_tier_service
+            # High importance (0.8) for fast-access execution patterns
+            content = f"Procedural pattern: {pattern_name}. Trigger: {pattern_config['trigger']}"
+
+            item_id = await multi_tier.store_memory(
+                content=content,
+                importance=0.8,  # High importance for procedural patterns
+                memory_type="procedural",
+                metadata={
+                    "pattern_name": pattern_name,
+                    "full_config": pattern_config
+                }
+            )
+            stored_ids.append(item_id)
+            print(f"   ✓ Stored in HOT tier: {item_id}")
 
         print(f"\n✓ Stored {len(patterns)} procedural patterns")
-        return patterns
+        return {"patterns": patterns, "stored_ids": stored_ids}
 
     async def store_strategic(self):
         """

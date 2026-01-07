@@ -7,15 +7,16 @@
 
 ## Current Task
 
-> **T070: Replace mock in store_procedural() with real HOT tier calls**
+> **T071: Replace mock in store_strategic() with real meta-learner calls**
 >
 > In scripts/store_metacognition_memory.py:
-> - Replace mock calls (lines 317-322) with real multi_tier_service.store_memory()
-> - Store 5 procedural patterns in HOT tier
-> - Use memory_type="procedural", importance=0.8 (high for fast access patterns)
+> - Replace mock calls (lines 400-408) with real storage
+> - Research: Check if meta-learner service exists, else use multi_tier HOT tier
+> - Store 4 strategic meta-learnings with memory_type="strategic"
+> - Importance based on confidence_update magnitude
 > - Return stored item IDs for verification
 >
-> **Acceptance**: Procedural storage uses real HOT tier API
+> **Acceptance**: Strategic storage uses real service API
 > **Time**: 15 min
 > **Type**: Code
 
@@ -277,6 +278,15 @@
   - Metadata includes timestamp, emotional_valence, surprise_score, full_event
   - Returns stored_ids for verification
   - All episodic memories now in HOT tier (24h TTL)
+  - Implementation complete ✓
+
+- [x] **T070**: Replace mock in store_procedural() with real HOT tier calls ✓
+  - Replaced mock storage (lines 371-396): Uses multi_tier.store_memory()
+  - 5 procedural patterns stored in HOT tier with memory_type="procedural"
+  - High importance (0.8) for fast-access execution patterns
+  - Metadata includes pattern_name, full_config
+  - Returns stored_ids for verification
+  - All procedural patterns now in HOT tier (24h TTL)
   - Implementation complete ✓
 
 ---
