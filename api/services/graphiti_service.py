@@ -617,6 +617,74 @@ IMPORTANT:
             "errors": errors,
         }
 
+    async def ingest_contextual_triplet(
+        self,
+        head_id: str,
+        relation: str,
+        tail_id: str,
+        context: dict[str, Any],
+        group_id: Optional[str] = None,
+        source_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Ingest a reified Triplet node with rich Relation Context (RC).
+        Follows the (h, r, t, rc) quadruple structure used by CGR3/ToG-3.
+        
+        Args:
+            head_id: ID/Label of the subject
+            relation: Predicate type
+            tail_id: ID/Label of the object
+            context: Dictionary of RC properties (confidence, temporal, geographic, etc.)
+            group_id: Optional group filter
+            source_id: Optional source provenance ID
+            
+        Returns:
+            True if ingestion was successful
+        """
+        tid = f"{head_id}_{relation}_{tail_id}"
+        
+        # Flatten context for Neo4j properties
+        props = {
+            "id": tid,
+            "relation": relation,
+            "confidence": context.get("confidence", 1.0),
+            "geographic": context.get("geographic"),
+            "provenance": json.dumps(context.get("provenance", [])),
+            "source_id": source_id,
+            "group_id": group_id or self.config.group_id
+        }
+        
+        # Add temporal and custom details if present
+        if temporal := context.get("temporal"):
+            for k, v in temporal.items():
+                props[f"temporal_{k}"] = v
+        
+        if details := context.get("details"):
+            for k, v in details.items():
+                props[f"prop_{k}"] = v
+
+        cypher = """
+        MERGE (h:Entity {id: $head_id})
+        SET h.name = coalesce(h.name, $head_id)
+        MERGE (t:Entity {id: $tail_id})
+        SET t.name = coalesce(t.name, $tail_id)
+        MERGE (tr:Triplet {id: $tid})
+        SET tr += $props
+        MERGE (h)-[:HAS_SUBJECT_OF]->(tr)
+        MERGE (tr)-[:HAS_OBJECT_OF]->(t)
+        """
+        try:
+            await self.execute_query(cypher, {
+                "head_id": head_id,
+                "tail_id": tail_id,
+                "tid": tid,
+                "props": props
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Failed to ingest contextual triplet: {e}")
+            return False
+
     async def search(
         self,
         query: str,

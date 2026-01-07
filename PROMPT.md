@@ -1,93 +1,112 @@
-# Dionysus3-Core - Ralph Instructions
+# Beautiful Loop Hyper-Model - Ralph Instructions
 
 ## Goal
-Comprehensive code verification and Neo4j data processing validation. Ensure all code paths work correctly, Neo4j schema is properly enforced, data integrity constraints are validated, and webhook-based Neo4j access patterns are correct.
+Implement the "Beautiful Loop" consciousness framework from Laukkonen et al. (2025), adding three core capabilities to Dionysus:
+1. **Unified Reality Model** - Single container wrapping all active inference states, belief states, and metacognitive states
+2. **Bayesian Binding** - Precision-weighted inferential competition determining what enters consciousness
+3. **Hyper-Model Precision Forecasting** - Proactive precision allocation with second-order learning
 
 ## Current State
-Production codebase with:
-- FastAPI backend (`api/`)
-- MCP server (`dionysus_mcp/`)
-- Neo4j schema definitions (`neo4j/schema/`)
-- Unit, contract, and integration tests (`tests/`)
-- Graphiti-based knowledge graph operations
-- Webhook-based Neo4j driver (NO direct Cypher - all via n8n webhooks)
+**Specification Complete:**
+- ✅ spec.md - 27 functional requirements, 7 user stories, 8 success criteria
+- ✅ plan.md - Implementation phases with technical context
+- ✅ research.md - 5 research decisions documented
+- ✅ data-model.md - Entity definitions and relationships
+- ✅ contracts/ - OpenAPI specification
+- ✅ tasks.md - 123 tasks organized by user story
+
+**Existing Code to REUSE (DO NOT DUPLICATE):**
+- `api/services/active_inference_service.py` - VFE/EFE calculations
+- `api/models/belief_state.py` - BeliefState model
+- `api/services/metaplasticity_service.py` - Precision adaptation
+- `api/services/epistemic_gain_service.py` - Information gain
+- `api/utils/event_bus.py` - Event routing
+- `api/models/metacognitive_particle.py` - Metacognitive particles
+- `api/agents/consciousness_manager.py` - OODA cycle
+
+**NEW Code to Create:**
+- `api/models/beautiful_loop.py` - Core Pydantic models
+- `api/services/unified_reality_model.py` - State container
+- `api/services/bayesian_binder.py` - Binding competition
+- `api/services/hyper_model_service.py` - Precision forecasting
+- `api/services/epistemic_field_service.py` - Luminosity tracking
 
 ## Tech Stack
 - Language: Python 3.11+
-- Framework: FastAPI, Pydantic 2.x
-- Database: Neo4j (accessed via webhooks and Graphiti ONLY)
-- Testing: pytest with pytest-asyncio
-- MCP: mcp>=1.12.2, smolagents
-- AI: OpenAI, Anthropic, LiteLLM
-
-## Critical Constraints
-**NEVER ACCESS NEO4J DIRECTLY**
-- No Cypher queries in code
-- No neo4j-driver direct connections
-- All Neo4j access via `webhook_neo4j_driver.py` or Graphiti service
-- n8n webhooks are the ONLY path to Neo4j
+- Framework: FastAPI, Pydantic v2
+- Testing: pytest, pytest-asyncio (TDD mandatory per SC-008)
+- Dependencies: smolagents, NumPy
+- Target: >90% test coverage
 
 ## Working Rules
 1. Read `@fix_plan.md` for current task
 2. Complete ONE task per iteration (2-5 min max)
-3. Run tests after each change: `pytest tests/ -x --tb=short`
-4. Commit with: `ralph: [description]`
-5. Update `@fix_plan.md` after each task
-6. If blocked, document in Blocked section and move to next task
+3. **TDD MANDATORY**: Write tests FIRST, verify they FAIL, then implement
+4. Run tests after each change: `pytest tests/unit/<test_file>.py -v`
+5. Commit with: `ralph: [description]`
+6. Update `@fix_plan.md` after each task
+7. If blocked, document and move to next task
 
-## Verification Categories
-
-### 1. Code Quality Verification
-- Import validation (no circular imports, unused imports)
-- Type hint completeness (Pydantic models, function signatures)
-- Error handling (try/except with proper logging)
-- Dead code detection (unused functions, unreachable paths)
-
-### 2. Neo4j Data Processing Checks
-- Schema validation against `neo4j/schema/*.cypher`
-- Webhook driver patterns in `api/services/webhook_neo4j_driver.py`
-- Graphiti service operations in `api/services/graphiti_service.py`
-- Entity/relationship constraint validation
-- Data consistency checks via n8n workflows
-
-### 3. Service Health Validation
-- All service singletons initialize correctly
-- Dependency injection patterns are consistent
-- Async/await patterns are properly propagated
-- Resource cleanup on shutdown
-
-### 4. Test Coverage
-- All routers have contract tests
-- All services have unit tests
-- Critical paths have integration tests
+## TDD Enforcement (CRITICAL)
+**For every implementation task:**
+1. Find the corresponding test task (always listed BEFORE implementation)
+2. Verify test exists and FAILS before implementing
+3. Write implementation to make test pass
+4. Check coverage: `pytest --cov --cov-fail-under=90`
 
 ## Task Completion Criteria
-- [ ] Code change implemented
-- [ ] No new linting errors
-- [ ] Tests pass: `pytest tests/ -x`
-- [ ] Changes committed
-- [ ] `@fix_plan.md` updated
+- [ ] Test written FIRST (TDD)
+- [ ] Test fails initially (red)
+- [ ] Implementation makes test pass (green)
+- [ ] No existing functionality broken
+- [ ] No code duplication with existing services
+- [ ] Changes committed with descriptive message
+- [ ] `@fix_plan.md` updated (task moved to Completed)
 
 ## Anti-Patterns (DO NOT)
-- Skip tests
+- Skip writing tests first
+- Implement before test fails
+- Duplicate existing service functionality
 - Batch multiple tasks
 - Leave uncommitted changes
 - Work on tasks not in @fix_plan.md
-- Access Neo4j directly (always use webhooks/Graphiti)
-- Add unnecessary abstractions
-- Over-engineer simple fixes
+- Modify test expectations instead of fixing implementation
 
-## File Reference
-```
-api/
-  routers/      # FastAPI route handlers
-  services/     # Business logic, Neo4j drivers
-  models/       # Pydantic models
-  agents/       # AI agent implementations
-dionysus_mcp/   # MCP server
-tests/
-  unit/         # Unit tests
-  contract/     # API contract tests
-  integration/  # Integration tests
-neo4j/schema/   # Cypher schema definitions
-```
+## File Locations
+**NEW FILES:**
+- Models: `api/models/beautiful_loop.py`
+- Services: `api/services/unified_reality_model.py`, `bayesian_binder.py`, `hyper_model_service.py`, `epistemic_field_service.py`
+- Router: `api/routers/beautiful_loop.py`
+- Tests: `tests/unit/test_beautiful_loop_models.py`, `test_unified_reality_model.py`, `test_bayesian_binder.py`, `test_hyper_model_service.py`, `test_epistemic_field_service.py`
+- Integration: `tests/integration/test_beautiful_loop_ooda.py`
+- Contract: `tests/contract/test_beautiful_loop_api.py`
+
+**EXISTING FILES TO MODIFY:**
+- `api/agents/consciousness_manager.py` - Add Beautiful Loop integration
+
+## Success Metrics (from spec.md)
+- SC-001: <50ms precision forecast generation
+- SC-002: 95%+ binding consistency in repeated scenarios
+- SC-003: 20% precision error reduction after 100 cycles
+- SC-004: r > 0.7 coherence-performance correlation
+- SC-005: d > 0.8 effect size for state differentiation
+- SC-006: <10% OODA cycle latency increase
+- SC-007: No regression in existing tests
+- SC-008: >90% test coverage with TDD
+
+## Debugging Strategy
+1. Run failing test: `pytest <test_file>::<test_name> -vv -s`
+2. Read test code to understand expectations
+3. Check data-model.md for entity definitions
+4. Check research.md for algorithm decisions
+5. Trace through implementation to find mismatch
+6. Make minimal fix to align implementation with expectation
+7. Verify fix doesn't break other tests
+
+## MVP Scope (Phase 1-5)
+47 tasks covering:
+- Phase 1: Setup (T001-T006)
+- Phase 2: Foundational Models (T007-T021)
+- Phase 3: US1 - UnifiedRealityModel (T022-T033)
+- Phase 4: US2 - BayesianBinder (T034-T049)
+- Phase 5: US3 - HyperModelService (T050-T063)

@@ -8,6 +8,8 @@ def reset_service():
     svc.agents.clear()
     svc.tasks.clear()
     svc.queue.clear()
+    svc.delayed_retries.clear()
+    svc.dead_letter_queue.clear()
     svc.last_context_snapshot.clear()
     yield
 
@@ -87,10 +89,10 @@ def test_retry_logic_and_failover():
     # Fail agent 2
     svc.handle_agent_failure(a2_id)
     
-    # No IDLE agents left (both degraded), should be at front of queue
+    # No IDLE agents left (both degraded), should be scheduled for retry
     assert svc.tasks[t_id].status == "pending"
     assert svc.tasks[t_id].attempt_count == 2
-    assert svc.queue[0] == t_id
+    assert any(task_id == t_id for _, task_id in svc.delayed_retries)
 
 def test_metrics_calculation():
     """T035: Unit test for metrics calculation (utilization, latency avg)"""

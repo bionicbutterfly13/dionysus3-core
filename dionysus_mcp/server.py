@@ -240,6 +240,29 @@ async def manage_energy(operation: str, amount: float = 0.0) -> dict:
 
 
 # =============================================================================
+# REASONING TOOLS (CGR3/ToG-3)
+# =============================================================================
+
+@app.tool()
+async def macer_discover(query: str, context_id: Optional[str] = None) -> dict:
+    """
+    Perform deep multi-hop context graph reasoning (CGR3/ToG-3).
+    Use this for complex queries requiring longitudinal memory, 
+    causal link discovery, or resolving contradictions.
+
+    Args:
+        query: The reasoning objective or question.
+        context_id: Optional UUID to scope the reasoning trajectory.
+
+    Returns:
+        Dict with answer, iterations, and gathered_context.
+    """
+    from api.services.context_discovery_service import get_context_discovery_service
+    service = get_context_discovery_service()
+    return await service.discover(query, context_id=context_id)
+
+
+# =============================================================================
 # CONSCIOUSNESS TOOLS
 # =============================================================================
 

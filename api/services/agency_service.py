@@ -228,22 +228,29 @@ class AgencyService:
         Returns:
             Tuple of (agency_strength, has_agency, particle_type)
         """
-        # TODO: Integrate with agent registry to get actual state
-        # For now, return placeholder values
+        from api.services.network_state_service import get_network_state_service
+        from api.services.agency_detector import AgencyDetector
 
-        # In production, we would:
-        # 1. Get agent's joint distribution Q(μ,a)
-        # 2. Get marginals Q(μ) and Q(a)
-        # 3. Compute KL divergence
-        # 4. Get particle type from classification
-
-        # Placeholder implementation
         logger.info(f"Computing agency for agent {agent_id}")
 
-        # Default values for agents without stored distributions
-        agency_strength = 0.0
-        has_agency = False
-        particle_type = ParticleType.COGNITIVE
+        network_state_service = get_network_state_service()
+        state = await network_state_service.get_current(agent_id)
+        if state is None:
+            raise LookupError(f"No network state available for agent {agent_id}")
+
+        internal_values = list(state.connection_weights.values())
+        active_values = list(state.speed_factors.values())
+        sample_count = min(len(internal_values), len(active_values))
+        if sample_count < 2:
+            raise LookupError(f"Insufficient network state samples for agent {agent_id}")
+
+        mu_samples = np.array([[v] for v in internal_values[:sample_count]], dtype=float)
+        a_samples = np.array([[v] for v in active_values[:sample_count]], dtype=float)
+
+        detector = AgencyDetector()
+        agency_strength = detector.calculate_agency_score(mu_samples, a_samples)
+        has_agency = await self.has_agency(agency_strength)
+        particle_type = ParticleType.ACTIVE_METACOGNITIVE if has_agency else ParticleType.COGNITIVE
 
         return agency_strength, has_agency, particle_type
 

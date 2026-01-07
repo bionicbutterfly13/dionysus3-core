@@ -1,4 +1,6 @@
+import hashlib
 import json
+import uuid
 from typing import Any, Dict
 
 from smolagents import CodeAgent
@@ -28,6 +30,10 @@ from api.services.meta_cognitive_service import get_meta_learner
 from api.models.meta_cognition import CognitiveEpisode
 from api.models.bootstrap import BootstrapConfig
 from api.agents.self_modeling_callback import create_self_modeling_callback
+from api.models.beautiful_loop import PrecisionError, ResonanceMode
+from api.services.hyper_model_service import get_hyper_model_service
+from api.services.resonance_detector import get_resonance_detector
+from api.services.unified_reality_model import get_unified_reality_model
 
 class ConsciousnessManager:
     """
@@ -170,7 +176,26 @@ The agents will return structured results for synthesis.""",
         from api.agents.resource_gate import run_agent_with_timeout
         
         print("=== CONSCIOUSNESS OODA CYCLE START (MANAGED AGENTS) ===")
-        
+
+        # Beautiful Loop: forecast precision profile at cycle start
+        hyper_model = get_hyper_model_service()
+        cycle_id = initial_context.get("cycle_id") or str(uuid.uuid4())
+        initial_context["cycle_id"] = cycle_id
+        precision_profile = hyper_model.forecast_precision_profile(
+            context=initial_context,
+            internal_states={},
+            recent_errors=[],
+        )
+        initial_context["precision_profile"] = precision_profile.model_dump()
+
+        # Apply forecasted precisions to metaplasticity registry
+        def _scale_precision(value: float) -> float:
+            return max(0.1, min(5.0, 0.1 + (4.9 * value)))
+
+        for layer, precision in precision_profile.layer_precisions.items():
+            if layer in {"perception", "reasoning", "metacognition"}:
+                self.metaplasticity_svc.set_precision(layer, _scale_precision(precision))
+
         # T012: Bootstrap Recall Integration
         project_id = initial_context.get("project_id", "default")
         task_query = initial_context.get("task", "")
@@ -378,7 +403,7 @@ The agents will return structured results for synthesis.""",
 
         # Log adjustment for observability
         print(f"DEBUG: Metaplasticity adjusted learning_rate={adjusted_lr:.4f}, max_steps={new_max_steps} (surprise={surprise_level:.2f})")
-        
+
         # Note: In smolagents, we update the agent properties directly
         # smolagents 1.23+: managed instances ARE ToolCallingAgents directly
         if self._perception_managed and self._reasoning_managed and self._metacognition_managed:
@@ -386,6 +411,55 @@ The agents will return structured results for synthesis.""",
                 agent.max_steps = new_max_steps
         
         print("\n=== CONSCIOUSNESS OODA CYCLE COMPLETE ===")
+
+        # Beautiful Loop: compute precision errors and update hyper-model
+        errors = []
+        predicted_layers = precision_profile.layer_precisions
+        context_hash = hashlib.sha256(
+            json.dumps(initial_context, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()[:16]
+        for layer, predicted in predicted_layers.items():
+            if layer not in {"perception", "reasoning", "metacognition"}:
+                continue
+            actual_raw = self.metaplasticity_svc.get_precision(layer)
+            actual = max(0.0, min(1.0, (actual_raw - 0.1) / 4.9))
+            errors.append(
+                PrecisionError(
+                    layer_id=layer,
+                    predicted_precision=predicted,
+                    actual_precision_needed=actual,
+                    context_hash=context_hash,
+                )
+            )
+
+        if errors:
+            learning_delta = hyper_model.record_precision_errors(errors)
+            initial_context["precision_errors"] = [e.model_dump() for e in errors]
+            initial_context["precision_learning_delta"] = learning_delta
+
+        # FEATURE 049: Resonance Signaling (ULTRATHINK Architectural Synthesis)
+        # Final resonance check based on bound inferences in the Unified Reality Model
+        try:
+            urm_service = get_unified_reality_model()
+            resonance_detector = get_resonance_detector()
+            resonance_signal = resonance_detector.detect(urm_service.get_model(), cycle_id=cycle_id)
+            
+            # Store signal for next cycle grounding
+            initial_context["resonance_signal"] = resonance_signal.model_dump()
+            
+            if resonance_signal.mode == ResonanceMode.DISSONANT:
+                print(f"⚠️ DISSONANCE DETECTED (Urgency: {resonance_signal.discovery_urgency:.2f})")
+                # Release a metacognitive particle via current reality model to signal the crunch
+                from api.models.meta_cognition import MetacognitiveParticle
+                particle = MetacognitiveParticle(
+                    particle_id=f"res_{cycle_id[:8]}",
+                    content=f"Resonance failure in cycle {cycle_id}. Mode: DISSONANT.",
+                    urgency=resonance_signal.discovery_urgency,
+                    metadata={"surprisal": resonance_signal.surprisal}
+                )
+                urm_service.add_metacognitive_particle(particle)
+        except Exception as e:
+            print(f"DEBUG: Resonance detection failed: {e}")
 
         return {
             "final_plan": structured_result.get("reasoning", str(raw_result)),

@@ -119,7 +119,7 @@ class ProceduralMetacognition:
         Returns:
             CognitiveAssessment with progress, confidence, issues
         """
-        # Get agent state (placeholder - integrate with agent registry)
+        # Get agent state from network state snapshots
         state = await self._get_agent_state(agent_id)
 
         # Extract metrics
@@ -246,15 +246,32 @@ class ProceduralMetacognition:
         """
         Get current state of an agent.
 
-        Placeholder - integrate with agent registry.
+        Derived from network state snapshots.
         """
-        # TODO: Integrate with actual agent state retrieval
-        # For now, return default values
+        from api.services.network_state_service import get_network_state_service
+
+        network_state_service = get_network_state_service()
+        state = await network_state_service.get_current(agent_id)
+        if state is None:
+            raise LookupError(f"No network state available for agent {agent_id}")
+
+        weight_values = list(state.connection_weights.values())
+        threshold_values = list(state.thresholds.values())
+        speed_values = list(state.speed_factors.values())
+
+        if not weight_values or not threshold_values or not speed_values:
+            raise LookupError(f"Incomplete network state for agent {agent_id}")
+
+        progress = sum(weight_values) / len(weight_values)
+        confidence = sum(threshold_values) / len(threshold_values)
+        spotlight_precision = sum(speed_values) / len(speed_values)
+        prediction_error = state.delta_from_previous if state.delta_from_previous is not None else 0.0
+
         return {
-            "progress": 0.5,
-            "confidence": 0.6,
-            "prediction_error": 0.2,
-            "spotlight_precision": 0.5
+            "progress": max(0.0, min(1.0, float(progress))),
+            "confidence": max(0.0, min(1.0, float(confidence))),
+            "prediction_error": max(0.0, min(1.0, float(prediction_error))),
+            "spotlight_precision": max(0.0, min(1.0, float(spotlight_precision))),
         }
 
     def _is_stalled(self, agent_id: str, current_progress: float) -> bool:

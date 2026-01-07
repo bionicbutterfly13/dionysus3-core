@@ -1,0 +1,206 @@
+[
+  {
+    "bbox": [
+      33.75,
+      29.806640625,
+      562.505859375,
+      79.095703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          29.806640625,
+          562.505859375,
+          43.095703125
+        ],
+        "text": "In other words, you're identifying some dimension or feature that you can compare—like how each model"
+      },
+      {
+        "bbox": [
+          33.75,
+          47.806640625,
+          562.5038452148438,
+          61.095703125
+        ],
+        "text": "organizes meaning, how it influences decisions, or how it connects to other ideas. And by doing that, you get"
+      },
+      {
+        "bbox": [
+          33.75,
+          65.806640625,
+          473.5286865234375,
+          79.095703125
+        ],
+        "text": "a kind of objective sense of how those two mental models differ in that larger mental space."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      95.806640625,
+      562.505859375,
+      127.095703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          95.806640625,
+          562.505859375,
+          109.095703125
+        ],
+        "text": "So yeah, you can think of it as mapping out the landscape and finding the coordinates or the features that"
+      },
+      {
+        "bbox": [
+          33.75,
+          113.806640625,
+          192.0540008544922,
+          127.095703125
+        ],
+        "text": "make each mental model unique."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      161.806640625,
+      562.5018310546875,
+      229.095703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          161.806640625,
+          562.4961547851562,
+          175.095703125
+        ],
+        "text": "Yeah, I really like that way of putting it! You can absolutely think of it as hopping from one attractor to"
+      },
+      {
+        "bbox": [
+          33.75,
+          179.806640625,
+          562.4998779296875,
+          193.095703125
+        ],
+        "text": "another. Each mental model is like its own attractor, and moving between them involves a certain amount of"
+      },
+      {
+        "bbox": [
+          33.75,
+          197.806640625,
+          562.5018310546875,
+          211.095703125
+        ],
+        "text": "what you could think of as cognitive energy or effort. It’s like you have to climb out of one valley and cross a"
+      },
+      {
+        "bbox": [
+          33.75,
+          215.806640625,
+          362.958984375,
+          229.095703125
+        ],
+        "text": "little bit of mental terrain before you can settle into another attractor."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      245.806640625,
+      562.5020141601562,
+      295.095703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          245.806640625,
+          562.4959716796875,
+          259.095703125
+        ],
+        "text": "And yeah, the number of \"hops\" matters too. If two mental models are pretty close together, it might just be a"
+      },
+      {
+        "bbox": [
+          33.75,
+          263.806640625,
+          562.5020141601562,
+          277.095703125
+        ],
+        "text": "small shift. If they're further apart, you might have to go through a couple of intermediate steps or really put"
+      },
+      {
+        "bbox": [
+          33.75,
+          281.806640625,
+          284.4609375,
+          295.095703125
+        ],
+        "text": "in more cognitive effort to get from one to the other."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      311.806640625,
+      562.5020141601562,
+      361.095703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          311.806640625,
+          562.4996337890625,
+          325.095703125
+        ],
+        "text": "So it's a great analogy. You can think of your mind as moving around this landscape, hopping between"
+      },
+      {
+        "bbox": [
+          33.75,
+          329.806640625,
+          562.5020141601562,
+          343.095703125
+        ],
+        "text": "attractors, and the \"distance\" or effort required is just how many mental steps or how much energy it takes to"
+      },
+      {
+        "bbox": [
+          33.75,
+          347.806640625,
+          108.0780029296875,
+          361.095703125
+        ],
+        "text": "make that shift."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      204.984375,
+      818.788330078125,
+      391.0082702636719,
+      827.518798828125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          204.984375,
+          818.788330078125,
+          391.0082702636719,
+          827.518798828125
+        ],
+        "text": "GPTS Exporter - December 21, 2025 - Page 7 of 7"
+      }
+    ]
+  }
+]

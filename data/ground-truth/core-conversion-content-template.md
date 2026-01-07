@@ -590,7 +590,7 @@ Both Marcus and Nina share the core "Split Self" architecture:
 **The Suppressed Empath:**
 - Goes to hotel room and replays "Did I hurt his feelings?"
 - Feels others' disappointment acutely, struggles with boundaries
-- "Bleeding heart in an iron suit"
+- "Bleeding heart in an Performance Shell"
 
 **The Universal Aspiring Identity Pattern**
 
@@ -1828,7 +1828,7 @@ Where families feel their presence. Teams feel their authenticity. Communities b
 **None Address the Root:**
 - The Split Self (performative avatar vs. authentic self)
 - The childhood wound (conditional love based on performance)
-- The suppressed empathy (bleeding heart in iron suit)
+- The suppressed empathy (bleeding heart in Performance Shell)
 - The identity architecture (I am what I produce)
 
 **Why These Methods Are So Seductive:**

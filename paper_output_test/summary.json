@@ -1,0 +1,54 @@
+{
+  "file": "Mental models in action.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "text_blocks_file": "page1.json",
+      "num_blocks": 23,
+      "images": [],
+      "used_ocr": false
+    },
+    {
+      "page": 2,
+      "text_blocks_file": "page2.json",
+      "num_blocks": 13,
+      "images": [],
+      "used_ocr": false
+    },
+    {
+      "page": 3,
+      "text_blocks_file": "page3.json",
+      "num_blocks": 15,
+      "images": [],
+      "used_ocr": false
+    },
+    {
+      "page": 4,
+      "text_blocks_file": "page4.json",
+      "num_blocks": 12,
+      "images": [],
+      "used_ocr": false
+    },
+    {
+      "page": 5,
+      "text_blocks_file": "page5.json",
+      "num_blocks": 14,
+      "images": [],
+      "used_ocr": false
+    },
+    {
+      "page": 6,
+      "text_blocks_file": "page6.json",
+      "num_blocks": 14,
+      "images": [],
+      "used_ocr": false
+    },
+    {
+      "page": 7,
+      "text_blocks_file": "page7.json",
+      "num_blocks": 6,
+      "images": [],
+      "used_ocr": false
+    }
+  ]
+}

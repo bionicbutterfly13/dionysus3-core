@@ -400,3 +400,10 @@ AUTHOR Mani Saint-Victor, MD"
 
 **Complete Guide**: `docs/DOCUMENTATION-AGENT-GUIDE.md`
 **Backlog**: `docs/DOCUMENTATION_BACKLOG.md`
+
+## Active Technologies
+- Python 3.11+ + FastAPI, Pydantic v2, smolagents, NumPy (056-beautiful-loop-hyper)
+- Graphiti temporal knowledge graph (via GraphitiService) (056-beautiful-loop-hyper)
+
+## Recent Changes
+- 056-beautiful-loop-hyper: Added Python 3.11+ + FastAPI, Pydantic v2, smolagents, NumPy

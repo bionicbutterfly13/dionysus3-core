@@ -68,7 +68,7 @@ Hidden Self: Feeling everyone's pain. Absorbing their stress. Replaying for hour
 The avatar closes deals and commands respect.
 The hidden self goes to the hotel room and replays: "Did I hurt his feelings in that negotiation?"
 
-Bleeding heart in an iron suit.
+Bleeding heart in an Performance Shell.
 
 The split requires constant energy to maintain. That's what's actually exhausting you. Not the workload. The performance of being two people.
 

@@ -12,7 +12,7 @@ import uuid
 
 from api.models.autobiographical import DevelopmentEvent, DevelopmentEventType
 from api.models.meta_cognition import CognitiveEpisode
-from api.services.autobiographical_service import get_autobiographical_service
+from api.models.beautiful_loop import ResonanceSignal
 from api.services.graphiti_service import get_graphiti_service
 from api.services.meta_cognitive_service import get_meta_learner
 from api.services.multi_tier_service import get_multi_tier_service
@@ -62,9 +62,10 @@ class ConsciousnessIntegrationPipeline:
         except Exception as e:
             logger.error(f"Event {event_id}: Tiered memory storage failed: {e}")
 
-        # --- 2. AUTOBIOGRAPHICAL BRANCH ---
+        # --- 2. AUTOBIOGRAPHICAL BRANCH (Via Memory Core) ---
         try:
-            auto_svc = get_autobiographical_service()
+            from api.agents.consciousness_memory_core import get_consciousness_memory_core
+            memory_core = get_consciousness_memory_core()
             dev_event = DevelopmentEvent(
                 event_id=event_id,
                 timestamp=timestamp,
@@ -73,8 +74,12 @@ class ConsciousnessIntegrationPipeline:
                 rationale=f"System engaged in reasoning about: {problem}",
                 impact="Updating internal model and strategic alignment."
             )
-            await auto_svc.record_event(dev_event)
-            logger.info(f"Event {event_id}: Autobiographical update successful.")
+            
+            # Extract Resonance Signal from context if available
+            resonance_signal = context.get("resonance_signal")
+            
+            await memory_core.record_interaction(dev_event, resonance_signal=resonance_signal)
+            logger.info(f"Event {event_id}: Autobiographical update successful via Memory Core.")
         except Exception as e:
             logger.error(f"Event {event_id}: Autobiographical update failed: {e}")
 

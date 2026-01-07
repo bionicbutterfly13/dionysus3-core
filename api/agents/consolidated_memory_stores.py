@@ -1,0 +1,136 @@
+import logging
+import json
+from datetime import datetime
+from typing import List, Optional, Any, Dict, Set
+from uuid import uuid4
+
+from api.models.autobiographical import (
+    DevelopmentEvent,
+    DevelopmentEpisode,
+    AutobiographicalJourney,
+    RiverStage
+)
+from api.services.webhook_neo4j_driver import get_neo4j_driver
+from api.services.graphiti_service import get_graphiti_service
+
+logger = logging.getLogger("dionysus.memory.consolidated")
+
+class ConsolidatedMemoryStore:
+    """
+    Unified storage backend for Dionysus 3.0.
+    Wraps Neo4j and Graphiti to provide a single interface for the River Flow.
+    """
+    def __init__(self, driver=None):
+        self._driver = driver or get_neo4j_driver()
+
+    async def store_event(self, event: DevelopmentEvent) -> bool:
+        """Persist a raw development event (SOURCE)."""
+        cypher = """
+        MERGE (e:DevelopmentEvent {id: $id})
+        SET e += $props,
+            e.river_stage = 'source'
+        RETURN e.id
+        """
+        props = event.model_dump(exclude={"event_id", "timestamp"})
+        props["timestamp"] = event.timestamp.isoformat()
+        
+        # Serialize nested objects
+        if event.active_inference_state:
+            props["active_inference_state"] = event.active_inference_state.model_dump_json()
+        
+        try:
+            await self._driver.execute_query(cypher, {
+                "id": event.event_id,
+                "props": props
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Failed to store event {event.event_id}: {e}")
+            return False
+
+    async def create_episode(self, episode: DevelopmentEpisode) -> bool:
+        """Create a TRIBUTARY (Episode) and link its events."""
+        cypher = """
+        MERGE (ep:DevelopmentEpisode {id: $id})
+        SET ep += $props,
+            ep.river_stage = 'tributary'
+        WITH ep
+        UNWIND $event_ids as event_id
+        MATCH (e:DevelopmentEvent {id: event_id})
+        MERGE (ep)-[:CONTAINS_EVENT]->(e)
+        SET e.parent_episode_id = $id,
+            e.river_stage = 'tributary'  // Promote to tributary stage
+        RETURN ep.id
+        """
+        props = episode.model_dump(exclude={"episode_id", "events", "start_time", "end_time"})
+        props["start_time"] = episode.start_time.isoformat()
+        props["end_time"] = episode.end_time.isoformat()
+        
+        try:
+            await self._driver.execute_query(cypher, {
+                "id": episode.episode_id,
+                "props": props,
+                "event_ids": episode.events
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Failed to create episode {episode.episode_id}: {e}")
+            return False
+
+    async def update_journey(self, journey: AutobiographicalJourney) -> bool:
+        """Update the MAIN_RIVER (Journey) and link its episodes."""
+        cypher = """
+        MERGE (j:AutobiographicalJourney {id: $id})
+        SET j += $props,
+            j.river_stage = 'main_river'
+        WITH j
+        UNWIND $episode_ids as ep_id
+        MATCH (ep:DevelopmentEpisode {id: ep_id})
+        MERGE (j)-[:HAS_EPISODE]->(ep)
+        SET ep.river_stage = 'main_river' // Promote to main river stage
+        RETURN j.id
+        """
+        props = journey.model_dump(exclude={"journey_id", "episodes", "created_at", "updated_at", "themes"})
+        props["created_at"] = journey.created_at.isoformat()
+        props["updated_at"] = journey.updated_at.isoformat()
+        props["themes"] = list(journey.themes)
+        
+        try:
+            await self._driver.execute_query(cypher, {
+                "id": journey.journey_id,
+                "props": props,
+                "episode_ids": journey.episodes
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update journey {journey.journey_id}: {e}")
+            return False
+
+    async def get_recent_events(self, limit: int = 20) -> List[DevelopmentEvent]:
+        """Fetch recent events for boundary detection."""
+        cypher = """
+        MATCH (e:DevelopmentEvent)
+        WHERE e.river_stage = 'source'
+        RETURN e
+        ORDER BY e.timestamp DESC
+        LIMIT $limit
+        """
+        try:
+            result = await self._driver.execute_query(cypher, {"limit": limit})
+            events = []
+            for row in result:
+                data = row["e"]
+                # Manual rehydration for now, could use a helper
+                events.append(DevelopmentEvent.model_validate(data))
+            return events
+        except Exception as e:
+            logger.error(f"Error fetching recent events: {e}")
+            return []
+
+_instance: Optional[ConsolidatedMemoryStore] = None
+
+def get_consolidated_memory_store() -> ConsolidatedMemoryStore:
+    global _instance
+    if _instance is None:
+        _instance = ConsolidatedMemoryStore()
+    return _instance

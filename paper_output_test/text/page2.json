@@ -1,0 +1,429 @@
+[
+  {
+    "bbox": [
+      33.75,
+      29.806640625,
+      562.5096435546875,
+      115.095703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          29.806640625,
+          562.5037841796875,
+          43.095703125
+        ],
+        "text": "When we talk about mental models, we’re essentially talking about the frameworks or patterns your brain"
+      },
+      {
+        "bbox": [
+          33.75,
+          47.806640625,
+          562.507568359375,
+          61.095703125
+        ],
+        "text": "uses to interpret information. Think of them as little pre-packaged sets of neurons that have fired together"
+      },
+      {
+        "bbox": [
+          33.75,
+          65.806640625,
+          562.5096435546875,
+          79.095703125
+        ],
+        "text": "enough times that they become a kind of shortcut. Your brain loves shortcuts because they're energy-efficient."
+      },
+      {
+        "bbox": [
+          33.75,
+          83.806640625,
+          562.5040283203125,
+          97.095703125
+        ],
+        "text": "So a mental model is like a ready-made pattern that helps you quickly make sense of a situation without"
+      },
+      {
+        "bbox": [
+          33.75,
+          101.806640625,
+          227.38201904296875,
+          115.095703125
+        ],
+        "text": "having to reinvent the wheel every time."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      134.49545288085938,
+      217.8116455078125,
+      150.0353546142578
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          134.49545288085938,
+          217.8116455078125,
+          150.0353546142578
+        ],
+        "text": "How They Behave in the Brain"
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      169.306640625,
+      562.5119018554688,
+      236.595703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          169.306640625,
+          562.4940185546875,
+          182.595703125
+        ],
+        "text": "In the brain, these \"neuronal packets\" get strengthened through repetition and experience. Each time you use"
+      },
+      {
+        "bbox": [
+          33.75,
+          187.306640625,
+          562.5119018554688,
+          200.595703125
+        ],
+        "text": "a certain mental model to solve a problem or understand something, those neural connections get a little"
+      },
+      {
+        "bbox": [
+          33.75,
+          205.306640625,
+          562.5078125,
+          218.595703125
+        ],
+        "text": "stronger and a little more automatic. Over time, that model becomes your go-to interpretation tool for similar"
+      },
+      {
+        "bbox": [
+          33.75,
+          223.306640625,
+          82.75801086425781,
+          236.595703125
+        ],
+        "text": "situations."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      253.306640625,
+      562.5091552734375,
+      302.595703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          253.306640625,
+          562.5091552734375,
+          266.595703125
+        ],
+        "text": "In a sense, mental models behave like well-trodden paths in a forest. The more you walk that path, the clearer"
+      },
+      {
+        "bbox": [
+          33.75,
+          271.306640625,
+          562.5037841796875,
+          284.595703125
+        ],
+        "text": "and easier it is to follow. And because your brain loves efficiency, it will nudge you down that familiar route"
+      },
+      {
+        "bbox": [
+          33.75,
+          289.306640625,
+          112.72200775146484,
+          302.595703125
+        ],
+        "text": "whenever it can."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      319.306640625,
+      562.4979248046875,
+      350.595703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          319.306640625,
+          562.4979248046875,
+          332.595703125
+        ],
+        "text": "So in short, mental models as neuronal packets are like handy neural shortcuts, making it easier for your brain"
+      },
+      {
+        "bbox": [
+          33.75,
+          337.306640625,
+          138.40200805664062,
+          350.595703125
+        ],
+        "text": "to navigate the world."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      385.306640625,
+      192.7827606201172,
+      398.595703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          385.306640625,
+          192.7827606201172,
+          398.595703125
+        ],
+        "text": "Absolutely, let's tie that together!"
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      417.2454528808594,
+      322.9377746582031,
+      432.78533935546875
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          417.2454528808594,
+          322.9377746582031,
+          432.78533935546875
+        ],
+        "text": "Mental Models, Attractors, and Active Inference"
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      452.056640625,
+      562.5054931640625,
+      519.345703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          452.056640625,
+          562.4940795898438,
+          465.345703125
+        ],
+        "text": "Now, if we think about mental models as those well-worn neural paths, then we can imagine \"attractors\" as"
+      },
+      {
+        "bbox": [
+          33.75,
+          470.056640625,
+          562.4940185546875,
+          483.345703125
+        ],
+        "text": "stable states in a dynamic system. In other words, an attractor is like a kind of \"settling point\" where your"
+      },
+      {
+        "bbox": [
+          33.75,
+          488.056640625,
+          562.5054931640625,
+          501.345703125
+        ],
+        "text": "mental model naturally wants to go. When your brain encounters a situation, it sort of \"falls into\" the nearest"
+      },
+      {
+        "bbox": [
+          33.75,
+          506.056640625,
+          293.0220031738281,
+          519.345703125
+        ],
+        "text": "attractor state represented by a familiar mental model."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      536.056640625,
+      562.5155639648438,
+      603.345703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          536.056640625,
+          562.5155639648438,
+          549.345703125
+        ],
+        "text": "This is where the concept of active inference comes in. Active inference is a theory from computational"
+      },
+      {
+        "bbox": [
+          33.75,
+          554.056640625,
+          562.49609375,
+          567.345703125
+        ],
+        "text": "neuroscience that suggests the brain is constantly making predictions about the world and then updating those"
+      },
+      {
+        "bbox": [
+          33.75,
+          572.056640625,
+          562.4996337890625,
+          585.345703125
+        ],
+        "text": "predictions based on sensory input. Essentially, your brain actively tries to minimize the difference between"
+      },
+      {
+        "bbox": [
+          33.75,
+          590.056640625,
+          224.70602416992188,
+          603.345703125
+        ],
+        "text": "what it expects and what it experiences."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      622.7454833984375,
+      168.97230529785156,
+      638.2853393554688
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          622.7454833984375,
+          168.97230529785156,
+          638.2853393554688
+        ],
+        "text": "Putting It All Together"
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      657.556640625,
+      562.5076293945312,
+      724.845703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          657.556640625,
+          562.4940185546875,
+          670.845703125
+        ],
+        "text": "So, in practical terms, your mental models are these neuronal packets that form attractors—stable patterns of"
+      },
+      {
+        "bbox": [
+          33.75,
+          675.556640625,
+          562.5076293945312,
+          688.845703125
+        ],
+        "text": "understanding that your brain gravitates toward. Active inference is the process by which your brain navigates"
+      },
+      {
+        "bbox": [
+          33.75,
+          693.556640625,
+          562.4999389648438,
+          706.845703125
+        ],
+        "text": "these attractors, constantly fine-tuning its predictions and settling into the most likely model that explains"
+      },
+      {
+        "bbox": [
+          33.75,
+          711.556640625,
+          157.54200744628906,
+          724.845703125
+        ],
+        "text": "what you're experiencing."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      33.75,
+      741.556640625,
+      562.5078125,
+      772.845703125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          33.75,
+          741.556640625,
+          562.5078125,
+          754.845703125
+        ],
+        "text": "In a nutshell, your mental models are the brain's shortcuts; attractors are the stable states these shortcuts settle"
+      },
+      {
+        "bbox": [
+          33.75,
+          759.556640625,
+          409.6740417480469,
+          772.845703125
+        ],
+        "text": "into; and active inference is how your brain actively keeps everything aligned."
+      }
+    ]
+  },
+  {
+    "bbox": [
+      204.984375,
+      818.788330078125,
+      391.0082702636719,
+      827.518798828125
+    ],
+    "lines": [
+      {
+        "bbox": [
+          204.984375,
+          818.788330078125,
+          391.0082702636719,
+          827.518798828125
+        ],
+        "text": "GPTS Exporter - December 21, 2025 - Page 2 of 7"
+      }
+    ]
+  }
+]

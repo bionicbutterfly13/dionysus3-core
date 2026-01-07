@@ -4,6 +4,7 @@ from scipy.spatial.distance import cosine
 from typing import List, Dict, Any, Optional
 import logging
 from api.models.cognitive import EFEResult, EFEResponse
+from api.services.dynamics_service import DynamicsService
 
 logger = logging.getLogger("dionysus.efe_engine")
 
@@ -97,8 +98,43 @@ class EFEEngine:
         if agent_name and precision == 1.0:
             from api.services.metaplasticity_service import get_metaplasticity_controller
             precision = get_metaplasticity_controller().get_precision(agent_name)
-
+            
         return self.calculate_efe(prediction_probs, thought_vector, goal_vector, precision)
+
+    def select_top_candidates_alogistic(
+        self,
+        candidates: List[Dict[str, Any]],
+        sigm: float = 5.0,
+        tau: float = 0.5
+    ) -> List[Dict[str, Any]]:
+        """
+        Treur Phase 5.2: Use Alogistic aggregation (Library #2) to filter candidates.
+        Provides a non-linear 'excitability' filter for ThoughtSeed activation.
+        """
+        if not candidates:
+            return []
+            
+        # Extract EFE scores as inputs (inverted, since lower EFE is better)
+        # efe_inverted = 1.0 - normalized_efe
+        efe_scores = [c.get("efe_score", 1.0) for c in candidates]
+        max_efe = max(efe_scores) if efe_scores else 1.0
+        min_efe = min(efe_scores) if efe_scores else 0.0
+        
+        range_efe = max_efe - min_efe
+        inputs = [1.0 - ((e - min_efe) / range_efe if range_efe > 0 else 0.5) for e in efe_scores]
+        
+        # In a real SMN, weights would come from connectivity (W-states)
+        # For now, we assume uniform weights for selection
+        weights = [1.0] * len(inputs)
+        
+        # Calculate alogistic activation for each candidate (as if they were independent nodes)
+        for i, candidate in enumerate(candidates):
+            # Sigm and Tau control the 'steepness' and 'threshold' of activation
+            activation = DynamicsService.alogistic(sigm, tau, [inputs[i]], [1.0])
+            candidate["activation"] = activation
+            
+        # Filter candidates above a threshold or keep ordered by activation
+        return sorted(candidates, key=lambda x: x.get("activation", 0.0), reverse=True)
 
     def select_dominant_thought(self, candidates: List[Dict[str, Any]], goal_vector: List[float], precision: float = 1.0) -> EFEResponse:
         """

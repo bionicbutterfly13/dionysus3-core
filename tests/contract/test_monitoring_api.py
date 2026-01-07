@@ -14,6 +14,8 @@ def reset_services():
     coord.agents.clear()
     coord.tasks.clear()
     coord.queue.clear()
+    coord.delayed_retries.clear()
+    coord.dead_letter_queue.clear()
     
     # Reset rollback
     rollback = get_rollback_service()

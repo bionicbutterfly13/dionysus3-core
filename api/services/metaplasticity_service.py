@@ -14,6 +14,7 @@ from api.models.network_state import (
     TimingState,
     get_network_state_config,
 )
+from api.services.dynamics_service import DynamicsService
 
 logger = logging.getLogger("dionysus.metaplasticity")
 
@@ -192,6 +193,31 @@ class MetaplasticityController:
 
         self.set_h_state(node_id, new_h)
         return self.get_h_state(node_id)
+
+    def run_exposure_update(self, node_id: str, exposure_signal: float, mu_h: float = 0.05):
+        """
+        Treur Phase 5.3: Adaptation Accelerates with Increased Exposure (Robinson et al. 2016).
+        The H-state (speed factor) for a node/model increases as it is 'exposed' more.
+        
+        Args:
+            node_id: Node or Model ID
+            exposure_signal: High signal (1.0) means high activation/usage
+            mu_h: Speed of adaptation for the speed factor itself (Third-order adaptation)
+        """
+        current_h = self.get_h_state(node_id)
+        
+        # SMN State update: H(t+dt) = H(t) + mu_h * [exposure_signal - H(t)] * dt
+        new_h = DynamicsService.state_update(current_h, exposure_signal, mu_h)
+        
+        # Apply stress blocking (T070)
+        # In Treur's model, stress (fsb) blocks the UNBLOCKING of learning.
+        # Here we reduce the H-state if stress is high.
+        if self._current_stress > 0.7:
+             # Learning is blocked or frozen
+             new_h = current_h * 0.9 # Decay speed factor under stress
+             
+        self.set_h_state(node_id, new_h)
+        logger.debug(f"Exposure-based Timing Update ({node_id}): {current_h:.3f} -> {new_h:.3f}")
 
     # -------------------------------------------------------------------------
     # T070: Stress-Reduces-Adaptation Principle

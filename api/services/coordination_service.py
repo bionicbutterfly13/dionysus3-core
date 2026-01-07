@@ -94,6 +94,7 @@ class Task:
     started_at: Optional[float] = None
     completed_at: Optional[float] = None
     assignment_latency_ms: Optional[float] = None
+    next_retry_at: Optional[float] = None
 
 
 class CoordinationService:
@@ -102,6 +103,8 @@ class CoordinationService:
         self.agents: Dict[str, Agent] = {}
         self.tasks: Dict[str, Task] = {}
         self.queue: List[str] = []
+        self.dead_letter_queue: List[str] = [] # Phase 3: DLQ
+        self.delayed_retries: List[tuple[float, str]] = [] # Phase 3: (timestamp, task_id)
         self.last_context_snapshot: Dict[str, str] = {}  # agent_id -> context_window_id
         self._current_trace_id: Optional[str] = None
 
@@ -144,6 +147,8 @@ class CoordinationService:
         self.agents.clear()
         self.tasks.clear()
         self.queue.clear()
+        self.delayed_retries.clear()
+        self.dead_letter_queue.clear()
         self.last_context_snapshot.clear()
         self._log(logging.INFO, "pool_shutdown_completed")
 
@@ -178,7 +183,28 @@ class CoordinationService:
     # ------------------------------------------------------------------
     # Task lifecycle
     # ------------------------------------------------------------------
+    def _process_delayed_tasks(self) -> None:
+        """Phase 3: Move ready tasks from delayed_retries to main queue."""
+        if not self.delayed_retries:
+            return
+            
+        now = time.time()
+        # Filter tasks that are ready
+        ready_tasks = [t for t in self.delayed_retries if t[0] <= now]
+        # Keep tasks that are NOT ready
+        self.delayed_retries = [t for t in self.delayed_retries if t[0] > now]
+        
+        for _, task_id in ready_tasks:
+            task = self.tasks.get(task_id)
+            if task:
+                task.next_retry_at = None
+            # Re-queue at the front for priority
+            self.queue.insert(0, task_id)
+            self._log(logging.INFO, "task_retry_ready", task_id=task_id)
+
     def submit_task(self, payload: Dict, preferred_agent_id: Optional[str] = None, task_type: TaskType | str = TaskType.GENERAL) -> str:
+        self._process_delayed_tasks() # Check for retries first
+
         if isinstance(task_type, str):
             try:
                 task_type = TaskType(task_type)
@@ -201,7 +227,7 @@ class CoordinationService:
         return task_id
 
     def handle_agent_failure(self, agent_id: str) -> None:
-        """Handle an agent failure by retrying its current task if possible."""
+        """Handle an agent failure by retrying its current task with backoff."""
         agent = self.agents.get(agent_id)
         if not agent:
             return
@@ -233,16 +259,54 @@ class CoordinationService:
         )
 
         if task.attempt_count < MAX_RETRIES:
-            # Reassign immediately if an agent is free, else queue (it's already removed from active, so we just try to assign)
             assigned = self._reassign_task(task)
-            if not assigned:
-                # Put it at the FRONT of the queue for priority retry
-                self.queue.insert(0, task_id)
-                self._log(logging.INFO, "task_requeued_for_retry", task_id=task_id)
+            if assigned:
+                task.next_retry_at = None
+                self._log(logging.INFO, "task_reassigned_after_failure", task_id=task_id)
+                return
+
+            # Phase 3: Exponential Backoff
+            # 1st retry: 2s, 2nd: 4s, 3rd: 8s
+            backoff_delay = 2 ** task.attempt_count
+            task.next_retry_at = time.time() + backoff_delay
+
+            self.delayed_retries = [t for t in self.delayed_retries if t[1] != task_id]
+            self.delayed_retries.append((task.next_retry_at, task_id))
+            self.delayed_retries.sort(key=lambda x: x[0]) # Keep sorted by timestamp
+
+            self._log(logging.INFO, "task_scheduled_retry", task_id=task_id, delay_sec=backoff_delay)
         else:
+            # Phase 3: Dead Letter Queue
             task.status = TaskStatus.FAILED
             task.completed_at = time.time()
-            self._log(logging.ERROR, "task_permanently_failed", task_id=task_id, attempts=task.attempt_count)
+            self.dead_letter_queue.append(task_id)
+            self._log(logging.ERROR, "task_moved_to_dlq", task_id=task_id, attempts=task.attempt_count)
+
+    def replay_dead_letter_task(self, task_id: str) -> bool:
+        """Phase 3: Manually replay a task from DLQ."""
+        if task_id not in self.dead_letter_queue:
+            return False
+            
+        task = self.tasks.get(task_id)
+        if not task:
+            return False
+            
+        # Reset task state
+        task.status = TaskStatus.PENDING
+        task.attempt_count = 0 # Reset attempts so it gets full retry budget again
+        task.failed_agent_ids = [] # Optionally clear history or keep it
+        task.next_retry_at = None
+        task.completed_at = None
+        
+        self.dead_letter_queue.remove(task_id)
+        
+        # Try assign or queue
+        assigned = self._assign_task(task)
+        if not assigned:
+            self.queue.insert(0, task_id) # Priority replay
+            
+        self._log(logging.INFO, "task_replayed_from_dlq", task_id=task_id)
+        return True
 
     def _reassign_task(self, task: Task) -> bool:
         """Try to assign a task to an agent it hasn't failed on yet."""
@@ -327,28 +391,35 @@ class CoordinationService:
         )
         return True
 
-    def complete_task(self, task_id: str, success: bool = True) -> None:
+    def complete_task(self, task_id: str, success: bool = True, failure_reason: Optional[str] = None) -> None:
         task = self.tasks.get(task_id)
         if not task:
             return
         
         if not success:
-            self._log(logging.WARNING, "task_completed_failure_reported", task_id=task_id, agent_id=task.assigned_agent_id)
-            # If explicit fail call via complete_task, we could also trigger retry
-            # but usually complete_task is for terminal states.
-            # Let's assume handle_agent_failure is for crashes, 
-            # and complete_task(success=False) is for logic failure.
-            pass
+            self._log(
+                logging.WARNING, 
+                "task_completed_failure_reported", 
+                task_id=task_id, 
+                agent_id=task.assigned_agent_id,
+                reason=failure_reason
+            )
 
         agent = self.agents.get(task.assigned_agent_id or "")
         now = time.time()
         task.status = TaskStatus.COMPLETED if success else TaskStatus.FAILED
         task.completed_at = now
+
+        self._process_delayed_tasks()
         
         if agent:
             agent.status = AgentStatus.IDLE
             agent.current_task_id = None
             agent.performance["tasks_completed" if success else "tasks_failed"] += 1
+            if failure_reason:
+                 # Track specific failure reasons if needed in the future
+                 pass
+
             if task.started_at:
                 duration = now - task.started_at
                 prev = agent.performance.get("average_task_time", 0.0)
@@ -429,6 +500,7 @@ class CoordinationService:
     # Metrics
     # ------------------------------------------------------------------
     def metrics(self) -> Dict:
+        self._process_delayed_tasks()
         pending = [t for t in self.tasks.values() if t.status == TaskStatus.PENDING]
         in_progress = [t for t in self.tasks.values() if t.status == TaskStatus.IN_PROGRESS]
         completed = [t for t in self.tasks.values() if t.status == TaskStatus.COMPLETED]
@@ -455,6 +527,37 @@ class CoordinationService:
             "avg_assignment_latency_ms": avg_latency,
             "utilization": utilization,
         }
+    
+    def get_pool_stats(self) -> Dict:
+        """
+        Get comprehensive pool statistics including isolation health.
+        (Task T009 compliance)
+        """
+        stats = self.metrics()
+        isolation = self.generate_isolation_report()
+        stats["isolation_breaches"] = isolation["breaches_detected"]
+        stats["pool_health_score"] = self._calculate_health_score(stats)
+        return stats
+
+    def _calculate_health_score(self, stats: Dict) -> float:
+        """Calculate a 0.0-1.0 health score for the pool."""
+        score = 1.0
+        
+        # Deduct for failures
+        total = stats["tasks_total"]
+        if total > 0:
+            fail_rate = stats["tasks_failed"] / total
+            score -= (fail_rate * 0.5) # Failures hurt health
+            
+        # Deduct for breaches
+        if stats.get("isolation_breaches", 0) > 0:
+            score -= 0.2 # Security risk
+            
+        # Deduct for queue overflow risk
+        if stats["queue_length"] > MAX_QUEUE_DEPTH * 0.8:
+            score -= 0.1
+            
+        return max(0.0, min(1.0, score))
 
     def agent_health_report(self) -> List[Dict]:
         return [
