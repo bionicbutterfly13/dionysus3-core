@@ -21,7 +21,6 @@ from api.models.goal import (
     GoalMemoryLink,
     GoalMemoryLinkType,
     GoalPriority,
-    GoalPriorityChange,
     GoalProgressNote,
     GoalSource,
     GoalUpdate,

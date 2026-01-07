@@ -1,12 +1,11 @@
-import os
 import json
-from typing import Any, Dict, List, Optional
-from smolagents import CodeAgent, ToolCallingAgent, LiteLLMModel
+from smolagents import CodeAgent, ToolCallingAgent
 from api.agents.tools.avatar_tools import ingest_avatar_insight, query_avatar_graph, synthesize_avatar_profile
 from api.agents.tools.wisdom_tools import ingest_wisdom_insight, query_wisdom_graph
+from api.agents.tools.discovery_tools import macer_discover
 from api.agents.tools.mosaeic_tools import mosaeic_capture
 from api.services.bootstrap_recall_service import BootstrapRecallService
-from api.services.llm_service import get_router_model, GPT5_NANO
+from api.services.llm_service import get_router_model
 from api.models.bootstrap import BootstrapConfig
 
 class KnowledgeAgent:
@@ -30,7 +29,7 @@ class KnowledgeAgent:
 
         # Sub-agents with specialized tools use ToolCallingAgent (Phase 2)
         self.avatar_analyst = ToolCallingAgent(
-            tools=[ingest_avatar_insight, query_avatar_graph],
+            tools=[ingest_avatar_insight, query_avatar_graph, macer_discover],
             model=self.cheap_model,
             name="avatar_analyst",
             description="Extracts deep avatar insights (pain, desire, objections) and maps them to Neo4j.",
@@ -40,7 +39,7 @@ class KnowledgeAgent:
         )
 
         self.wisdom_analyst = ToolCallingAgent(
-            tools=[ingest_wisdom_insight, query_wisdom_graph, mosaeic_capture],
+            tools=[ingest_wisdom_insight, query_wisdom_graph, mosaeic_capture, macer_discover],
             model=self.cheap_model,
             name="wisdom_analyst",
             description="Extracts user voice, processes, and conceptual evolution from archived conversations. Use mosaeic_capture for deep experiential states.",

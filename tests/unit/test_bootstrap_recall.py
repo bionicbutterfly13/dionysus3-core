@@ -41,14 +41,14 @@ async def test_recall_context_success(bootstrap_service):
 async def test_timeout_logic(bootstrap_service):
     """T010a: Unit test for bootstrap timeout and graceful fallback"""
     config = BootstrapConfig(project_id="test-project")
-    
+
     async def slow_recall(*args, **kwargs):
-        await asyncio.sleep(3.0) # Longer than 2s timeout
+        await asyncio.sleep(6.0)  # Longer than 5s timeout in bootstrap_recall_service
         return []
 
     with patch.object(bootstrap_service, "_execute_recall", side_effect=slow_recall):
         result = await bootstrap_service.recall_context(query="query", project_id="test", config=config)
-        
+
         assert result.source_count == 0
         assert "timed out" in result.formatted_context
 

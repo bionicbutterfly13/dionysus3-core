@@ -4,8 +4,37 @@ from scipy.spatial.distance import cosine
 from typing import List, Dict, Any, Optional
 import logging
 from api.models.cognitive import EFEResult, EFEResponse
+from api.services.dynamics_service import DynamicsService
 
 logger = logging.getLogger("dionysus.efe_engine")
+
+
+# Global precision registry for agent-level precision modulation
+# Keys: agent_name -> precision_value (default 1.0)
+# Per Metacognitive Particles paper: mental actions modulate precision, not content
+_agent_precision_registry: Dict[str, float] = {}
+
+
+def get_agent_precision(agent_name: str) -> float:
+    """Get current precision for an agent. Default is 1.0."""
+    return _agent_precision_registry.get(agent_name, 1.0)
+
+
+def set_agent_precision(agent_name: str, precision: float) -> None:
+    """Set precision for an agent. Clamped to [0.01, 10.0]."""
+    clamped = max(0.01, min(10.0, precision))
+    _agent_precision_registry[agent_name] = clamped
+    logger.info(f"Agent '{agent_name}' precision set to {clamped:.4f}")
+
+
+def adjust_agent_precision(agent_name: str, delta: float) -> float:
+    """Adjust precision by delta. Returns new precision."""
+    current = get_agent_precision(agent_name)
+    new_precision = max(0.01, min(10.0, current + delta))
+    _agent_precision_registry[agent_name] = new_precision
+    logger.info(f"Agent '{agent_name}' precision adjusted: {current:.4f} -> {new_precision:.4f} (delta={delta:+.4f})")
+    return new_precision
+
 
 class EFEEngine:
     """
@@ -31,27 +60,83 @@ class EFEEngine:
         return float(cosine(thought_vector, goal_vector))
 
     def calculate_efe(
-        self, 
-        prediction_probs: List[float], 
-        thought_vector: np.ndarray, 
-        goal_vector: np.ndarray
+        self,
+        prediction_probs: List[float],
+        thought_vector: np.ndarray,
+        goal_vector: np.ndarray,
+        precision: float = 1.0
     ) -> float:
         """
         Calculates the cumulative Expected Free Energy for a candidate thought.
-        Lower EFE = More valuable thought (balance of epistemic gain and pragmatic goal alignment).
+        Lower EFE = More valuable thought.
+        
+        FEATURE 048: Precision Weighting.
+        EFE = (1/Precision) * Uncertainty + Precision * Divergence
         """
         uncertainty = self.calculate_entropy(prediction_probs)
         divergence = self.calculate_goal_divergence(thought_vector, goal_vector)
-        
-        # Weighted sum (could be tuned)
-        # Higher uncertainty makes the agent "curious" (epistemic value)
-        # Higher divergence makes the agent "unfocused" (pragmatic cost)
-        efe = uncertainty + divergence
-        
-        logger.debug(f"EFE Calculation: Uncertainty={uncertainty:.4f}, Divergence={divergence:.4f}, Total={efe:.4f}")
+
+        # Apply precision weighting
+        # Precision clamps to [0.1, 5.0] elsewhere, but we safe-guard here
+        safe_precision = max(0.01, precision)
+        efe = (1.0 / safe_precision) * uncertainty + safe_precision * divergence
+
+        logger.debug(f"EFE Calculation (Prec={safe_precision:.2f}): Uncertainty={uncertainty:.4f}, Divergence={divergence:.4f}, Total={efe:.4f}")
         return efe
 
-    def select_dominant_thought(self, candidates: List[Dict[str, Any]], goal_vector: List[float]) -> EFEResponse:
+    def calculate_precision_weighted_efe(
+        self,
+        prediction_probs: List[float],
+        thought_vector: np.ndarray,
+        goal_vector: np.ndarray,
+        precision: float = 1.0,
+        agent_name: Optional[str] = None
+    ) -> float:
+        """
+        Legacy wrapper for Feature 048 logic.
+        """
+        if agent_name and precision == 1.0:
+            from api.services.metaplasticity_service import get_metaplasticity_controller
+            precision = get_metaplasticity_controller().get_precision(agent_name)
+            
+        return self.calculate_efe(prediction_probs, thought_vector, goal_vector, precision)
+
+    def select_top_candidates_alogistic(
+        self,
+        candidates: List[Dict[str, Any]],
+        sigm: float = 5.0,
+        tau: float = 0.5
+    ) -> List[Dict[str, Any]]:
+        """
+        Treur Phase 5.2: Use Alogistic aggregation (Library #2) to filter candidates.
+        Provides a non-linear 'excitability' filter for ThoughtSeed activation.
+        """
+        if not candidates:
+            return []
+            
+        # Extract EFE scores as inputs (inverted, since lower EFE is better)
+        # efe_inverted = 1.0 - normalized_efe
+        efe_scores = [c.get("efe_score", 1.0) for c in candidates]
+        max_efe = max(efe_scores) if efe_scores else 1.0
+        min_efe = min(efe_scores) if efe_scores else 0.0
+        
+        range_efe = max_efe - min_efe
+        inputs = [1.0 - ((e - min_efe) / range_efe if range_efe > 0 else 0.5) for e in efe_scores]
+        
+        # In a real SMN, weights would come from connectivity (W-states)
+        # For now, we assume uniform weights for selection
+        weights = [1.0] * len(inputs)
+        
+        # Calculate alogistic activation for each candidate (as if they were independent nodes)
+        for i, candidate in enumerate(candidates):
+            # Sigm and Tau control the 'steepness' and 'threshold' of activation
+            activation = DynamicsService.alogistic(sigm, tau, [inputs[i]], [1.0])
+            candidate["activation"] = activation
+            
+        # Filter candidates above a threshold or keep ordered by activation
+        return sorted(candidates, key=lambda x: x.get("activation", 0.0), reverse=True)
+
+    def select_dominant_thought(self, candidates: List[Dict[str, Any]], goal_vector: List[float], precision: float = 1.0) -> EFEResponse:
         """
         Winner-take-all selection of the dominant ThoughtSeed based on minimal EFE.
         """
@@ -63,16 +148,16 @@ class EFEEngine:
         
         for candidate in candidates:
             seed_id = candidate.get("id")
-            uncertainty = self.calculate_entropy(candidate.get("probabilities", [0.5, 0.5]))
-            divergence = self.calculate_goal_divergence(np.array(candidate.get("vector")), goal_vec)
+            probs = candidate.get("probabilities", [0.5, 0.5])
+            thought_vec = np.array(candidate.get("vector", [0.0]*len(goal_vector)))
             
-            efe = uncertainty + divergence
+            efe = self.calculate_efe(probs, thought_vec, goal_vec, precision)
             
             results[seed_id] = EFEResult(
                 seed_id=seed_id,
                 efe_score=efe,
-                uncertainty=uncertainty,
-                goal_divergence=divergence
+                uncertainty=self.calculate_entropy(probs),
+                goal_divergence=self.calculate_goal_divergence(thought_vec, goal_vec)
             )
 
         # Select dominant seed (minimum EFE)
@@ -99,6 +184,123 @@ class EFEEngine:
             adapted_candidates.append(adapted)
             
         return self.select_dominant_thought(adapted_candidates, goal_vector)
+
+    def agency_weighted_efe(
+        self,
+        prediction_probs: List[float],
+        thought_vector: np.ndarray,
+        goal_vector: np.ndarray,
+        agency_score: float,
+        agency_weight: float = 0.3
+    ) -> float:
+        """
+        Calculate EFE weighted by agency score.
+        
+        Higher agency → more confidence in predicted outcomes → lower effective uncertainty
+        Lower agency → less confidence → higher effective uncertainty
+        
+        Formula: weighted_EFE = base_EFE * (1 - agency_weight * normalized_agency)
+        
+        Args:
+            prediction_probs: Probability distribution for uncertainty calculation
+            thought_vector: Embedding of the candidate thought
+            goal_vector: Embedding of the goal state
+            agency_score: KL divergence from agency detector (0 = no agency)
+            agency_weight: How much agency affects EFE (0-1, default 0.3)
+            
+        Returns:
+            Agency-weighted EFE score (lower = better)
+        """
+        
+        base_efe = self.calculate_efe(prediction_probs, thought_vector, goal_vector)
+        
+        # Normalize agency score to 0-1 range using sigmoid-like transformation
+        # Typical KL values are 0-2, so we use tanh for smooth normalization
+        normalized_agency = float(np.tanh(agency_score))
+        
+        # Higher agency reduces effective EFE (more confidence in outcomes)
+        # agency_modifier is between (1 - agency_weight) and 1
+        agency_modifier = 1.0 - (agency_weight * normalized_agency)
+        
+        weighted_efe = base_efe * agency_modifier
+        
+        logger.debug(
+            f"Agency-weighted EFE: base={base_efe:.4f}, agency={agency_score:.4f}, "
+            f"modifier={agency_modifier:.4f}, weighted={weighted_efe:.4f}"
+        )
+        
+        return weighted_efe
+
+    def select_dominant_thought_with_agency(
+        self,
+        candidates: List[Dict[str, Any]],
+        goal_vector: List[float],
+        internal_states: np.ndarray,
+        active_states: np.ndarray,
+        agency_weight: float = 0.3
+    ) -> "EFEResponse":
+        """
+        Winner-take-all selection with agency-weighted EFE.
+        
+        Uses agency score to modulate confidence in predictions:
+        - High agency: Trust predictions more (lower effective uncertainty)
+        - Low agency: Trust predictions less (higher effective uncertainty)
+        
+        Args:
+            candidates: ThoughtSeed candidates with 'id', 'vector', 'probabilities'
+            goal_vector: Goal state embedding
+            internal_states: Internal state samples for agency calculation
+            active_states: Active state samples for agency calculation
+            agency_weight: How much agency affects EFE (0-1)
+            
+        Returns:
+            EFEResponse with agency-weighted rankings
+        """
+        from api.services.agency_detector import get_agency_detector
+        
+        if not candidates:
+            return EFEResponse(dominant_seed_id="none", scores={})
+        
+        # Calculate agency score once for all candidates
+        detector = get_agency_detector()
+        agency_score = detector.calculate_agency_score(internal_states, active_states)
+        
+        results = {}
+        goal_vec = np.array(goal_vector)
+        
+        for candidate in candidates:
+            seed_id = candidate.get("id")
+            probs = candidate.get("probabilities", [0.5, 0.5])
+            thought_vec = np.array(candidate.get("vector", [0.0] * len(goal_vector)))
+            
+            # Calculate agency-weighted EFE
+            weighted_efe = self.agency_weighted_efe(
+                probs, thought_vec, goal_vec, agency_score, agency_weight
+            )
+            
+            # Store with base metrics for transparency
+            uncertainty = self.calculate_entropy(probs)
+            divergence = self.calculate_goal_divergence(thought_vec, goal_vec)
+            
+            results[seed_id] = EFEResult(
+                seed_id=seed_id,
+                efe_score=weighted_efe,  # Use weighted score for ranking
+                uncertainty=uncertainty,
+                goal_divergence=divergence
+            )
+        
+        # Select dominant seed (minimum weighted EFE)
+        dominant_seed_id = min(results, key=lambda k: results[k].efe_score)
+        
+        logger.info(
+            f"Agency-weighted selection: dominant={dominant_seed_id}, "
+            f"agency_score={agency_score:.4f}"
+        )
+        
+        return EFEResponse(
+            dominant_seed_id=dominant_seed_id,
+            scores=results
+        )
 
 _efe_engine: Optional[EFEEngine] = None
 

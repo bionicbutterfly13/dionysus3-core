@@ -11,6 +11,8 @@ def reset_service():
     svc.agents.clear()
     svc.tasks.clear()
     svc.queue.clear()
+    svc.delayed_retries.clear()
+    svc.dead_letter_queue.clear()
     svc.last_context_snapshot.clear()
     yield
 

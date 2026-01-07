@@ -16,6 +16,7 @@ Dionysus has migrated to a Neo4j-only, webhook-driven architecture to ensure hig
 
 - **Session Continuity:** Context is automatically reconstructed at the start of every Claude session using attractor-based resonance.
 - **Cognitive Heartbeat:** An OODA-style loop (Observe-Orient-Decide-Act) driven by an internal energy budget.
+- **Meta-ToT Reasoning:** Active-inference-based multi-branch planning with thresholded activation and traceable decision paths.
 - **Temporal Memory:** Uses Graphiti to manage facts and entities with temporal validity (`valid_at`/`invalid_at`).
 - **Secure Webhooks:** All database operations are secured via HMAC-SHA256 signatures.
 

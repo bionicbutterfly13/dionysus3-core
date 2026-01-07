@@ -1,11 +1,9 @@
 """
-Webhook Neo4j Driver (Neo4j access via n8n only)
+Webhook Neo4j Driver (Authorized via Graphiti only)
 
-Implements a tiny subset of the neo4j-driver API used in this codebase:
-- driver.session() as async context manager
-- session.run(cypher, parameters) -> result with .data() and .single()
-
-All Cypher is executed via an n8n webhook; the application never connects to Neo4j directly.
+REPAIRED: This driver no longer calls n8n or Neo4j directly.
+It proxies all requests through GraphitiService, which is the sole
+authorized component for Neo4j communication.
 """
 
 from __future__ import annotations
@@ -14,40 +12,11 @@ import logging
 import re
 from typing import Any, Optional
 
-from api.services.remote_sync import RemoteSyncService, SyncConfig
-
-logger = logging.getLogger(__name__)
-
-
-_WRITE_KEYWORDS = re.compile(r"\b(CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP)\b", re.IGNORECASE)
-
-
-def _extract_records(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    if "records" in payload and isinstance(payload["records"], list):
-        return payload["records"]
-
-    # Support raw Neo4j HTTP transactional response via n8n passthrough.
-    if isinstance(payload.get("results"), list) and payload["results"]:
-        records: list[dict[str, Any]] = []
-        for res in payload["results"]:
-            columns = res.get("columns") or []
-            for row_entry in res.get("data") or []:
-                row = row_entry.get("row") if isinstance(row_entry, dict) else None
-                if isinstance(columns, list) and isinstance(row, list) and len(columns) == len(row):
-                    records.append(dict(zip(columns, row)))
-        return records
-
-    # Warn if it looks like we missed something (not a standard success response, no data)
-    if "error" not in payload and payload and not payload.get("success", False):
-         logger.warning(f"Unexpected Neo4j response format: keys={list(payload.keys())}")
-
-    return []
-
+logger = logging.getLogger("dionysus.webhook_driver")
 
 class WebhookNeo4jResult:
-    def __init__(self, raw: dict[str, Any]):
-        self._raw = raw
-        self._records = _extract_records(raw)
+    def __init__(self, records: list[dict[str, Any]]):
+        self._records = records
 
     async def data(self) -> list[dict[str, Any]]:
         return self._records
@@ -57,8 +26,8 @@ class WebhookNeo4jResult:
 
 
 class WebhookNeo4jSession:
-    def __init__(self, sync: RemoteSyncService):
-        self._sync = sync
+    def __init__(self):
+        pass
 
     async def __aenter__(self) -> WebhookNeo4jSession:
         return self
@@ -67,32 +36,30 @@ class WebhookNeo4jSession:
         return None
 
     async def run(self, statement: str, parameters: Optional[dict[str, Any]] = None, **kwargs):
-        mode = kwargs.pop("mode", None)
-        if mode is None:
-            mode = "write" if _WRITE_KEYWORDS.search(statement or "") else "read"
-
-        result = await self._sync.run_cypher(statement, parameters=parameters, mode=mode)
-        # Normalize "success" signals so callers can debug failures
-        if result.get("success", True) is False:
-            raise RuntimeError(result.get("error", "Cypher execution failed"))
-        return WebhookNeo4jResult(result)
+        """
+        Proxies query to GraphitiService.
+        """
+        from api.services.graphiti_service import get_graphiti_service
+        graphiti = await get_graphiti_service()
+        
+        records = await graphiti.execute_cypher(statement, parameters or {})
+        return WebhookNeo4jResult(records)
 
 
 class WebhookNeo4jDriver:
-    def __init__(self, config: Optional[SyncConfig] = None):
-        self._sync = RemoteSyncService(config=config)
-
+    """
+    Compatibility shim that enforces Graphiti-only access.
+    """
     def session(self) -> WebhookNeo4jSession:
-        return WebhookNeo4jSession(self._sync)
+        return WebhookNeo4jSession()
 
     async def execute_query(self, statement: str, parameters: Optional[dict[str, Any]] = None, **kwargs):
         """
-        Execute a Cypher query and return the results directly.
-        Matches the modern neo4j-driver API.
+        Execute a Cypher query via Graphiti and return results.
         """
-        async with self.session() as session:
-            result = await session.run(statement, parameters, **kwargs)
-            return await result.data()
+        from api.services.graphiti_service import get_graphiti_service
+        graphiti = await get_graphiti_service()
+        return await graphiti.execute_cypher(statement, parameters or {})
 
     async def close(self) -> None:
         return None
@@ -106,4 +73,3 @@ def get_neo4j_driver() -> WebhookNeo4jDriver:
     if _driver is None:
         _driver = WebhookNeo4jDriver()
     return _driver
-

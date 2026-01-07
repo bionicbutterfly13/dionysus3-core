@@ -6,6 +6,8 @@ def test_queue_and_assignment_flow():
     svc.agents.clear()
     svc.tasks.clear()
     svc.queue.clear()
+    svc.delayed_retries.clear()
+    svc.dead_letter_queue.clear()
     svc.last_context_snapshot.clear()
 
     # Spawn one agent
@@ -33,6 +35,8 @@ def test_preferred_agent_assignment():
     svc.agents.clear()
     svc.tasks.clear()
     svc.queue.clear()
+    svc.delayed_retries.clear()
+    svc.dead_letter_queue.clear()
     svc.last_context_snapshot.clear()
 
     a1 = svc.spawn_agent()
@@ -47,6 +51,8 @@ def test_isolation_report_updates():
     svc.agents.clear()
     svc.tasks.clear()
     svc.queue.clear()
+    svc.delayed_retries.clear()
+    svc.dead_letter_queue.clear()
     svc.last_context_snapshot.clear()
 
     agent_id = svc.spawn_agent()

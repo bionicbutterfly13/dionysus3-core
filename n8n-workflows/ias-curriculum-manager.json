@@ -1,0 +1,257 @@
+{
+  "name": "IAS Curriculum Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ias/create-curriculum",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - Create Curriculum",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ],
+      "id": "create-curriculum-webhook",
+      "webhookId": "ias-create-curriculum"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "ias/query-curriculum",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - Query Curriculum",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        500
+      ],
+      "id": "query-curriculum-webhook",
+      "webhookId": "ias-query-curriculum"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "ias/get-lesson/={{ $parameter[\"lessonId\"] }}",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - Get Lesson",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        700
+      ],
+      "id": "get-lesson-webhook",
+      "webhookId": "ias-get-lesson"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "// Create IAS Curriculum Root Node\nMERGE (c:IASCurriculum {id: $curriculum.id})\nSET c.name = $curriculum.name,\n    c.version = $curriculum.version,\n    c.description = $curriculum.description,\n    c.target_audience = $curriculum.target_audience,\n    c.total_phases = $curriculum.total_phases,\n    c.total_lessons = $curriculum.total_lessons,\n    c.total_steps = $curriculum.total_steps,\n    c.updated_at = datetime()\n\n// Create Source Documents\nFOREACH (doc IN $curriculum.source_documents |\n  MERGE (s:IASSourceDocument {file_path: doc.file_path})\n  SET s.title = doc.title,\n      s.doc_type = doc.doc_type,\n      s.updated_at = datetime()\n  MERGE (c)-[:DOCUMENTED_IN {doc_type: doc.doc_type}]->(s)\n)\n\n// Create Phases\nFOREACH (phase IN $phases |\n  MERGE (p:IASPhase {id: phase.id})\n  SET p.name = phase.name,\n      p.order = phase.order,\n      p.description = phase.description,\n      p.updated_at = datetime()\n  MERGE (c)-[:HAS_PHASE {order: phase.order}]->(p)\n  \n  // Create Lessons within Phase\n  FOREACH (lesson IN phase.lessons |\n    MERGE (l:IASLesson {id: lesson.id})\n    SET l.name = lesson.name,\n        l.phase_order = lesson.phase_order,\n        l.lesson_order = lesson.lesson_order,\n        l.global_order = lesson.global_order,\n        l.description = lesson.description,\n        l.objective = lesson.objective,\n        l.updated_at = datetime()\n    MERGE (p)-[:CONTAINS_LESSON {order: lesson.lesson_order}]->(l)\n    \n    // Create Steps within Lesson\n    FOREACH (step IN lesson.steps |\n      MERGE (st:IASStep {id: step.id})\n      SET st.name = step.name,\n          st.order = step.order,\n          st.instruction = step.instruction,\n          st.tagline = step.tagline,\n          st.updated_at = datetime()\n      MERGE (l)-[:HAS_STEP {order: step.order}]->(st)\n      \n      // Create Obstacle\n      FOREACH (ignoreMe IN CASE WHEN step.obstacle IS NOT NULL THEN [1] ELSE [] END |\n        MERGE (o:IASObstacle {id: step.obstacle.id})\n        SET o.false_belief = step.obstacle.false_belief,\n            o.what_they_dread = step.obstacle.what_they_dread,\n            o.truth_they_dont_know = step.obstacle.truth_they_dont_know,\n            o.updated_at = datetime()\n        MERGE (st)-[:HAS_OBSTACLE]->(o)\n      )\n      \n      // Create True Action\n      FOREACH (ignoreMe IN CASE WHEN step.true_action IS NOT NULL THEN [1] ELSE [] END |\n        MERGE (ta:IASTrueAction {id: 'true-action-' + step.id})\n        SET ta.action = step.true_action.action,\n            ta.description = step.true_action.description,\n            ta.updated_at = datetime()\n        MERGE (st)-[:DO_ACTION]->(ta)\n      )\n      \n      // Create False Actions\n      FOREACH (idx IN range(0, size(step.false_actions)-1) |\n        MERGE (fa:IASFalseAction {id: 'false-action-' + step.id + '-' + toString(idx+1)})\n        SET fa.action = step.false_actions[idx],\n            fa.order = idx+1,\n            fa.updated_at = datetime()\n        MERGE (st)-[:AVOID_ACTION {order: idx+1}]->(fa)\n      )\n    )\n  )\n)\n\nRETURN c, count(*) as nodes_created",
+        "additionalFields": {
+          "parameters": "={{ JSON.stringify($json.body) }}"
+        }
+      },
+      "name": "Neo4j - Create Curriculum",
+      "type": "n8n-nodes-base.neo4j",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ],
+      "id": "neo4j-create",
+      "credentials": {
+        "neo4j": {
+          "id": "1",
+          "name": "Neo4j Dionysus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "MATCH (c:IASCurriculum {id: 'ias-curriculum-v1'})\nOPTIONAL MATCH (c)-[:HAS_PHASE]->(p:IASPhase)\nOPTIONAL MATCH (p)-[:CONTAINS_LESSON]->(l:IASLesson)\nRETURN c as curriculum,\n       collect(DISTINCT p) as phases,\n       collect(DISTINCT l) as lessons\nORDER BY p.order, l.global_order",
+        "additionalFields": {}
+      },
+      "name": "Neo4j - Query Curriculum",
+      "type": "n8n-nodes-base.neo4j",
+      "typeVersion": 1,
+      "position": [
+        450,
+        500
+      ],
+      "id": "neo4j-query",
+      "credentials": {
+        "neo4j": {
+          "id": "1",
+          "name": "Neo4j Dionysus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "MATCH (l:IASLesson {id: $lessonId})\nOPTIONAL MATCH (l)-[:HAS_STEP]->(st:IASStep)\nOPTIONAL MATCH (st)-[:HAS_OBSTACLE]->(o:IASObstacle)\nOPTIONAL MATCH (st)-[:DO_ACTION]->(ta:IASTrueAction)\nOPTIONAL MATCH (st)-[:AVOID_ACTION]->(fa:IASFalseAction)\nRETURN l as lesson,\n       collect(DISTINCT st) as steps,\n       collect(DISTINCT o) as obstacles,\n       collect(DISTINCT ta) as true_actions,\n       collect(DISTINCT fa) as false_actions\nORDER BY st.order",
+        "additionalFields": {
+          "parameters": "={{ JSON.stringify({lessonId: $parameter[\"lessonId\"]}) }}"
+        }
+      },
+      "name": "Neo4j - Get Lesson",
+      "type": "n8n-nodes-base.neo4j",
+      "typeVersion": 1,
+      "position": [
+        450,
+        700
+      ],
+      "id": "neo4j-get-lesson",
+      "credentials": {
+        "neo4j": {
+          "id": "1",
+          "name": "Neo4j Dionysus"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Response - Create Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ],
+      "id": "response-create"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Response - Query Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        650,
+        500
+      ],
+      "id": "response-query"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Response - Get Lesson Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        650,
+        700
+      ],
+      "id": "response-get-lesson"
+    }
+  ],
+  "connections": {
+    "Webhook - Create Curriculum": {
+      "main": [
+        [
+          {
+            "node": "Neo4j - Create Curriculum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Query Curriculum": {
+      "main": [
+        [
+          {
+            "node": "Neo4j - Query Curriculum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Get Lesson": {
+      "main": [
+        [
+          {
+            "node": "Neo4j - Get Lesson",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j - Create Curriculum": {
+      "main": [
+        [
+          {
+            "node": "Response - Create Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j - Query Curriculum": {
+      "main": [
+        [
+          {
+            "node": "Response - Query Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j - Get Lesson": {
+      "main": [
+        [
+          {
+            "node": "Response - Get Lesson Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "IAS",
+      "id": "ias-curriculum"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dionysus-ias"
+  },
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 0,
+  "active": true
+}

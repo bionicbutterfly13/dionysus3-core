@@ -3,8 +3,6 @@ Hebbian Service - Manages co-activation learning for knowledge relationships.
 """
 
 import logging
-from typing import List, Optional
-from datetime import datetime
 from api.models.hebbian import HebbianConnection
 from api.services.webhook_neo4j_driver import get_neo4j_driver
 

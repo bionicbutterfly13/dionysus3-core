@@ -39,6 +39,7 @@ class HeartbeatDecisionSchema(BaseModel):
     emotional_state: float = Field(0.0, ge=-1.0, le=1.0, description="Internal emotional valence")
     confidence: float = Field(0.5, ge=0.0, le=1.0, description="Confidence in the current plan")
     focus_goal_id: Optional[str] = Field(None, description="UUID of the primary goal being addressed")
+    force_execution: bool = Field(False, description="Override energy limits for critical tasks (EMERGENCY ONLY)")
     actions: List[ActionEntrySchema] = Field(default_factory=list, description="List of actions to execute")
 
     model_config = ConfigDict(
@@ -48,6 +49,7 @@ class HeartbeatDecisionSchema(BaseModel):
                 "emotional_state": 0.2,
                 "confidence": 0.9,
                 "focus_goal_id": "550e8400-e29b-41d4-a716-446655440000",
+                "force_execution": False,
                 "actions": [
                     {"action": "recall", "params": {"query": "recent tasks"}, "reason": "Gather context"}
                 ]
@@ -314,6 +316,7 @@ class HeartbeatDecision:
     focus_goal_id: UUID | None = None  # Primary goal being worked on
     emotional_state: float = 0.0  # -1 to 1
     confidence: float = 0.5  # 0 to 1, how confident in this plan
+    force_execution: bool = False  # Override energy limits
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
@@ -327,6 +330,7 @@ class HeartbeatDecision:
             "focus_goal_id": str(self.focus_goal_id) if self.focus_goal_id else None,
             "emotional_state": self.emotional_state,
             "confidence": self.confidence,
+            "force_execution": self.force_execution,
         }
 
 

@@ -4,7 +4,7 @@ Feature: 019-legacy-component-discovery
 Tasks: T4.1, T4.2
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 from smolagents import Tool
 
@@ -103,4 +103,43 @@ class DiscoverComponentsTool(Tool):
             ).model_dump()
 
 # Export tool instance
+discover_components = DiscoverComponentsTool()
+
+
+class ContextDiscoveryTool(Tool):
+    name = "macer_discover"
+    description = """
+    Perform deep multi-hop context graph reasoning (CGR3/ToG-3).
+    Use this for complex queries requiring longitudinal memory, 
+    causal link discovery, or resolving contradictions in archival data.
+    """
+    
+    inputs = {
+        "query": {
+            "type": "string",
+            "description": "The reasoning objective or question."
+        },
+        "context_id": {
+            "type": "string",
+            "description": "Optional UUID to scope the reasoning trajectory.",
+            "nullable": True
+        }
+    }
+    output_type = "any"
+
+    def forward(self, query: str, context_id: Optional[str] = None) -> dict:
+        from api.services.context_discovery_service import get_context_discovery_service
+        import asyncio
+        
+        service = get_context_discovery_service()
+        
+        # Agents might call this from a synchronous context or another event loop
+        try:
+            loop = asyncio.get_running_loop()
+            return loop.run_until_complete(service.discover(query, context_id=context_id))
+        except RuntimeError:
+            return asyncio.run(service.discover(query, context_id=context_id))
+
+# Export tool instance
+macer_discover = ContextDiscoveryTool()
 discover_components = DiscoverComponentsTool()

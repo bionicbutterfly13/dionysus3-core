@@ -17,7 +17,7 @@ import json
 import logging
 import sys
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
 
 # =============================================================================

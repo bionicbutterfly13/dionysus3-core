@@ -5,8 +5,8 @@ Wisdom Service - Manages the distillation pipeline.
 import json
 import logging
 import os
-from typing import List, Dict, Any, Optional
-from api.models.wisdom import WisdomUnit, WisdomType, MentalModel, StrategicPrinciple, CaseStudy
+from typing import List, Dict, Any
+from api.models.wisdom import WisdomUnit, MentalModel, StrategicPrinciple, CaseStudy
 from api.services.webhook_neo4j_driver import get_neo4j_driver
 
 logger = logging.getLogger("dionysus.wisdom_service")

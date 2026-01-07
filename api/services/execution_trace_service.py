@@ -11,6 +11,7 @@ This service persists smolagents execution history to Neo4j for:
 - Linking to activated attractor basins
 """
 
+import json
 import logging
 import uuid
 from dataclasses import dataclass, field
@@ -271,7 +272,7 @@ class ExecutionTraceService:
                     "planning_count": planning_count,
                     "success": buffer.success,
                     "error_message": buffer.error_message,
-                    "token_usage": str(token_usage) if token_usage else None,
+                    "token_usage": json.dumps(token_usage) if token_usage else None,
                 },
             )
 

@@ -9,7 +9,7 @@ Handles neighborhood recomputation, episode summarization, and health monitoring
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
@@ -477,6 +477,111 @@ class HealthMonitorTask:
         return health
 
 
+class GraphDiscoveryMaintenanceTask:
+    """
+    Identifies disconnects in the knowledge graph and triggers CGR3 discovery.
+    Ensures that high-priority entities are bridged into the context graph.
+    """
+
+    def __init__(self, driver=None, config: WorkerConfig | None = None):
+        self._driver = driver
+        self._config = config or WorkerConfig()
+
+    def _get_driver(self):
+        if self._driver:
+            return self._driver
+        from api.services.remote_sync import get_neo4j_driver
+        return get_neo4j_driver()
+
+    async def find_orphan_entities(self) -> List[Dict[str, Any]]:
+        """Identify entities with chunks but no context graph triplets."""
+        driver = self._get_driver()
+        cypher = """
+        MATCH (e:Entity)
+        WHERE NOT (e)-[:HAS_SUBJECT_OF|HAS_OBJECT_OF]-()
+        OPTIONAL MATCH (e)-[:MENTIONED_IN]->(c:Chunk)
+        WITH e, count(c) as chunk_count
+        WHERE chunk_count > 0
+        RETURN e.id as id, e.label as label
+        LIMIT 5
+        """
+        result = await driver.execute_query(cypher)
+        return result
+
+    async def run(self) -> int:
+        orphans = await self.find_orphan_entities()
+        if not orphans:
+            return 0
+            
+        from api.services.coordination_service import get_coordination_service, TaskType
+        pool = get_coordination_service()
+        
+        for orphan in orphans:
+            pool.submit_task(
+                payload={
+                    "query": f"Discover contextual relationships and properties for entity '{orphan['label']}'",
+                    "entity_id": orphan['id']
+                },
+                task_type=TaskType.DISCOVERY
+            )
+            
+        logger.info(f"Triggered discovery for {len(orphans)} orphan entities.")
+        return len(orphans)
+
+
+class DiscoveryTaskExecutor:
+    """
+    Internal worker that pulls DISCOVERY tasks from the CoordinationService
+    and executes them using the ContextDiscoveryService.
+    
+    This acts as a fallback or primary background reasoner.
+    """
+
+    def __init__(self, driver=None, config: WorkerConfig | None = None):
+        self._driver = driver
+        self._config = config or WorkerConfig()
+
+    async def run(self) -> int:
+        from api.services.coordination_service import get_coordination_service, TaskType, TaskStatus
+        from api.services.context_discovery_service import get_context_discovery_service
+        
+        pool = get_coordination_service()
+        discovery_svc = get_context_discovery_service()
+        
+        # Find pending DISCOVERY tasks
+        pending_tasks = [
+            t for t in pool.tasks.values() 
+            if t.task_type == TaskType.DISCOVERY and t.status == TaskStatus.PENDING
+        ]
+        
+        if not pending_tasks:
+            return 0
+            
+        count = 0
+        for task in pending_tasks[:self._config.max_items_per_cycle]:
+            try:
+                # Assign to a virtual agent (internal worker)
+                task.status = TaskStatus.IN_PROGRESS
+                task.started_at = time.time()
+                
+                query = task.payload.get("query")
+                context_id = task.payload.get("context_id")
+                
+                logger.info(f"BackgroundWorker: Executing discovery task {task.task_id} - Query: {query}")
+                
+                # Execute reasoning
+                result = await discovery_svc.discover(query, context_id=context_id)
+                
+                # Complete task
+                pool.complete_task(task.task_id, success=True)
+                count += 1
+            except Exception as e:
+                logger.error(f"Discovery task {task.task_id} failed: {e}")
+                pool.complete_task(task.task_id, success=False, failure_reason=str(e))
+                
+        return count
+
+
 # =============================================================================
 # T021: Background Worker
 # =============================================================================
@@ -513,6 +618,8 @@ class BackgroundWorker:
         self._neighborhood_task = NeighborhoodRecomputeTask(driver, self._config)
         self._episode_task = EpisodeSummarizationTask(driver, self._config)
         self._health_task = HealthMonitorTask(driver, self._config)
+        self._discovery_task = GraphDiscoveryMaintenanceTask(driver, self._config)
+        self._discovery_executor = DiscoveryTaskExecutor(driver, self._config)
 
     @property
     def state(self) -> WorkerState:
@@ -600,14 +707,72 @@ class BackgroundWorker:
 
                 # Run maintenance tasks
                 try:
+                    from api.utils.event_bus import get_event_bus
+                    bus = get_event_bus()
+
                     # Neighborhood recomputation
                     neighborhoods = await self._neighborhood_task.run()
                     self._health.neighborhoods_recomputed += neighborhoods
                     self._health.stale_items_found += neighborhoods
+                    
+                    if neighborhoods > 0:
+                        await bus.emit_system_event(
+                            source="background_worker",
+                            event_type="neighborhood_recompute",
+                            summary=f"Recomputed {neighborhoods} memory neighborhoods.",
+                            metadata={"count": neighborhoods}
+                        )
 
                     # Episode summarization
                     episodes = await self._episode_task.run()
                     self._health.episodes_summarized += episodes
+                    
+                    if episodes > 0:
+                        await bus.emit_system_event(
+                            source="background_worker",
+                            event_type="episode_summarization",
+                            summary=f"Summarized {episodes} closed memory episodes.",
+                            metadata={"count": episodes}
+                        )
+
+                    # FEATURE 047: Unified Multi-Tier Memory Lifecycle
+                    try:
+                        from api.services.multi_tier_service import get_multi_tier_service
+                        multi_tier_svc = get_multi_tier_service()
+                        await multi_tier_svc.run_lifecycle_management()
+                    except Exception as e:
+                        logger.error(f"Multi-tier memory lifecycle error in background worker: {e}")
+
+                    # FEATURE 049: Continuous Self-Monitoring (System Moments)
+                    # Run every cycle (30s) or controlled by config
+                    try:
+                        from api.services.meta_evolution_service import get_meta_evolution_service
+                        evo_svc = get_meta_evolution_service()
+                        await evo_svc.capture_system_moment()
+                    except Exception as e:
+                        logger.error(f"Failed to capture system moment: {e}")
+
+                    # FEATURE 049: Meta-Evolutionary Cycle
+                    # Run every 100 cycles (~50 minutes) or controlled by config
+                    if cycle_count % 100 == 0:
+                        try:
+                            await evo_svc.run_evolution_cycle()
+                        except Exception as e:
+                            logger.error(f"Meta-evolution cycle failed: {e}")
+
+                    # FEATURE 020: Autonomous Discovery (CGR3)
+                    # Run every 20 cycles (~10 minutes)
+                    if cycle_count % 20 == 0:
+                        try:
+                            await self._discovery_task.run()
+                        except Exception as e:
+                            logger.error(f"Graph discovery maintenance task failed: {e}")
+
+                    # Execute any pending DISCOVERY tasks
+                    try:
+                        await self._discovery_executor.run()
+                    except Exception as e:
+                        logger.error(f"Discovery executor failed: {e}")
 
                     # Periodic health check
                     if cycle_count % self._config.health_check_interval_cycles == 0:

@@ -1,9 +1,8 @@
 import json
 import os
-import asyncio
 from typing import Any, Dict
 
-from smolagents import ToolCallingAgent, LiteLLMModel, MCPClient
+from smolagents import ToolCallingAgent, MCPClient
 from mcp import StdioServerParameters
 
 class HeartbeatAgent:

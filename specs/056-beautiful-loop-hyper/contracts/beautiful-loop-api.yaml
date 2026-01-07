@@ -1,0 +1,601 @@
+openapi: 3.1.0
+info:
+  title: Beautiful Loop Hyper-Model API
+  description: |
+    API for the Beautiful Loop consciousness framework implementing
+    epistemic depth, Bayesian binding, and precision forecasting.
+  version: 1.0.0
+  contact:
+    name: Dionysus Team
+
+servers:
+  - url: http://72.61.78.89:8000/api/v1
+    description: VPS Production
+  - url: http://localhost:8000/api/v1
+    description: Local Development
+
+tags:
+  - name: precision
+    description: Precision profile forecasting and management
+  - name: binding
+    description: Bayesian binding operations
+  - name: reality-model
+    description: Unified reality model operations
+  - name: epistemic
+    description: Epistemic depth and luminosity tracking
+
+paths:
+  /beautiful-loop/precision/forecast:
+    post:
+      summary: Forecast precision profile
+      description: |
+        Generate a precision profile (Φ) for the upcoming OODA cycle
+        based on current context and historical precision errors.
+      operationId: forecastPrecision
+      tags:
+        - precision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrecisionForecastRequest'
+      responses:
+        '200':
+          description: Precision profile generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecisionProfile'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /beautiful-loop/precision/errors:
+    post:
+      summary: Record precision errors
+      description: |
+        Record second-order precision errors after OODA cycle completion.
+        Used for hyper-model learning.
+      operationId: recordPrecisionErrors
+      tags:
+        - precision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrecisionErrorsRequest'
+      responses:
+        '200':
+          description: Errors recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecisionErrorsResponse'
+        '422':
+          description: Validation error
+
+  /beautiful-loop/precision/profile:
+    get:
+      summary: Get current precision profile
+      description: Retrieve the current active precision profile (Φ).
+      operationId: getCurrentPrecision
+      tags:
+        - precision
+      responses:
+        '200':
+          description: Current precision profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecisionProfile'
+
+  /beautiful-loop/binding/evaluate:
+    post:
+      summary: Evaluate binding candidates
+      description: |
+        Run Bayesian binding competition on candidate inferences.
+        Returns the inferences that pass precision, coherence, and
+        uncertainty-reduction criteria.
+      operationId: evaluateBinding
+      tags:
+        - binding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BindingEvaluationRequest'
+      responses:
+        '200':
+          description: Binding evaluation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BindingEvaluationResponse'
+        '422':
+          description: Validation error
+
+  /beautiful-loop/reality-model:
+    get:
+      summary: Get unified reality model
+      description: |
+        Retrieve the current unified reality model containing all
+        active belief states, inference states, and bound inferences.
+      operationId: getRealityModel
+      tags:
+        - reality-model
+      responses:
+        '200':
+          description: Current reality model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedRealityModel'
+
+  /beautiful-loop/reality-model/coherence:
+    get:
+      summary: Get reality model coherence
+      description: Get the current coherence score of the unified reality model.
+      operationId: getCoherence
+      tags:
+        - reality-model
+      responses:
+        '200':
+          description: Coherence score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoherenceResponse'
+
+  /beautiful-loop/epistemic/state:
+    get:
+      summary: Get epistemic state
+      description: |
+        Retrieve current epistemic depth/luminosity metrics including
+        depth score, active bindings, and transparent processes.
+      operationId: getEpistemicState
+      tags:
+        - epistemic
+      responses:
+        '200':
+          description: Current epistemic state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpistemicState'
+
+  /beautiful-loop/epistemic/depth:
+    get:
+      summary: Get epistemic depth score
+      description: Get the current epistemic depth (luminosity) score.
+      operationId: getEpistemicDepth
+      tags:
+        - epistemic
+      responses:
+        '200':
+          description: Depth score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepthResponse'
+
+  /beautiful-loop/config:
+    get:
+      summary: Get configuration
+      description: Get current Beautiful Loop configuration including binding and hyper-model settings.
+      operationId: getConfig
+      tags:
+        - precision
+      responses:
+        '200':
+          description: Current configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BeautifulLoopConfig'
+    patch:
+      summary: Update configuration
+      description: Update Beautiful Loop configuration settings.
+      operationId: updateConfig
+      tags:
+        - precision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BeautifulLoopConfigUpdate'
+      responses:
+        '200':
+          description: Configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BeautifulLoopConfig'
+
+components:
+  schemas:
+    PrecisionProfile:
+      type: object
+      required:
+        - layer_precisions
+        - modality_precisions
+        - meta_precision
+        - timestamp
+      properties:
+        layer_precisions:
+          type: object
+          additionalProperties:
+            type: number
+            minimum: 0
+            maximum: 1
+          description: Precision weight per inference layer
+          example:
+            perception: 0.8
+            reasoning: 0.6
+            metacognition: 0.7
+            action: 0.5
+        modality_precisions:
+          type: object
+          additionalProperties:
+            type: number
+            minimum: 0
+            maximum: 1
+          description: Precision weight per sensory modality
+          example:
+            visual: 0.7
+            semantic: 0.9
+            procedural: 0.5
+            episodic: 0.6
+        temporal_depth:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.5
+          description: How far into future to weight predictions
+        meta_precision:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Confidence in this precision profile itself
+        context_embedding:
+          type: array
+          items:
+            type: number
+          description: Embedding of context that generated this profile
+        timestamp:
+          type: string
+          format: date-time
+        cycle_id:
+          type: string
+          nullable: true
+
+    PrecisionForecastRequest:
+      type: object
+      required:
+        - context
+      properties:
+        context:
+          type: object
+          description: Current task/environment context
+        internal_states:
+          type: object
+          additionalProperties:
+            type: object
+          description: Current state per inference layer
+        recent_errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrecisionError'
+          description: Recent precision errors for learning
+
+    PrecisionError:
+      type: object
+      required:
+        - layer_id
+        - predicted_precision
+        - actual_precision_needed
+      properties:
+        layer_id:
+          type: string
+        predicted_precision:
+          type: number
+          minimum: 0
+          maximum: 1
+        actual_precision_needed:
+          type: number
+          minimum: 0
+          maximum: 1
+        error_magnitude:
+          type: number
+          minimum: 0
+          readOnly: true
+        error_direction:
+          type: string
+          enum: [over_confident, under_confident]
+          readOnly: true
+        context_hash:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    PrecisionErrorsRequest:
+      type: object
+      required:
+        - errors
+        - cycle_id
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrecisionError'
+        cycle_id:
+          type: string
+
+    PrecisionErrorsResponse:
+      type: object
+      properties:
+        recorded_count:
+          type: integer
+        learning_delta:
+          type: number
+          description: How much the hyper-model updated
+
+    BindingEvaluationRequest:
+      type: object
+      required:
+        - candidates
+      properties:
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/InferenceCandidate'
+        precision_profile:
+          $ref: '#/components/schemas/PrecisionProfile'
+        binding_capacity:
+          type: integer
+          minimum: 1
+          default: 7
+
+    InferenceCandidate:
+      type: object
+      required:
+        - inference_id
+        - source_layer
+        - embedding
+      properties:
+        inference_id:
+          type: string
+        source_layer:
+          type: string
+        content:
+          type: object
+        embedding:
+          type: array
+          items:
+            type: number
+
+    BindingEvaluationResponse:
+      type: object
+      properties:
+        bound_inferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoundInference'
+        rejected_count:
+          type: integer
+        average_binding_strength:
+          type: number
+
+    BoundInference:
+      type: object
+      properties:
+        inference_id:
+          type: string
+        source_layer:
+          type: string
+        content:
+          type: object
+        embedding:
+          type: array
+          items:
+            type: number
+        precision_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        coherence_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        uncertainty_reduction:
+          type: number
+        binding_strength:
+          type: number
+          minimum: 0
+        bound_at:
+          type: string
+          format: date-time
+        cycle_id:
+          type: string
+          nullable: true
+
+    UnifiedRealityModel:
+      type: object
+      properties:
+        belief_states:
+          type: array
+          items:
+            type: object
+          description: References to existing BeliefState models
+        active_inference_states:
+          type: array
+          items:
+            type: object
+          description: References to existing ActiveInferenceState models
+        metacognitive_particles:
+          type: array
+          items:
+            type: object
+          description: References to existing MetacognitiveParticle models
+        bound_inferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoundInference'
+        coherence_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        epistemic_affordances:
+          type: array
+          items:
+            type: string
+        current_context:
+          type: object
+        last_updated:
+          type: string
+          format: date-time
+        cycle_id:
+          type: string
+          nullable: true
+
+    CoherenceResponse:
+      type: object
+      properties:
+        coherence_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        bound_inference_count:
+          type: integer
+
+    EpistemicState:
+      type: object
+      properties:
+        depth_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        reality_model_coherence:
+          type: number
+          minimum: 0
+          maximum: 1
+        active_bindings:
+          type: array
+          items:
+            type: string
+        transparent_processes:
+          type: array
+          items:
+            type: string
+        luminosity_factors:
+          type: object
+          additionalProperties:
+            type: number
+        timestamp:
+          type: string
+          format: date-time
+
+    DepthResponse:
+      type: object
+      properties:
+        depth_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        luminosity_factors:
+          type: object
+          additionalProperties:
+            type: number
+
+    BeautifulLoopConfig:
+      type: object
+      properties:
+        binding:
+          $ref: '#/components/schemas/BindingConfig'
+        hyper_model:
+          $ref: '#/components/schemas/HyperModelConfig'
+
+    BindingConfig:
+      type: object
+      properties:
+        min_capacity:
+          type: integer
+          minimum: 1
+          default: 5
+        max_capacity:
+          type: integer
+          minimum: 1
+          default: 9
+        default_capacity:
+          type: integer
+          minimum: 1
+          default: 7
+        precision_threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.3
+        coherence_threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.4
+
+    HyperModelConfig:
+      type: object
+      properties:
+        base_learning_rate:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.1
+        min_learning_rate:
+          type: number
+          minimum: 0
+          default: 0.01
+        max_learning_rate:
+          type: number
+          maximum: 1
+          default: 0.3
+        default_layers:
+          type: array
+          items:
+            type: string
+          default: [perception, reasoning, metacognition, action]
+        default_modalities:
+          type: array
+          items:
+            type: string
+          default: [visual, semantic, procedural, episodic]
+
+    BeautifulLoopConfigUpdate:
+      type: object
+      properties:
+        binding:
+          $ref: '#/components/schemas/BindingConfig'
+        hyper_model:
+          $ref: '#/components/schemas/HyperModelConfig'
+
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+              msg:
+                type: string
+              type:
+                type: string

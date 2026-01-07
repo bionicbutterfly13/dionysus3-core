@@ -18,7 +18,7 @@ The manager agent delegates to this agent when it needs to:
 import logging
 from typing import Optional
 
-from smolagents import ManagedAgent
+from smolagents import ToolCallingAgent
 
 from api.agents.perception_agent import PerceptionAgent
 
@@ -29,8 +29,11 @@ class ManagedPerceptionAgent:
     """
     ManagedAgent wrapper for PerceptionAgent.
 
-    Provides a ManagedAgent instance that the ConsciousnessManager
-    can use for natural language delegation during the OBSERVE phase.
+    Provides a ToolCallingAgent instance that the ConsciousnessManager
+    can use for native smolagents multi-agent orchestration during the OBSERVE phase.
+    
+    Note: smolagents 1.23+ removed ManagedAgent class. Agents with name/description
+    are passed directly to managed_agents parameter.
     """
 
     # Description used by the manager to decide when to delegate
@@ -60,7 +63,7 @@ situational awareness before reasoning or decision-making."""
         """
         self.model_id = model_id
         self._inner: Optional[PerceptionAgent] = None
-        self._managed: Optional[ManagedAgent] = None
+        self._agent: Optional[ToolCallingAgent] = None
 
     def _ensure_initialized(self) -> PerceptionAgent:
         """Lazily initialize the inner agent."""
@@ -68,27 +71,29 @@ situational awareness before reasoning or decision-making."""
             self._inner = PerceptionAgent(self.model_id)
         return self._inner
 
-    def get_managed(self) -> ManagedAgent:
+    def get_managed(self) -> ToolCallingAgent:
         """
-        Get the ManagedAgent wrapper for use in multi-agent orchestration.
+        Get the ToolCallingAgent for use in multi-agent orchestration.
 
         Returns:
-            ManagedAgent instance wrapping the PerceptionAgent
+            ToolCallingAgent instance with name and description set
         """
-        if self._managed is not None:
-            return self._managed
+        if self._agent is not None:
+            return self._agent
 
         inner = self._ensure_initialized()
 
         # Enter context to get the configured agent
         with inner as configured:
-            self._managed = ManagedAgent(
-                agent=configured.agent,
-                name="perception",
-                description=self.DESCRIPTION,
-            )
-            logger.debug("Created ManagedAgent wrapper for perception")
-            return self._managed
+            # smolagents 1.23+: agents have name/description directly
+            self._agent = configured.agent
+            logger.debug("Retrieved ToolCallingAgent for perception")
+            return self._agent
+
+    @property
+    def agent(self) -> Optional[ToolCallingAgent]:
+        """Direct access to underlying agent for callback configuration."""
+        return self._agent
 
     def __enter__(self):
         """Context manager entry."""

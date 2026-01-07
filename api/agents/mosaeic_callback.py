@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, Dict
+from typing import Any
 from smolagents.memory import ActionStep
 from api.services.mosaeic_service import get_mosaeic_service
 

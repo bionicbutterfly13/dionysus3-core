@@ -240,6 +240,29 @@ async def manage_energy(operation: str, amount: float = 0.0) -> dict:
 
 
 # =============================================================================
+# REASONING TOOLS (CGR3/ToG-3)
+# =============================================================================
+
+@app.tool()
+async def macer_discover(query: str, context_id: Optional[str] = None) -> dict:
+    """
+    Perform deep multi-hop context graph reasoning (CGR3/ToG-3).
+    Use this for complex queries requiring longitudinal memory, 
+    causal link discovery, or resolving contradictions.
+
+    Args:
+        query: The reasoning objective or question.
+        context_id: Optional UUID to scope the reasoning trajectory.
+
+    Returns:
+        Dict with answer, iterations, and gathered_context.
+    """
+    from api.services.context_discovery_service import get_context_discovery_service
+    service = get_context_discovery_service()
+    return await service.discover(query, context_id=context_id)
+
+
+# =============================================================================
 # CONSCIOUSNESS TOOLS
 # =============================================================================
 
@@ -1435,39 +1458,42 @@ async def get_models_by_winners(
     return await get_models_by_winners_tool(layer=layer, limit=limit)
 
 
-# =============================================================================
-# ARCHON TOOLS (Feature 012)
-# =============================================================================
+# =============================================================
+# META-TOT TOOLS (Feature 041)
+# =============================================================
+
+from dionysus_mcp.tools.meta_tot import (
+    meta_tot_run_tool,
+    meta_tot_trace_tool,
+)
+
 
 @app.tool()
-async def fetch_archon_tasks() -> list[dict]:
+async def meta_tot_run(
+    task: str,
+    context: Optional[dict] = None,
+    config: Optional[dict] = None,
+) -> dict:
     """
-    Fetch historical tasks from the local Archon environment.
-    Used for historical reconstruction and longitudinal memory.
+    Run Meta-ToT reasoning with active inference scoring.
+
+    Args:
+        task: Problem statement or task prompt
+        context: Optional context data for scoring
+        config: Optional Meta-ToT config overrides
     """
-    # This tool acts as a proxy to the local filesystem/Archon state.
-    # In this environment, we can read from the specs/ directory to simulate task history.
-    import glob
-    import os
-    
-    tasks = []
-    specs_path = "specs/*"
-    for spec_dir in glob.glob(specs_path):
-        tasks_file = os.path.join(spec_dir, "tasks.md")
-        if os.path.exists(tasks_file):
-            with open(tasks_file, "r") as f:
-                content = f.read()
-                # Simple parser for [X] or [ ] tasks
-                for line in content.split("\n"):
-                    if "[" in line and "]" in line and "-" in line:
-                        status = "completed" if "[X]" in line or "[x]" in line else "pending"
-                        tasks.append({
-                            "project": os.path.basename(spec_dir),
-                            "description": line.split("]", 1)[1].strip(),
-                            "status": status,
-                            "source": "markdown_spec"
-                        })
-    return tasks
+    return await meta_tot_run_tool(task, context=context, config=config)
+
+
+@app.tool()
+async def meta_tot_trace(trace_id: str) -> dict:
+    """
+    Retrieve a Meta-ToT trace by id.
+
+    Args:
+        trace_id: Trace identifier returned by meta_tot_run
+    """
+    return await meta_tot_trace_tool(trace_id)
 
 
 # =============================================================
@@ -1498,6 +1524,93 @@ async def mosaeic_capture(text: str, source_id: str = "agent_observation") -> st
     summary += f"- Cognitions: {capture.cognitions.content} (Intensity: {capture.cognitions.intensity})\n"
     
     return summary
+
+
+# =============================================================================
+# COGNITIVE TOOLS (Feature 042)
+# =============================================================================
+
+from dionysus_mcp.tools.cognitive import (
+    cognitive_understand_tool,
+    cognitive_recall_tool,
+    cognitive_examine_tool,
+    cognitive_backtrack_tool,
+)
+
+@app.tool()
+async def cognitive_understand(question: str, context: Optional[str] = None) -> dict:
+    """
+    Decompose a complex problem using research-validated cognitive prompts.
+    
+    Use this tool FIRST when facing a complex or ambiguous task.
+    
+    Args:
+        question: The problem statement
+        context: Optional background context
+    """
+    return await cognitive_understand_tool(question, context)
+
+@app.tool()
+async def cognitive_recall(question: str, context: Optional[str] = None) -> dict:
+    """
+    Retrieve analogous examples to guide reasoning.
+    
+    Args:
+        question: The problem statement
+        context: Optional context (e.g. from understand_question)
+    """
+    return await cognitive_recall_tool(question, context)
+
+@app.tool()
+async def cognitive_examine(question: str, current_reasoning: str, context: Optional[str] = None) -> dict:
+    """
+    Critically examine reasoning for errors and improvements.
+    
+    Use this to self-correct before finalizing an answer.
+    
+    Args:
+        question: The original problem
+        current_reasoning: The proposed solution or thought trace
+        context: Optional context
+    """
+    return await cognitive_examine_tool(question, current_reasoning, context)
+
+@app.tool()
+async def cognitive_backtrack(question: str, current_reasoning: str, context: Optional[str] = None) -> dict:
+    """
+    Propose alternative strategies when errors are found.
+    
+    Args:
+        question: The original problem
+        current_reasoning: The flawed reasoning trace
+        context: Optional context
+    """
+    return await cognitive_backtrack_tool(question, current_reasoning, context)
+
+
+# =============================================================================
+# INTEGRATION TOOLS (Feature 045)
+# =============================================================================
+
+from dionysus_mcp.tools.integration import process_cognitive_event_tool
+
+@app.tool()
+async def integrate_cognitive_event(
+    problem: str,
+    reasoning_trace: str,
+    outcome: Optional[str] = None,
+    context: Optional[dict] = None
+) -> dict:
+    """
+    Unified integration of a reasoning event into semantic and episodic memory.
+    
+    Args:
+        problem: The task or query addressed.
+        reasoning_trace: The thought process or tool trace.
+        outcome: The final result or answer.
+        context: Optional metadata context.
+    """
+    return await process_cognitive_event_tool(problem, reasoning_trace, outcome, context)
 
 
 # =============================================================================

@@ -7,37 +7,34 @@ Service for mental model management including CRUD operations, prediction
 generation, error tracking, and model revision.
 Based on Yufik's neuronal packet theory (2019, 2021).
 
-Database: Neo4j via WebhookNeo4jDriver (n8n webhooks)
+Database: Neo4j via Graphiti-backed driver
 """
 
 import json
 import logging
-import time
-from datetime import datetime, timedelta
-from typing import Any, Optional, List
+from datetime import datetime
+from typing import Any, Dict, Optional, List
 from uuid import UUID, uuid4
 
 from api.models.mental_model import (
+    BasinRelationship,
     BasinRelationships,
     CreateModelRequest,
     MentalModel,
-    ModelDetailResponse,
     ModelDomain,
     ModelListResponse,
     ModelPrediction,
     ModelResponse,
     ModelRevision,
     ModelStatus,
-    PredictionListResponse,
-    PredictionResponse,
     PredictionTemplate,
     ReviseModelRequest,
-    RevisionListResponse,
-    RevisionResponse,
     RevisionTrigger,
     UpdateModelRequest,
+    RelationshipType,
 )
 from api.services.remote_sync import get_neo4j_driver
+from api.services.dynamics_service import DynamicsService
 
 logger = logging.getLogger("dionysus.model_service")
 
@@ -56,7 +53,7 @@ REVISION_ERROR_THRESHOLD = 0.5
 # =============================================================================
 
 
-from api.models.cognitive import NeuronalPacketModel, EFEResponse
+from api.models.cognitive import NeuronalPacketModel
 
 # =============================================================================
 # NeuronalPacket (Synergistic Whole)
@@ -140,12 +137,14 @@ class ModelService:
             created_at: datetime(),
             updated_at: datetime(),
             constituent_basins: $basin_ids,
+            basin_relationships: $relationships,
             prediction_templates: $templates
         })
         RETURN m
         """
         
         templates_json = [t.model_dump_json() for t in request.prediction_templates] if request.prediction_templates else []
+        relationships_json = request.basin_relationships.model_dump_json() if request.basin_relationships else "{\"relationships\": []}"
         
         try:
             result = await self._driver.execute_query(cypher, {
@@ -154,6 +153,7 @@ class ModelService:
                 "domain": request.domain.value,
                 "description": request.description,
                 "basin_ids": [str(bid) for bid in request.basin_ids],
+                "relationships": relationships_json,
                 "templates": templates_json
             })
             
@@ -269,6 +269,42 @@ class ModelService:
             logger.error(f"Error getting relevant models: {e}")
             return []
 
+    async def select_dominant_model(
+        self,
+        context: dict[str, Any],
+        candidates: list[MentalModel]
+    ) -> MentalModel | None:
+        """
+        Treur Phase 5.4: Metacognitive Selection for Multiple Models (Chapter 4).
+        Uses alogistic selection based on EFE and Context Resonance.
+        """
+        if not candidates:
+            return None
+            
+        # Convert models to candidate dicts for EFEEngine
+        candidate_dicts = []
+        for model in candidates:
+            # Estimate EFE for this context (simplified)
+            confidence = self._estimate_confidence(model, context)
+            # Invert confidence to get a fake EFE (lower is better)
+            efe_score = 1.0 - confidence
+            
+            candidate_dicts.append({
+                "model_id": model.id,
+                "model": model,
+                "efe_score": efe_score
+            })
+            
+        # Use alogistic aggregation to pick the winner
+        selected = self._efe_engine.select_top_candidates_alogistic(candidate_dicts)
+        
+        if not selected:
+            return candidates[0]
+            
+        winning_model = selected[0]["model"]
+        logger.info(f"Metacognitive selection: '{winning_model.name}' chosen among {len(candidates)} models.")
+        return winning_model
+
     async def generate_prediction(
         self,
         model: MentalModel,
@@ -309,13 +345,52 @@ class ModelService:
                 "inference_state_id": str(inference_state_id) if inference_state_id else None
             })
             
-            if not result:
-                raise RuntimeError("Failed to create model prediction")
-                
-            return self._node_to_prediction(result[0]["p"])
+            return self._node_to_prediction(p_node)
         except Exception as e:
-            logger.error(f"Error generating model prediction: {e}")
+            logger.error(f"Error resolving prediction: {e}")
             raise
+
+    async def _adapt_internal_relationships(self, model_node: Any, prediction_node: Any, prediction_error: float):
+        """
+        Treur SMN Implementation: Adapt internal basin connectivity (W-states).
+        Strengthens connections between basins that predicted the outcome correctly.
+        """
+        rel_raw = model_node.get("basin_relationships")
+        if not rel_raw:
+            return
+            
+        try:
+            # Note: rel_raw is a JSON string in Neo4j
+            basin_relationships = BasinRelationships.model_validate_json(rel_raw)
+            if not basin_relationships.relationships:
+                return
+
+            # Hebbian params
+            mu = 0.1 # learning rate / persistence
+            success_signal = 1.0 - prediction_error
+            
+            modified = False
+            for rel in basin_relationships.relationships:
+                # We reinforce all relationships if the prediction was successful
+                # In a more advanced version, we'd only reinforce ones that 'fired'
+                old_w = rel.strength
+                new_w = DynamicsService.hebbian(mu, success_signal, success_signal, old_w)
+                
+                if abs(new_w - old_w) > 0.001:
+                    rel.strength = new_w
+                    modified = True
+            
+            if modified:
+                # Update back to Neo4j
+                new_rels_json = basin_relationships.model_dump_json()
+                cypher = "MATCH (m:MentalModel {id: $id}) SET m.basin_relationships = $rels, m.updated_at = datetime()"
+                await self._driver.execute_query(cypher, {
+                    "id": str(model_node["id"]),
+                    "rels": new_rels_json
+                })
+                logger.info(f"Adapted internal relationships for model {model_node['id']} (success_signal={success_signal:.2f})")
+        except Exception as e:
+            logger.error(f"Error adapting mental model relationships: {e}")
 
     def _generate_prediction_content(self, model: MentalModel, context: dict[str, Any]) -> dict[str, Any]:
         user_message = context.get("user_message", "")
@@ -368,7 +443,7 @@ class ModelService:
         MATCH (m:MentalModel {id: p.model_id})
         SET m.prediction_accuracy = (m.prediction_accuracy * 0.9) + ((1.0 - $error) * 0.1),
             m.updated_at = datetime()
-        RETURN p
+        RETURN p, m
         """
         
         try:
@@ -379,7 +454,15 @@ class ModelService:
             })
             if not result:
                 raise ValueError(f"Prediction not found: {prediction_id}")
-            return self._node_to_prediction(result[0]["p"])
+            
+            # Treur Phase 5.1: Adaptive Connectivity (W-states)
+            # Fetch model to update internal relationships
+            model_node = result[0]["m"]
+            p_node = result[0]["p"]
+            
+            await self._adapt_internal_relationships(model_node, p_node, prediction_error)
+            
+            return self._node_to_prediction(p_node)
         except Exception as e:
             logger.error(f"Error resolving prediction: {e}")
             raise
@@ -393,13 +476,16 @@ class ModelService:
         templates_raw = node.get("prediction_templates") or []
         prediction_templates = [PredictionTemplate(**json.loads(t)) for t in templates_raw]
         
+        rel_raw = node.get("basin_relationships")
+        basin_relationships = BasinRelationships.model_validate_json(rel_raw) if rel_raw else BasinRelationships(relationships=[])
+        
         return MentalModel(
             id=UUID(node["id"]),
             name=node["name"],
             domain=ModelDomain(node["domain"]),
             description=node.get("description"),
             constituent_basins=[UUID(bid) for bid in node.get("constituent_basins", [])],
-            basin_relationships=BasinRelationships(relationships=[]),
+            basin_relationships=basin_relationships,
             prediction_templates=prediction_templates,
             prediction_accuracy=float(node.get("prediction_accuracy", 0.5)),
             revision_count=int(node.get("revision_count", 0)),
@@ -617,6 +703,33 @@ class ModelService:
         )
 
     async def validate_basin_ids(self, basin_ids: list[UUID]) -> list[UUID]:
+        """Validate that basin IDs exist in the database.
+
+        Args:
+            basin_ids: List of basin UUIDs to validate
+
+        Returns:
+            List of valid basin IDs that exist in the database
+        """
+        if not basin_ids:
+            return []
+
+        cypher = """
+        UNWIND $ids AS id
+        MATCH (b:MemoryCluster {id: id})
+        RETURN b.id AS valid_id
+        """
+
+        try:
+            result = await self._driver.execute_query(
+                cypher,
+                {"ids": [str(bid) for bid in basin_ids]}
+            )
+            return [UUID(r["valid_id"]) for r in result if r.get("valid_id")]
+        except Exception as e:
+            logger.warning(f"Basin validation failed: {e}")
+            return []
+
 
 # Singleton factory
 _model_service_instance: Optional[ModelService] = None

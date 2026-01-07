@@ -7,7 +7,7 @@ Handles writing generated content to the filesystem with divert-to-review fallba
 
 import os
 import logging
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 from api.services.aspect_service import get_aspect_service
 
 logger = logging.getLogger("dionysus.file_export")

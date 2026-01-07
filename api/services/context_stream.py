@@ -7,9 +7,8 @@ Upgraded with Neural Field Metrics (Feature 037).
 """
 
 import logging
-import time
-from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional
+from pydantic import BaseModel
 from api.models.cognitive import FlowState
 from api.services.graphiti_service import get_graphiti_service
 

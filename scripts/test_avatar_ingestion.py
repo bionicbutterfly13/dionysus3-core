@@ -52,8 +52,8 @@ async def test_avatar_ingestion():
 
 if __name__ == "__main__":
     # Ensure environment variables are set
-    if not os.getenv("NEO4J_PASSWORD") or not os.getenv("OPENAI_API_KEY") or not os.getenv("ANTHROPIC_API_KEY"):
-        print("Error: Missing required environment variables (NEO4J_PASSWORD, OPENAI_API_KEY, ANTHROPIC_API_KEY)")
+    if not os.getenv("NEO4J_PASSWORD") or not os.getenv("OPENAI_API_KEY"):
+        print("Error: Missing required environment variables (NEO4J_PASSWORD, OPENAI_API_KEY)")
         sys.exit(1)
         
     asyncio.run(test_avatar_ingestion())

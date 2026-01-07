@@ -1,0 +1,237 @@
+{
+  "curriculum": {
+    "id": "ias-curriculum-v1",
+    "name": "Inner Architect System",
+    "version": "1.0",
+    "description": "Neuroscience-backed guided breakthrough program for Analytical Empaths",
+    "target_audience": "Analytical Empaths",
+    "total_phases": 3,
+    "total_lessons": 9,
+    "total_steps": 27,
+    "source_documents": [
+      {
+        "title": "Analytical Empath Avatar Source of Truth",
+        "file_path": "/Volumes/Asylum/dev/dionysus3-core/data/ground-truth/analytical-empath-avatar-source-of-truth.md",
+        "doc_type": "avatar"
+      },
+      {
+        "title": "97 Product Architecture",
+        "file_path": "/Volumes/Asylum/dev/dionysus3-core/data/ground-truth/97-product-architecture.md",
+        "doc_type": "product"
+      },
+      {
+        "title": "Replay Loop Concept",
+        "file_path": "/Volumes/Asylum/dev/dionysus3-core/docs/concepts/Replay Loop.md",
+        "doc_type": "concept"
+      }
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Revelation",
+      "order": 1,
+      "description": "Redirect Replay Loop from evidence-gathering to pattern recognition",
+      "lessons": [
+        {
+          "id": "lesson-1",
+          "name": "Breakthrough Mapping",
+          "phase_order": 1,
+          "lesson_order": 1,
+          "global_order": 1,
+          "description": "Two separate lives: authentic vs performed. Integrate Avatar and Self into single presence.",
+          "objective": "Map the split between public avatar and private self",
+          "steps": []
+        },
+        {
+          "id": "lesson-2",
+          "name": "[TBD - Revelation Phase Lesson 2]",
+          "phase_order": 1,
+          "lesson_order": 2,
+          "global_order": 2,
+          "description": "To be determined",
+          "objective": "To be determined",
+          "steps": []
+        },
+        {
+          "id": "lesson-3",
+          "name": "Replay Loop Breaker",
+          "phase_order": 1,
+          "lesson_order": 3,
+          "global_order": 3,
+          "description": "Break the SSAR cycle: Shame → Spiral → Abandon → Restart. Stop obsessive rumination.",
+          "objective": "Interrupt the replay loop and establish new cognitive patterns",
+          "steps": [
+            {
+              "id": "step-3-1",
+              "name": "Spot the Story",
+              "order": 1,
+              "instruction": "Identify the narrative your brain is trying to prove right now.",
+              "tagline": "Observe the prediction. Don't collapse your life.",
+              "obstacle": {
+                "id": "obstacle-step-3-1",
+                "false_belief": "If I see the real story, I'll have to admit I've been wrong about everything—and that will unravel my entire identity.",
+                "what_they_dread": [
+                  "Exposing themselves as a fraud or failure",
+                  "Dismantling the competence they've built and starting over",
+                  "Having to blow up their life (quit the job, leave the relationship, admit they've been 'living a lie')",
+                  "Confirming their worst fear: 'I've wasted years building the wrong life.'"
+                ],
+                "truth_they_dont_know": "Spotting the story doesn't mean you were wrong—it means you were loyal to old data. The story was adaptive once; now it's just outdated. Seeing it clearly doesn't obligate you to tear everything down; it gives you the option to update the architecture without detonating your life."
+              },
+              "false_actions": [
+                "Confess to everyone that they've been 'faking it'",
+                "Quit their job or relationship",
+                "Relive every moment they 'got it wrong'",
+                "Justify or defend the old story",
+                "Generate a perfect replacement narrative in the same breath"
+              ],
+              "true_action": {
+                "action": "Simply observe",
+                "description": "My brain has been running this prediction. Here's the evidence it's been collecting. That makes sense given X, Y, Z. Now I see it. No confession. No collapse. Just clarity."
+              }
+            },
+            {
+              "id": "step-3-2",
+              "name": "Name the Feeling",
+              "order": 2,
+              "instruction": "Label the emotion fueling the spiral: shame, fear, guilt, or inadequacy.",
+              "tagline": "Name it. Don't become it.",
+              "obstacle": {
+                "id": "obstacle-step-3-2",
+                "false_belief": "If I name the feeling, it will consume me. I'll fall apart, lose control, or prove I'm as weak as I've always feared.",
+                "what_they_dread": [
+                  "That naming shame or fear means becoming it—that acknowledgment = surrender",
+                  "That if they let themselves feel inadequacy or guilt fully, the emotion will be bottomless and they'll never come back up",
+                  "That naming it out loud (even to themselves) makes it 'real' in a way that can't be undone",
+                  "That emotions are proof of weakness, and naming them confirms they don't belong in high-stakes rooms",
+                  "That once they start feeling, the floodgates open and they lose the composure that's been keeping everything together"
+                ],
+                "truth_they_dont_know": "Naming the feeling de-fuses you from it. It moves the emotion from 'I AM ashamed' to 'Shame is present.' That shift alone reduces the hijack by 40–60%. The feeling doesn't grow when you name it—it loses its grip. You're not weak for feeling it. You're high-resolution. The feeling has been running the whole time; naming it just puts you back in the driver's seat."
+              },
+              "false_actions": [
+                "Sit with the feeling for hours in painful excavation",
+                "Cry or 'release' it in some performative cathartic way",
+                "Trace it back to childhood wounds",
+                "Justify why they feel this way",
+                "Fix or eliminate the feeling immediately"
+              ],
+              "true_action": {
+                "action": "Label it in one sentence",
+                "description": "The feeling fueling this loop right now is [shame / fear / inadequacy / guilt]. That's it. Label it. Move on. The loop loses 50% of its power the moment it's named."
+              }
+            },
+            {
+              "id": "step-3-3",
+              "name": "Reveal the Prediction",
+              "order": 3,
+              "instruction": "Uncover what outcome the replay is trying to protect you from.",
+              "tagline": "See the prediction. Test it against reality.",
+              "obstacle": {
+                "id": "obstacle-step-3-3",
+                "false_belief": "If I uncover what I'm really afraid of, I'll have to face that it's true—and I won't be able to handle it.",
+                "what_they_dread": [
+                  "That the prediction their brain is making is accurate—and if they see it clearly, they'll have to accept it as inevitable",
+                  "If I admit I'm afraid of being rejected, it's because I'm actually unlovable",
+                  "If I admit I'm afraid of failing, it's because I don't actually have what it takes",
+                  "That revealing the prediction means admitting the fear is rational, not paranoid—which makes it unsolvable",
+                  "That once they see what the replay is protecting them from, they'll realize how fragile their entire life structure is",
+                  "That the prediction will sound so 'small' or 'stupid' that they'll be embarrassed by how much power it's had over them",
+                  "That revealing it = having to immediately fix it or disprove it, which feels impossible in the moment"
+                ],
+                "truth_they_dont_know": "The prediction is your nervous system's best guess based on old data—it's not a prophecy. Seeing it clearly doesn't make it true; it makes it testable. Once you see the prediction, you can ask: 'Is this still accurate? What evidence contradicts it?' Most predictions sound like: 'If I do X, I'll lose Y.' But when you map it, you often find that X has already happened multiple times without losing Y. The prediction is running on outdated firmware."
+              },
+              "false_actions": [
+                "Prove the prediction wrong immediately",
+                "Go back and analyze every past instance where the fear 'came true'",
+                "Defend themselves against the prediction",
+                "Build an airtight case for why the fear is irrational",
+                "Eliminate the fear before moving forward"
+              ],
+              "true_action": {
+                "action": "Complete this sentence",
+                "description": "The outcome this replay is trying to protect me from is: [losing respect / being exposed as incompetent / being abandoned / failing publicly / etc.]. Once it's visible, the brain can start testing it against current reality instead of replaying the past to 'solve' for it."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Repatterning",
+      "order": 2,
+      "description": "Integrate Avatar and Self into single presence",
+      "lessons": [
+        {
+          "id": "lesson-4",
+          "name": "Conviction Gauntlet",
+          "phase_order": 2,
+          "lesson_order": 1,
+          "global_order": 4,
+          "description": "Sabotage when close to achieving goals. Break self-sabotage patterns.",
+          "objective": "Identify and interrupt self-sabotage at the moment of breakthrough",
+          "steps": []
+        },
+        {
+          "id": "lesson-5",
+          "name": "[TBD - Repatterning Phase Lesson 2]",
+          "phase_order": 2,
+          "lesson_order": 2,
+          "global_order": 5,
+          "description": "To be determined",
+          "objective": "To be determined",
+          "steps": []
+        },
+        {
+          "id": "lesson-6",
+          "name": "[TBD - Repatterning Phase Lesson 3]",
+          "phase_order": 2,
+          "lesson_order": 3,
+          "global_order": 6,
+          "description": "To be determined",
+          "objective": "To be determined",
+          "steps": []
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Stabilization",
+      "order": 3,
+      "description": "Redesign external ecosystem to sustain integration",
+      "lessons": [
+        {
+          "id": "lesson-7",
+          "name": "Habit Harmonizer",
+          "phase_order": 3,
+          "lesson_order": 1,
+          "global_order": 7,
+          "description": "Exhausted trying to be perfect. Build sustainable excellence with ease.",
+          "objective": "Replace perfectionism with sustainable high performance",
+          "steps": []
+        },
+        {
+          "id": "lesson-8",
+          "name": "[TBD - Stabilization Phase Lesson 2]",
+          "phase_order": 3,
+          "lesson_order": 2,
+          "global_order": 8,
+          "description": "To be determined",
+          "objective": "To be determined",
+          "steps": []
+        },
+        {
+          "id": "lesson-9",
+          "name": "[TBD - Stabilization Phase Lesson 3]",
+          "phase_order": 3,
+          "lesson_order": 3,
+          "global_order": 9,
+          "description": "To be determined",
+          "objective": "To be determined",
+          "steps": []
+        }
+      ]
+    }
+  ]
+}

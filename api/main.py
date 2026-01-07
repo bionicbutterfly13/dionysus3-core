@@ -4,6 +4,7 @@ Dionysus-Core API Server
 FastAPI HTTP layer for web/mobile clients.
 """
 
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -19,13 +20,14 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from api.routers import ias, heartbeat, models, memory, skills, sync, session, memevolve, maintenance, avatar, discovery, coordination, rollback, kg_learning, monitoring, mosaeic, graphiti, monitoring_pulse, network_state, belief_journey, agents
+from api.routers import ias, heartbeat, models, memory, skills, sync, session, memevolve, maintenance, avatar, discovery, coordination, rollback, kg_learning, monitoring, mosaeic, graphiti, monitoring_pulse, network_state, belief_journey, agents, meta_tot, metacognition, consciousness, beautiful_loop
 from api.models.network_state import get_network_state_config
 from api.services.journal_service import start_journal_scheduler
 import asyncio
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger("dionysus.api")
 
 
 
@@ -35,9 +37,16 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     print("Starting Dionysus API server...")
-    
+
     # Start Background Journaler
     asyncio.create_task(start_journal_scheduler())
+    try:
+        from api.services.meta_tot_decision import get_meta_tot_decision_service
+
+        await get_meta_tot_decision_service().warmup()
+        logger.info("Meta-ToT thresholds warmup complete.")
+    except Exception as exc:
+        logger.warning(f"Meta-ToT thresholds warmup skipped: {exc}")
     
     # Note: PostgreSQL removed. Using Graphiti/Neo4j for persistence.
     # Services requiring db_pool need migration to Graphiti.
@@ -72,7 +81,20 @@ app.add_middleware(
 # Health check
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "dionysus-core"}
+    thresholds: dict[str, float] | dict[str, str] | None = None
+    status = "healthy"
+    try:
+        from api.services.meta_tot_decision import get_meta_tot_decision_service
+
+        thresholds = await get_meta_tot_decision_service().get_thresholds_snapshot()
+    except Exception as exc:
+        thresholds = {"error": str(exc)}
+        status = "degraded"
+    return {
+        "status": status,
+        "service": "dionysus-core",
+        "meta_tot_thresholds": thresholds,
+    }
 
 
 # Include routers
@@ -96,6 +118,10 @@ app.include_router(monitoring_pulse.router)
 app.include_router(graphiti.router)
 app.include_router(belief_journey.router)
 app.include_router(agents.router)
+app.include_router(meta_tot.router)
+app.include_router(metacognition.router)
+app.include_router(consciousness.router)
+app.include_router(beautiful_loop.router)
 
 # Network state router (conditional on feature flag) - T007
 if get_network_state_config().network_state_enabled:

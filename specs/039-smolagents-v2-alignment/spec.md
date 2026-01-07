@@ -104,6 +104,24 @@ ConsciousnessManager (CodeAgent, manager)
 
 ### Callback Flow
 
+```mermaid
+flowchart TD
+    subgraph Agent["Agent.run(task)"]
+        direction TB
+        P[PlanningStep created] --> IWMT[iwmt_coherence_callback]
+        IWMT --> |assess_coherence| INJECT[Inject into plan]
+
+        A[ActionStep executed] --> BASIN[basin_activation_callback]
+        A --> PRUNE[memory_pruning_callback]
+        BASIN --> |activate_basin| CLUSTERS[Strengthen clusters]
+        PRUNE --> |summarize| TOKENS[Reduce tokens 30%+]
+
+        DONE[Run complete] --> TRACE[execution_trace_callback]
+        TRACE --> |finalize| NEO4J[(Neo4j)]
+    end
+```
+
+**Text representation:**
 ```
 Agent.run(task)
   │
@@ -118,15 +136,24 @@ Agent.run(task)
   │           └─► Summarize steps older than window
   │
   └─► Run complete
-        └─► trajectory_persistence_callback()
-              └─► Save to Neo4j AgentTrajectory
+        └─► execution_trace_callback()
+              └─► Save to Neo4j AgentExecutionTrace
 ```
+
+### REST Endpoints (Phase 5)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/agents/traces` | GET | List recent execution traces |
+| `/api/agents/traces/{id}` | GET | Get full trace with steps |
+| `/api/agents/traces/{id}/replay` | GET | Human-readable replay view |
+| `/api/agents/token-usage` | GET | Memory pruning token stats |
 
 ### Neo4j Schema Addition
 
 ```cypher
-// Agent Trajectory Node
-CREATE (t:AgentTrajectory {
+// AgentExecutionTrace Node (renamed from AgentTrajectory per TERMINOLOGY.md)
+CREATE (t:AgentExecutionTrace {
   id: randomUUID(),
   agent_name: "heartbeat_agent",
   run_id: "...",
@@ -134,17 +161,17 @@ CREATE (t:AgentTrajectory {
   completed_at: datetime(),
   step_count: 10,
   planning_count: 3,
-  energy_spent: 12.5,
-  success: true
+  success: true,
+  token_usage: "{pre: 1500, post: 800, reduction: 46.7}"
 })
 
 // Link to activated basins
-MATCH (t:AgentTrajectory {run_id: $run_id})
+MATCH (t:AgentExecutionTrace {run_id: $run_id})
 MATCH (b:MemoryCluster {id: $basin_id})
-CREATE (t)-[:ACTIVATED_BASIN {strength: 0.8, step: 3}]->(b)
+CREATE (t)-[:ACTIVATED_BASIN {strength: 0.8, at_step: 3}]->(b)
 
 // Link to created memories
-MATCH (t:AgentTrajectory {run_id: $run_id})
+MATCH (t:AgentExecutionTrace {run_id: $run_id})
 MATCH (m:Memory {id: $memory_id})
 CREATE (t)-[:CREATED_MEMORY]->(m)
 ```

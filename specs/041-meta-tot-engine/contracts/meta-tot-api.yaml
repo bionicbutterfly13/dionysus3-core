@@ -1,0 +1,120 @@
+openapi: 3.1.0
+info:
+  title: Meta-ToT API
+  description: Meta-ToT reasoning execution and trace retrieval
+  version: 1.0.0
+
+servers:
+  - url: /api/meta-tot
+    description: API prefix
+
+tags:
+  - name: meta-tot
+    description: Meta-ToT reasoning operations
+
+paths:
+  /run:
+    post:
+      tags: [meta-tot]
+      summary: Run Meta-ToT reasoning
+      operationId: runMetaTot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetaToTRunRequest'
+      responses:
+        '200':
+          description: Meta-ToT run completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetaToTRunResponse'
+  /traces/{trace_id}:
+    get:
+      tags: [meta-tot]
+      summary: Get Meta-ToT trace by id
+      operationId: getMetaTotTrace
+      parameters:
+        - $ref: '#/components/parameters/TraceId'
+      responses:
+        '200':
+          description: Trace retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetaToTTraceResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    TraceId:
+      name: trace_id
+      in: path
+      required: true
+      schema:
+        type: string
+        description: Meta-ToT trace id
+
+  responses:
+    NotFound:
+      description: Entity not found
+
+  schemas:
+    MetaToTRunRequest:
+      type: object
+      required: [task]
+      properties:
+        task:
+          type: string
+        context:
+          type: object
+        config:
+          type: object
+
+    MetaToTRunResponse:
+      type: object
+      required: [decision, result]
+      properties:
+        decision:
+          $ref: '#/components/schemas/MetaToTDecision'
+        result:
+          $ref: '#/components/schemas/MetaToTResult'
+
+    MetaToTDecision:
+      type: object
+      properties:
+        use_meta_tot:
+          type: boolean
+        complexity_score:
+          type: number
+        uncertainty_score:
+          type: number
+        rationale:
+          type: string
+
+    MetaToTResult:
+      type: object
+      properties:
+        session_id:
+          type: string
+        best_path:
+          type: array
+          items:
+            type: string
+        confidence:
+          type: number
+        metrics:
+          type: object
+        trace_id:
+          type: string
+
+    MetaToTTraceResponse:
+      type: object
+      properties:
+        trace_id:
+          type: string
+        payload:
+          type: object

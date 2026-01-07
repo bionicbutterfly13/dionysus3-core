@@ -7,13 +7,13 @@ Connects Mental Models to ThoughtSeed 5-layer hierarchy:
 - ThoughtSeed competition winners → Basin activation
 - Prediction resolution → Basin strengthening (CLAUSE)
 
-Database: Neo4j via WebhookNeo4jDriver (n8n webhooks)
+Database: Neo4j via Graphiti-backed driver
 """
 
 import json
 import logging
 from datetime import datetime
-from typing import Any, Optional, List
+from typing import Optional
 from uuid import UUID, uuid4
 
 from api.services.remote_sync import get_neo4j_driver

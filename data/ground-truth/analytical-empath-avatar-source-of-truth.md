@@ -112,7 +112,7 @@ They need to be **heard**, not mislabeled.
 
 ### The Paradox
 
-> She built the iron suit to survive. Underneath it beats a bleeding heart.
+> She built the Performance Shell to survive. Underneath it beats a bleeding heart.
 
 **The Shell (Public Avatar):**
 - SVP. $420K. Corner office.

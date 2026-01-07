@@ -18,14 +18,12 @@ from uuid import UUID, uuid4
 from api.models.action import (
     ActionPlan,
     ActionRequest,
-    ActionResult,
-    ActionStatus,
     EnvironmentSnapshot,
     GoalsSnapshot,
     HeartbeatDecision,
     HeartbeatSummary,
 )
-from api.models.goal import Goal, GoalAssessment
+from api.models.goal import GoalAssessment
 from api.services.action_executor import ActionExecutor, get_action_executor
 from api.services.energy_service import ActionType, EnergyService, get_energy_service
 
@@ -476,8 +474,41 @@ class HeartbeatService:
         # =====================================================================
         logger.info("Phase 5: Act")
 
-        # Trim actions to budget
-        trimmed_plan = decision.action_plan.trim_to_budget(energy_start)
+        # Budget Negotiation Loop (Hybrid Fix)
+        # If plan exceeds budget, we cue the agent to prioritize or override.
+        current_decision = decision
+        retries = 0
+        MAX_RETRIES = 2
+        
+        while retries < MAX_RETRIES:
+            if current_decision.force_execution:
+                logger.warning(f"Agent requested FORCE EXECUTION (Override budget). Cost: {current_decision.action_plan.total_cost}, Energy: {energy_start}")
+                break
+                
+            if current_decision.action_plan.total_cost <= energy_start:
+                break # Within budget
+                
+            # Over budget and no override -> Negotiate
+            retries += 1
+            logger.info(f"Plan over budget ({current_decision.action_plan.total_cost} > {energy_start}). Negotiating (Attempt {retries}/{MAX_RETRIES})...")
+            
+            feedback = (
+                f"PLAN REJECTED: Your plan costs {current_decision.action_plan.total_cost} energy, but you only have {energy_start}. "
+                f"Please specificy a cheaper plan OR set 'force_execution' to true if this is an emergency."
+            )
+            
+            current_decision = await self._make_decision(context, feedback=feedback)
+            
+        # Update main decision object for recording
+        decision = current_decision
+
+        # Final safety trim (if still over budget and NOT forced)
+        if not decision.force_execution:
+            trimmed_plan = decision.action_plan.trim_to_budget(energy_start)
+            if len(trimmed_plan.actions) < len(decision.action_plan.actions):
+                 logger.warning("Negotiation failed or partial plan accepted. Trimming remaining actions.")
+        else:
+            trimmed_plan = decision.action_plan # Allow overdraft
         
         # T020: Check for strategic memory generation (Phase 4)
         # In a real implementation, the LLM would explicitly choose this action.
@@ -525,12 +556,26 @@ class HeartbeatService:
         # Store as episodic memory and heartbeat log
         await self._record_heartbeat(summary)
 
+        # FEATURE 044: Multi-Tier Memory Lifecycle Management
+        # Perform background consolidation and compression
+        try:
+            from api.services.multi_tier_lifecycle_service import get_multi_tier_lifecycle_service
+            multi_tier_svc = get_multi_tier_lifecycle_service()
+            lifecycle_result = await multi_tier_svc.run_lifecycle_management()
+            logger.info(f"Multi-tier memory lifecycle completed: {lifecycle_result}")
+        except Exception as e:
+            logger.error(f"Multi-tier memory lifecycle failed: {e}")
+
         logger.info(f"=== HEARTBEAT #{heartbeat_number} COMPLETE ===")
         return summary
 
-    async def _make_decision(self, context: HeartbeatContext) -> HeartbeatDecision:
+    async def _make_decision(self, context: HeartbeatContext, feedback: str | None = None) -> HeartbeatDecision:
         """
         Make the heartbeat decision using ConsciousnessManager and SchemaContext.
+        
+        Args:
+            context: The heartbeat context
+            feedback: Optional feedback string for retry/negotiation (e.g. "Over budget")
         """
         try:
             from api.agents.consciousness_manager import ConsciousnessManager
@@ -548,6 +593,10 @@ class HeartbeatService:
                 "project_id": "dionysus-core", # Default project for heartbeat
                 "bootstrap_recall": True
             }
+            
+            if feedback:
+                initial_context["feedback"] = feedback
+                logger.warning(f"Retrying decision with feedback: {feedback}")
 
             manager = ConsciousnessManager()
             agent_result = await manager.run_ooda_cycle(initial_context)
@@ -606,6 +655,7 @@ class HeartbeatService:
                 focus_goal_id=UUID(result["focus_goal_id"]) if result.get("focus_goal_id") else None,
                 emotional_state=result.get("emotional_state", 0.0),
                 confidence=result.get("confidence", 0.8),
+                force_execution=result.get("force_execution", False),
             )
 
         except Exception as e:
@@ -811,7 +861,7 @@ class HeartbeatService:
             from litellm import completion
             
             response = await completion(
-                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano-2025-08-07"),
+                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano"),
                 messages=[
                     {"role": "system", "content": "You are a cognitive analyst identifying patterns in agent behaviors."},
                     {"role": "user", "content": prompt}
@@ -867,7 +917,7 @@ class HeartbeatService:
             from litellm import completion
             
             response = await completion(
-                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano-2025-08-07"),
+                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano"),
                 messages=[
                     {"role": "system", "content": "You are a strategic synthesis engine for an autonomous agent."},
                     {"role": "user", "content": prompt}

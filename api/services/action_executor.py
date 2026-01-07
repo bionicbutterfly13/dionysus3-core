@@ -8,8 +8,7 @@ Implements all action handlers for the heartbeat cognitive loop.
 
 import logging
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
-from typing import Any
+from datetime import datetime
 from uuid import UUID
 
 from api.models.action import (
@@ -17,9 +16,7 @@ from api.models.action import (
     ActionResult,
     ActionStatus,
     EnvironmentSnapshot,
-    GoalsSnapshot,
 )
-from api.models.goal import GoalAssessment
 from api.services.energy_service import ActionType, EnergyService
 
 logger = logging.getLogger("dionysus.action_executor")
@@ -118,6 +115,16 @@ class ObserveHandler(ActionHandler):
                 )
                 goals_data = await goals_result.data()
 
+                # Count blocked goals
+                blocked_result = await session.run(
+                    """
+                    MATCH (g:Goal)
+                    WHERE g.blocked_by IS NOT NULL
+                    RETURN count(g) as blocked_count
+                    """
+                )
+                blocked_record = await blocked_result.single()
+
                 # Check last user interaction
                 user_result = await session.run(
                     """
@@ -131,6 +138,7 @@ class ObserveHandler(ActionHandler):
             # Build snapshot
             s = state_record["s"] if state_record else {}
             goals_by_priority = {r["priority"]: r["count"] for r in goals_data}
+            blocked_count = blocked_record["blocked_count"] if blocked_record else 0
 
             last_user = user_record["last_user"] if user_record else None
             time_since_user = None
@@ -146,9 +154,7 @@ class ObserveHandler(ActionHandler):
                 recent_memories_count=memory_record["recent_count"] if memory_record else 0,
                 active_goals_count=goals_by_priority.get("active", 0),
                 queued_goals_count=goals_by_priority.get("queued", 0),
-                blocked_goals_count=sum(
-                    1 for p, c in goals_by_priority.items() if p in ("active", "queued")
-                ),  # Simplified
+                blocked_goals_count=blocked_count,
                 current_energy=s.get("current_energy", 10.0),
                 heartbeat_number=s.get("heartbeat_count", 0),
             )
@@ -252,7 +258,7 @@ class RememberHandler(ActionHandler):
                     ended_at=datetime.utcnow(),
                 )
 
-            # Create memory using MCP or direct Neo4j
+            # Create memory using MCP or Neo4j driver
             driver = self._get_driver()
             async with driver.session() as session:
                 result = await session.run(
@@ -673,7 +679,7 @@ class InquireShallowHandler(ActionHandler):
 
             # 1. Quick search via vector store
             from api.services.vector_search import get_vector_search_service
-            from api.services.llm_service import chat_completion, HAIKU
+            from api.services.llm_service import chat_completion
             
             search_service = get_vector_search_service()
             results = await search_service.semantic_search(question, top_k=3)
@@ -999,7 +1005,7 @@ class BrainstormGoalsHandler(ActionHandler):
             count = request.params.get("count", 3)
 
             # 1. Generate goal ideas via LLM
-            from api.services.llm_service import chat_completion, HAIKU
+            from api.services.llm_service import chat_completion
             import json
             
             system_prompt = f"""You are Dionysus's creative goal-setting faculty.

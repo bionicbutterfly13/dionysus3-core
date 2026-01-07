@@ -6,18 +6,14 @@ Implements bidirectional flow between Mental Models and Identity/Worldview:
 - Prediction errors update beliefs via precision-weighted accumulation
 - Predictions are filtered by worldview alignment (Bayesian prior + gating)
 
-Database: Neo4j via WebhookNeo4jDriver (n8n webhooks)
+Database: Neo4j via Graphiti-backed driver
 """
 
-import hashlib
-import hmac
 import json
 import logging
-from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 from uuid import UUID
 
-import httpx
 from api.services.remote_sync import get_neo4j_driver
 
 logger = logging.getLogger("dionysus.worldview_integration")

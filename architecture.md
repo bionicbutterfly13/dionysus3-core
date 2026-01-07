@@ -9,9 +9,9 @@ All core services run containerized on a central VPS (72.61.78.89). This elimina
 
 ### 2. Neo4j-Only Persistence
 Dionysus has migrated entirely to a Neo4j-only architecture.
-*   **n8n Webhooks:** All database access (Recall, Ingest, Traverse) is orchestrated via n8n webhooks.
-*   **WebhookNeo4jDriver:** Services use a specialized driver that communicates with Neo4j through these secured webhooks.
-*   **Graphiti:** The Graphiti library is the only component authorized for direct Neo4j access, providing a temporal knowledge graph interface.
+*   **n8n Webhooks:** Ingest/recall/traverse workflows are orchestrated via n8n webhooks.
+*   **Graphiti-backed Driver:** Services run Cypher through a Graphiti-backed driver shim for Neo4j operations.
+*   **Graphiti:** Provides temporal knowledge graph extraction and search.
 
 ### 3. Agentic Orchestration
 Dionysus uses the `smolagents` multi-agent framework.

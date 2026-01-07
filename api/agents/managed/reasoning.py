@@ -18,7 +18,7 @@ The manager agent delegates to this agent when it needs to:
 import logging
 from typing import Optional
 
-from smolagents import ManagedAgent
+from smolagents import ToolCallingAgent
 
 from api.agents.reasoning_agent import ReasoningAgent
 
@@ -29,27 +29,30 @@ class ManagedReasoningAgent:
     """
     ManagedAgent wrapper for ReasoningAgent.
 
-    Provides a ManagedAgent instance that the ConsciousnessManager
-    can use for natural language delegation during the ORIENT phase.
+    Provides a ToolCallingAgent instance that the ConsciousnessManager
+    can use for native smolagents multi-agent orchestration during the ORIENT phase.
+    
+    Note: smolagents 1.23+ removed ManagedAgent class. Agents with name/description
+    are passed directly to managed_agents parameter.
     """
 
     # Description used by the manager to decide when to delegate
     DESCRIPTION = """ORIENT phase specialist for the OODA cognitive loop.
+    
+    Implements the 'Checklist-Driven Surgeon' protocol for high-accuracy reasoning.
 
-Capabilities:
-- reflect_on_topic: Deep analysis of a topic with multiple perspectives
-- synthesize_information: Combine observations into coherent understanding
-- identify_patterns: Recognize recurring themes and relationships
-- build_mental_model: Create predictive models from observations
+    Capabilities:
+    - understand_question: Deconstruct complex problems before solving
+    - recall_related: Verify and ground reasoning in analogous solved examples
+    - examine_answer: Self-critique and verification of reasoning traces
+    - backtracking: Recover from errors by revising approach
+    - meta_tot_run: Execute non-linear probabilistic planning (Meta-Tree-of-Thought)
+    - reflect_on_topic: Deep analysis of a topic with multiple perspectives
+    - identify_patterns: Recognize recurring themes and relationships
 
-Use this agent when you need to:
-1. Make sense of observations gathered by the perception agent
-2. Identify what the observations mean in context
-3. Recognize patterns that inform decision-making
-4. Build or update mental models of the situation
-
-This agent should be called AFTER perception to transform raw observations
-into actionable understanding. It bridges observation and decision."""
+    Use this agent when accuracy is critical, when the task is complex/uncertain, 
+    or when you need a rigorous verification of a proposed solution.
+    It bridges observation and decision by transforming raw data into verified wisdom."""
 
     def __init__(self, model_id: str = "dionysus-agents"):
         """
@@ -60,7 +63,7 @@ into actionable understanding. It bridges observation and decision."""
         """
         self.model_id = model_id
         self._inner: Optional[ReasoningAgent] = None
-        self._managed: Optional[ManagedAgent] = None
+        self._agent: Optional[ToolCallingAgent] = None
 
     def _ensure_initialized(self) -> ReasoningAgent:
         """Lazily initialize the inner agent."""
@@ -68,27 +71,29 @@ into actionable understanding. It bridges observation and decision."""
             self._inner = ReasoningAgent(self.model_id)
         return self._inner
 
-    def get_managed(self) -> ManagedAgent:
+    def get_managed(self) -> ToolCallingAgent:
         """
-        Get the ManagedAgent wrapper for use in multi-agent orchestration.
+        Get the ToolCallingAgent for use in multi-agent orchestration.
 
         Returns:
-            ManagedAgent instance wrapping the ReasoningAgent
+            ToolCallingAgent instance with name and description set
         """
-        if self._managed is not None:
-            return self._managed
+        if self._agent is not None:
+            return self._agent
 
         inner = self._ensure_initialized()
 
         # Enter context to get the configured agent
         with inner as configured:
-            self._managed = ManagedAgent(
-                agent=configured.agent,
-                name="reasoning",
-                description=self.DESCRIPTION,
-            )
-            logger.debug("Created ManagedAgent wrapper for reasoning")
-            return self._managed
+            # smolagents 1.23+: agents have name/description directly
+            self._agent = configured.agent
+            logger.debug("Retrieved ToolCallingAgent for reasoning")
+            return self._agent
+
+    @property
+    def agent(self) -> Optional[ToolCallingAgent]:
+        """Direct access to underlying agent for callback configuration."""
+        return self._agent
 
     def __enter__(self):
         """Context manager entry."""

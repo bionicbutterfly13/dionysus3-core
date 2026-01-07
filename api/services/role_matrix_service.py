@@ -3,8 +3,8 @@ Role Matrix Service - Manages declarative network topologies.
 """
 
 import logging
-from typing import List, Optional, Dict, Any
-from api.models.role_matrix import RoleMatrixSpec, RoleNode, RoleConnection
+from typing import Optional
+from api.models.role_matrix import RoleMatrixSpec, RoleNode
 from api.services.webhook_neo4j_driver import get_neo4j_driver
 
 logger = logging.getLogger("dionysus.role_matrix")

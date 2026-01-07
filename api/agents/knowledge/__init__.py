@@ -9,7 +9,7 @@ from api.agents.knowledge.pain_analyst import PainAnalyst
 from api.agents.knowledge.objection_handler import ObjectionHandler
 from api.agents.knowledge.voice_extractor import VoiceExtractor
 from api.agents.knowledge.avatar_researcher import AvatarResearcher, create_avatar_researcher
-from api.agents.knowledge.tools import (
+from api.agents.tools.avatar_tools import (
     ingest_avatar_insight,
     query_avatar_graph,
     synthesize_avatar_profile,

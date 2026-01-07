@@ -5,7 +5,6 @@ Automates the creation and updating of the 'Daily Pulse' journal entry.
 Runs as a background task within the API.
 """
 
-import os
 import logging
 import asyncio
 from datetime import datetime

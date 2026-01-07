@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from typing import Any, Callable, Optional
-from smolagents.memory import ActionStep
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 # Dionysus Core
 
-Dionysus is a VPS-native cognitive engine designed for autonomous reasoning, long-term session continuity, and structured memory management. It operates on a Neo4j-only, webhook-driven architecture, orchestrated by a multi-agent hierarchy.
+Dionysus is a VPS-native cognitive engine designed for autonomous reasoning, long-term session continuity, and structured memory management. It operates on a Neo4j-only, webhook-driven architecture orchestrated by a multi-agent hierarchy.
 
 ## Active Technologies
 - Python 3.11+ + smolagents, litellm, pydantic, numpy, scipy, neo4j (Graphiti) (038-thoughtseeds-framework)
@@ -9,7 +9,7 @@ Dionysus is a VPS-native cognitive engine designed for autonomous reasoning, lon
 - **Python 3.11+**: Core language (async/await, Pydantic v2).
 - **FastAPI**: Web framework for the API.
 - **Neo4j**: Primary persistence for episodic, semantic, and procedural memory.
-- **Graphiti**: Temporal knowledge graph interface (authorized for direct Neo4j access).
+- **Graphiti**: Temporal knowledge graph interface for extraction and search.
 - **smolagents**: Multi-agent framework (CodeAgent) providing the cognitive orchestration layer.
 - **n8n**: Workflow orchestration for memory synchronization and background processes.
 - **Docker & Docker Compose**: Containerization and VPS-native orchestration.
@@ -59,8 +59,8 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 
 - **Database Access:**
     - **Neo4j-Only:** Relational databases (PostgreSQL) have been removed.
-    - **Strict Rule:** Direct Bolt connections are **FORBIDDEN** for general services. Use Cypher via `WebhookNeo4jDriver` (orchestrated by n8n).
-    - **Exception:** `graphiti-core` is the only component authorized for direct Neo4j access.
+    - **Cypher Access:** Services use a Graphiti-backed driver shim for Neo4j queries.
+    - **n8n Webhooks:** Ingest/recall/traverse workflows remain webhook-orchestrated.
 - **Security:** Webhook communication is secured via **HMAC-SHA256** signatures (`verify_memevolve_signature`).
 - **Memory Management:**
     - **Episodic:** Temporal sequences of events.
@@ -70,7 +70,7 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 ## Roadmap & Pending Tasks
 
 1.  **Feature 010: Heartbeat Agent Handoff (Completed)**: Full cognitive loop migrated to `smolagents.CodeAgent`. OODA logic delegated to hierarchical managed agents.
-2.  **Feature 011: Core Services Neo4j Migration (Completed)**: `Worldview`, `ThoughtSeed`, and `Model` services refactored to use `WebhookNeo4jDriver`. Precision-weighted belief updates implemented.
+2.  **Feature 011: Core Services Neo4j Migration (Completed)**: `Worldview`, `ThoughtSeed`, and `Model` services refactored to use the Graphiti-backed driver shim. Precision-weighted belief updates implemented.
 3.  **Feature 012: Historical Task Reconstruction (Completed)**: Mirror local Archon task history into VPS Neo4j graph for longitudinal continuity.
 4.  **System Consolidation (Completed)**: Standardized smolagents usage, moved tools to MCP server, and purged legacy PostgreSQL stubs.
 5.  **Agentic Unified Model (Completed)**: Unified all 3 pillars (Engine, Marketing, KB) under smolagents. Hierarchical OODA loop implemented. Unified Aspect Service with Graphiti temporal snapshots active. Human-in-the-loop review queue operational.
@@ -86,7 +86,7 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 15. Self-Healing Resilience (Feature 035) (Completed): Implemented strategy-based recovery, model promotion, and observation hijacking for autonomous fault tolerance.
 16. Meta-Evolution Workflow (Feature 016) (Completed): Implemented webhook-triggered n8n workflow for retrieval strategy optimization based on trajectory performance analysis.
 
-**Current Focus**: Audiobook Production (Feature 014/018) - Manuscript audit and expansion to 13,500 words.
+**Current Focus**: Audiobook Production (F014/018) and Daedalus Pool Polish (F020 - Isolation & Metrics).
 
 ## Commands
 
@@ -103,6 +103,7 @@ docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py
 ```
 
 ## Recent Changes
+- 020-daedalus-coordination: Implemented full Coordination Pool with context isolation, exponential backoff retries, and health metrics.
 - 038-thoughtseeds-framework: Added Python 3.11+ + smolagents, litellm, pydantic, numpy, scipy, neo4j (Graphiti)
 - 022-agentic-kg-learning: Implemented dynamic relationship extraction with provenance and low-confidence gating. Added review queue API.
 - 024-mosaeic-protocol: Implemented full capture and persistence flow for experiential windows.

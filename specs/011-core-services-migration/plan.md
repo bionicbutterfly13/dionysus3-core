@@ -4,7 +4,7 @@
 
 ## Summary
 
-Complete the transition to Neo4j by refactoring the three primary cognitive services. This involves replacing all `asyncpg` pool calls with `WebhookNeo4jDriver` sessions and converting SQL queries to Cypher statements.
+Complete the transition to Neo4j by refactoring the three primary cognitive services. This involves replacing all `asyncpg` pool calls with the Graphiti-backed driver shim sessions and converting SQL queries to Cypher statements.
 
 ## Technical Context
 
@@ -12,6 +12,11 @@ Complete the transition to Neo4j by refactoring the three primary cognitive serv
 **Primary Dependencies**: `fastapi`, `pydantic`, `neo4j` (driver for types), `graphiti-core`  
 **Storage**: Neo4j (via n8n Cypher webhook)  
 **Testing**: `pytest`, integration tests against Neo4j
+
+## Operational Follow-ups
+
+- Persist Docker network attachment so `dionysus-api` can always resolve `neo4j` and `n8n` after container re-creates.
+- Maintain a safe Graphiti index build runbook/job that does not block API startup.
 
 ## Constitution Check
 

@@ -7,14 +7,14 @@ Implements T068-T070: H-state tracking and stress-reduces-adaptation.
 
 import math
 import logging
-from typing import Dict, Any, Optional
-from datetime import datetime
+from typing import Dict, Optional
 
 from api.models.network_state import (
     AdaptationMode,
     TimingState,
     get_network_state_config,
 )
+from api.services.dynamics_service import DynamicsService
 
 logger = logging.getLogger("dionysus.metaplasticity")
 
@@ -48,6 +48,42 @@ class MetaplasticityController:
         self._current_stress: float = 0.0
         self._adaptation_mode: AdaptationMode = AdaptationMode.STABLE
         self._last_prediction_errors: list[float] = []
+        
+        # FEATURE 048: Precision Registry (Inverse Variance)
+        # Default precision is 1.0 (Focused). Range [0.1, 5.0]
+        self._precision_registry: Dict[str, float] = {}
+
+    # -------------------------------------------------------------------------
+    # FEATURE 048: Precision Modulation
+    # -------------------------------------------------------------------------
+
+    def get_precision(self, agent_id: str) -> float:
+        """Get current precision for an agent (T048)."""
+        return self._precision_registry.get(agent_id, 1.0)
+
+    def set_precision(self, agent_id: str, value: float) -> None:
+        """Set precision for an agent. Clamped to [0.1, 5.0]."""
+        self._precision_registry[agent_id] = max(0.1, min(5.0, value))
+        logger.info(f"Precision for '{agent_id}' set to {self._precision_registry[agent_id]:.2f}")
+
+    def update_precision_from_surprise(self, agent_id: str, surprise_score: float) -> float:
+        """
+        Dynamically tune precision based on Surprise (Prediction Error).
+        High Surprise -> Decrease Precision (Zoom Out / Curiosity)
+        Low Surprise -> Increase Precision (Zoom In / Focus)
+        """
+        current = self.get_precision(agent_id)
+        
+        # alpha is the modulation sensitivity
+        alpha = 0.2
+        
+        # If surprise is high (>0.5), we decrease precision
+        # If surprise is low (<0.5), we increase precision
+        delta = (0.5 - surprise_score) * alpha
+        new_value = current + delta
+        
+        self.set_precision(agent_id, new_value)
+        return self.get_precision(agent_id)
 
     # -------------------------------------------------------------------------
     # T068: H-State Tracking
@@ -157,6 +193,31 @@ class MetaplasticityController:
 
         self.set_h_state(node_id, new_h)
         return self.get_h_state(node_id)
+
+    def run_exposure_update(self, node_id: str, exposure_signal: float, mu_h: float = 0.05):
+        """
+        Treur Phase 5.3: Adaptation Accelerates with Increased Exposure (Robinson et al. 2016).
+        The H-state (speed factor) for a node/model increases as it is 'exposed' more.
+        
+        Args:
+            node_id: Node or Model ID
+            exposure_signal: High signal (1.0) means high activation/usage
+            mu_h: Speed of adaptation for the speed factor itself (Third-order adaptation)
+        """
+        current_h = self.get_h_state(node_id)
+        
+        # SMN State update: H(t+dt) = H(t) + mu_h * [exposure_signal - H(t)] * dt
+        new_h = DynamicsService.state_update(current_h, exposure_signal, mu_h)
+        
+        # Apply stress blocking (T070)
+        # In Treur's model, stress (fsb) blocks the UNBLOCKING of learning.
+        # Here we reduce the H-state if stress is high.
+        if self._current_stress > 0.7:
+             # Learning is blocked or frozen
+             new_h = current_h * 0.9 # Decay speed factor under stress
+             
+        self.set_h_state(node_id, new_h)
+        logger.debug(f"Exposure-based Timing Update ({node_id}): {current_h:.3f} -> {new_h:.3f}")
 
     # -------------------------------------------------------------------------
     # T070: Stress-Reduces-Adaptation Principle

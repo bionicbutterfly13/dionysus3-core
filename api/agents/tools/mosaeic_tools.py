@@ -4,9 +4,8 @@ Feature: 024-mosaeic-protocol
 Tasks: T4.1, T4.2
 """
 
-import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Optional
 from pydantic import BaseModel, Field
 from smolagents import Tool
 

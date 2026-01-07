@@ -10,7 +10,7 @@ Migrate the core cognitive loop from the procedural `HeartbeatService` to an aut
 
 **Language/Version**: Python 3.11+  
 **Primary Dependencies**: `smolagents`, `litellm`, `fastapi`  
-**Storage**: Neo4j (via WebhookNeo4jDriver)  
+**Storage**: Neo4j (via Graphiti-backed driver shim)  
 **Testing**: `pytest`, `scripts/test_heartbeat_agent.py`  
 **Target Platform**: VPS (Docker)  
 **Performance Goals**: <15s per cycle  

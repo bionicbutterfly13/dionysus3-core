@@ -7,9 +7,8 @@ Migrates transient memories into the permanent long-term knowledge graph.
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Optional, List
-from uuid import UUID
+from datetime import datetime
+from typing import Any, Optional
 
 from api.services.remote_sync import get_neo4j_driver
 from api.services.graphiti_service import get_graphiti_service

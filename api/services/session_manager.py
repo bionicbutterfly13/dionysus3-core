@@ -6,26 +6,21 @@ Tasks: T009, T010
 Manages journey tracking across multiple conversation sessions.
 Provides operations for creating/retrieving journeys, sessions, and documents.
 
-Database: Neo4j via WebhookNeo4jDriver (n8n webhooks)
+Database: Neo4j via Graphiti-backed driver
 """
 
+import json
 import logging
-import os
 import time
 from datetime import datetime
-from typing import Any, Optional, List
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
 from api.models.journey import (
     Journey,
-    JourneyCreate,
     JourneyWithStats,
     Session,
-    SessionCreate,
     SessionSummary,
-    JourneyDocument,
-    JourneyDocumentCreate,
-    DocumentSummary,
     JourneyHistoryQuery,
     JourneyHistoryResponse,
     TimelineEntry,

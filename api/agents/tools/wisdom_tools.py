@@ -205,7 +205,6 @@ class DistillWisdomClusterTool(Tool):
     def forward(self, fragments_json: str, wisdom_type: str) -> dict:
         async def _run():
             from api.services.llm_service import chat_completion, GPT5_NANO
-            from api.models.wisdom import WisdomType
             
             fragments = json.loads(fragments_json)
             

@@ -4,7 +4,7 @@ Feature: 020-daedalus-coordination-pool
 Tasks: T4.1, T4.2
 """
 
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from smolagents import Tool
 
