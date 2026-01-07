@@ -310,6 +310,17 @@
   - Local test results: 3 passed, 3 skipped (semantic tests require VPS)
   - Implementation complete ✓
 
+- [x] **T073**: Manual test on VPS - verify 6 entities + 7 relationships ✓
+  - Added sys.path fix to store_metacognition_memory.py for container execution
+  - Deployed multi_tier_service.py and memory_tier.py to VPS
+  - Executed on VPS: docker exec dionysus-api python3 /app/scripts/store_metacognition_memory.py
+  - Episodic: 3 events stored in HOT tier (3 UUIDs verified)
+  - Semantic: 6 entities + 7 relationships in Graphiti (27 nodes + 31 edges extracted)
+  - Procedural: 5 patterns stored in HOT tier (5 UUIDs verified)
+  - Strategic: 4 learnings stored in HOT tier (4 UUIDs verified)
+  - Total HOT tier: 12 items ✓
+  - VPS execution successful ✓
+
 ---
 
 ## Discovered

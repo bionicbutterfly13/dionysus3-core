@@ -16,8 +16,14 @@ Date: 2026-01-01
 """
 
 import asyncio
+import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List
+
+# Add project root to path for imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 # Real service imports for production storage
 from api.services.graphiti_service import get_graphiti_service
