@@ -79,6 +79,7 @@ class Agent:
         "shared_state_detected": False,
         "notes": [],
     })
+    verified_skills: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -95,6 +96,7 @@ class Task:
     completed_at: Optional[float] = None
     assignment_latency_ms: Optional[float] = None
     next_retry_at: Optional[float] = None
+    required_skills: List[str] = field(default_factory=list)
 
 
 class CoordinationService:
@@ -202,7 +204,21 @@ class CoordinationService:
             self.queue.insert(0, task_id)
             self._log(logging.INFO, "task_retry_ready", task_id=task_id)
 
-    def submit_task(self, payload: Dict, preferred_agent_id: Optional[str] = None, task_type: TaskType | str = TaskType.GENERAL) -> str:
+    def verify_skill(self, agent_id: str, skill: str) -> bool:
+        """
+        Mark a specific skill as verified for an agent.
+        Real implementation would run a test task here.
+        """
+        agent = self.agents.get(agent_id)
+        if not agent:
+            return False
+        
+        if skill not in agent.verified_skills:
+            agent.verified_skills.append(skill)
+            self._log(logging.INFO, "agent_skill_verified", agent_id=agent_id, skill=skill)
+        return True
+
+    def submit_task(self, payload: Dict, preferred_agent_id: Optional[str] = None, task_type: TaskType | str = TaskType.GENERAL, required_skills: List[str] = None) -> str:
         self._process_delayed_tasks() # Check for retries first
 
         if isinstance(task_type, str):
@@ -216,7 +232,12 @@ class CoordinationService:
             raise QueueFullError(f"Task queue is full (MAX_QUEUE_DEPTH={MAX_QUEUE_DEPTH})")
 
         task_id = str(uuid.uuid4())
-        task = Task(task_id=task_id, payload=payload, task_type=task_type)
+        task = Task(
+            task_id=task_id, 
+            payload=payload, 
+            task_type=task_type,
+            required_skills=required_skills or []
+        )
         self.tasks[task_id] = task
         
         assigned = self._assign_task(task, preferred_agent_id)
@@ -354,12 +375,19 @@ class CoordinationService:
                 agent = cand
         
         if agent is None:
-            # Find best IDLE agent based on affinity if possible
+            # Find best IDLE agent based on affinity AND skills
             best_cand = None
             min_latency = float('inf')
             
             for cand in self.agents.values():
                 if cand.status == AgentStatus.IDLE and cand.agent_id not in task.failed_agent_ids:
+                    # Skill Check (Phase 6.5 Guardrail)
+                    # Agent must have ALL required skills verified
+                    if task.required_skills:
+                        missing_skills = [s for s in task.required_skills if s not in cand.verified_skills]
+                        if missing_skills:
+                            continue # Skip incompetent agent
+                    
                     # Very simple affinity: if they have average_task_time, they've done work.
                     # In a real system we'd track per-task-type metrics.
                     # For now, just pick any IDLE one, but prioritize the first found.

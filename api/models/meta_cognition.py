@@ -23,6 +23,7 @@ class CognitiveEpisode(BaseModel):
     success: bool = Field(False, description="Whether the task was deemed successful.")
     outcome_summary: str = Field(default="", description="The final result or answer.")
     surprise_score: float = Field(0.0, description="Metric of prediction error (0.0=Expected, 1.0=Total Surprise).")
+    agency_score: float = Field(default=0.0, description="Sense of Agency metric (1.0 - Surprise). Tracks causal control.")
     
     # Meta-Learning
     lessons_learned: str = Field(default="", description="Extracted insight for future reference.")

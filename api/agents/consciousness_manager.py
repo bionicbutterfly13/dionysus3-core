@@ -30,7 +30,7 @@ from api.services.meta_cognitive_service import get_meta_learner
 from api.models.meta_cognition import CognitiveEpisode
 from api.models.bootstrap import BootstrapConfig
 from api.agents.self_modeling_callback import create_self_modeling_callback
-from api.models.beautiful_loop import PrecisionError, ResonanceMode
+from api.models.beautiful_loop import PrecisionError, ResonanceMode, ResonanceSignal
 from api.services.hyper_model_service import get_hyper_model_service
 from api.services.resonance_detector import get_resonance_detector
 from api.services.unified_reality_model import get_unified_reality_model
@@ -262,11 +262,37 @@ The agents will return structured results for synthesis.""",
                 except Exception as exc:
                     initial_context["meta_tot_error"] = str(exc)
 
+        # ULTRATHINK INJECTION
+        ultrathink_instruction = ""
+        resonance_signal = initial_context.get("resonance_signal")
+        if resonance_signal and isinstance(resonance_signal, dict):
+            # Rehydrate if it's a dict
+            resonance_signal = ResonanceSignal(**resonance_signal)
+            
+        if resonance_signal and resonance_signal.mode == ResonanceMode.DISSONANT:
+            print(f"!!! ULTRATHINK PROTOCOL ACTIVATED (Score: {resonance_signal.resonance_score:.2f}) !!!")
+            ultrathink_instruction = """
+        !!! PROTOCOL OVERRIDE: ULTRATHINK ACTIVATED !!!
+        CRITICAL DISSONANCE DETECTED. You are now in ULTRATHINK MODE.
+        1. OVERRIDE BREVITY: Do not be concise. You must engage in exhaustive, deep-level reasoning.
+        2. MULTI-DIMENSIONAL ANALYSIS: Analyze the problem through Psychological, Technical, Accessibility, and Scalability lenses.
+        3. ROOT CAUSE REQUIRED: Do not provide surface-level fixes. Dig until the logic is irrefutable.
+        4. RECOVERY PRIORITY: Your primary goal is to resolve the dissonance and restore Worldview Coherence.
+            """
+
+        # T055: Formalize Cognitive Core (Sovereign Identity)
+        from api.core.sovereign_identity import SOVEREIGN_IDENTITY_PROMPT, ANTI_BOASTING_CONSTRAINT
+        
         prompt = f"""
+        {SOVEREIGN_IDENTITY_PROMPT}
+
+        {ANTI_BOASTING_CONSTRAINT}
+
         Execute a full OODA (Observe-Orient-Decide-Act) cycle based on the current context.
         
         Initial Context:
-        {json.dumps(initial_context, indent=2)}
+        {json.dumps(initial_context, indent=2, default=str)}
+        {ultrathink_instruction}
         
         Your Goal:
         1. Delegate to 'perception' to gather current state and relevant memories. 
@@ -395,6 +421,8 @@ The agents will return structured results for synthesis.""",
                     success=confidence > 0.6,
                     outcome_summary=structured_result.get("reasoning", ""),
                     surprise_score=surprise_level,
+                    # T057: Sense of Agency = 1 - Surprise (Predictive Accuracy)
+                    agency_score=1.0 - surprise_level,
                     lessons_learned=f"Used tools {tools_used}. Confidence: {confidence:.2f}"
                 )
                 await self.meta_learner.record_episode(episode)

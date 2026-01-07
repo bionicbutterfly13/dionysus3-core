@@ -27,18 +27,43 @@ class ReasoningAgent:
 
     def __enter__(self):
         from api.agents.audit import get_audit_callback
+        from api.services.metaplasticity_service import get_metaplasticity_controller
+        
         self.mcp_client = MCPClient(self.server_params, structured_output=True)
         tools = self.mcp_client.__enter__()
         
         audit = get_audit_callback()
+        meta_controller = get_metaplasticity_controller()
         
+        # T056: Mental Action - Modulate System Prompt based on Precision (H-state)
+        # High Precision -> Convergent Focus. Low Precision -> Divergent Curiosity.
+        current_precision = meta_controller.get_precision("reasoning")
+        modulated_description = self.description
+        
+        if current_precision > 1.2:
+             modulated_description += f"""
+             \n!!! MENTAL FOCUS ACTIVE (Precision: {current_precision:.2f}) !!!
+             You are in HIGH PRECISION MODE.
+             - Prioritize CONVERGENT reasoning.
+             - Strictly follow the plan. Do not deviate.
+             - Verify every step. Minimize uncertainty.
+             """
+        elif current_precision < 0.8:
+             modulated_description += f"""
+             \n!!! CURIOSITY MODE ACTIVE (Precision: {current_precision:.2f}) !!!
+             You are in LOW PRECISION MODE.
+             - Prioritize DIVERGENT exploration.
+             - Question assumptions. Brainstorm alternatives.
+             - Seek novel patterns outside the immediate context.
+             """
+
         # T1.1: Migrate to ToolCallingAgent
         # T039-002: Enable planning_interval for OODA agents
         self.agent = ToolCallingAgent(
             tools=tools,
             model=self.model,
             name=self.name,
-            description=self.description,
+            description=modulated_description,
             max_steps=5,
             planning_interval=2,  # Re-plan every 2 steps (FR-039-002)
             max_tool_threads=4,  # Enable parallel tool execution (T1.3)
