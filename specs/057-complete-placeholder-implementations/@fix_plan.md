@@ -7,19 +7,18 @@
 
 ## Current Task
 
-> **T072: Write integration test for complete storage flow**
+> **T073: Manual test on VPS - verify 6 entities + 7 relationships**
 >
-> Create tests/integration/test_metacognition_storage.py:
-> - Test store_episodic() stores 3 events in HOT tier
-> - Test store_semantic() stores 6 entities + 7 relationships in Graphiti
-> - Test store_procedural() stores 5 patterns in HOT tier
-> - Test store_strategic() stores 4 learnings in HOT tier
-> - Test run_complete_storage() executes all phases
-> - Verify returned item IDs are valid UUIDs
+> Deploy and test on VPS (72.61.78.89):
+> - Push code to VPS repository
+> - Run: docker exec dionysus-api python3 /app/scripts/store_metacognition_memory.py
+> - Verify output shows successful storage for all 4 tiers
+> - Check Graphiti stored 6 entities + 7 relationships
+> - Verify HOT tier contains 12 items (3 episodic + 5 procedural + 4 strategic)
 >
-> **Acceptance**: Integration test passes, full storage flow verified
-> **Time**: 15 min
-> **Type**: Test
+> **Acceptance**: VPS execution successful, all tiers verified
+> **Time**: 10 min
+> **Type**: Verify
 
 ---
 
@@ -298,6 +297,17 @@
   - Metadata includes strategy_name, outcome, confidence_update, full_strategy
   - Returns stored_ids for verification
   - All strategic learnings now in HOT tier (24h TTL)
+  - Implementation complete ✓
+
+- [x] **T072**: Write integration test for complete storage flow ✓
+  - Created tests/integration/test_metacognition_storage.py with 6 tests
+  - test_store_episodic: Verifies 3 events stored in HOT tier, valid UUIDs
+  - test_store_semantic: Verifies 6 entities + 7 relationships (skipped locally - requires Neo4j)
+  - test_store_procedural: Verifies 5 patterns stored in HOT tier
+  - test_store_strategic: Verifies 4 learnings stored in HOT tier
+  - test_run_complete_storage: Full 4-phase flow (skipped locally)
+  - test_item_id_uniqueness: 12 unique UUIDs (skipped locally)
+  - Local test results: 3 passed, 3 skipped (semantic tests require VPS)
   - Implementation complete ✓
 
 ---
