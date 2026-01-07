@@ -7,17 +7,16 @@
 
 ## Current Task
 
-> **T073: Manual test on VPS - verify 6 entities + 7 relationships**
+> **T074: Run full test suite, verify all pass**
 >
-> Deploy and test on VPS (72.61.78.89):
-> - Push code to VPS repository
-> - Run: docker exec dionysus-api python3 /app/scripts/store_metacognition_memory.py
-> - Verify output shows successful storage for all 4 tiers
-> - Check Graphiti stored 6 entities + 7 relationships
-> - Verify HOT tier contains 12 items (3 episodic + 5 procedural + 4 strategic)
+> Execute complete test suite to ensure no regressions:
+> - Run: python -m pytest tests/ -v
+> - Verify all tests pass (skip any known integration test failures)
+> - Check for any new test failures introduced by US1-US6
+> - Document any failures for investigation
 >
-> **Acceptance**: VPS execution successful, all tiers verified
-> **Time**: 10 min
+> **Acceptance**: Full test suite passes with no new failures
+> **Time**: 5 min
 > **Type**: Verify
 
 ---
