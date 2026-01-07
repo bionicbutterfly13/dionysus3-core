@@ -112,20 +112,38 @@ class MemoryStorageDemo:
             }
         ]
 
+        # Get multi-tier service
+        multi_tier = get_multi_tier_service()
+        stored_ids = []
+
         for event in episodic_events:
             print(f"📅 {event['timestamp']}: {event['event']}")
             print(f"   Emotion: {event['emotional_valence']}")
             print(f"   Context: {list(event['context'].keys())}")
 
-            # In production:
-            # await multi_tier_service.store_hot(
-            #     key=f"episodic_{event['timestamp']}",
-            #     value=event,
-            #     ttl=86400  # 24 hours in HOT tier
-            # )
+            # Store in HOT tier with real multi_tier_service
+            # Importance: inverse of surprise (lower surprise = higher importance)
+            importance = 1.0 - event.get('surprise_score', 0.5)
+
+            # Convert event dict to string content for storage
+            content = f"{event['event']} at {event['timestamp']}. Context: {event['context']}"
+
+            item_id = await multi_tier.store_memory(
+                content=content,
+                importance=importance,
+                memory_type="episodic",
+                metadata={
+                    "timestamp": event["timestamp"],
+                    "emotional_valence": event["emotional_valence"],
+                    "surprise_score": event.get("surprise_score"),
+                    "full_event": event
+                }
+            )
+            stored_ids.append(item_id)
+            print(f"   ✓ Stored in HOT tier: {item_id}")
 
         print(f"\n✓ Stored {len(episodic_events)} episodic memories")
-        return episodic_events
+        return {"events": episodic_events, "stored_ids": stored_ids}
 
     async def store_semantic(self):
         """

@@ -7,15 +7,15 @@
 
 ## Current Task
 
-> **T069: Replace mock in store_episodic() with real HOT tier calls**
+> **T070: Replace mock in store_procedural() with real HOT tier calls**
 >
 > In scripts/store_metacognition_memory.py:
-> - Replace mock calls (lines 86-91) with real multi_tier_service.store_memory()
-> - Store 3 episodic events in HOT tier
-> - Use memory_type="episodic", importance based on surprise_score
+> - Replace mock calls (lines 317-322) with real multi_tier_service.store_memory()
+> - Store 5 procedural patterns in HOT tier
+> - Use memory_type="procedural", importance=0.8 (high for fast access patterns)
 > - Return stored item IDs for verification
 >
-> **Acceptance**: Episodic storage uses real HOT tier API
+> **Acceptance**: Procedural storage uses real HOT tier API
 > **Time**: 15 min
 > **Type**: Code
 
@@ -268,6 +268,15 @@
   - Replaced mock relationship storage (lines 274-285): Converts relationship dict → natural language → graphiti.ingest_message()
   - Each ingest returns nodes/edges extracted count for verification
   - All 6 entities + 7 relationships now stored in Graphiti WARM tier
+  - Implementation complete ✓
+
+- [x] **T069**: Replace mock in store_episodic() with real HOT tier calls ✓
+  - Replaced mock storage (lines 115-146): Uses multi_tier.store_memory()
+  - 3 episodic events stored in HOT tier with memory_type="episodic"
+  - Importance calculated as inverse of surprise_score (1.0 - surprise)
+  - Metadata includes timestamp, emotional_valence, surprise_score, full_event
+  - Returns stored_ids for verification
+  - All episodic memories now in HOT tier (24h TTL)
   - Implementation complete ✓
 
 ---
