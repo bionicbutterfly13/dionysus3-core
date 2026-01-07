@@ -16,7 +16,7 @@ async def test_pipeline_propagates_resonance_signal():
     mock_learner = AsyncMock()
     
     # Setup pipeline with mocks
-    with patch("api.services.consciousness_integration_pipeline.get_consciousness_memory_core", return_value=mock_memory_core), \
+    with patch("api.agents.consciousness_memory_core.get_consciousness_memory_core", return_value=mock_memory_core), \
          patch("api.services.consciousness_integration_pipeline.get_multi_tier_service", return_value=mock_tier_svc), \
          patch("api.services.consciousness_integration_pipeline.get_graphiti_service", new_callable=AsyncMock) as mock_get_graphiti, \
          patch("api.services.consciousness_integration_pipeline.get_meta_learner", return_value=mock_learner):
