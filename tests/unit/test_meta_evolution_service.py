@@ -59,8 +59,12 @@ class TestCaptureSystemMomentRealMetrics:
             # Also mock Neo4j driver for total_memories_count
             with patch('api.services.meta_evolution_service.get_neo4j_driver') as mock_driver:
                 mock_driver_instance = AsyncMock()
-                mock_driver_instance.execute_query = AsyncMock(return_value=[
-                    {"count": 150}
+                mock_driver_instance.execute_query = AsyncMock(side_effect=[
+                    [{"count": 150}],  # Memory count
+                    [{"avg_surprise": 0.0, "avg_success": 0.0, "episode_count": 0}],  # Episodes
+                    [],  # Focus (empty - no active goals)
+                    [],  # Logs (empty - no recent errors)
+                    [],  # Persist (CREATE confirmation)
                 ])
                 mock_driver.return_value = mock_driver_instance
 
@@ -100,7 +104,13 @@ class TestCaptureSystemMomentRealMetrics:
 
             with patch('api.services.meta_evolution_service.get_neo4j_driver') as mock_driver:
                 mock_driver_instance = AsyncMock()
-                mock_driver_instance.execute_query = AsyncMock(return_value=[{"count": 50}])
+                mock_driver_instance.execute_query = AsyncMock(side_effect=[
+                    [{"count": 50}],  # Memory count
+                    [{"avg_surprise": 0.0, "avg_success": 0.0, "episode_count": 0}],  # Episodes
+                    [],  # Focus
+                    [],  # Logs
+                    [],  # Persist
+                ])
                 mock_driver.return_value = mock_driver_instance
 
                 moment = await service.capture_system_moment()
@@ -139,7 +149,13 @@ class TestCaptureSystemMomentRealMetrics:
 
             with patch('api.services.meta_evolution_service.get_neo4j_driver') as mock_driver:
                 mock_driver_instance = AsyncMock()
-                mock_driver_instance.execute_query = AsyncMock(return_value=[{"count": 75}])
+                mock_driver_instance.execute_query = AsyncMock(side_effect=[
+                    [{"count": 75}],  # Memory count
+                    [{"avg_surprise": 0.0, "avg_success": 0.0, "episode_count": 0}],  # Episodes
+                    [],  # Focus
+                    [],  # Logs
+                    [],  # Persist
+                ])
                 mock_driver.return_value = mock_driver_instance
 
                 moment = await service.capture_system_moment()
@@ -169,7 +185,13 @@ class TestCaptureSystemMomentRealMetrics:
 
             with patch('api.services.meta_evolution_service.get_neo4j_driver') as mock_driver:
                 mock_driver_instance = AsyncMock()
-                mock_driver_instance.execute_query = AsyncMock(return_value=[{"count": 0}])
+                mock_driver_instance.execute_query = AsyncMock(side_effect=[
+                    [{"count": 0}],  # Memory count
+                    [{"avg_surprise": 0.0, "avg_success": 0.0, "episode_count": 0}],  # Episodes
+                    [],  # Focus
+                    [],  # Logs
+                    [],  # Persist
+                ])
                 mock_driver.return_value = mock_driver_instance
 
                 moment = await service.capture_system_moment()
@@ -202,7 +224,13 @@ class TestCaptureSystemMomentRealMetrics:
 
             with patch('api.services.meta_evolution_service.get_neo4j_driver') as mock_driver:
                 mock_driver_instance = AsyncMock()
-                mock_driver_instance.execute_query = AsyncMock(return_value=[{"count": 50}])
+                mock_driver_instance.execute_query = AsyncMock(side_effect=[
+                    [{"count": 50}],  # Memory count
+                    [{"avg_surprise": 0.0, "avg_success": 0.0, "episode_count": 0}],  # Episodes
+                    [],  # Focus
+                    [],  # Logs
+                    [],  # Persist
+                ])
                 mock_driver.return_value = mock_driver_instance
 
                 with patch('api.services.meta_evolution_service.logger') as mock_logger:
