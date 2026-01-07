@@ -19,14 +19,48 @@ import asyncio
 from datetime import datetime
 from typing import Dict, List
 
-# Mock imports for demonstration (would be actual services in production)
-# from api.services.graphiti_service import get_graphiti_service
-# from api.services.multi_tier_service import MultiTierMemoryService
-# from api.services.consciousness_integration_pipeline import ConsciousnessIntegrationPipeline
+# Real service imports for production storage
+from api.services.graphiti_service import get_graphiti_service
+from api.services.multi_tier_service import get_multi_tier_service
 
 
 class MemoryStorageDemo:
     """Demonstrates multi-tier storage pattern for metacognition framework"""
+
+    def _entity_to_natural_language(self, entity: Dict) -> str:
+        """Convert entity dict to natural language description for Graphiti."""
+        name = entity["name"]
+        entity_type = entity["type"]
+        props = entity["properties"]
+
+        # Build natural language description
+        desc = f"{name} is a {entity_type}"
+
+        # Add key properties as natural language
+        if isinstance(props, dict):
+            for key, value in props.items():
+                if isinstance(value, list):
+                    desc += f". Its {key} includes: {', '.join(str(v) for v in value)}"
+                else:
+                    desc += f". Its {key} is: {value}"
+
+        return desc
+
+    def _relationship_to_natural_language(self, rel: Dict) -> str:
+        """Convert relationship dict to natural language description for Graphiti."""
+        source = rel["source"]
+        relation = rel["relation"].replace("_", " ").lower()
+        target = rel["target"]
+        props = rel.get("properties", {})
+
+        desc = f"{source} {relation} {target}"
+
+        # Add relationship properties
+        if props:
+            prop_desc = ", ".join(f"{k}: {v}" for k, v in props.items())
+            desc += f" ({prop_desc})"
+
+        return desc
 
     async def store_episodic(self):
         """
@@ -221,28 +255,34 @@ class MemoryStorageDemo:
             }
         ]
 
+        # Get Graphiti service
+        graphiti = await get_graphiti_service()
+
         for entity in entities:
             print(f"📦 Entity: {entity['name']} ({entity['type']})")
             print(f"   Properties: {len(entity['properties'])} attributes")
 
-            # In production:
-            # await graphiti_service.add_entity(
-            #     name=entity['name'],
-            #     entity_type=entity['type'],
-            #     properties=entity['properties']
-            # )
+            # Convert to natural language and ingest
+            entity_desc = self._entity_to_natural_language(entity)
+            result = await graphiti.ingest_message(
+                content=entity_desc,
+                source_description="metacognition_framework_entity",
+                group_id="dionysus_core"
+            )
+            print(f"   ✓ Ingested to Graphiti: {len(result.get('nodes', []))} nodes extracted")
 
         print()
         for rel in relationships:
             print(f"🔗 {rel['source']} --[{rel['relation']}]--> {rel['target']}")
 
-            # In production:
-            # await graphiti_service.add_relationship(
-            #     source=rel['source'],
-            #     relation=rel['relation'],
-            #     target=rel['target'],
-            #     properties=rel['properties']
-            # )
+            # Convert to natural language and ingest
+            rel_desc = self._relationship_to_natural_language(rel)
+            result = await graphiti.ingest_message(
+                content=rel_desc,
+                source_description="metacognition_framework_relationship",
+                group_id="dionysus_core"
+            )
+            print(f"   ✓ Ingested to Graphiti: {len(result.get('edges', []))} edges extracted")
 
         print(f"\n✓ Stored {len(entities)} entities and {len(relationships)} relationships")
         return {"entities": entities, "relationships": relationships}
