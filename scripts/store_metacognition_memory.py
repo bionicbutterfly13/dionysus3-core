@@ -462,24 +462,38 @@ class MemoryStorageDemo:
             }
         ]
 
+        # Get multi-tier service (no dedicated meta-learner service exists yet)
+        multi_tier = get_multi_tier_service()
+        stored_ids = []
+
         for strategy in strategies:
             print(f"🧠 Strategy: {strategy['strategy']}")
             print(f"   Outcome: {strategy['outcome']}")
             print(f"   Insight: {strategy['meta_insight']}")
             print(f"   Confidence Δ: {strategy['confidence_update']:+.2f}")
 
-            # In production:
-            # await meta_learner.record_strategy(
-            #     name=strategy['strategy'],
-            #     context=strategy['context'],
-            #     outcome=strategy['outcome'],
-            #     metrics=strategy['metrics']
-            # )
-            #
-            # strategy_priors[strategy['strategy']] += strategy['confidence_update']
+            # Store in HOT tier with real multi_tier_service
+            # Importance based on confidence update magnitude (0.5 base + update)
+            importance = 0.5 + abs(strategy['confidence_update'])
+
+            content = f"Strategic learning: {strategy['strategy']}. Insight: {strategy['meta_insight']}"
+
+            item_id = await multi_tier.store_memory(
+                content=content,
+                importance=min(1.0, importance),  # Cap at 1.0
+                memory_type="strategic",
+                metadata={
+                    "strategy_name": strategy["strategy"],
+                    "outcome": strategy["outcome"],
+                    "confidence_update": strategy["confidence_update"],
+                    "full_strategy": strategy
+                }
+            )
+            stored_ids.append(item_id)
+            print(f"   ✓ Stored in HOT tier: {item_id}")
 
         print(f"\n✓ Stored {len(strategies)} strategic meta-learnings")
-        return strategies
+        return {"strategies": strategies, "stored_ids": stored_ids}
 
     async def run_complete_storage(self):
         """Execute all storage tiers in sequence"""

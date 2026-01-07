@@ -7,18 +7,19 @@
 
 ## Current Task
 
-> **T071: Replace mock in store_strategic() with real meta-learner calls**
+> **T072: Write integration test for complete storage flow**
 >
-> In scripts/store_metacognition_memory.py:
-> - Replace mock calls (lines 400-408) with real storage
-> - Research: Check if meta-learner service exists, else use multi_tier HOT tier
-> - Store 4 strategic meta-learnings with memory_type="strategic"
-> - Importance based on confidence_update magnitude
-> - Return stored item IDs for verification
+> Create tests/integration/test_metacognition_storage.py:
+> - Test store_episodic() stores 3 events in HOT tier
+> - Test store_semantic() stores 6 entities + 7 relationships in Graphiti
+> - Test store_procedural() stores 5 patterns in HOT tier
+> - Test store_strategic() stores 4 learnings in HOT tier
+> - Test run_complete_storage() executes all phases
+> - Verify returned item IDs are valid UUIDs
 >
-> **Acceptance**: Strategic storage uses real service API
+> **Acceptance**: Integration test passes, full storage flow verified
 > **Time**: 15 min
-> **Type**: Code
+> **Type**: Test
 
 ---
 
@@ -287,6 +288,16 @@
   - Metadata includes pattern_name, full_config
   - Returns stored_ids for verification
   - All procedural patterns now in HOT tier (24h TTL)
+  - Implementation complete ✓
+
+- [x] **T071**: Replace mock in store_strategic() with real meta-learner calls ✓
+  - No dedicated meta-learner service exists - using multi_tier HOT tier
+  - Replaced mock storage (lines 465-496): Uses multi_tier.store_memory()
+  - 4 strategic meta-learnings stored in HOT tier with memory_type="strategic"
+  - Importance based on confidence_update magnitude (0.5 base + abs(update), capped at 1.0)
+  - Metadata includes strategy_name, outcome, confidence_update, full_strategy
+  - Returns stored_ids for verification
+  - All strategic learnings now in HOT tier (24h TTL)
   - Implementation complete ✓
 
 ---
