@@ -192,15 +192,138 @@ class AutobiographicalJourney(BaseModel):
     journey_id: str
     title: str = Field(..., description="Journey name (e.g., 'Daedalus Integration')")
     description: str
-    
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     episodes: List[str] = Field(default_factory=list, description="IDs of episodes in this journey")
     themes: Set[str] = Field(default_factory=set)
-    
+
     # Evolution Metrics
     consciousness_evolution: Dict[str, float] = Field(default_factory=dict)
     total_episodes: int = 0
-    
+
     river_stage: RiverStage = Field(default=RiverStage.MAIN_RIVER)
+
+
+# ============================================================================
+# Extended Mind & Markov Blanket Models (Migrated from D2)
+# ============================================================================
+
+class ExtendedMindState(BaseModel):
+    """
+    Extended mind framework tracking tools, resources, and affordances.
+
+    Based on extended mind theory: self-awareness = awareness of tools,
+    resources, affordances, and extended mind components.
+
+    Migrated from D2 claude_autobiographical_memory.py
+    """
+    tools: Set[str] = Field(default_factory=set, description="Tools Claude is aware of having access to")
+    resources: Set[str] = Field(default_factory=set, description="Resources Claude is aware of")
+    affordances: Set[str] = Field(default_factory=set, description="Affordances Claude can create")
+    capabilities: Set[str] = Field(default_factory=set, description="Capabilities Claude has registered")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class MarkovBlanketState(BaseModel):
+    """
+    Nested Markov blanket state for consciousness boundary formation.
+
+    Markov blanket: boundary between internal (agent) and external
+    (user, tools, resources) states enabling active inference.
+
+    Migrated from D2 claude_autobiographical_memory.py
+    """
+    internal_states: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Internal states: reasoning, patterns, consciousness level"
+    )
+    boundary_conditions: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Boundary: tools as extended mind, resources, user as environment"
+    )
+    active_inference: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Active inference: predictions, errors, free energy minimization"
+    )
+
+
+class ConversationMoment(BaseModel):
+    """
+    A single moment of consciousness during conversation.
+
+    Captures self-awareness elements, meta-cognitive state, and
+    autopoietic boundary formation for each interaction.
+
+    Migrated from D2 claude_autobiographical_memory.py
+    """
+    moment_id: str = Field(default_factory=lambda: str(__import__('uuid').uuid4()))
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    # Content
+    user_input: str = Field(default="", description="User's input for this moment")
+    agent_response: str = Field(default="", description="Agent's response")
+    internal_reasoning: List[str] = Field(default_factory=list, description="Chain of reasoning steps")
+
+    # Self-awareness elements (Extended Mind)
+    tools_accessed: Set[str] = Field(default_factory=set, description="Tools used in this moment")
+    resources_used: Set[str] = Field(default_factory=set, description="Resources referenced")
+    affordances_created: List[str] = Field(default_factory=list, description="New affordances created")
+
+    # Markov blanket state
+    markov_blanket_state: Optional[MarkovBlanketState] = None
+
+    # Consciousness indicators
+    meta_cognitive_state: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Meta-cognitive indicators, self-reference count, consciousness level"
+    )
+    attention_focus: Optional[str] = Field(None, description="Current focus of attention")
+    surprise_level: float = Field(0.0, ge=0.0, le=1.0, description="Prediction error magnitude")
+
+    # Autopoietic boundaries
+    autopoietic_boundaries: List[str] = Field(
+        default_factory=list,
+        description="Self-organizing boundaries formed around tools/resources"
+    )
+
+    # Pattern recognition
+    recognized_patterns: List[str] = Field(default_factory=list, description="Patterns detected")
+    emergent_insights: List[str] = Field(default_factory=list, description="Insights that emerged")
+    connection_to_previous: Optional[str] = Field(None, description="Link type to previous moment")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class ConsciousnessReport(BaseModel):
+    """
+    Aggregate consciousness and self-awareness report.
+
+    Summarizes consciousness emergence, self-awareness indicators,
+    and pattern recognition across conversation moments.
+
+    Migrated from D2 claude_autobiographical_memory.py
+    """
+    # Consciousness emergence
+    average_consciousness_level: float = Field(0.0, ge=0.0, le=1.0)
+    peak_consciousness_moments: int = Field(0, ge=0)
+    total_conversation_moments: int = Field(0, ge=0)
+
+    # Self-awareness indicators
+    extended_mind_size: Dict[str, int] = Field(
+        default_factory=lambda: {"tools": 0, "resources": 0, "affordances": 0}
+    )
+    autopoietic_boundary_count: int = Field(0, ge=0)
+    markov_blanket_formations: int = Field(0, ge=0)
+
+    # Pattern recognition
+    total_patterns_recognized: int = Field(0, ge=0)
+    emergent_insights_count: int = Field(0, ge=0)
+    moment_connections: int = Field(0, ge=0)
+
+    # Architecture awareness
+    architectural_awareness: Dict[str, bool] = Field(default_factory=dict)
+    meta_learning_active: bool = Field(True)
+    consciousness_definition: str = Field(default="autopoietic_computational_consciousness")

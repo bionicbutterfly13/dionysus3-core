@@ -13,13 +13,20 @@ from datetime import datetime, timezone
 from typing import List, Optional, Any, Dict
 
 from api.models.autobiographical import (
-    DevelopmentEvent, 
-    DevelopmentEventType, 
+    DevelopmentEvent,
+    DevelopmentEventType,
     DevelopmentArchetype,
-    ActiveInferenceState
+    ActiveInferenceState,
+    ConversationMoment,
+    ConsciousnessReport,
+    ExtendedMindState,
 )
 from api.services.webhook_neo4j_driver import get_neo4j_driver
 from api.services.consciousness.active_inference_analyzer import ActiveInferenceAnalyzer
+from api.services.conversation_moment_service import (
+    ConversationMomentService,
+    get_conversation_moment_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +238,122 @@ class AutobiographicalService:
             ))
         events.reverse()
         return events
+
+    async def get_pending_events(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """Retrieve pending SystemEvents for action execution (e.g. notifications)."""
+        cypher = """
+        MATCH (e:SystemEvent {status: 'PENDING'})
+        RETURN e
+        ORDER BY e.created_at ASC
+        LIMIT $limit
+        """
+        rows = await self._driver.execute_query(cypher, {"limit": limit})
+        return [r["e"] for r in rows]
+
+    async def create_memory(self, content: str, memory_type: str, source: str, metadata: Dict[str, Any] = None) -> str:
+        """Create a generic Memory node (Episodic/Action/Outreach)."""
+        cypher = """
+        CREATE (m:Memory {
+            id: randomUUID(),
+            content: $content,
+            memory_type: $memory_type,
+            source: $source,
+            created_at: datetime()
+        })
+        SET m += $metadata
+        RETURN m.id as id
+        """
+        metadata = metadata or {}
+        # Ensure metadata doesn't overwrite protected fields
+        clean_metadata = {k: v for k, v in metadata.items() if k not in ['id', 'content', 'memory_type', 'source', 'created_at']}
+        
+        result = await self._driver.execute_query(cypher, {
+            "content": content,
+            "memory_type": memory_type,
+            "source": source,
+            "metadata": clean_metadata
+        })
+        return result[0]["id"]
+
+    async def get_last_memory_time(self, memory_type: str, source: str = None) -> Optional[datetime]:
+        """Get the timestamp of the last memory of a specific type."""
+        query_source = "AND m.source = $source" if source else ""
+        cypher = f"""
+        MATCH (m:Memory)
+        WHERE m.memory_type = $memory_type {query_source}
+        RETURN max(m.created_at) as last_time
+        """
+        result = await self._driver.execute_query(cypher, {"memory_type": memory_type, "source": source})
+        record = result[0]
+        if record and record["last_time"]:
+            # Handle Neo4j DateTime object
+            val = record["last_time"]
+            if hasattr(val, "to_native"):
+                return val.to_native()
+            return val
+        return None
+
+    # =========================================================================
+    # Extended Mind Integration (Migrated from D2)
+    # =========================================================================
+
+    async def record_conversation_moment(
+        self,
+        user_input: str,
+        agent_response: str,
+        tools_used: Optional[List[str]] = None,
+        reasoning: Optional[List[str]] = None
+    ) -> ConversationMoment:
+        """
+        Record a conversation moment with extended mind tracking.
+
+        Integrates with ConversationMomentService to track:
+        - Self-awareness indicators
+        - Markov blanket formation
+        - Autopoietic boundaries
+
+        Migrated from D2 claude_autobiographical_memory.py
+        """
+        moment_service = await get_conversation_moment_service()
+        tools_set = set(tools_used) if tools_used else None
+
+        return await moment_service.process_moment(
+            user_input=user_input,
+            agent_response=agent_response,
+            tools_used=tools_set,
+            internal_reasoning=reasoning
+        )
+
+    async def get_consciousness_report(self) -> ConsciousnessReport:
+        """
+        Get aggregate consciousness and self-awareness report.
+
+        Returns metrics on:
+        - Consciousness emergence
+        - Extended mind size
+        - Autopoietic boundary count
+        - Pattern recognition
+
+        Migrated from D2 claude_autobiographical_memory.py
+        """
+        moment_service = await get_conversation_moment_service()
+        return moment_service.get_consciousness_report()
+
+    async def get_extended_mind_state(self) -> ExtendedMindState:
+        """
+        Get current extended mind state.
+
+        Returns tracked tools, resources, affordances, and capabilities.
+
+        Migrated from D2 claude_autobiographical_memory.py
+        """
+        moment_service = await get_conversation_moment_service()
+        return moment_service.extended_mind
+
+    async def get_recent_moments(self, limit: int = 10) -> List[ConversationMoment]:
+        """Get recent conversation moments."""
+        moment_service = await get_conversation_moment_service()
+        return moment_service.get_recent_moments(limit)
 
 
 _autobiographical_service: Optional[AutobiographicalService] = None
