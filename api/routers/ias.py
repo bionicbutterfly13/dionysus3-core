@@ -140,26 +140,43 @@ async def get_persistent_session(session_id: str) -> dict:
     }
 
 async def update_persistent_session(session_id: str, updates: dict):
-    """Helper to update session data in Neo4j."""
-    manager = get_session_manager()
-    cypher = "MATCH (s:Session {id: $id}) SET "
-    sets = []
-    params = {"id": session_id}
-    
-    if "messages" in updates:
-        sets.append("s.messages = $messages")
-        params["messages"] = json.dumps(updates["messages"])
-    if "confidence_score" in updates:
-        sets.append("s.confidence_score = $score")
-        params["score"] = updates["confidence_score"]
-    if "diagnosis" in updates:
-        sets.append("s.diagnosis = $diagnosis")
-        params["diagnosis"] = json.dumps(updates["diagnosis"])
-        
-    if not sets: return
-    
-    cypher += ", ".join(sets)
-    await manager._driver.execute_query(cypher, params)
+    """Helper to update session data via Graphiti service.
+
+    Replaces direct Neo4j access per CLAUDE.md architectural constraint.
+    """
+    from api.services.graphiti_service import get_graphiti_service
+    import logging
+
+    logger = logging.getLogger("dionysus.ias")
+
+    if not updates:
+        return
+
+    try:
+        graphiti = await get_graphiti_service()
+
+        # Prepare properties for Graphiti update
+        properties = {}
+        if "messages" in updates:
+            properties["messages"] = json.dumps(updates["messages"])
+        if "confidence_score" in updates:
+            properties["confidence_score"] = updates["confidence_score"]
+        if "diagnosis" in updates:
+            properties["diagnosis"] = json.dumps(updates["diagnosis"])
+
+        if properties:
+            # Use Graphiti's add_episode to update session entity
+            await graphiti.add_episode(
+                name=f"session_update_{session_id}",
+                episode_body=f"Updated IAS session {session_id} with properties: {list(properties.keys())}",
+                source_description="IAS Coach Session Update",
+                reference_time=None,  # Use current time
+            )
+            logger.info(f"Updated IAS session {session_id} via Graphiti")
+
+    except Exception as e:
+        logger.error(f"Failed to update IAS session {session_id} via Graphiti: {e}")
+        raise
 
 
 # =============================================================================

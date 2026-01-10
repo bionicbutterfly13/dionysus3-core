@@ -57,16 +57,3 @@ async def get_cognitive_stats(service = Depends(get_monitoring_service_with_trac
         "trace_id": service.trace_id
     }
 
-@router.get("/cognitive", response_model=Dict)
-async def get_cognitive_stats():
-    """T020: Get real-time EFE and stability metrics."""
-    from api.services.efe_engine import get_efe_engine
-    from api.services.metaplasticity_service import get_metaplasticity_controller
-    
-    # In a real run, these would be aggregated from recent OODA cycles
-    return {
-        "status": "active",
-        "efe_engine": "operational",
-        "metaplasticity": "surprise-driven",
-        "current_surprise_threshold": 0.5
-    }

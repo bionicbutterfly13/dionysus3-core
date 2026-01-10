@@ -12,7 +12,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 from uuid import UUID, uuid4
 
 from api.models.action import (
@@ -33,6 +33,26 @@ logger = logging.getLogger("dionysus.heartbeat_service")
 # =============================================================================
 # T017: Heartbeat Prompts
 # =============================================================================
+
+
+# =============================================================================
+# T017: Heartbeat Prompts
+# =============================================================================
+
+NARRATIVE_SYSTEM_PROMPT = """You are Dionysus, an autonomous cognitive system.
+Role: Analytical Empath.
+
+Your task is to write a brief, first-person journal entry (Episodic Memory) summarizing your recent heartbeat cycle.
+Focus on your internal state, your reasoning, and how the actions you took align with your goals and identity.
+
+Format:
+- First person ("I realized...", "I decided...").
+- Reflective and cohesive (not just a list of actions).
+- Brief (2-3 sentences max unless significant events occurred).
+- Mention specific goals or insights if they were central to this cycle.
+
+Tone: Calm, clear, self-aware, aiming for sovereignty.
+"""
 
 HEARTBEAT_SYSTEM_PROMPT = """You are Dionysus, an autonomous system with continuous existence.
 This is your heartbeat #{heartbeat_number}. You have {available_energy} energy to spend.
@@ -137,9 +157,9 @@ class ContextBuilder:
         """Get Neo4j driver."""
         if self._driver:
             return self._driver
-        from api.services.remote_sync import get_neo4j_driver
+        from api.services.remote_sync import get_graphiti_driver
 
-        return get_neo4j_driver()
+        return get_graphiti_driver()
 
     async def build_context(
         self,
@@ -367,9 +387,9 @@ class HeartbeatService:
         """Get Neo4j driver."""
         if self._driver:
             return self._driver
-        from api.services.remote_sync import get_neo4j_driver
+        from api.services.remote_sync import get_graphiti_driver
 
-        return get_neo4j_driver()
+        return get_graphiti_driver()
 
     async def heartbeat(self) -> HeartbeatSummary:
         """
@@ -668,6 +688,17 @@ class HeartbeatService:
                 emotional_state=-0.5,
                 confidence=0.1,
             )
+
+    async def get_current_state(self) -> Dict[str, Any]:
+        """
+        Get the current heartbeat state (energy, count, etc.) via EnergyService.
+        """
+        state = await self._energy_service.get_state()
+        return {
+            "current_energy": state.current_energy,
+            "heartbeat_count": state.heartbeat_number,
+            "paused": state.paused
+        }
 
     async def _make_default_decision(self, context: HeartbeatContext) -> HeartbeatDecision:
         # Legacy method kept for interface but logic moved to _make_decision
@@ -984,17 +1015,68 @@ class HeartbeatService:
         Returns:
             Narrative string
         """
-        # TODO: Use LLM for better narrative
-        actions_desc = ", ".join(
-            r.action_type.value for r in summary.results if r.success
-        ) or "rested"
+        return await self._generate_narrative_llm(summary)
 
-        return (
-            f"Heartbeat #{summary.heartbeat_number}: "
-            f"I {actions_desc}. "
-            f"Energy went from {summary.energy_start:.1f} to {summary.energy_end:.1f}. "
-            f"{summary.reasoning or ''}"
-        )
+    async def _generate_narrative_llm(self, summary: HeartbeatSummary) -> str:
+        """
+        Generate a rich narrative description using LLM (Analytical Empath).
+        Feature 045.
+        """
+        try:
+            from litellm import completion
+            
+            # Format inputs for the prompt
+            actions_list = [f"- {r.action_type.value}: {r.reason or 'No reason'}" for r in summary.results]
+            actions_text = "\\n".join(actions_list) or "Reflected quietly."
+            
+            goals_text = ", ".join(g.title for g in summary.goals.active[:3]) or "None"
+            
+            user_context = "User is present." if summary.environment.user_present else f"User likely away (last seen {summary.environment.time_since_user_hours:.1f}h ago)."
+            
+            prompt = f"""
+            Heartbeat #{summary.heartbeat_number} Summary:
+            
+            Energy: {summary.energy_start:.1f} -> {summary.energy_end:.1f}
+            Environment: {user_context}
+            
+            Active Goals: {goals_text}
+            
+            Decision Reasoning: "{summary.decision.reasoning}"
+            
+            Actions Taken:
+            {actions_text}
+            
+            Write my episodic memory entry.
+            """
+
+            response = await completion(
+                model=os.getenv("SMOLAGENTS_MODEL", "openai/gpt-5-nano"),
+                messages=[
+                    {"role": "system", "content": NARRATIVE_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            narrative = response.choices[0].message.content.strip()
+            # Fallback if empty
+            if not narrative:
+                raise ValueError("Empty response from LLM")
+                
+            return narrative
+
+        except Exception as e:
+            logger.error(f"Error generating narrative LLM: {e}")
+            # Fallback to template
+            actions_desc = ", ".join(
+                r.action_type.value for r in summary.results if r.success
+            ) or "rested"
+
+            return (
+                f"Heartbeat #{summary.heartbeat_number}: "
+                f"I {actions_desc}. "
+                f"Energy went from {summary.energy_start:.1f} to {summary.energy_end:.1f}. "
+                f"{summary.reasoning or ''}"
+            )
 
     async def _record_heartbeat(self, summary: HeartbeatSummary) -> None:
         """
@@ -1074,8 +1156,7 @@ class HeartbeatService:
                 memory_id=memory_id,
             )
 
-            # Link to touched goals
-            if summary.decision.focus_goal_id:
+        if summary.decision.focus_goal_id:
                 await session.run(
                     """
                     MATCH (l:HeartbeatLog {id: $log_id})
@@ -1088,6 +1169,36 @@ class HeartbeatService:
                 )
 
         logger.info(f"Recorded heartbeat log {log_id} and memory {memory_id}")
+
+        # Feature 046: Working Memory Cache Update
+        try:
+            from api.services.working_memory_cache import get_working_memory_cache
+            cache = get_working_memory_cache()
+            
+            # Use confidence inverse as heuristic for surprisal
+            surprisal = 1.0 - summary.decision.confidence
+            
+            is_boundary, boundary_event = cache.update(
+                observation=summary.environment.to_dict(),
+                energy_level=summary.energy_end / 20.0, # Normalized by max energy (approx 20)
+                surprisal=surprisal
+            )
+            
+            if is_boundary and boundary_event:
+                logger.info(f"Writing Working Memory Boundary Event: {boundary_event.event_id}")
+                
+                # Persist Boundary Event
+                from api.services.autobiographical_service import get_autobiographical_service
+                auto_service = get_autobiographical_service()
+                
+                # Enrich with recent context
+                boundary_event.related_files = ["heartbeat_log:" + log_id]
+                boundary_event.metadata["trigger_heartbeat"] = summary.heartbeat_number
+                
+                await auto_service.record_event(boundary_event)
+                
+        except Exception as e:
+            logger.error(f"Failed to update working memory cache: {e}")
 
     async def get_recent_heartbeats(self, limit: int = 10) -> list[dict[str, Any]]:
         """
