@@ -32,6 +32,16 @@ class TestMetacognitionRuntimeMonitor:
         """Test cognitive state assessment."""
         monitor = MetacognitionRuntimeMonitor()
 
+        # Mock _get_agent_state on the procedural metacognition instance
+        async def mock_state(_):
+            return {
+                "progress": 0.5,
+                "confidence": 0.6,
+                "prediction_error": 0.2,
+                "spotlight_precision": 0.5
+            }
+        monitor._procedural_mc._get_agent_state = mock_state
+
         metrics = {
             "progress": 0.5,
             "confidence": 0.6,
@@ -311,6 +321,16 @@ class TestMetacognitionRuntimeIntegration:
         """Test metacognition cycle with control actions."""
         integration = MetacognitionRuntimeIntegration()
 
+        # Mock _get_agent_state on the monitor's procedural metacognition
+        async def mock_state(_):
+            return {
+                "progress": 0.5,
+                "confidence": 0.6,
+                "prediction_error": 0.8,
+                "spotlight_precision": 0.5
+            }
+        integration._monitor._procedural_mc._get_agent_state = mock_state
+
         # High surprise should trigger control
         metrics = {
             "progress": 0.5,
@@ -371,6 +391,16 @@ class TestSingleton:
 async def test_full_integration_flow():
     """Test full integration flow with all components."""
     integration = get_metacognition_runtime_integration()
+
+    # Mock _get_agent_state on the monitor's procedural metacognition
+    async def mock_state(_):
+        return {
+            "progress": 0.5,
+            "confidence": 0.6,
+            "prediction_error": 0.3,
+            "spotlight_precision": 0.5
+        }
+    integration._monitor._procedural_mc._get_agent_state = mock_state
 
     # Simulate agent execution with metrics
     agent_id = "test_agent"
