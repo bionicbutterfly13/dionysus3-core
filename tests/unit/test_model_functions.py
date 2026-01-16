@@ -201,6 +201,13 @@ class TestResolvePredictionFunction:
         # Mock the driver (Neo4j via webhooks)
         mock_driver = AsyncMock()
         mock_driver.execute_query = AsyncMock(return_value=[{
+            "m": {
+                "id": str(sample_prediction.model_id),
+                "name": "test_model",
+                "domain": "test",
+                "current_beliefs": "{}",
+                "confidence": 0.8,
+            },
             "p": {
                 "id": str(sample_prediction.id),
                 "model_id": str(sample_prediction.model_id),
