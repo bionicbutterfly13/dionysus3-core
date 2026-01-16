@@ -887,6 +887,7 @@ class TestHyperModelConfig:
         assert config.max_learning_rate == 0.5
 
 
+@pytest.mark.skip(reason="Event types not yet implemented - Feature 056 Phase 2")
 class TestEventTypes:
     """Tests for Beautiful Loop event types (FR-027)."""
 

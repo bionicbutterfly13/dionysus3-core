@@ -163,7 +163,9 @@ class TestPrecisionWeightedEFE:
 
     def test_precision_from_registry(self, efe_engine):
         """Should use agent precision from registry when agent_name provided."""
-        set_agent_precision("perception", 2.0)
+        # Use metaplasticity_controller's registry (which EFE engine actually uses)
+        from api.services.metaplasticity_service import get_metaplasticity_controller
+        get_metaplasticity_controller().set_precision("perception", 2.0)
 
         probs = [0.5, 0.5]
         thought_vec = np.array([1.0, 0.0])

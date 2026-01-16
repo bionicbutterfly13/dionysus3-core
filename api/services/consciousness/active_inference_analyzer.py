@@ -228,9 +228,9 @@ class ActiveInferenceAnalyzer:
         # Mapping heuristics
         if any(w in content_lower for w in ["plan", "structure", "rule", "govern"]):
             return DevelopmentArchetype.RULER
-        if any(w in content_lower for w in ["research", "discover", "explore", "travel"]):
+        if any(w in content_lower for w in ["research", "discover", "explor", "travel"]):
             return DevelopmentArchetype.EXPLORER
-        if any(w in content_lower for w in ["create", "build", "innovate", "vision"]):
+        if any(w in content_lower for w in ["creat", "build", "innovat", "vision"]):
             return DevelopmentArchetype.CREATOR
         if any(w in content_lower for w in ["help", "support", "care", "protect"]):
             return DevelopmentArchetype.CAREGIVER

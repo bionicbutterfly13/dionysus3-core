@@ -44,6 +44,16 @@ class TestProceduralMetacognition:
     @pytest.mark.asyncio
     async def test_monitor_returns_assessment(self, service):
         """Test monitor returns CognitiveAssessment."""
+        # Mock _get_agent_state to return valid state
+        async def mock_state(_):
+            return {
+                "progress": 0.5,
+                "confidence": 0.7,
+                "prediction_error": 0.1,
+                "spotlight_precision": 0.6
+            }
+        service._get_agent_state = mock_state
+
         assessment = await service.monitor("test_agent")
 
         assert isinstance(assessment, CognitiveAssessment)
@@ -104,16 +114,25 @@ class TestProceduralMetacognition:
     @pytest.mark.asyncio
     async def test_monitor_detects_stalled_progress(self, service):
         """Test detection of STALLED_PROGRESS issue."""
+        # Mock _get_agent_state to return constant progress (simulates stall)
+        async def mock_state(_):
+            return {
+                "progress": 0.5,  # Constant progress
+                "confidence": 0.6,
+                "prediction_error": 0.1,
+                "spotlight_precision": 0.5
+            }
+        service._get_agent_state = mock_state
+
         # Simulate stalled progress by calling monitor multiple times
         for _ in range(PROGRESS_STALL_CYCLES + 2):
             await service.monitor("stalled_agent")
 
         # The _is_stalled method checks variance in recent progress
-        # With placeholder implementation returning constant progress, it will stall
+        # With constant progress, it will stall
         assessment = await service.monitor("stalled_agent")
 
         # After enough cycles with no variance, should detect stall
-        # (depends on mock implementation)
         assert isinstance(assessment, CognitiveAssessment)
 
     @pytest.mark.asyncio

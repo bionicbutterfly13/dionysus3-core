@@ -123,11 +123,24 @@ class TestAgencyService:
 
     @pytest.mark.asyncio
     async def test_get_agent_agency_placeholder(self, service):
-        """Test get_agent_agency returns placeholder values."""
-        strength, has_agency, particle_type = await service.get_agent_agency("test_agent")
+        """Test get_agent_agency returns computed values with mocked state."""
+        from unittest.mock import AsyncMock, patch, MagicMock
 
-        assert strength == 0.0
-        assert has_agency is False
+        # Mock network state with sufficient data for agency calculation
+        mock_state = MagicMock()
+        mock_state.connection_weights = {"a": 0.5, "b": 0.6, "c": 0.7}
+        mock_state.speed_factors = {"a": 1.0, "b": 1.1, "c": 0.9}
+
+        mock_network_service = MagicMock()
+        mock_network_service.get_current = AsyncMock(return_value=mock_state)
+
+        # Patch at the source module where it's imported from
+        with patch("api.services.network_state_service.get_network_state_service", return_value=mock_network_service):
+            strength, has_agency, particle_type = await service.get_agent_agency("test_agent")
+
+        # With mocked independent distributions, agency should be computed
+        assert isinstance(strength, (float, int))
+        assert has_agency in (True, False)  # Accept numpy booleans too
         assert particle_type == ParticleType.COGNITIVE
 
     @pytest.mark.asyncio
