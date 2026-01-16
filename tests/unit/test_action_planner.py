@@ -60,7 +60,7 @@ async def test_select_best_policy():
          patch.object(planner, "evaluate_policy", new_callable=AsyncMock) as mock_eval:
         
         mock_gen.return_value = [p1, p2]
-        mock_eval.side_effect = lambda p, t, c, g: p
+        mock_eval.side_effect = lambda p, t, c, g, precision=1.0: p
         
         result = await planner.select_best_policy("task", {}, "goal")
         

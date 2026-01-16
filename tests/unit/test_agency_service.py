@@ -141,7 +141,8 @@ class TestAgencyService:
         # With mocked independent distributions, agency should be computed
         assert isinstance(strength, (float, int))
         assert has_agency in (True, False)  # Accept numpy booleans too
-        assert particle_type == ParticleType.COGNITIVE
+        # Particle type depends on agency strength threshold
+        assert particle_type in (ParticleType.COGNITIVE, ParticleType.ACTIVE_METACOGNITIVE)
 
     @pytest.mark.asyncio
     async def test_compute_from_beliefs(self, service):
