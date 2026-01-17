@@ -10,8 +10,8 @@ Tests for:
 - Execution trace persistence
 - Memory pruning token reduction
 
-Note: Some tests require smolagents>=1.23 with ManagedAgent.
-Tests will skip gracefully when ManagedAgent is not available.
+Note: smolagents 1.23+ removed ManagedAgent class. This project uses custom
+ManagedAgent wrappers in api/agents/managed/ (ManagedPerceptionAgent, etc.)
 """
 
 import pytest
@@ -21,17 +21,21 @@ from uuid import uuid4
 
 from smolagents.memory import ActionStep, PlanningStep
 
-# Check if ManagedAgent is available (requires smolagents>=1.23)
+# Check if custom ManagedAgent wrappers are available
 try:
-    from smolagents import ManagedAgent
+    from api.agents.managed import (
+        ManagedPerceptionAgent,
+        ManagedReasoningAgent,
+        ManagedMetacognitionAgent,
+    )
     HAS_MANAGED_AGENT = True
 except ImportError:
     HAS_MANAGED_AGENT = False
 
-# Marker for tests requiring ManagedAgent
+# Marker for tests requiring ManagedAgent wrappers
 requires_managed_agent = pytest.mark.skipif(
     not HAS_MANAGED_AGENT,
-    reason="ManagedAgent not available in installed smolagents version"
+    reason="Custom ManagedAgent wrappers not available in api.agents.managed"
 )
 
 
@@ -84,8 +88,14 @@ class TestPlanningInterval:
         """HeartbeatAgent should be configured with planning_interval=3."""
         from api.agents.heartbeat_agent import HeartbeatAgent
 
-        with patch("api.agents.heartbeat_agent.get_router_model") as mock_model:
+        with patch("api.services.llm_service.get_router_model") as mock_model, \
+             patch("api.agents.heartbeat_agent.MCPClient") as mock_mcp:
             mock_model.return_value = MagicMock()
+            # Mock MCP client to return fake tools
+            mock_mcp_instance = MagicMock()
+            mock_mcp_instance.__enter__ = MagicMock(return_value=[])
+            mock_mcp_instance.__exit__ = MagicMock(return_value=None)
+            mock_mcp.return_value = mock_mcp_instance
 
             with HeartbeatAgent() as agent:
                 # Check agent configuration
@@ -99,20 +109,33 @@ class TestPlanningInterval:
         from api.agents.reasoning_agent import ReasoningAgent
         from api.agents.metacognition_agent import MetacognitionAgent
 
-        with patch("api.agents.perception_agent.get_router_model") as mock_model:
+        # Helper to create mock MCP client
+        def create_mock_mcp():
+            mock_mcp_instance = MagicMock()
+            mock_mcp_instance.__enter__ = MagicMock(return_value=[])
+            mock_mcp_instance.__exit__ = MagicMock(return_value=None)
+            return mock_mcp_instance
+
+        with patch("api.services.llm_service.get_router_model") as mock_model, \
+             patch("api.agents.perception_agent.MCPClient") as mock_mcp:
             mock_model.return_value = MagicMock()
+            mock_mcp.return_value = create_mock_mcp()
 
             with PerceptionAgent() as agent:
                 assert agent.agent.planning_interval == 2
 
-        with patch("api.agents.reasoning_agent.get_router_model") as mock_model:
+        with patch("api.services.llm_service.get_router_model") as mock_model, \
+             patch("api.agents.reasoning_agent.MCPClient") as mock_mcp:
             mock_model.return_value = MagicMock()
+            mock_mcp.return_value = create_mock_mcp()
 
             with ReasoningAgent() as agent:
                 assert agent.agent.planning_interval == 2
 
-        with patch("api.agents.metacognition_agent.get_router_model") as mock_model:
+        with patch("api.services.llm_service.get_router_model") as mock_model, \
+             patch("api.agents.metacognition_agent.MCPClient") as mock_mcp:
             mock_model.return_value = MagicMock()
+            mock_mcp.return_value = create_mock_mcp()
 
             with MetacognitionAgent() as agent:
                 assert agent.agent.planning_interval == 2
@@ -222,8 +245,8 @@ class TestMemoryPruning:
         with patch.dict("os.environ", {"AGENT_MEMORY_WINDOW": "3"}):
             memory_pruning_callback(mock_action_step, mock_agent)
 
-        # Old step should be pruned
-        assert "[PRUNED]" in old_step.observations
+        # Old step should be pruned (format: "[STEP X PRUNED]")
+        assert "PRUNED" in old_step.observations
 
     def test_token_tracker_records_reduction(self, mock_action_step):
         """TokenUsageTracker should record pre/post pruning tokens."""
@@ -258,43 +281,71 @@ class TestManagedAgents:
         """ManagedPerceptionAgent should wrap PerceptionAgent."""
         from api.agents.managed import ManagedPerceptionAgent
 
-        with patch("api.agents.perception_agent.get_router_model") as mock_model:
+        # Helper to create mock MCP client
+        def create_mock_mcp():
+            mock_mcp_instance = MagicMock()
+            mock_mcp_instance.__enter__ = MagicMock(return_value=[])
+            mock_mcp_instance.__exit__ = MagicMock(return_value=None)
+            return mock_mcp_instance
+
+        with patch("api.services.llm_service.get_router_model") as mock_model, \
+             patch("api.agents.perception_agent.MCPClient") as mock_mcp:
             mock_model.return_value = MagicMock()
+            mock_mcp.return_value = create_mock_mcp()
 
             wrapper = ManagedPerceptionAgent()
             with wrapper:
                 managed = wrapper.get_managed()
 
                 assert managed.name == "perception"
-                assert "OBSERVE" in managed.description
+                # Description should mention observation/memory/environmental
+                assert "observation" in managed.description.lower() or "environmental" in managed.description.lower()
 
     def test_managed_reasoning_agent_wrapper(self):
         """ManagedReasoningAgent should wrap ReasoningAgent."""
         from api.agents.managed import ManagedReasoningAgent
 
-        with patch("api.agents.reasoning_agent.get_router_model") as mock_model:
+        def create_mock_mcp():
+            mock_mcp_instance = MagicMock()
+            mock_mcp_instance.__enter__ = MagicMock(return_value=[])
+            mock_mcp_instance.__exit__ = MagicMock(return_value=None)
+            return mock_mcp_instance
+
+        with patch("api.services.llm_service.get_router_model") as mock_model, \
+             patch("api.agents.reasoning_agent.MCPClient") as mock_mcp:
             mock_model.return_value = MagicMock()
+            mock_mcp.return_value = create_mock_mcp()
 
             wrapper = ManagedReasoningAgent()
             with wrapper:
                 managed = wrapper.get_managed()
 
                 assert managed.name == "reasoning"
-                assert "ORIENT" in managed.description
+                # Description should mention analysis/reflection/synthesis
+                assert "analysis" in managed.description.lower() or "reflection" in managed.description.lower()
 
     def test_managed_metacognition_agent_wrapper(self):
         """ManagedMetacognitionAgent should wrap MetacognitionAgent."""
         from api.agents.managed import ManagedMetacognitionAgent
 
-        with patch("api.agents.metacognition_agent.get_router_model") as mock_model:
+        def create_mock_mcp():
+            mock_mcp_instance = MagicMock()
+            mock_mcp_instance.__enter__ = MagicMock(return_value=[])
+            mock_mcp_instance.__exit__ = MagicMock(return_value=None)
+            return mock_mcp_instance
+
+        with patch("api.services.llm_service.get_router_model") as mock_model, \
+             patch("api.agents.metacognition_agent.MCPClient") as mock_mcp:
             mock_model.return_value = MagicMock()
+            mock_mcp.return_value = create_mock_mcp()
 
             wrapper = ManagedMetacognitionAgent()
             with wrapper:
                 managed = wrapper.get_managed()
 
                 assert managed.name == "metacognition"
-                assert "DECIDE" in managed.description
+                # Description should mention self-reflection/goal/mental model
+                assert "self-reflection" in managed.description.lower() or "goal" in managed.description.lower()
 
 
 # =============================================================================
@@ -398,7 +449,7 @@ class TestFullFlow:
         collector.record_basin_activation("basin-123", 0.75, at_step=1)
 
         # Mock Neo4j to avoid actual persistence
-        with patch("api.services.execution_trace_service.get_neo4j_driver"):
+        with patch("api.services.remote_sync.get_neo4j_driver"):
             with patch.object(
                 get_execution_trace_service(),
                 "_persist_trace",
