@@ -72,3 +72,12 @@ data/backups/
 
 # External dependencies (separate repositories)
 dionysus-ralph-orchestrator/
+docs/garden/
+notebooklm-mcp/
+everything-claude-code/
+
+# Marker PDF extraction environment
+marker-env/
+
+# Raw data files
+scripts/rmbc_raw.txt

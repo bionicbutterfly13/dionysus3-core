@@ -325,6 +325,47 @@ class TestRouteMemoryWithResonance:
         assert result["transition"] is not None
 
     @pytest.mark.asyncio
+    async def test_routing_links_basins_on_transition(self):
+        """Verify basin link is recorded when a transition occurs."""
+        router = MemoryBasinRouter()
+
+        mock_memevolve = AsyncMock()
+        mock_memevolve.extract_with_context.return_value = {
+            "entities": [],
+            "relationships": [],
+        }
+        mock_memevolve.execute_cypher.return_value = [{"strength": 0.8}]
+
+        with patch.object(router, "_get_memevolve_adapter", return_value=mock_memevolve):
+            with patch.object(router, "classify_memory_type", return_value=MemoryType.PROCEDURAL):
+                with patch.object(router, "calculate_resonance", return_value=0.2):
+                    with patch.object(router, "_activate_basin", return_value="Basin context"):
+                        with patch.object(router, "explore_basin_transitions") as mock_explore:
+                            mock_explore.return_value = {
+                                "basin": BASIN_MAPPING[MemoryType.EPISODIC],
+                                "memory_type": MemoryType.EPISODIC,
+                                "resonance": 0.8,
+                                "improvement": 0.6,
+                            }
+                            with patch.object(
+                                router,
+                                "_link_basins",
+                                new_callable=AsyncMock,
+                                create=True,
+                            ) as mock_link:
+                                await router.route_memory_with_resonance(
+                                    content="Yesterday's meeting was productive",
+                                    enable_transition_exploration=True,
+                                )
+
+        mock_link.assert_awaited_once()
+        kwargs = mock_link.call_args.kwargs
+        assert kwargs["source_basin"] == BASIN_MAPPING[MemoryType.PROCEDURAL]["basin_name"]
+        assert kwargs["target_basin"] == BASIN_MAPPING[MemoryType.EPISODIC]["basin_name"]
+        assert kwargs["resonance_score"] == 0.8
+        assert kwargs["improvement"] == 0.6
+
+    @pytest.mark.asyncio
     async def test_routing_without_transition_exploration(self):
         """Verify routing skips transition exploration when disabled."""
         router = MemoryBasinRouter()

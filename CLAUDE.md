@@ -16,7 +16,7 @@ The system distinguishes between two complementary metacognitive layers:
 
 - **Metacognitive Bridge**: Thoughtseed competition and attractor basin transitions connect declarative knowledge to procedural control, enabling metacognitive feelings (uncertainty, confidence) to guide action selection.
 
-See `docs/silver-bullets/` for detailed explanations of declarative/procedural distinctions, basin geometry, and the cognitive implementation.
+See `docs/garden/content/silver-bullets/` for detailed explanations of declarative/procedural distinctions, basin geometry, and the cognitive implementation. Documentation is rendered via Quartz at `docs/garden/`.
 
 ## 🔴 MANDATORY: Conductor Workflow
 
@@ -359,10 +359,11 @@ Required in `.env`:
 
 ### Documentation Pattern
 
-**Silver Bullets Structure**:
-- `docs/silver-bullets/` - Main documentation hub
-- `docs/silver-bullets/00-INDEX.md` - Navigation index (always update)
-- `docs/silver-bullets/concepts/` - Atomic concept pages (one per concept)
+**Quartz Documentation Structure** (`docs/garden/`):
+- `content/silver-bullets/` - Main documentation hub
+- `content/silver-bullets/00-INDEX.md` - Navigation index (always update)
+- `content/silver-bullets/concepts/` - Atomic concept pages (one per concept)
+- `content/` - All documentation content (specs, papers, journal, etc.)
 - `docs/IAS-INDEX.md` - IAS curriculum navigation hub
 
 **Atomic Concept Template**: See `docs/DOCUMENTATION-AGENT-GUIDE.md`
@@ -394,7 +395,7 @@ git checkout -b docs/concept-{concept-name}
 # See docs/DOCUMENTATION-AGENT-GUIDE.md for full template
 
 # 5. Create PR
-git add docs/silver-bullets/concepts/{concept-name}.md
+git add docs/garden/content/silver-bullets/concepts/{concept-name}.md
 git commit -m "docs: add {concept-name} atomic concept page
 
 AUTHOR Mani Saint-Victor, MD"
