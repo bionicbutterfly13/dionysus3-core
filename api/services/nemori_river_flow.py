@@ -17,6 +17,12 @@ from api.models.beautiful_loop import ResonanceSignal, ResonanceMode
 from api.agents.consolidated_memory_stores import get_consolidated_memory_store
 from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.memory_basin_router import get_memory_basin_router
+from api.services.context_packaging import (
+    get_token_budget_manager,
+    get_residue_tracker,
+    ContextCell,
+    CellPriority,
+)
 
 logger = logging.getLogger("dionysus.nemori_river_flow")
 
@@ -123,7 +129,7 @@ class NemoriRiverFlow:
         prompt = f"""
         Synthesize these development events into a coherent 'Development Episode'.
         Identify the 'Stabilizing Attractor' (the core theme/goal) and the thematic 'Strand'.
-        
+
         Events:
         {context}
 
@@ -132,7 +138,7 @@ class NemoriRiverFlow:
             "title": "Short descriptive title",
             "summary": "Brief summary",
             "narrative": "Coherent story of what happened",
-            "archetype": "one of: creator, hero, sage, explorer, etc.",
+            "archetype": "one of: innocent, orphan, warrior, caregiver, explorer, rebel, lover, creator, jester, sage, magician, ruler",
             "stabilizing_attractor": "The core theme",
             "strand_id": "One-word thematic strand (e.g. 'coding', 'research', 'ops')"
         }}
@@ -244,7 +250,7 @@ class NemoriRiverFlow:
                 metadata["linked_basin_id"] = basin_context.get("id")
                 metadata["basin_r_score"] = basin_context.get("resonance_score", 0.0)
 
-            # Basin Classification
+            # Basin Classification and Routing
             linked_basin_id = None
             basin_score = 0.0
             if basin_context:
@@ -258,10 +264,23 @@ class NemoriRiverFlow:
                     # 2. Get Basin Config
                     basin_config = router.get_basin_for_type(mem_type)
                     # 3. Use Basin Name (and default strength)
-                    linked_basin_id = basin_config.get("basin_name") 
+                    linked_basin_id = basin_config.get("basin_name")
                     basin_score = basin_config.get("default_strength", 0.5)
-                    
+
                     logger.info(f"Classified episode as {mem_type} -> Basin: {linked_basin_id}")
+
+                    # 4. Route each new fact through the basin for proper extraction and storage
+                    for fact in new_facts:
+                        if fact and len(fact) > 10:  # Skip trivial facts
+                            try:
+                                await router.route_memory(
+                                    content=fact,
+                                    memory_type=mem_type,
+                                    source_id=f"nemori_distill:{episode.episode_id}"
+                                )
+                            except Exception as route_err:
+                                logger.warning(f"Failed to route fact through basin: {route_err}")
+
                 except Exception as e:
                     logger.warning(f"Basin classification failed: {e}")
 
@@ -292,7 +311,52 @@ class NemoriRiverFlow:
                 markov_blanket_id=blanket_id 
             )
             await self.store.store_event(distill_event)
-            
+
+            # Wire symbolic residue to context packaging system
+            try:
+                budget_manager = get_token_budget_manager()
+                residue_tracker = get_residue_tracker()
+
+                # Create context cells from distilled facts (SEMANTIC memory)
+                for i, fact in enumerate(new_facts):
+                    if fact and len(fact) > 5:
+                        cell = ContextCell(
+                            cell_id=f"fact_{distill_id}_{i}",
+                            content=fact,
+                            priority=CellPriority.MEDIUM,
+                            token_count=len(fact.split()) * 2,  # Rough estimate
+                            resonance_score=basin_score,
+                            basin_id=linked_basin_id,
+                            metadata={"episode_id": episode.episode_id, "fact_index": i}
+                        )
+                        budget_manager.add_cell(cell)
+
+                # Store symbolic residue for retrieval cue integration
+                if residue.get("active_goals") or residue.get("active_entities"):
+                    # Create a HIGH priority cell for active residue
+                    residue_content = []
+                    if residue.get("active_goals"):
+                        residue_content.append(f"Active Goals: {', '.join(residue['active_goals'])}")
+                    if residue.get("active_entities"):
+                        residue_content.append(f"Active Entities: {', '.join(residue['active_entities'])}")
+                    if residue.get("stable_context"):
+                        residue_content.append(f"Context: {residue['stable_context']}")
+
+                    residue_cell = ContextCell(
+                        cell_id=f"residue_{distill_id}",
+                        content="\n".join(residue_content),
+                        priority=CellPriority.HIGH,
+                        token_count=len(" ".join(residue_content).split()) * 2,
+                        resonance_score=basin_score + 0.1,  # Boost for active residue
+                        basin_id=linked_basin_id,
+                        metadata={"type": "symbolic_residue", "episode_id": episode.episode_id}
+                    )
+                    budget_manager.add_cell(residue_cell)
+
+                logger.info(f"Context packaging: {len(new_facts)} fact cells + 1 residue cell added")
+            except Exception as ctx_err:
+                logger.warning(f"Context packaging integration failed: {ctx_err}")
+
             return new_facts, residue
         except Exception as e:
             logger.error(f"Error in predict-calibrate cycle: {e}")

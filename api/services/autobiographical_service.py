@@ -31,6 +31,36 @@ from api.services.conversation_moment_service import (
 logger = logging.getLogger(__name__)
 
 
+# Mapping from Jungian archetypes to memory attractor basins
+# Archetypes are cognitive patterns; basins are memory type attractors
+ARCHETYPE_TO_BASIN: Dict[str, str] = {
+    # Wisdom/Knowledge-seeking archetypes → conceptual-basin (SEMANTIC)
+    "sage": "conceptual-basin",
+
+    # Creation/Skill-based archetypes → procedural-basin (PROCEDURAL)
+    "creator": "procedural-basin",
+    "magician": "procedural-basin",
+
+    # Experience/Connection archetypes → experiential-basin (EPISODIC)
+    "explorer": "experiential-basin",
+    "innocent": "experiential-basin",
+    "orphan": "experiential-basin",
+    "caregiver": "experiential-basin",
+    "lover": "experiential-basin",
+    "jester": "experiential-basin",
+
+    # Goal/Strategy archetypes → strategic-basin (STRATEGIC)
+    "warrior": "strategic-basin",
+    "ruler": "strategic-basin",
+    "rebel": "strategic-basin",
+}
+
+
+def get_basin_for_archetype(archetype: DevelopmentArchetype) -> str:
+    """Map a Jungian archetype to its corresponding attractor basin."""
+    return ARCHETYPE_TO_BASIN.get(archetype.value, "conceptual-basin")
+
+
 class AutobiographicalService:
     def __init__(self, driver=None):
         self._driver = driver or get_neo4j_driver()
@@ -63,6 +93,9 @@ class AutobiographicalService:
         )
             
         # 3. Create Event
+        # Map archetype to basin for proper attractor linkage
+        basin_name = get_basin_for_archetype(archetype) if archetype else "conceptual-basin"
+
         event = DevelopmentEvent(
             event_id=f"evt_{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}",
             timestamp=datetime.now(timezone.utc),
@@ -76,7 +109,7 @@ class AutobiographicalService:
             narrative_coherence=0.8, # Default high for analyzed events
             active_inference_state=ai_state,
             resonance_score=ai_state.basin_influence_strength, # Proxy for alignment
-            strange_attractor_id=archetype.value, # Archetype acts as the strange attractor ID
+            strange_attractor_id=basin_name,  # Use basin name for proper AttractorBasin linkage
             related_files=[]
         )
         

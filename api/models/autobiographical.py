@@ -131,7 +131,6 @@ class DevelopmentEvent(BaseModel):
     narrative_coherence: float = Field(0.5, description="Coherence score 0.0-1.0")
     active_inference_state: Optional[ActiveInferenceState] = None
     resonance_score: float = Field(0.0, description="Alignment with cortical attractor basins")
-    resonance_score: float = Field(0.0, description="Alignment with cortical attractor basins")
     strange_attractor_id: Optional[str] = None
     linked_basin_id: Optional[str] = Field(None, description="ID of the linked Attractor Basin")
     basin_r_score: float = Field(0.0, description="Resonance score with the linked basin")
@@ -189,6 +188,7 @@ class DevelopmentEpisode(BaseModel):
     parent_episode_id: Optional[str] = None
     sub_episodes: List[str] = Field(default_factory=list, description="IDs of child episodes (Hierarchical structure)")
     strand_id: Optional[str] = Field(None, description="Thematic 'strand' identifier (Richmond/Zacks)")
+    stabilizing_attractor: Optional[str] = Field(None, description="Core theme/goal anchoring this episode")
 
 
 class AutobiographicalJourney(BaseModel):

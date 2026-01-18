@@ -64,8 +64,9 @@ class ConsciousnessMemoryCore:
         
         if episode:
             # 3. Trigger Predict-Calibrate distillation (DELTA)
-            new_facts = await self.river.predict_and_calibrate(episode, events_to_process)
-            logger.info(f"Episode '{episode.title}' created. Distilled {len(new_facts)} semantic facts.")
+            # predict_and_calibrate returns (new_facts, symbolic_residue) tuple
+            new_facts, symbolic_residue = await self.river.predict_and_calibrate(episode, events_to_process)
+            logger.info(f"Episode '{episode.title}' created. Distilled {len(new_facts)} semantic facts, residue keys: {list(symbolic_residue.keys())}")
             
             # 4. Link EPISODE to JOURNEY
             journey.episodes.append(episode.episode_id)

@@ -175,14 +175,15 @@ Respond with ONLY the memory type name in uppercase (EPISODIC, SEMANTIC, PROCEDU
     async def _activate_basin(self, basin_name: str, content: str) -> str:
         """
         Activate an attractor basin and return context for extraction.
-        
+
         Creates or strengthens the basin in Neo4j and retrieves
-        relevant context for guiding extraction.
-        
+        relevant context for guiding extraction. Also applies decay
+        to non-activated basins (Hebbian forgetting).
+
         Args:
             basin_name: Name of the basin to activate
             content: Content that triggered activation (for relevance)
-            
+
         Returns:
             Basin context string for extraction guidance
         """
@@ -192,33 +193,39 @@ Respond with ONLY the memory type name in uppercase (EPISODIC, SEMANTIC, PROCEDU
             if config["basin_name"] == basin_name:
                 basin_config = config
                 break
-        
+
         if not basin_config:
             logger.warning(f"Unknown basin {basin_name}, using default context")
             return f"Attractor Basin: {basin_name}"
-        
+
         # Ensure basin exists and strengthen it
         create_cypher = """
         MERGE (b:AttractorBasin {name: $name})
-        ON CREATE SET 
+        ON CREATE SET
             b.description = $description,
             b.concepts = $concepts,
             b.strength = $strength,
             b.stability = 0.5,
             b.activation_count = 1,
+            b.importance = 0.5,
             b.created_at = datetime()
-        ON MATCH SET 
-            b.strength = CASE 
-                WHEN b.strength < 2.0 THEN b.strength + 0.05 
-                ELSE b.strength 
+        ON MATCH SET
+            b.strength = CASE
+                WHEN b.strength < 2.0 THEN b.strength + 0.05
+                ELSE b.strength
             END,
-            b.stability = CASE 
-                WHEN b.stability < 1.0 THEN b.stability + 0.02 
-                ELSE b.stability 
+            b.stability = CASE
+                WHEN b.stability < 1.0 THEN b.stability + 0.02
+                ELSE b.stability
+            END,
+            b.importance = CASE
+                WHEN b.importance IS NULL THEN 0.5
+                WHEN b.importance < 1.0 THEN b.importance + 0.03
+                ELSE b.importance
             END,
             b.activation_count = coalesce(b.activation_count, 0) + 1,
             b.last_activated = datetime()
-        RETURN b.name as name, b.strength as strength, b.stability as stability, 
+        RETURN b.name as name, b.strength as strength, b.stability as stability,
                b.concepts as concepts, b.description as description
         """
         
@@ -232,16 +239,20 @@ Respond with ONLY the memory type name in uppercase (EPISODIC, SEMANTIC, PROCEDU
         try:
             memevolve = await self._get_memevolve_adapter()
             rows = await memevolve.execute_cypher(create_cypher, params)
-            
+
             if rows:
                 basin = rows[0]
                 context = self._format_basin_context(basin, basin_config["extraction_focus"])
                 logger.info(f"Activated basin {basin_name} (strength: {basin.get('strength', 0):.2f})")
+
+                # Apply decay to non-activated basins (Hebbian forgetting)
+                await self._apply_decay_to_other_basins(basin_name)
+
                 return context
-            
+
         except Exception as e:
             logger.error(f"Basin activation failed: {e}")
-        
+
         # Fallback context
         return self._format_basin_context(
             {
@@ -252,6 +263,43 @@ Respond with ONLY the memory type name in uppercase (EPISODIC, SEMANTIC, PROCEDU
             },
             basin_config["extraction_focus"]
         )
+
+    async def _apply_decay_to_other_basins(self, active_basin_name: str, decay_rate: float = 0.01) -> None:
+        """
+        Apply decay to basins that were not activated (Hebbian forgetting).
+
+        Maintains basin competition by slightly weakening unused basins,
+        preventing runaway strength accumulation.
+
+        Args:
+            active_basin_name: Name of the currently activated basin (exempt from decay)
+            decay_rate: Amount to decay strength (default 0.01)
+        """
+        decay_cypher = """
+        MATCH (b:AttractorBasin)
+        WHERE b.name <> $active_name
+        SET b.strength = CASE
+            WHEN b.strength - $decay > 0.1 THEN b.strength - $decay
+            ELSE 0.1
+        END,
+        b.importance = CASE
+            WHEN b.importance IS NULL THEN 0.5
+            WHEN b.importance - $decay > 0.1 THEN b.importance - $decay
+            ELSE 0.1
+        END
+        RETURN count(b) as decayed_count
+        """
+
+        try:
+            memevolve = await self._get_memevolve_adapter()
+            result = await memevolve.execute_cypher(
+                decay_cypher,
+                {"active_name": active_basin_name, "decay": decay_rate}
+            )
+            if result:
+                logger.debug(f"Applied decay to {result[0].get('decayed_count', 0)} basins")
+        except Exception as e:
+            logger.warning(f"Failed to apply basin decay: {e}")
 
     def _format_basin_context(self, basin: Dict[str, Any], extraction_focus: str) -> str:
         """Format basin data into context string for extraction."""
