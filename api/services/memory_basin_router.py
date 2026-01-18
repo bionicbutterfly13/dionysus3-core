@@ -361,6 +361,369 @@ When extracting entities and relationships, prioritize:
         except Exception as e:
             logger.warning(f"Failed to record basin-memory stats: {e}")
 
+    async def calculate_resonance(
+        self,
+        content: str,
+        basin_config: Dict[str, Any],
+    ) -> float:
+        """
+        Calculate semantic resonance between content and basin concepts.
+        
+        Resonance measures how well content aligns with a basin's conceptual
+        attractors. High resonance amplifies extraction signals; low resonance
+        may trigger basin transition exploration.
+        
+        Args:
+            content: Text content to evaluate
+            basin_config: Basin configuration with concepts and description
+            
+        Returns:
+            Resonance score from 0.0 (no alignment) to 1.0 (perfect alignment)
+        """
+        concepts = basin_config.get("concepts", [])
+        description = basin_config.get("description", "")
+        
+        # Build resonance evaluation prompt
+        prompt = f"""Evaluate semantic resonance between content and conceptual attractor.
+
+ATTRACTOR BASIN:
+- Description: {description}
+- Core Concepts: {', '.join(concepts)}
+
+CONTENT:
+{content[:1500]}
+
+TASK: Rate how strongly this content resonates with the basin's conceptual attractor.
+Consider:
+1. Explicit mention of core concepts
+2. Implicit alignment with the basin's purpose
+3. Thematic coherence with the description
+
+Respond with ONLY a decimal number between 0.0 and 1.0:
+- 0.0-0.3: Weak/no resonance (content misaligned with basin)
+- 0.3-0.6: Moderate resonance (partial alignment)
+- 0.6-0.8: Strong resonance (clear alignment)
+- 0.8-1.0: Maximum resonance (perfect conceptual match)
+"""
+        
+        try:
+            response = await chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="You are a semantic resonance evaluator. Respond with only a decimal number.",
+                model=GPT5_NANO,
+                max_tokens=16,
+            )
+            
+            # Parse resonance score
+            score_str = response.strip()
+            score = float(score_str)
+            score = max(0.0, min(1.0, score))  # Clamp to [0, 1]
+            
+            logger.debug(f"Resonance score for {basin_config.get('basin_name', 'unknown')}: {score:.3f}")
+            return score
+            
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Failed to parse resonance score: {e}, defaulting to 0.5")
+            return 0.5
+        except Exception as e:
+            logger.error(f"Resonance calculation failed: {e}")
+            return 0.5
+
+    async def apply_resonance_coupling(
+        self,
+        content: str,
+        primary_basin: Dict[str, Any],
+        extraction: Dict[str, Any],
+        resonance_score: float,
+    ) -> Dict[str, Any]:
+        """
+        Apply resonance coupling to modulate extraction confidence.
+        
+        Implements the Cellular Memory Physics principle: resonance between
+        content and basin concepts amplifies or dampens extracted relationships.
+        
+        High resonance → Boost confidence of aligned entities/relationships
+        Low resonance → Dampen confidence, flag for potential basin transition
+        
+        Args:
+            content: Original content
+            primary_basin: The activated basin configuration
+            extraction: Raw extraction result with entities and relationships
+            resonance_score: Calculated resonance (0.0 to 1.0)
+            
+        Returns:
+            Modified extraction with resonance-adjusted confidences
+        """
+        # Resonance coupling parameters
+        AMPLIFICATION_FACTOR = 1.3  # Max boost at resonance=1.0
+        DAMPENING_FACTOR = 0.7      # Max reduction at resonance=0.0
+        TRANSITION_THRESHOLD = 0.35  # Below this, suggest basin exploration
+        
+        # Calculate coupling multiplier (linear interpolation)
+        # resonance=0 → DAMPENING_FACTOR, resonance=1 → AMPLIFICATION_FACTOR
+        coupling_multiplier = DAMPENING_FACTOR + (
+            (AMPLIFICATION_FACTOR - DAMPENING_FACTOR) * resonance_score
+        )
+        
+        # Apply coupling to entities
+        coupled_entities = []
+        for entity in extraction.get("entities", []):
+            coupled_entity = dict(entity)
+            original_conf = entity.get("confidence", 0.7)
+            coupled_entity["confidence"] = min(1.0, original_conf * coupling_multiplier)
+            coupled_entity["resonance_applied"] = True
+            coupled_entity["resonance_score"] = resonance_score
+            coupled_entities.append(coupled_entity)
+        
+        # Apply coupling to relationships
+        coupled_relationships = []
+        for rel in extraction.get("relationships", []):
+            coupled_rel = dict(rel)
+            original_conf = rel.get("confidence", 0.7)
+            coupled_rel["confidence"] = min(1.0, original_conf * coupling_multiplier)
+            coupled_rel["resonance_applied"] = True
+            coupled_rel["resonance_score"] = resonance_score
+            coupled_relationships.append(coupled_rel)
+        
+        result = {
+            "entities": coupled_entities,
+            "relationships": coupled_relationships,
+            "resonance": {
+                "score": resonance_score,
+                "coupling_multiplier": coupling_multiplier,
+                "basin_name": primary_basin.get("basin_name"),
+            },
+        }
+        
+        # Flag for basin transition exploration if resonance is low
+        if resonance_score < TRANSITION_THRESHOLD:
+            result["transition_suggested"] = True
+            result["transition_reason"] = (
+                f"Low resonance ({resonance_score:.2f}) with {primary_basin.get('basin_name')} - "
+                "content may better fit another attractor basin"
+            )
+            logger.info(
+                f"Basin transition suggested: resonance={resonance_score:.2f} "
+                f"below threshold {TRANSITION_THRESHOLD}"
+            )
+        
+        return result
+
+    async def explore_basin_transitions(
+        self,
+        content: str,
+        current_basin: Dict[str, Any],
+        current_resonance: float,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Explore alternative basins when resonance is low.
+        
+        Implements attractor basin transition dynamics: when content doesn't
+        resonate with current basin, explore neighboring basins to find
+        better conceptual fit.
+        
+        Args:
+            content: Content to evaluate
+            current_basin: Currently activated basin
+            current_resonance: Resonance score with current basin
+            
+        Returns:
+            Best alternative basin if found, None otherwise
+        """
+        current_name = current_basin.get("basin_name")
+        best_alternative = None
+        best_resonance = current_resonance
+        
+        # Evaluate all other basins
+        for memory_type, basin_config in BASIN_MAPPING.items():
+            if basin_config["basin_name"] == current_name:
+                continue
+            
+            alternative_resonance = await self.calculate_resonance(content, basin_config)
+            
+            # Check if this basin is significantly better (improvement > 0.15)
+            improvement = alternative_resonance - best_resonance
+            if improvement > 0.15:
+                best_alternative = {
+                    "basin": basin_config,
+                    "memory_type": memory_type,
+                    "resonance": alternative_resonance,
+                    "improvement": improvement,
+                }
+                best_resonance = alternative_resonance
+                logger.info(
+                    f"Found better basin: {basin_config['basin_name']} "
+                    f"(resonance={alternative_resonance:.2f}, improvement={improvement:.2f})"
+                )
+        
+        return best_alternative
+
+    async def route_memory_with_resonance(
+        self,
+        content: str,
+        memory_type: Optional[MemoryType] = None,
+        source_id: Optional[str] = None,
+        enable_transition_exploration: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Route memory with full resonance coupling dynamics.
+        
+        Enhanced routing that:
+        1. Classifies memory type and activates basin
+        2. Calculates resonance with activated basin
+        3. Applies resonance coupling to extraction
+        4. Explores basin transitions if resonance is low
+        
+        Args:
+            content: Memory content to route
+            memory_type: Optional pre-classified type
+            source_id: Optional source identifier
+            enable_transition_exploration: Whether to explore alternative basins
+            
+        Returns:
+            Routing result with resonance-coupled extraction
+        """
+        # Classify if not provided
+        if memory_type is None:
+            memory_type = await self.classify_memory_type(content)
+        
+        basin_config = BASIN_MAPPING[memory_type]
+        basin_name = basin_config["basin_name"]
+        
+        logger.info(f"Routing {memory_type.value} memory to {basin_name} with resonance coupling")
+        
+        # Calculate resonance with primary basin
+        resonance_score = await self.calculate_resonance(content, basin_config)
+        
+        # Check for basin transition if resonance is low
+        transition_result = None
+        final_basin = basin_config
+        final_memory_type = memory_type
+        
+        if enable_transition_exploration and resonance_score < 0.35:
+            transition_result = await self.explore_basin_transitions(
+                content, basin_config, resonance_score
+            )
+            
+            if transition_result:
+                # Use the better-fitting basin
+                final_basin = transition_result["basin"]
+                final_memory_type = transition_result["memory_type"]
+                resonance_score = transition_result["resonance"]
+                basin_name = final_basin["basin_name"]
+                logger.info(f"Basin transition: {basin_config['basin_name']} → {basin_name}")
+        
+        # Activate the (possibly transitioned) basin
+        basin_context = await self._activate_basin(basin_name, content)
+        
+        # Perform extraction
+        memevolve = await self._get_memevolve_adapter()
+        extraction = await memevolve.extract_with_context(
+            content=content,
+            basin_context=basin_context,
+            strategy_context=f"Memory Type: {final_memory_type.value.upper()}",
+            confidence_threshold=0.5,  # Lower threshold, resonance coupling adjusts
+        )
+        
+        # Apply resonance coupling to modulate confidences
+        coupled_extraction = await self.apply_resonance_coupling(
+            content=content,
+            primary_basin=final_basin,
+            extraction=extraction,
+            resonance_score=resonance_score,
+        )
+        
+        # Record basin-memory association
+        await self._record_basin_memory(basin_name, final_memory_type, coupled_extraction)
+        
+        # Ingest approved relationships (above coupled confidence threshold)
+        approved_rels = [
+            r for r in coupled_extraction.get("relationships", [])
+            if r.get("status") == "approved" or r.get("confidence", 0) >= 0.6
+        ]
+        
+        ingestion_result = {"extracted": coupled_extraction}
+        
+        if approved_rels:
+            source = source_id or f"basin_router:{basin_name}:resonance"
+            ingest_result = await memevolve.ingest_relationships(
+                relationships=approved_rels,
+                source_id=source,
+            )
+            ingestion_result["ingested"] = ingest_result
+        
+        # Update basin strength based on resonance (Hebbian learning)
+        await self._update_basin_from_resonance(basin_name, resonance_score)
+        
+        return {
+            "memory_type": final_memory_type.value,
+            "original_type": memory_type.value if memory_type != final_memory_type else None,
+            "basin_name": basin_name,
+            "basin_context": basin_context,
+            "resonance": {
+                "score": resonance_score,
+                "coupling_applied": True,
+            },
+            "transition": transition_result,
+            "ingestion_result": ingestion_result,
+        }
+
+    async def _update_basin_from_resonance(
+        self,
+        basin_name: str,
+        resonance_score: float,
+    ) -> None:
+        """
+        Update basin strength based on resonance (Hebbian-style learning).
+        
+        High resonance strengthens the basin-concept association.
+        Low resonance slightly weakens it (forgetting).
+        
+        Args:
+            basin_name: Name of the basin to update
+            resonance_score: Resonance score from coupling
+        """
+        # Hebbian learning: strength delta proportional to resonance
+        # resonance > 0.5 → strengthen, resonance < 0.5 → weaken
+        strength_delta = (resonance_score - 0.5) * 0.1
+        
+        cypher = """
+        MATCH (b:AttractorBasin {name: $name})
+        SET b.strength = CASE
+            WHEN b.strength + $delta < 0.1 THEN 0.1
+            WHEN b.strength + $delta > 2.0 THEN 2.0
+            ELSE b.strength + $delta
+        END,
+        b.resonance_history = CASE
+            WHEN b.resonance_history IS NULL THEN [$score]
+            WHEN size(b.resonance_history) >= 100 THEN 
+                tail(b.resonance_history) + [$score]
+            ELSE b.resonance_history + [$score]
+        END,
+        b.avg_resonance = CASE
+            WHEN b.resonance_history IS NULL THEN $score
+            ELSE (coalesce(b.avg_resonance, 0.5) * 0.95 + $score * 0.05)
+        END
+        RETURN b.strength as strength, b.avg_resonance as avg_resonance
+        """
+        
+        params = {
+            "name": basin_name,
+            "delta": strength_delta,
+            "score": resonance_score,
+        }
+        
+        try:
+            memevolve = await self._get_memevolve_adapter()
+            result = await memevolve.execute_cypher(cypher, params)
+            if result:
+                logger.debug(
+                    f"Updated {basin_name}: strength_delta={strength_delta:.3f}, "
+                    f"new_strength={result[0].get('strength', 'N/A')}"
+                )
+        except Exception as e:
+            logger.warning(f"Failed to update basin from resonance: {e}")
+
     async def get_basin_stats(self, basin_name: Optional[str] = None) -> Dict[str, Any]:
         """
         Get statistics for basin(s).
