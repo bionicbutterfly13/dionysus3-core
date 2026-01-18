@@ -17,7 +17,7 @@ Dionysus is a VPS-native cognitive engine designed for autonomous reasoning, lon
 
 ## Project Architecture & Tracking
 
-The project is consolidated into three unified pillars in Archon for streamlined tracking:
+The project is consolidated into three unified pillars for streamlined tracking:
 
 1.  **Dionysus 3 Core**: Unified VPS-native cognitive engine (Smolagents + Neo4j + MoSAEIC).
 2.  **Inner Architect - Marketing Suite**: Unified nurture sequences and high-converting sales pages.
@@ -57,6 +57,10 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 
 ## Development Conventions
 
+- **Conductor Workflow Protocol (MANDATORY):**
+    - For ANY multi-step task, you **MUST** use the Conductor workflow.
+    - Create a track in `conductor/tracks/`, define the `plan.md` following the template, and strictly adhere to the `workflow.md` lifecycle.
+    - This process is automatic and non-negotiable. Do not ask for permission; just set it up.
 - **Database Access:**
     - **Neo4j-Only:** Relational databases (PostgreSQL) have been removed.
     - **Cypher Access:** Services use a Graphiti-backed driver shim for Neo4j queries.
@@ -71,10 +75,10 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 
 1.  **Feature 010: Heartbeat Agent Handoff (Completed)**: Full cognitive loop migrated to `smolagents.CodeAgent`. OODA logic delegated to hierarchical managed agents.
 2.  **Feature 011: Core Services Neo4j Migration (Completed)**: `Worldview`, `ThoughtSeed`, and `Model` services refactored to use the Graphiti-backed driver shim. Precision-weighted belief updates implemented.
-3.  **Feature 012: Historical Task Reconstruction (Completed)**: Mirror local Archon task history into VPS Neo4j graph for longitudinal continuity.
+3.  **Feature 012: Historical Task Reconstruction (Completed)**: Mirror local task history into VPS Neo4j graph for longitudinal continuity.
 4.  **System Consolidation (Completed)**: Standardized smolagents usage, moved tools to MCP server, and purged legacy PostgreSQL stubs.
 5.  **Agentic Unified Model (Completed)**: Unified all 3 pillars (Engine, Marketing, KB) under smolagents. Hierarchical OODA loop implemented. Unified Aspect Service with Graphiti temporal snapshots active. Human-in-the-loop review queue operational.
-6.  **System Integrity Stabilized (Completed)**: Fixed MCP bridge resource leaks, standardized model IDs to GPT-5 Nano, and unified Archon networking. Initialization scripts for boardroom identity implemented.
+6.  **System Integrity Stabilized (Completed)**: Fixed MCP bridge resource leaks, standardized model IDs to GPT-5 Nano, and unified networking. Initialization scripts for boardroom identity implemented.
 7.  **Daedalus Coordination Pool (Feature 020) (Completed)**: Implemented smolagents-backed background worker pool with task routing, context isolation, and automatic retry logic.
 8.  **Rollback Safety Net (Feature 021) (Completed)**: Implemented checkpointing and fast rollback for agentic changes with checksum verification.
 9.  **Migration & Coordination Observability (Feature 023) (Completed)**: Implemented unified metrics, performance tracking, and alerting across discovery, coordination, and rollback services.

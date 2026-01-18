@@ -12,7 +12,7 @@ Dionysus 3 collects high-fidelity data, but it remains fragmented. This feature 
 ### User Story 1 - Canonical Principle Extraction (Priority: P1)
 As the system, I want to iterate through fragmented session insights and merge them into a single, high-confidence "Strategic Principle" node in Neo4j, so I have a consistent worldview.
 
-**Independent Test**: Provide 3 raw extracts with slight variations of the "Archon-first" rule. Verify the distiller creates ONE canonical `StrategicPrinciple` node with 100% confidence and links to all 3 sources.
+**Independent Test**: Provide 3 raw extracts with slight variations of the "System-first" rule. Verify the distiller creates ONE canonical `StrategicPrinciple` node with 100% confidence and links to all 3 sources.
 
 ### User Story 2 - Avatar Worldview Alignment (Priority: P1)
 As a user, I want the system to explain a new task through the lens of my avatar's worldview, using the distilled case studies and principles.
@@ -28,4 +28,4 @@ As a user, I want the system to explain a new task through the lens of my avatar
 ## Success Criteria
 - **SC-001**: Total node count for "MentalModels" is reduced by >50% after distillation (proving successful deduplication).
 - **SC-002**: Every distilled unit carries a `provenance_chain` linking back to at least one raw session.
-- **SC-003**: The system's "Voice" (via `MarketingAgent`) becomes 20% more consistent with the "Analytical Empath" filters.
+- **SC-003**: The system's "Voice" (via `MarketingAgent`) becomes 20% more consistent with the "[LEGACY_AVATAR_HOLDER]" filters.

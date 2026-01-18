@@ -1,7 +1,7 @@
 # Feature 051: ToM Active Inference Integration - Ralph Instructions
 
 ## Goal
-Integrate MetaMind's Theory-of-Mind (ToM) hypothesis generation pipeline with Dionysus's active inference architecture to enable empathetic mental state modeling for Analytical Empath users. The system generates 7 ToM hypotheses per interaction, selects winners via EFE minimization, validates responses for empathy/coherence, persists social memory to Graphiti, and monitors identity coherence alignment.
+Integrate MetaMind's Theory-of-Mind (ToM) hypothesis generation pipeline with Dionysus's active inference architecture to enable empathetic mental state modeling for [LEGACY_AVATAR_HOLDER] users. The system generates 7 ToM hypotheses per interaction, selects winners via EFE minimization, validates responses for empathy/coherence, persists social memory to Graphiti, and monitors identity coherence alignment.
 
 ## Current State
 - ✅ Specification complete (44 functional requirements across 6 domains)

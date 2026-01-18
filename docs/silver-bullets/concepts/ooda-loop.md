@@ -244,7 +244,7 @@ OBSERVE:
 ORIENT:
 - Pattern: "Stuck" = approach-avoidance conflict
 - Mental model: Fear of success/identity loss
-- Hypothesis: Analytical Empath measuring self by crisis metrics
+- Hypothesis: [LEGACY_AVATAR_HOLDER] measuring self by crisis metrics
 
 DECIDE:
 - Goal: Surface the conflict to awareness
@@ -303,7 +303,7 @@ with HeartbeatAgent(model_id="dionysus-agents") as agent:
 
 ```
 MACRO OODA (Full Task):
-└── OBSERVE: "Need to draft New Year email for Analytical Empaths"
+└── OBSERVE: "Need to draft New Year email for [LEGACY_AVATAR_HOLDER]s"
     └── ORIENT: "Use identity transformation hook pattern"
         └── DECIDE: "Delegate to marketing agent with research context"
             └── ACT: Execute delegation
@@ -329,7 +329,7 @@ Result: Nested loops at different abstraction levels
 **Clinical Application**: Hypervigilance vs Meta-Recognition
 
 ```
-Threat-Detection OODA (Analytical Empath Default):
+Threat-Detection OODA ([LEGACY_AVATAR_HOLDER] Default):
 - OBSERVE: Ambiguous social cue (0.1s)
 - ORIENT: Match to threat template (0.2s)
 - DECIDE: Defensive posture (0.1s)

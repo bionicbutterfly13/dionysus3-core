@@ -11,7 +11,7 @@ from typing import Optional
 
 from api.models.mosaeic import MOSAEICCapture
 from api.services.llm_service import chat_completion, GPT5_NANO
-from api.services.graphiti_service import get_graphiti_service
+from api.services.memevolve_adapter import get_memevolve_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +72,15 @@ class MOSAEICService:
 
     async def persist_capture(self, capture: MOSAEICCapture):
         """Save MOSAEIC capture to Graphiti/Neo4j."""
-        graphiti = await get_graphiti_service()
+        adapter = get_memevolve_adapter()
         
         # 1. Ingest the summary as an episode
-        episode_id = await graphiti.ingest_message(
+        episode_result = await adapter.ingest_message(
             content=f"MOSAEIC Experience: {capture.summary}",
-            source_description=f"mosaeic_capture:{capture.source_id}",
-            valid_at=capture.timestamp
+            source_id=f"mosaeic_capture:{capture.source_id}",
+            valid_at=capture.timestamp,
+            tags=["mosaeic", "episodic"],
+            memory_type="episodic",
         )
         
         # 2. Ingest windows as factual edges linked to this context
@@ -93,13 +95,15 @@ class MOSAEICService:
         for name, win in windows.items():
             if win.intensity > 0.1:
                 fact = f"User experienced {name} during this episode: {win.content} (Intensity: {win.intensity:.1f})"
-                await graphiti.ingest_message(
+                await adapter.ingest_message(
                     content=fact,
-                    source_description=f"mosaeic_window:{name}",
-                    valid_at=capture.timestamp
+                    source_id=f"mosaeic_window:{name}",
+                    valid_at=capture.timestamp,
+                    tags=["mosaeic", "semantic"],
+                    memory_type="semantic",
                 )
         
-        return episode_id
+        return episode_result.get("ingest_id")
 
 
 _mosaeic_service: Optional[MOSAEICService] = None

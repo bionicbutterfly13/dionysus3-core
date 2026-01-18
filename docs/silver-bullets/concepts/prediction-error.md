@@ -181,7 +181,7 @@ error_B = 0.4
 # Result: JWT selected, basin forms around this solution
 ```
 
-### Example 4: Clinical Context (Analytical Empaths)
+### Example 4: Clinical Context ([LEGACY_AVATAR_HOLDER]s)
 
 **Real-world application**: Identity prediction errors
 

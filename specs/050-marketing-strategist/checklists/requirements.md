@@ -14,7 +14,7 @@
 ### Agent Architecture
 - [ ] CHK001 - Are agent initialization requirements fully specified (CodeAgent configuration, system prompt structure, tool registry)? [Completeness, Spec §3.1]
 - [ ] CHK002 - Are agent lifecycle requirements defined (instantiation, registration, teardown)? [Gap]
-- [ ] CHK003 - Are agent identity requirements documented ("Analytical Empath specialist" grounding, avatar attachment mechanism)? [Completeness, Spec §2]
+- [ ] CHK003 - Are agent identity requirements documented ("[LEGACY_AVATAR_HOLDER] specialist" grounding, avatar attachment mechanism)? [Completeness, Spec §2]
 - [ ] CHK004 - Are requirements defined for how the agent maintains context across invocations? [Gap]
 
 ### Marketing Framework System
@@ -49,7 +49,7 @@
 - [ ] CHK021 - Is "world-class Direct Response Architect" defined with specific behavioral characteristics? [Clarity, Spec §3.1]
 - [ ] CHK022 - Is "high-conversion, authentic content" quantified with measurable criteria? [Ambiguity, Spec §1]
 - [ ] CHK023 - Are "avatar insights" defined with specific data structure and fields? [Clarity, Spec §6]
-- [ ] CHK024 - Is "Analytical Empath motivational map" structure and content specified? [Ambiguity, Spec §2]
+- [ ] CHK024 - Is "[LEGACY_AVATAR_HOLDER] motivational map" structure and content specified? [Ambiguity, Spec §2]
 - [ ] CHK025 - Is "Crack research" attachment mechanism clearly defined? [Ambiguity, Spec §2]
 
 ### Specification Precision
@@ -79,7 +79,7 @@
 - [ ] CHK039 - Are Knowledge Graph storage requirements consistent with existing Graphiti service patterns? [Consistency]
 
 ### Terminology Consistency
-- [ ] CHK040 - Is "Analytical Empath" terminology used consistently across spec, plan, and tasks? [Consistency]
+- [ ] CHK040 - Is "[LEGACY_AVATAR_HOLDER]" terminology used consistently across spec, plan, and tasks? [Consistency]
 - [ ] CHK041 - Are framework naming conventions consistent throughout requirements? [Consistency]
 
 ---
@@ -87,7 +87,7 @@
 ## Scenario Coverage
 
 ### Primary Flow Requirements
-- [ ] CHK042 - Are requirements complete for the primary user scenario: "Draft email for Analytical Empaths using specific framework"? [Coverage, Spec §5]
+- [ ] CHK042 - Are requirements complete for the primary user scenario: "Draft email for [LEGACY_AVATAR_HOLDER]s using specific framework"? [Coverage, Spec §5]
 - [ ] CHK043 - Are requirements defined for multi-step content generation workflows? [Coverage, Gap]
 - [ ] CHK044 - Are requirements specified for framework application validation workflows? [Coverage, Gap]
 
@@ -206,7 +206,7 @@
 - [ ] CHK102 - Are all technical terms defined in a glossary or inline? [Documentation, Gap]
 - [ ] CHK103 - Are architecture diagrams provided for agent integration? [Documentation, Gap]
 - [ ] CHK104 - Are data flow diagrams provided for content generation pipeline? [Documentation, Gap]
-- [ ] CHK105 - Is the relationship between "Analytical Empath" research and agent behavior documented? [Documentation, Spec §2]
+- [ ] CHK105 - Is the relationship between "[LEGACY_AVATAR_HOLDER]" research and agent behavior documented? [Documentation, Spec §2]
 
 ### Migration & Deployment
 - [ ] CHK106 - Are deployment requirements specified (VPS, local, Docker)? [Documentation, Gap]
@@ -223,7 +223,7 @@
 
 ### Strategic Alignment
 - [ ] CHK111 - Are requirements aligned with "Inner Architect" marketing pillar objectives? [Business Value, Spec §1]
-- [ ] CHK112 - Is "Analytical Empath" audience targeting validated against business goals? [Business Value, Spec §2]
+- [ ] CHK112 - Is "[LEGACY_AVATAR_HOLDER]" audience targeting validated against business goals? [Business Value, Spec §2]
 - [ ] CHK113 - Are conversion optimization requirements defined and measurable? [Business Value, Spec §1]
 
 ### Outcome Tracking

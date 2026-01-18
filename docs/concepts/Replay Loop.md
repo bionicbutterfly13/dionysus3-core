@@ -1,7 +1,7 @@
 # The Replay Loop
 
 **Category:** Behavioral Change Framework (Inner Architect System Core)
-**Target:** Analytical Empaths
+**Target:** [LEGACY_AVATAR_HOLDER]s
 **Related:** All technical concepts apply here
 **Status:** Lead Magnet / Core Offering
 
@@ -138,7 +138,7 @@ That's why technical people get the Replay Loop immediately. You already underst
 
 You just didn't know your mind ran the same code.
 
-## For Analytical Empaths Specifically
+## For [LEGACY_AVATAR_HOLDER]s Specifically
 
 You optimized for:
 - Crisis response (hypervigilance basin)

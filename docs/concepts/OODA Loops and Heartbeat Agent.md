@@ -109,10 +109,8 @@ Initial plan:
 2. Stop unused containers
 3. Verify memory freed
 
-**But** - during execution, we discovered Archon dependency was dead weight.
 
 Heartbeat replanning:
-- Cycle 3: Re-observe (Archon not being used)
 - Re-orient (it's cognitive overhead, not value)
 - Re-decide (delete entire dependency, not just stop container)
 
@@ -255,7 +253,7 @@ class HeartbeatAgent(ToolCallingAgent):
 
 Actual production code. Not pseudocode. **This runs Dionysus.**
 
-## Application to Analytical Empaths
+## Application to [LEGACY_AVATAR_HOLDER]s
 
 The [[Replay Loop]] teaches OODA for emotions:
 

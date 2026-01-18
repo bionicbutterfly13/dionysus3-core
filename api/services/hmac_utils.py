@@ -155,19 +155,17 @@ async def verify_memevolve_signature(request: Request) -> bool:
         )
     
     body = await request.body()
-    secret = os.getenv("MEMEVOLVE_HMAC_SECRET", "")
+    secret = (
+        os.getenv("MEMEVOLVE_HMAC_SECRET")
+        or os.getenv("DIONYSUS_HMAC_SECRET")
+        or ""
+    )
     
     if not secret:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail="MEMEVOLVE_HMAC_SECRET not configured"
+            detail="MEMEVOLVE_HMAC_SECRET or DIONYSUS_HMAC_SECRET not configured"
         )
-    
-    # For debugging
-    expected_signature_debug = generate_signature(body, secret)
-    print(f"DEBUG: Server received signature: {signature_header}")
-    print(f"DEBUG: Server computed signature: {expected_signature_debug}")
-    print(f"DEBUG: Server received body bytes: {body!r}")
     
     if not validate_signature(body, signature_header, secret):
         raise HTTPException(

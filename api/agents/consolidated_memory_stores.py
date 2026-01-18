@@ -29,6 +29,17 @@ class ConsolidatedMemoryStore:
         MERGE (e:DevelopmentEvent {id: $id})
         SET e += $props,
             e.river_stage = 'source'
+        WITH e
+        // Link to Attractor Basin if present
+        FOREACH (_ IN CASE WHEN $basin_id IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (b:AttractorBasin {id: $basin_id})
+            MERGE (e)-[:ALIGNS_WITH {score: $basin_score}]->(b)
+        )
+        // Link to Markov Blanket if present
+        FOREACH (_ IN CASE WHEN $blanket_id IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (mb:MarkovBlanket {id: $blanket_id})
+            MERGE (e)-[:WITHIN_BLANKET]->(mb)
+        )
         RETURN e.id
         """
         props = event.model_dump(exclude={"event_id", "timestamp"})
@@ -41,7 +52,10 @@ class ConsolidatedMemoryStore:
         try:
             await self._driver.execute_query(cypher, {
                 "id": event.event_id,
-                "props": props
+                "props": props,
+                "basin_id": event.linked_basin_id,
+                "basin_score": event.basin_r_score,
+                "blanket_id": event.markov_blanket_id
             })
             return True
         except Exception as e:

@@ -105,7 +105,6 @@ Large perturbation crosses basin boundary → system falls into new basin.
 
 **Before:** Complex orchestration basin
 - Attractor: "More tools = more capability"
-- State: Archon MCP, external task management, heavy infrastructure
 
 **After:** Lean consciousness basin
 - Attractor: "Less tooling = more velocity"
@@ -119,7 +118,7 @@ The system collapsed into a new stable state. 4GB RAM freed, new equilibrium.
 
 That's attractor basin physics in infrastructure.
 
-## Why This Matters for Analytical Empaths
+## Why This Matters for [LEGACY_AVATAR_HOLDER]s
 
 The [[Replay Loop]] makes basin dynamics *visible*.
 
@@ -193,7 +192,6 @@ We applied this to infrastructure:
 - Each phase = basin state
 - Protocol ensures we don't drift into "debugging MCP connection basin" every session
 
-Remove Archon → remove one source of basin instability.
 
 ## SEO Knowledge Gap: "Attractor Basin Cognitive Systems"
 

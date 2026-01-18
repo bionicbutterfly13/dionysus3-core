@@ -1,0 +1,22 @@
+
+> dionysus-dashboard@0.1.0 build
+> next build
+
+▲ Next.js 16.1.1 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 13.4s
+  Running TypeScript ...
+Failed to compile.
+
+./src/components/story-chat.tsx:30:31
+Type error: Property 'parts' does not exist on type '{ message: UIMessage<unknown, UIDataTypes, UITools>; messages: UIMessage<unknown, UIDataTypes, UITools>[]; isAbort: boolean; isDisconnect: boolean; isError: boolean; finishReason?: FinishReason | undefined; }'.
+
+[0m [90m 28 |[39m     onFinish[33m:[39m (message) [33m=>[39m {
+ [90m 29 |[39m       [90m// Check if the message contains a recommendation[39m
+[31m[1m>[22m[39m[90m 30 |[39m       [36mconst[39m content [33m=[39m message[33m.[39mparts[33m.[39mfind(p [33m=>[39m p[33m.[39mtype [33m===[39m [32m'text'[39m)[33m?[39m[33m.[39mtext [33m||[39m [32m''[39m[33m;[39m
+ [90m    |[39m                               [31m[1m^[22m[39m
+ [90m 31 |[39m       [36mtry[39m {
+ [90m 32 |[39m         [36mconst[39m match [33m=[39m content[33m.[39mmatch([35m/\[RECOMMENDATION\]([\s\S]*?)\[\/RECOMMENDATION\]/[39m)[33m;[39m
+ [90m 33 |[39m         [36mif[39m (match) {[0m
+Next.js build worker exited with code: 1 and signal: null

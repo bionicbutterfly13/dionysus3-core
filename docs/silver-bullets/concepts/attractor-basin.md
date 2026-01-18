@@ -156,7 +156,7 @@ if len(activated) >= 2:
 
 ### Example 1: Hypervigilance Basin
 
-**Clinical Context**: Analytical Empath stuck in threat-detection mode
+**Clinical Context**: [LEGACY_AVATAR_HOLDER] stuck in threat-detection mode
 
 ```
 Basin Properties:

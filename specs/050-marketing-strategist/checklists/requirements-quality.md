@@ -44,10 +44,10 @@
 
 - [ ] CHK018 - Is "high-conversion, authentic content" quantified with specific metrics (conversion rate thresholds, authenticity criteria)? [Ambiguity, Spec §1]
 - [ ] CHK019 - Is "world-class Direct Response Architect" defined with measurable capabilities? [Ambiguity, Spec §3.1]
-- [ ] CHK020 - Is "Analytical Empath avatar" operationalized with specific data attributes required for targeting? [Ambiguity, Spec §2]
+- [ ] CHK020 - Is "[LEGACY_AVATAR_HOLDER] avatar" operationalized with specific data attributes required for targeting? [Ambiguity, Spec §2]
 - [ ] CHK021 - Is "correct marketing framework" defined with selection/matching criteria? [Ambiguity, Spec §6]
 - [ ] CHK022 - Is "strategic rationale" specified with required components/structure? [Ambiguity, Spec §2]
-- [ ] CHK023 - Is "specialized prompt engineering for Analytical Empath mirror tone" defined with concrete examples or guidelines? [Ambiguity, Plan §Step 2]
+- [ ] CHK023 - Is "specialized prompt engineering for [LEGACY_AVATAR_HOLDER] mirror tone" defined with concrete examples or guidelines? [Ambiguity, Plan §Step 2]
 
 ### Quantification Requirements
 

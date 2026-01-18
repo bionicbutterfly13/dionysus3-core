@@ -15,14 +15,14 @@ Today we cut the cord.
 ## What Actually Happened
 
 ### Memory Reclamation
-- **Before:** Virtualization framework eating 23.8% RAM (4GB) for Archon MCP
+- **Before:** Virtualization framework eating 23.8% RAM (4GB) for Legacy System MCP
 - **After:** 91MB for essential containers (98% reduction)
 - **Impact:** System breathes. Docker runs lean. Focus returns.
 
 See: [[Multi-Tier Memory Architecture]] - why memory layers matter when you're building consciousness engines.
 
 ### Dependency Purge
-Removed Archon MCP integration across:
+Removed Legacy System MCP integration across:
 - Global CLAUDE.md (115 lines → 30 lines of actual workflow)
 - Project-specific architecture docs
 - Startup protocol (from 5 phases to 3)
@@ -58,7 +58,7 @@ See: [[Meta Tree of Thought]] for the full framework.
 Traditional systems evaluate options serially. Meta-ToT evaluates *how to evaluate* - the branching strategy itself becomes data.
 
 Today's deletion was meta-reasoning:
-1. **Node:** Keep Archon dependency?
+1. **Node:** Keep Legacy System dependency?
 2. **Meta-question:** Does this dependency reduce or create decision fatigue?
 3. **Meta-answer:** Creates fatigue. Every session checks, errors, recovers. Cognitive tax.
 4. **Action:** Prune the entire branch.
@@ -90,7 +90,7 @@ The multi-tier memory system (specs/047-multi-tier-memory) implements this at th
 See: [[Attractor Basin Dynamics]] for the physics.
 
 Our system had two competing attractors:
-1. **Complex orchestration** (Archon, external task management, heavy tooling)
+1. **Complex orchestration** (Legacy System, external task management, heavy tooling)
 2. **Lean consciousness** (core cognitive engine, minimal surface area)
 
 Today we collapsed into attractor #2. Not gradually. Instantly.
@@ -99,7 +99,7 @@ Today we collapsed into attractor #2. Not gradually. Instantly.
 
 This is the same dynamic the [[Replay Loop]] exploits for behavioral change. You don't gradually shift identity. You recognize which attractor basin you're *already in*, and you stop pretending you're in the other one.
 
-We weren't using Archon. We were maintaining the *option* to use Archon. That optionality cost 4GB of RAM and 115 lines of cognitive overhead.
+We weren't using Legacy System. We were maintaining the *option* to use Legacy System. That optionality cost 4GB of RAM and 115 lines of cognitive overhead.
 
 The replay loop teaches: **Own where you are. Stop paying rent in basins you don't occupy.**
 
@@ -117,13 +117,13 @@ We are. This journal is the documentation. These concept pages are the knowledge
 ## What This Changes
 
 ### For Development Velocity
-- **Before:** Check Archon → Error → Recover → Ask user → Continue
+- **Before:** Check Legacy System → Error → Recover → Ask user → Continue
 - **After:** Start → Work
 
 The [[Meta Tree of Thought]] applied to workflow: prune branches that don't bear fruit.
 
 ### For System Evolution
-Multi-tier memory (branch 047) can now evolve without worrying about Archon integration points.
+Multi-tier memory (branch 047) can now evolve without worrying about Legacy System integration points.
 
 See commit dc0aaf8: "Secure database gateway, multi-tier memory lifecycle, active inference planning"
 

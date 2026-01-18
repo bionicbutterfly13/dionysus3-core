@@ -5,7 +5,7 @@
 
 ## Summary
 
-Implement REST API endpoints exposing BeliefTrackingService (journey creation, belief lifecycle, experiments, replay loops, MOSAEIC, metrics) and create avatar simulation skills for interactive roleplay with Theory of Mind modeling and Shell/Core dynamics tracking for the Analytical Empath archetype.
+Implement REST API endpoints exposing BeliefTrackingService (journey creation, belief lifecycle, experiments, replay loops, MOSAEIC, metrics) and create avatar simulation skills for interactive roleplay with Theory of Mind modeling and Shell/Core dynamics tracking for the [LEGACY_AVATAR_HOLDER] archetype.
 
 ## Technical Context
 
@@ -117,5 +117,5 @@ See [quickstart.md](./quickstart.md) for development setup and usage examples.
 
 After plan approval:
 1. Run `/speckit.tasks` to generate implementation tasks
-2. Create Archon project with tasks
+
 3. Implement following TDD cycle

@@ -317,7 +317,7 @@ else:
     new_h_state = current_h * (1 - delta)
 ```
 
-### Example 5: Cognitive Episode (Analytical Empaths)
+### Example 5: Cognitive Episode ([LEGACY_AVATAR_HOLDER]s)
 
 **Real-world application**: Recording therapy session insights
 

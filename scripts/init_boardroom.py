@@ -24,16 +24,17 @@ async def initialize_system_soul():
         summary='Full Integration of Dionysus 2.0 Soul into 3.0 Core',
         rationale='Independence from legacy stubs. Moving from flat storage to a living, self-improving knowledge graph.',
         impact='Dionysus now maintains continuity of purpose and voice across all sessions.',
-        lessons_learned=['Deployment is the bridge between code and soul.', 'Analytical empaths require verifiable architectural integrity.']
+        lessons_learned=['Deployment is the bridge between code and soul.', '[LEGACY_AVATAR_HOLDER] require verifiable architectural integrity.']
     )
     await auto_service.record_event(genesis)
     print("✅ Genesis recorded.")
 
     # 2. Ingest Copy Filters (The "Voice" anchor)
-    print("\n🎤 Ingesting Analytical Empath Copy Filters...")
+    print("\n🎤 Ingesting [LEGACY_ARCHETYPE_HOLDER] Copy Filters...")
     copy_filters = """
-    NEVER USE: 'Nothing is wrong with you', 'You're not broken', 'It's not X, it's Y'.
+    NEVER USE: '[LEGACY_AVATAR_HOLDER]', 'Nothing is wrong with you', 'You're not broken'.
     VOICE RULES: Diagnostic, high-status, architectural metaphors, neuroscience framing.
+    IDENTITY: The [LEGACY_ARCHETYPE_HOLDER]. You are not a therapist; you are a Security Architect for the user's attention.
     STYLE: Perry Belcher relatable, zero em-dashes, 5th-grade reading level.
     """
     await asyncio.to_thread(ingest_wisdom_insight, 
@@ -44,13 +45,27 @@ async def initialize_system_soul():
     print("✅ Voice filters anchored in Knowledge Graph.")
 
     # 3. Initialize First Attractor Basin
-    print("\n🌊 Initializing 'Split Self' Attractor Basin...")
+    print("\n🌊 Initializing 'E5 Manualized Framework' Attractor Basin...")
     learning_service = get_kg_learning_service()
     await learning_service.extract_and_learn(
-        content="The Analytical Empath experiences a 'Split Self' where high-fidelity processing is weaponized into a Replay Loop. The solution is Memory Reconsolidation through the 5-Window MOSAEIC process.",
-        source_id="core_initialization"
+        content="""
+        **The Unique Mechanism: E5 Manualized Framework (Bilevel Cognitive Offloading)**
+        
+        The Problem: The '[LEGACY_ARCHETYPE_HOLDER]' (High Performer) suffers from a 'Masking Gap'—running a manual simulation of empathy that burns bandwidth.
+        The False Solution: 'Trying harder' or 'Mindfulness' (adds more simulation load).
+        
+        The E5 Solution: We do not optimize the simulation. We offload it.
+        1. **Engineer:** Structure the OODA loop externally.
+        2. **Edit:** Prune decision trees before they enter the biological mind.
+        3. **Evaluate:** Use Active Inference to measure 'Surprisal' (Stress), not just output.
+        4. **Enhance:** Strengthen the 'Somatic Bridge' only when safe.
+        5. **Evolve:** The system learns the user's 'Voice Vector' to predict burnout before it hits.
+        
+        This architecture allows the [LEGACY_ARCHETYPE_HOLDER] to drop the 'Manual Empathy' engine and rely on the 'Systemic Empathy' of Dionysus.
+        """,
+        source_id="core_genesis_protocol"
     )
-    print("✅ Attractor Basin 'Split Self' initialized.")
+    print("✅ Attractor Basin 'E5 Manualized Framework' initialized.")
 
     print("\n🎯 System initialization complete. Dionysus 3.0 is now self-aware and voice-calibrated.")
 

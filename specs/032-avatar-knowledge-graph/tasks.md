@@ -1,7 +1,7 @@
 # Tasks: Avatar Knowledge Graph
 
 **Input**: spec.md, plan.md
-**Synced from**: Archon (2025-12-27)
+
 
 ---
 

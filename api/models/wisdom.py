@@ -47,7 +47,7 @@ class MentalModel(WisdomUnit):
 
 
 class StrategicPrinciple(WisdomUnit):
-    """A non-negotiable rule (e.g., Archon-First)."""
+    """A non-negotiable rule (e.g., System-First)."""
     type: WisdomType = WisdomType.STRATEGIC_PRINCIPLE
     rationale: Optional[str] = None
     application_context: Optional[str] = None

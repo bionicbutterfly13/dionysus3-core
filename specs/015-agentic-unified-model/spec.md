@@ -3,7 +3,7 @@
 **Feature Branch**: `015-agentic-unified-model`  
 **Created**: 2025-12-26  
 **Status**: Draft  
-**Input**: User description: "Build agentic unified model for all projects using smolagents. Port all pending features from Archon. All projects smolagent built. Unified source of truth for aspects with Graphiti temporal tracking. Low-confidence content to human review."
+**Input**: User description: "Build agentic unified model for all projects using smolagents. Port all pending features from System. All projects smolagent built. Unified source of truth for aspects with Graphiti temporal tracking. Low-confidence content to human review."
 
 ## User Scenarios & Testing
 

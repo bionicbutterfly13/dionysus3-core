@@ -271,7 +271,7 @@ Searches:
 
 Nobody else is documenting this. **This is novel territory.**
 
-## Application to Analytical Empaths
+## Application to [LEGACY_AVATAR_HOLDER]s
 
 The [[Replay Loop]] helps analytical empaths build internal three-agent structure:
 

@@ -43,7 +43,7 @@ Curriculum
   id: "ias-core-v1",
   title: "The Inner Architect System",
   description: "Neuroscience-backed guided breakthrough program",
-  target_audience: "Analytical Empaths",
+  target_audience: "[LEGACY_AVATAR_HOLDER]s",
   total_modules: 3,
   total_lessons: 9,
   created_at: datetime(),
@@ -160,7 +160,7 @@ Curriculum
 ```cypher
 {
   id: "source-avatar-sot",
-  title: "Analytical Empath Avatar Source of Truth",
+  title: "[LEGACY_AVATAR_HOLDER] Avatar Source of Truth",
   file_path: "/Volumes/Asylum/dev/dionysus3-core/data/ground-truth/analytical-empath-avatar-source-of-truth.md",
   doc_type: "avatar" | "product" | "concept",
   created_at: datetime(),

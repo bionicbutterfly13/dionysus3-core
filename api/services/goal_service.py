@@ -378,6 +378,24 @@ class GoalService:
         logger.info(f"Completed goal: {goal_id}")
         return self._record_to_goal(record["g"])
 
+    async def get_goal_statistics(self) -> dict:
+        """
+        Get goal statistics formatted for heartbeat observation.
+        """
+        summary = await self.get_backlog_summary()
+        return {
+            "goals_by_priority": {
+                "active": summary.active_count,
+                "queued": summary.queued_count,
+                "backburner": summary.backburner_count,
+                "completed": summary.completed_count,
+                "abandoned": summary.abandoned_count,
+            },
+            "blocked_count": summary.blocked_count,
+            "stale_count": summary.stale_count,
+            "total_count": summary.total_count
+        }
+
     async def abandon_goal(self, goal_id: UUID, reason: str) -> Optional[Goal]:
         """
         Mark a goal as abandoned.
@@ -583,7 +601,7 @@ class GoalService:
                 RETURN
                     g.priority as priority,
                     count(g) as count,
-                    sum(CASE WHEN g.blocked_by IS NOT NULL THEN 1 ELSE 0 END) as blocked
+                    sum(CASE WHEN g.blocked_at IS NOT NULL THEN 1 ELSE 0 END) as blocked
                 """
             )
             records = await result.data()

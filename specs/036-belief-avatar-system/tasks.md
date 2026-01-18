@@ -97,7 +97,7 @@
 
 ## Phase 5: User Story 3 - Avatar Simulation with Theory of Mind (Priority: P2)
 
-**Goal**: Simulate Analytical Empath experience of course content with Shell/Core dynamics
+**Goal**: Simulate [LEGACY_AVATAR_HOLDER] experience of course content with Shell/Core dynamics
 
 **Independent Test**: Skill invocation returns structured response with internal_thoughts, emotional_reactions, shell_core_dynamics
 

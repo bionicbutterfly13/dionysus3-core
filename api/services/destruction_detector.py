@@ -1,7 +1,7 @@
 """
 Destruction Detector Service
 Feature: 002-remote-persistence-safety
-Phase 7, User Story 5: LLM Destruction Detection & Archon Integration
+Phase 7, User Story 5: LLM Destruction Detection
 
 T051: Detect rapid delete patterns that may indicate LLM memory wipeout.
 T052: Alert logging and optional n8n webhook notification.

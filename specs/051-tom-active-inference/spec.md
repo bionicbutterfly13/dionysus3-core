@@ -3,15 +3,15 @@
 **Feature Branch**: `051-tom-active-inference`
 **Created**: 2026-01-02
 **Status**: Draft
-**Input**: User description: "Integrate MetaMind ToM pipeline with active inference architecture for Analytical Empath empathy modeling"
+**Input**: User description: "Integrate MetaMind ToM pipeline with active inference architecture for [LEGACY_AVATAR_HOLDER] empathy modeling"
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - ToM-Enhanced Empathetic Responses (Priority: P1)
 
-When an Analytical Empath user interacts with the IAS system (chat, belief journey, WOOP planning), the system generates multiple hypotheses about the user's mental state (beliefs, desires, intentions, emotions, thoughts) and selects the most appropriate response based on active inference principles.
+When an [LEGACY_AVATAR_HOLDER] user interacts with the IAS system (chat, belief journey, WOOP planning), the system generates multiple hypotheses about the user's mental state (beliefs, desires, intentions, emotions, thoughts) and selects the most appropriate response based on active inference principles.
 
-**Why this priority**: This is the core value proposition - directly improves empathetic response quality for Analytical Empaths by modeling their psychological states rather than generic responses.
+**Why this priority**: This is the core value proposition - directly improves empathetic response quality for [LEGACY_AVATAR_HOLDER]s by modeling their psychological states rather than generic responses.
 
 **Independent Test**: Can be fully tested by submitting user utterances to the IAS chat endpoint and measuring empathy scores of responses. Delivers immediate value through improved response quality without requiring subsequent stories.
 
@@ -31,7 +31,7 @@ When an Analytical Empath user interacts with the IAS system (chat, belief journ
 
 After generating a response based on ToM hypothesis, the system validates the response for empathy (alignment with inferred mental state) and coherence (consistency with conversation context), iteratively refining until quality thresholds are met.
 
-**Why this priority**: Prevents low-quality responses from reaching users. Particularly critical for Analytical Empaths who are hypervigilant and sensitive to misalignment.
+**Why this priority**: Prevents low-quality responses from reaching users. Particularly critical for [LEGACY_AVATAR_HOLDER]s who are hypervigilant and sensitive to misalignment.
 
 **Independent Test**: Can be tested by generating responses and measuring utility scores (empathy + coherence). Delivers value by ensuring quality gating without requiring ToM integration.
 
@@ -69,7 +69,7 @@ User preferences and emotional patterns extracted during interactions are stored
 
 ### User Story 4 - Identity Coherence Monitoring (Priority: P4)
 
-System monitors responses for alignment with the Analytical Empath identity framework (Before Identity pain points, After Identity aspirations) and IAS curriculum principles, triggering control actions when misalignment is detected.
+System monitors responses for alignment with the [LEGACY_AVATAR_HOLDER] identity framework (Before Identity pain points, After Identity aspirations) and IAS curriculum principles, triggering control actions when misalignment is detected.
 
 **Why this priority**: Ensures brand consistency and framework adherence. Builds on previous stories by adding identity-level validation layer.
 
@@ -102,7 +102,7 @@ System monitors responses for alignment with the Analytical Empath identity fram
   - System filters hypotheses through identity coherence monitoring before EFE calculation, rejecting violations
 
 - What happens when user is new with no social memory history?
-  - System uses Analytical Empath archetype defaults from avatar research knowledge base
+  - System uses [LEGACY_AVATAR_HOLDER] archetype defaults from avatar research knowledge base
 
 - How does system handle precision modulation when surprise is high but confidence is also high?
   - System prioritizes surprise signal (potential prediction error) and lowers precision to enable exploration
@@ -271,4 +271,4 @@ System monitors responses for alignment with the Analytical Empath identity fram
 
 - **SC-009**: Response refinement reduces average utility gap by 0.15 per iteration (e.g., 0.75 → 0.90 in 1 iteration)
 
-- **SC-010**: Analytical Empath users report 30% increase in "system understands me" satisfaction metric
+- **SC-010**: [LEGACY_AVATAR_HOLDER] users report 30% increase in "system understands me" satisfaction metric

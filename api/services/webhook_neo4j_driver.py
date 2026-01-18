@@ -39,10 +39,14 @@ class WebhookNeo4jSession:
         """
         Proxies query to GraphitiService.
         """
-        from api.services.graphiti_service import get_graphiti_service
-        graphiti = await get_graphiti_service()
+        from api.services.memevolve_adapter import get_memevolve_adapter
+        adapter = get_memevolve_adapter()
         
-        records = await graphiti.execute_cypher(statement, parameters or {})
+        # Merge kwargs into parameters
+        combined_params = (parameters or {}).copy()
+        combined_params.update(kwargs)
+        
+        records = await adapter.execute_cypher(statement, combined_params)
         return WebhookNeo4jResult(records)
 
 
@@ -57,9 +61,14 @@ class WebhookNeo4jDriver:
         """
         Execute a Cypher query via Graphiti and return results.
         """
-        from api.services.graphiti_service import get_graphiti_service
-        graphiti = await get_graphiti_service()
-        return await graphiti.execute_cypher(statement, parameters or {})
+        from api.services.memevolve_adapter import get_memevolve_adapter
+        adapter = get_memevolve_adapter()
+        
+        # Merge kwargs into parameters
+        combined_params = (parameters or {}).copy()
+        combined_params.update(kwargs)
+        
+        return await adapter.execute_cypher(statement, combined_params)
 
     async def close(self) -> None:
         return None

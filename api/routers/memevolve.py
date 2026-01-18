@@ -44,6 +44,22 @@ async def health_check(
     )
 
 
+@router.get("/health", response_model=HealthCheckResponse)
+async def health_check_get(
+    adapter: MemEvolveAdapter = Depends(get_memevolve_adapter)
+) -> HealthCheckResponse:
+    """
+    Health check endpoint (GET) for MemEvolve integration.
+
+    Matches the EvolveLab client expectation.
+    """
+    result = await adapter.health_check()
+    return HealthCheckResponse(
+        status=result["status"],
+        service=result["service"]
+    )
+
+
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest_trajectory(
     request: MemoryIngestRequest,

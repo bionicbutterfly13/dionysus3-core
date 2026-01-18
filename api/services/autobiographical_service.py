@@ -293,6 +293,47 @@ class AutobiographicalService:
             return val
         return None
 
+    async def count_recent_memories(self, duration_hours: int = 24) -> int:
+        """Count memories created in the last N hours."""
+        cypher = """
+        MATCH (m:Memory)
+        WHERE m.created_at >= datetime() - duration({hours: $hours})
+        RETURN count(m) as count
+        """
+        result = await self._driver.execute_query(cypher, {"hours": duration_hours})
+        return result[0]["count"] if result else 0
+
+    async def search_memories(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """Search memories using text matching (fallback for recall tool)."""
+        cypher = """
+        MATCH (m:Memory)
+        WHERE m.content CONTAINS $query
+        RETURN m
+        LIMIT $limit
+        """
+        rows = await self._driver.execute_query(cypher, {"query": query, "limit": limit})
+        return [r["m"] for r in rows]
+
+    async def connect_memories(self, source_id: str, target_id: str, relationship_type: str = "RELATED_TO") -> Optional[Dict[str, Any]]:
+        """Connect two memories with a relationship."""
+        cypher = f"""
+        MATCH (s:Memory {{id: $source_id}}), (t:Memory {{id: $target_id}})
+        MERGE (s)-[r:{relationship_type}]->(t)
+        RETURN s.id as source, t.id as target, type(r) as rel_type
+        """
+        result = await self._driver.execute_query(cypher, {"source_id": source_id, "target_id": target_id})
+        return result[0] if result else None
+
+    async def maintain_memory(self, memory_id: str, boost: float = 0.1) -> Optional[Dict[str, Any]]:
+        """Boost memory importance."""
+        cypher = """
+        MATCH (m:Memory {id: $id})
+        SET m.importance = coalesce(m.importance, 0.5) + $boost
+        RETURN m.id as id, m.importance as importance
+        """
+        result = await self._driver.execute_query(cypher, {"id": memory_id, "boost": boost})
+        return result[0] if result else None
+
     # =========================================================================
     # Extended Mind Integration (Migrated from D2)
     # =========================================================================

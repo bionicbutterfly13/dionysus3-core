@@ -272,7 +272,7 @@ Per iteration: (500 * 0.000000003) + (1000 * 0.000000015) = ~0.018
 
 ### MCP Tool Pattern
 
-Ralph follows the same MCP tool pattern as Serena and Archon:
+Ralph follows the same MCP tool pattern as Serena:
 
 ```python
 # In dionysus_mcp/tools/ralph.py

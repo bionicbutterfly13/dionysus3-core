@@ -3,7 +3,7 @@
 **Feature Branch**: `036-belief-avatar-system`
 **Created**: 2025-12-30
 **Status**: Draft
-**Input**: Create specifications for two features: (1) Belief Journey Router - REST API endpoints for the belief tracking service at api/services/belief_tracking_service.py, exposing journey creation, belief lifecycle, experiments, replay loops, MOSAEIC captures, and metrics; (2) Avatar Simulation Skills - Skills for the skills-library enabling interactive avatar roleplay with Theory of Mind modeling, Shell/Core dynamics tracking, and response prediction for the Analytical Empath archetype
+**Input**: Create specifications for two features: (1) Belief Journey Router - REST API endpoints for the belief tracking service at api/services/belief_tracking_service.py, exposing journey creation, belief lifecycle, experiments, replay loops, MOSAEIC captures, and metrics; (2) Avatar Simulation Skills - Skills for the skills-library enabling interactive avatar roleplay with Theory of Mind modeling, Shell/Core dynamics tracking, and response prediction for the [LEGACY_AVATAR_HOLDER] archetype
 
 ---
 
@@ -43,7 +43,7 @@ Course facilitators need real-time visibility into participant progress includin
 
 ### User Story 3 - Avatar Simulation with Theory of Mind (Priority: P2)
 
-Content creators and course developers simulate the Analytical Empath avatar's experience of IAS materials. They invoke the avatar simulation skill to generate authentic responses, internal thoughts, and expert observations.
+Content creators and course developers simulate the [LEGACY_AVATAR_HOLDER] avatar's experience of IAS materials. They invoke the avatar simulation skill to generate authentic responses, internal thoughts, and expert observations.
 
 **Why this priority**: Enables rapid course iteration and quality assurance. Helps identify friction points, resistance patterns, and leverage opportunities before live participant exposure.
 
@@ -202,5 +202,5 @@ Avatar simulation tracks which "operating system" is active during content consu
 - `api/services/belief_tracking_service.py` - BeliefTrackingService singleton
 - `api/models/belief_journey.py` - All Pydantic models
 - `api/services/graphiti_service.py` - Graphiti Neo4j integration
-- `data/ground-truth/analytical-empath-avatar-source-of-truth.md` - Avatar definition
+- `data/ground-truth/[LEGACY_AVATAR_HOLDER]-avatar-source-of-truth.md` - Avatar definition
 - External skills-library for avatar simulation skills

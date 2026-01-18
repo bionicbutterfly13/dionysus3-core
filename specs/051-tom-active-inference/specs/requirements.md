@@ -1,7 +1,7 @@
 # Technical Requirements - Feature 051: ToM Active Inference Integration
 
 ## Overview
-Integrate Theory-of-Mind hypothesis generation with Dionysus active inference for Analytical Empath empathy modeling.
+Integrate Theory-of-Mind hypothesis generation with Dionysus active inference for [LEGACY_AVATAR_HOLDER] empathy modeling.
 
 ## Functional Requirements Summary
 

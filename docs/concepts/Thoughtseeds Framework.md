@@ -177,7 +177,7 @@ Thoughtseeds integrate with **ManagedAgent** pattern (see [[Consciousness Orches
 - ReasoningAgent activates resonant seeds
 - MetacognitionAgent decides which seeds to promote to action
 
-## The Analytical Empath Connection
+## The [LEGACY_AVATAR_HOLDER] Connection
 
 [[Replay Loop]] uses thoughtseeds for identity work:
 

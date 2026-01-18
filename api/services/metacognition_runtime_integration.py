@@ -189,7 +189,7 @@ class MetacognitionRuntimeController:
 
 class ThoughtseedCompetitionRuntime:
     """
-    Manages thoughtseed competition using Meta-ToT MCTS pattern.
+    Manages thoughtseed competition using Active Inference Pattern.
 
     Determines winner thoughtseed based on minimum free energy.
     """

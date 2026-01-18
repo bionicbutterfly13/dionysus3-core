@@ -5,10 +5,10 @@
 **Branch**: 050-marketing-strategist
 
 ## 1. Overview
-Implement a specialized `smolagents.CodeAgent` designed specifically for the "Inner Architect" marketing pillar. This agent is grounded in the "Analytical Empath" audience research and the "21 Forbidden Email Frameworks" to generate high-conversion, authentic content.
+Implement a specialized `smolagents.CodeAgent` designed specifically for the "Inner Architect" marketing pillar. This agent is grounded in the "[LEGACY_AVATAR_HOLDER]" audience research and the "21 Forbidden Email Frameworks" to generate high-conversion, authentic content.
 
 ## 2. Goals
-- **Audience Grounding**: Permanently attach the "Analytical Empath" motivational map and "Crack" research to this agent's identity.
+- **Audience Grounding**: Permanently attach the "[LEGACY_AVATAR_HOLDER]" motivational map and "Crack" research to this agent's identity.
 - **Framework Mastery**: Provide tools to retrieve and apply specific conversion templates (e.g., "Contrarian Truth").
 - **Collaboration**: Register this agent as a "Managed Agent" under the `ConsciousnessManager`.
 - **Outcome Tracking**: Automatically record generated content and its strategic rationale in the Knowledge Graph.
@@ -17,7 +17,7 @@ Implement a specialized `smolagents.CodeAgent` designed specifically for the "In
 
 ### 3.1 Agent Definition (`api/agents/marketing_strategist.py`)
 - Define `MarketingStrategistAgent`:
-    - System Prompt: "You are a world-class Direct Response Architect specializing in the Analytical Empath avatar."
+    - System Prompt: "You are a world-class Direct Response Architect specializing in the [LEGACY_AVATAR_HOLDER] avatar."
     - Tools: `recall_related`, `understand_question`, and a new `get_marketing_framework` tool.
 
 ### 3.2 Framework Service (`api/services/marketing_framework_service.py`)
@@ -33,7 +33,7 @@ Implement a specialized `smolagents.CodeAgent` designed specifically for the "In
 - `api.agents.managed`
 
 ## 5. Testing Strategy
-- **Scenario Test**: Ask the `ConsciousnessManager` to "Draft a New Year email for Analytical Empaths using the Contrarian Truth framework" and verify that it delegates to the `marketing_strategist`.
+- **Scenario Test**: Ask the `ConsciousnessManager` to "Draft a New Year email for [LEGACY_AVATAR_HOLDER]s using the Contrarian Truth framework" and verify that it delegates to the `marketing_strategist`.
 
 ## 6. Success Criteria
 - Agent successfully retrieves avatar insights from memory.

@@ -67,8 +67,8 @@ IASCurriculum (root)
   version: "1.0",
   created_at: datetime(),
   updated_at: datetime(),
-  description: "Neuroscience-backed guided breakthrough program for Analytical Empaths",
-  target_audience: "Analytical Empaths",
+  description: "Neuroscience-backed guided breakthrough program for [LEGACY_AVATAR_HOLDER]s",
+  target_audience: "[LEGACY_AVATAR_HOLDER]s",
   total_phases: 3,
   total_lessons: 9,
   total_steps: 27

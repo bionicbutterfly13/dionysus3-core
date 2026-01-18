@@ -163,7 +163,7 @@ No retraining. **Compound through activation.**
 
 That's how your brain works. You don't retrain "walking" when you learn "walking while carrying coffee." You compound the skills.
 
-## The Analytical Empath Application
+## The [LEGACY_AVATAR_HOLDER] Application
 
 [[Replay Loop]] teaches skill compounding for psychological capabilities:
 

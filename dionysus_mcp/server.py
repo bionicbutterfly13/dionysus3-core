@@ -24,6 +24,11 @@ import os
 from typing import Any, List, Optional
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
+
 import httpx
 from mcp.server.fastmcp import FastMCP
 from api.services.remote_sync import get_neo4j_driver, close_neo4j_driver

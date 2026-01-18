@@ -1,0 +1,39 @@
+
+> dionysus-dashboard@0.1.0 build
+> next build
+
+▲ Next.js 16.1.1 (Turbopack)
+
+  Creating an optimized production build ...
+Error: Cannot apply unknown utility class `border-border`
+    [2m[at onInvalidCandidate (/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/tailwindcss/dist/lib.js:21:1511)][0m
+    [2m[at Te (/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/tailwindcss/dist/lib.js:16:36652)][0m
+    [2m[at /Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/tailwindcss/dist/lib.js:21:355][0m
+    [2m[at Rr (/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/tailwindcss/dist/lib.js:3:1718)][0m
+    [2m[at _ (/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/tailwindcss/dist/lib.js:3:1377)][0m
+    [2m[at $e (/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/tailwindcss/dist/lib.js:21:172)][0m
+    [2m[at un (/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/tailwindcss/dist/lib.js:38:294)][0m
+    [2m[at async cn (/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/tailwindcss/dist/lib.js:38:631)][0m
+    [2m[at async Xr (/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/@tailwindcss/node/dist/index.js:10:3417)][0m
+    [2m[at async I (/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/@tailwindcss/postcss/dist/index.js:10:3977)][0m
+
+> Build error occurred
+Error: Turbopack build failed with 1 errors:
+./src/app/globals.css
+Error evaluating Node.js code
+CssSyntaxError: tailwindcss: /Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/src/app/globals.css:1:1: Cannot apply unknown utility class `border-border`
+    at Input.error (node_modules/postcss/lib/input.js:135:16) [/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/.next/build/chunks/node_modules_fe693df6._.js:4651:22]
+    at Root.error (node_modules/postcss/lib/node.js:146:32) [/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/.next/build/chunks/node_modules_fe693df6._.js:928:38]
+    [at Object.Once (/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/node_modules/@tailwindcss/postcss/dist/index.js:10:6911)]
+    at async LazyResult.runAsync (node_modules/postcss/lib/lazy-result.js:293:11) [/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/.next/build/chunks/node_modules_fe693df6._.js:6206:21]
+    at async transform (turbopack:///[turbopack-node]/transforms/postcss.ts:70:34) [/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/.next/build/chunks/[root-of-the-server]__51225daf._.js:146:36]
+    at async run (turbopack:///[turbopack-node]/ipc/evaluate.ts:92:23) [/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/.next/build/chunks/[root-of-the-server]__974941ed._.js:443:31]
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.tsx [Server Component]
+
+
+    at async transform (turbopack:///[turbopack-node]/transforms/postcss.ts:70:34) [/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/.next/build/chunks/[root-of-the-server]__51225daf._.js:146:36])
+    at async run (turbopack:///[turbopack-node]/ipc/evaluate.ts:92:23) [/Volumes/Asylum/dev/dionysus3-core/dionysus-dashboard/.next/build/chunks/[root-of-the-server]__974941ed._.js:443:31])

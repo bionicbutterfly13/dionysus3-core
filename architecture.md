@@ -24,7 +24,6 @@ Dionysus uses the `smolagents` multi-agent framework.
 - **Neo4j:** `port 7687` (Temporal Knowledge Graph)
 - **Ollama:** `port 11434` (Local Embeddings & Inference)
 - **Graphiti:** `port 8001` (Entity Extraction)
-- **Archon:** `port 8181` (**Local-only** task management)
 
 ## Memory Layers (Neo4j)
 - **Episodic Memory:** Temporal sequences of events and agent trajectories.

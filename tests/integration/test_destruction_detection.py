@@ -1,9 +1,7 @@
 """
 Integration Tests: LLM Destruction Detection
 Feature: 002-remote-persistence-safety
-Phase 7, User Story 5: LLM Destruction Detection & Archon Integration
-
-T049: Chaos test for LLM destruction detection
+Phase 7, User Story 5: LLM Destruction Detections test for LLM destruction detection
 
 TDD Test - Write FIRST, verify FAILS before implementation.
 

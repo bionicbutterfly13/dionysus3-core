@@ -39,7 +39,7 @@
 
 - [X] T009 [US1] Update `ModelService` to fetch and respect `boundary_energy` when selecting active basins in `api/services/model_service.py`
 - [X] T010 [X] [US1] Implement `NeuronalPacket` logic to enforce mutual constraints between grouped ThoughtSeeds in `api/services/model_service.py`
-- [X] T011 [US1] [FR-030-008] Map Avatar Mental Model (Analytical Empath) to the new Energy Well properties in Neo4j (Run one-time migration script `scripts/migrate_avatar_basins.py`)
+- [X] T011 [US1] [FR-030-008] Map Avatar Mental Model ([LEGACY_AVATAR_HOLDER]) to the new Energy Well properties in Neo4j (Run one-time migration script `scripts/migrate_avatar_basins.py`)
 - [X] T012 [US1] Contract test for n8n-backed energy property updates in `tests/contract/test_neo4j_schema.py`
 
 ---

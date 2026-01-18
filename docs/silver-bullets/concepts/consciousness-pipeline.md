@@ -405,7 +405,7 @@ Feeling: Satisfaction, cognitive closure, epistemic gain
 
 ### Example 3: Therapeutic Reframe
 
-**Situation**: Analytical Empath processing emotional trigger
+**Situation**: [LEGACY_AVATAR_HOLDER] processing emotional trigger
 
 **Stage 1: Unconscious (Automatic Reaction)**
 ```

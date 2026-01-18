@@ -157,7 +157,6 @@ This is [[Meta Tree of Thought]] with memory: the branching strategy depends on 
 
 From [[2025-12-31-infrastructure-liberation]]:
 
-**Before:** Monolithic memory (Archon tracking everything)
 **After:** Tiered memory (TodoWrite for working context, SilverBullet for episodic/semantic)
 
 Same pattern:
@@ -200,7 +199,7 @@ class MemoryTier:
 
 Same methods. Different time constants. Clean abstraction.
 
-## Application to Analytical Empaths
+## Application to [LEGACY_AVATAR_HOLDER]s
 
 The [[Replay Loop]] uses multi-tier memory:
 

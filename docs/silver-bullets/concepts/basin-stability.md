@@ -198,7 +198,7 @@ class MetacognitionRuntimeMonitor:
 
 ### Example 1: Hypervigilance Basin (Clinical)
 
-**Context**: Analytical Empath in chronic threat-detection mode
+**Context**: [LEGACY_AVATAR_HOLDER] in chronic threat-detection mode
 
 ```
 Basin Properties:

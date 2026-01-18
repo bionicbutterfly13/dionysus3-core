@@ -146,26 +146,26 @@ class ControlPattern:
 
 @dataclass
 class ThoughtseedCompetitionPattern:
-    """Thoughtseed competition algorithm using Meta-ToT MCTS."""
+    """Thoughtseed competition algorithm using Active Inference Free Energy."""
 
     pattern_id: str = field(default_factory=lambda: str(uuid4()))
     pattern_type: PatternType = PatternType.THOUGHTSEED_COMPETITION
 
-    # Algorithm: Meta-ToT MCTS
-    algorithm: str = "meta_tot_mcts"
+    # Algorithm: Active Inference Competition
+    algorithm: str = "active_inference_competition"
     max_iterations: int = 100
 
     # Winner selection criterion: min(free_energy)
     winner_criterion: str = "min_free_energy"
 
-    # MCTS parameters
-    exploration_constant: float = 2.0
+    # Active Inference parameters
+    precision_weight: float = 2.0
     simulation_count: int = 32
     max_depth: int = 4
 
     # Thought generation parameters
     max_thoughtseeds_per_step: int = 5
-    diversity_weight: float = 0.3  # Weight for diversity in selection
+    diversity_weight: float = 0.3
 
     config: Dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -185,7 +185,7 @@ class ThoughtseedCompetitionPattern:
             "algorithm": self.algorithm,
             "max_iterations": self.max_iterations,
             "winner_criterion": self.winner_criterion,
-            "exploration_constant": self.exploration_constant,
+            "precision_weight": self.precision_weight,
             "simulation_count": self.simulation_count,
             "max_depth": self.max_depth,
             "max_thoughtseeds_per_step": self.max_thoughtseeds_per_step,
@@ -346,11 +346,11 @@ class ProceduralMetacognitionPatternsStorage:
 
         # Default thoughtseed pattern
         thoughtseed = ThoughtseedCompetitionPattern(
-            algorithm="meta_tot_mcts",
+            algorithm="active_inference_competition",
             max_iterations=100,
             winner_criterion="min_free_energy",
             config={
-                "description": "MCTS-based thoughtseed competition",
+                "description": "Active Inference-based thoughtseed competition",
                 "enabled": True,
             }
         )

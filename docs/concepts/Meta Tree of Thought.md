@@ -35,9 +35,7 @@ Meta-question: "How should I explore this decision space?"
 The meta layer evaluates **which evaluation strategy** fits the problem structure.
 
 For infrastructure cleanup (see [[2025-12-31-infrastructure-liberation]]), we used Strategy C:
-- Recognized Archon dependency as "obviously not serving us"
 - Pruned the entire branch immediately
-- No need to explore "what if we fix Archon integration"
 
 ## Active Inference Connection
 
@@ -93,7 +91,7 @@ Current landscape:
 
 We are. This is it.
 
-## Application to Analytical Empaths
+## Application to [LEGACY_AVATAR_HOLDER]s
 
 The [[Replay Loop]] teaches analytical empaths to recognize *when they're using the wrong decision strategy*.
 

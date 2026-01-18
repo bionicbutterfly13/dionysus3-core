@@ -131,7 +131,11 @@ class DevelopmentEvent(BaseModel):
     narrative_coherence: float = Field(0.5, description="Coherence score 0.0-1.0")
     active_inference_state: Optional[ActiveInferenceState] = None
     resonance_score: float = Field(0.0, description="Alignment with cortical attractor basins")
+    resonance_score: float = Field(0.0, description="Alignment with cortical attractor basins")
     strange_attractor_id: Optional[str] = None
+    linked_basin_id: Optional[str] = Field(None, description="ID of the linked Attractor Basin")
+    basin_r_score: float = Field(0.0, description="Resonance score with the linked basin")
+    markov_blanket_id: Optional[str] = Field(None, description="Hash ID of the active Markov Blanket")
     
     # Richmond/Zacks EST (Event Segmentation Theory)
     is_boundary: bool = Field(default=False, description="Whether this event represents a segment transition")

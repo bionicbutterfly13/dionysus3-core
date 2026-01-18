@@ -28,7 +28,7 @@ Payload: `{ "query": "What are the primary triggers for burnout?", "limit": 10 }
 ### 4. Build Profile
 Generate a comprehensive avatar profile based on aggregated insights.
 `POST /api/v1/avatar/profile`
-Payload: `{ "avatar_name": "Analytical Empath" }`
+Payload: `{ "avatar_name": "[LEGACY_AVATAR_HOLDER]" }`
 
 ## Usage Example
 ```python
@@ -38,7 +38,7 @@ async def get_avatar_profile():
     async with httpx.AsyncClient() as client:
         response = await client.post(
             "http://localhost:8000/api/v1/avatar/profile",
-            json={"avatar_name": "Analytical Empath"}
+            json={"avatar_name": "[LEGACY_AVATAR_HOLDER]"}
         )
         return response.json()
 ```

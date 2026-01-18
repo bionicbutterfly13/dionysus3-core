@@ -21,11 +21,7 @@ class WisdomDistiller:
             model=self.model,
             name="wisdom_distiller",
             description="Expert at synthesizing fragmented insights into canonical mental models.",
-            executor_type="docker",
-            executor_kwargs={
-                "image": "dionysus/agent-sandbox:latest",
-                "timeout": 60,
-            },
+            executor_type="local",
             use_structured_outputs_internally=True,
             additional_authorized_imports=["json", "datetime"]
         )

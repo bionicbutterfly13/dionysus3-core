@@ -295,5 +295,5 @@ class ProceduralMetacognition:
 ## Next Steps
 
 1. Run `/speckit.tasks` to generate task breakdown
-2. Create Archon project and import tasks
+2. Create System project and import tasks
 3. Begin P1 implementation with MetacognitiveParticle model

@@ -19,6 +19,7 @@ from uuid import uuid4
 from api.models.meta_tot import ActiveInferenceState, MetaToTDecision, MetaToTNodeTrace, MetaToTResult, MetaToTTracePayload
 from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.meta_tot_trace_service import get_meta_tot_trace_service
+from api.services.meta_tot_decision import get_meta_tot_decision_service
 from api.services.memory_basin_router import get_memory_basin_router
 from api.models.sync import MemoryType
 
@@ -28,10 +29,18 @@ logger = logging.getLogger("dionysus.meta_tot")
 class MetaToTNodeType(str, Enum):
     ROOT = "root"
     SEARCH = "search"
+    EXPLORATION = "exploration"
     CHALLENGE = "challenge"
     EVOLUTION = "evolution"
     INTEGRATION = "integration"
     OUTCOME = "outcome"
+    LEAF = "leaf"
+
+
+class ExplorationStrategy(str, Enum):
+    """Exploration strategies for CPA (Cognitive Policy Architecture) domain mapping."""
+    SURPRISE_MAXIMIZATION = "surprise_maximization"
+    FREE_ENERGY_MINIMIZATION = "free_energy_minimization"
 
 
 
@@ -45,29 +54,7 @@ class MetaToTNode:
     thought_content: str = ""
     cpa_domain: str = "explore"
     active_inference_state: ActiveInferenceState = field(default_factory=ActiveInferenceState)
-    visit_count: int = 0
-    value_estimate: float = 0.0
-    uncertainty_estimate: float = 1.0
     score: float = 0.0
-
-    def compute_ucb_score(self, total_parent_visits: int, exploration_constant: float = 2.0) -> float:
-        if self.visit_count == 0:
-            return float("inf")
-        exploitation = self.value_estimate
-        exploration = exploration_constant * math.sqrt(
-            math.log(max(total_parent_visits, 1)) / self.visit_count
-        )
-        prediction_bonus = 1.0 / (1.0 + self.active_inference_state.prediction_error)
-        return exploitation + exploration + prediction_bonus
-
-    def update_from_rollout(self, reward: float, prediction_error: float, learning_rate: float = 0.1) -> None:
-        self.visit_count += 1
-        prediction_weight = 1.0 / (1.0 + prediction_error)
-        weighted_reward = reward * prediction_weight
-        self.value_estimate += learning_rate * (weighted_reward - self.value_estimate)
-        self.uncertainty_estimate = 1.0 / math.sqrt(self.visit_count + 1)
-        self.active_inference_state.update_beliefs(prediction_error, learning_rate)
-        self.score = self.value_estimate
 
 
 @dataclass
@@ -93,37 +80,7 @@ class MetaToTConfig:
         return base
 
 
-class POMCPActiveInferencePlanner:
-    """Simplified POMCP planner with active inference scoring."""
 
-    def __init__(self, max_depth: int = 8, simulation_count: int = 50, exploration_constant: float = 2.0):
-        self.max_depth = max_depth
-        self.simulation_count = simulation_count
-        self.exploration_constant = exploration_constant
-        self.observation_history: List[Dict[str, Any]] = []
-        self.belief_state: ActiveInferenceState = ActiveInferenceState()
-
-    async def plan(self, observation: Dict[str, float], actions: List[str]) -> tuple[str, float]:
-        if not actions:
-            return "", 0.0
-
-        prediction_error = self.belief_state.compute_prediction_error(observation)
-        self.belief_state.update_beliefs(prediction_error)
-        self.observation_history.append(observation)
-
-        best_action = actions[0]
-        best_value = float("-inf")
-
-        for idx in range(self.simulation_count):
-            action = actions[idx % len(actions)]
-            reward = 1.0 / (1.0 + prediction_error)
-            noise = random.random() * 0.05
-            value = reward + noise
-            if value > best_value:
-                best_value = value
-                best_action = action
-
-        return best_action, best_value
 
 
 class MetaToTEngine:
@@ -135,8 +92,8 @@ class MetaToTEngine:
         self.reasoning_sessions: Dict[str, Dict[str, Any]] = {}
         self.cpa_strategies = {
             "explore": ExplorationStrategy.SURPRISE_MAXIMIZATION,
-            "challenge": ExplorationStrategy.UCB_PREDICTION_ERROR,
-            "evolve": ExplorationStrategy.THOMPSON_SAMPLING,
+            "challenge": ExplorationStrategy.SURPRISE_MAXIMIZATION,
+            "evolve": ExplorationStrategy.FREE_ENERGY_MINIMIZATION,
             "integrate": ExplorationStrategy.FREE_ENERGY_MINIMIZATION,
         }
 
@@ -169,18 +126,28 @@ class MetaToTEngine:
 
         expansion_result = await self._expand_tree(root_node, context, config)
         actions = self._generate_actions(root_node)
-        pomcp_planner = POMCPActiveInferencePlanner(
-            max_depth=config.max_depth,
-            simulation_count=config.simulation_count,
-            exploration_constant=config.exploration_constant,
-        )
-        best_action, action_value = await pomcp_planner.plan(initial_observation, actions)
+        # Pure Active Inference Selection
+        best_action = actions[0] if actions else ""
+        action_value = 0.0
+        
+        if actions:
+            # Score actions based on EFE of their resulting nodes
+            best_node = max(
+                (self.node_storage[cid] for cid in root_node.children_ids),
+                key=lambda n: n.score,
+                default=None
+            )
+            if best_node:
+                best_action = best_node.thought_content
+                action_value = best_node.score
+
         best_path = self._select_best_path(root_node)
 
         confidence = max(0.0, min(1.0, action_value))
         metrics = {
             "total_prediction_error": expansion_result["total_prediction_error"],
             "total_free_energy": expansion_result["total_free_energy"],
+            "expected_free_energy": action_value,
             "processing_time": time.time() - start_time,
             "branch_count": expansion_result["branch_count"],
             "time_budget_seconds": config.time_budget_seconds,
@@ -277,7 +244,7 @@ class MetaToTEngine:
 
             current_nodes = next_nodes or current_nodes
 
-        await self._run_mcts(root_node, config)
+
 
         return {
             "total_prediction_error": total_prediction_error,
@@ -285,49 +252,20 @@ class MetaToTEngine:
             "branch_count": branch_count,
         }
 
-    async def _run_mcts(self, root_node: MetaToTNode, config: MetaToTConfig) -> None:
-        start_time = time.time()
-        for _ in range(config.simulation_count):
-            if time.time() - start_time > config.time_budget_seconds:
-                break
-            path = self._select_path(root_node, config.exploration_constant)
-            leaf = path[-1]
-            reward = self._evaluate_leaf(leaf)
-            prediction_error = leaf.active_inference_state.prediction_error
-            for node in path:
-                node.update_from_rollout(reward, prediction_error)
 
-    def _select_path(self, root_node: MetaToTNode, exploration_constant: float) -> List[MetaToTNode]:
-        path = [root_node]
-        current = root_node
-        while current.children_ids:
-            total_visits = sum(
-                self.node_storage[child_id].visit_count
-                for child_id in current.children_ids
-            )
-            best_child = max(
-                (self.node_storage[child_id] for child_id in current.children_ids),
-                key=lambda n: n.compute_ucb_score(total_visits, exploration_constant),
-            )
-            path.append(best_child)
-            current = best_child
-        return path
-
-    def _evaluate_leaf(self, node: MetaToTNode) -> float:
-        return 1.0 / (1.0 + node.active_inference_state.free_energy)
 
     def _select_best_path(self, root_node: MetaToTNode) -> List[str]:
         if not root_node.children_ids:
             return [root_node.node_id]
         best_node = max(
             (self.node_storage[child_id] for child_id in root_node.children_ids),
-            key=lambda n: n.value_estimate,
+            key=lambda n: n.score,
         )
         path = [root_node.node_id, best_node.node_id]
         while best_node.children_ids:
             best_node = max(
                 (self.node_storage[cid] for cid in best_node.children_ids),
-                key=lambda n: n.value_estimate,
+                key=lambda n: n.score,
             )
             path.append(best_node.node_id)
         return path
@@ -414,8 +352,6 @@ class MetaToTEngine:
             cpa_domain=node.cpa_domain,
             thought=node.thought_content,
             score=node.score,
-            visit_count=node.visit_count,
-            value_estimate=node.value_estimate,
             prediction_error=node.active_inference_state.prediction_error,
             free_energy=node.active_inference_state.free_energy,
             children_ids=node.children_ids,

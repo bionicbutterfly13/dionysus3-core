@@ -26,7 +26,7 @@
 ## 🧠 Cognitive State (MoSAEIC)
 *   **Senses:** Webhook-driven capture active.
 *   **Actions:** Agentic KG Learning (F022) completed.
-*   **Emotions:** Analytical Empath (Hollow Success Paradox observation).
+*   **Emotions:** [LEGACY_AVATAR_HOLDER] (Hollow Success Paradox observation).
 *   **Impulses:** Architecture hunger vs. Revenge bedtime procrastination.
 *   **Cognition:** Wisdom distillation (F031) active.
 

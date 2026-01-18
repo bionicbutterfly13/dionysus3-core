@@ -224,7 +224,7 @@ class SynthesizeAvatarProfileTool(Tool):
                 dims_to_query = all_dims if dimensions == "all" else [d.strip() for d in dimensions.split(",") if d.strip() in all_dims]
 
                 profile = {
-                    "archetype": "Analytical Empath",
+                    "archetype": "[LEGACY_AVATAR_HOLDER]",
                     "synthesized_at": datetime.utcnow().isoformat(),
                     "dimensions": {},
                 }

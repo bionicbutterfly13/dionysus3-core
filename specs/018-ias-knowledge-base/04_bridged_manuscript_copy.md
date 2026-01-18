@@ -1,6 +1,6 @@
 # WHY YOU CAN'T EXECUTE
 ## The Drama Triangle Explained
-### A Framework for Analytical Empaths Who Self-Sabotage
+### A Framework for [LEGACY_AVATAR_HOLDER]s Who Self-Sabotage
 
 **By Dr. Mani Saint-Victor, MD**
 

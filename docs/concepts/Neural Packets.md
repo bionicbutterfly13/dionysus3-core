@@ -56,7 +56,6 @@ See: [[Multi-Tier Memory Architecture]] for how packets move between memory tier
 
 From [[2025-12-31-infrastructure-liberation]]:
 
-**Before:** Continuous services (Archon MCP running 24/7, consuming 4GB RAM)
 **After:** Discrete containers (Dionysus API + SilverBullet, 91MB, started on-demand)
 
 Same principle as neural packets:
@@ -122,7 +121,7 @@ Searches:
 
 This is the white space. This knowledge web fills it.
 
-## Application to Analytical Empaths
+## Application to [LEGACY_AVATAR_HOLDER]s
 
 The [[Replay Loop]] uses neural packet dynamics:
 

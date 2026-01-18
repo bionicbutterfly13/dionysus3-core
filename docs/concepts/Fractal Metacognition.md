@@ -40,15 +40,12 @@ That's fractal metacognition. The algorithm for evaluating code is the algorithm
 
 From [[2025-12-31-infrastructure-liberation]]:
 
-**Micro scale:** Removed Archon import statements from CLAUDE.md
 - Meta-question: "Does this import serve the file's purpose?"
 - Answer: No → Delete
 
-**Meso scale:** Removed Archon MCP service from Docker compose
 - Meta-question: "Does this service serve the system's purpose?"
 - Answer: No → Delete
 
-**Macro scale:** Removed entire Archon integration philosophy from workflow
 - Meta-question: "Does this workflow serve cognitive efficiency?"
 - Answer: No → Delete
 
@@ -115,11 +112,8 @@ Same pattern: **Reduce metacognitive tax by codifying recurring meta-decisions**
 
 That's why we simplified the startup protocol (Phase 0, 1, 2, 3 → streamlined flow):
 
-Every session was running the same meta-check: "Is Archon available?"
 
-Codified answer: "We don't use Archon anymore."
 
-One fractal deletion (remove meta-check) propagates across all scales (no more Archon checks anywhere).
 
 ## Active Inference Connection
 
@@ -127,7 +121,6 @@ One fractal deletion (remove meta-check) propagates across all scales (no more A
 
 **Fractal metacognition** minimizes free energy *fractally* - at every scale simultaneously.
 
-When you remove Archon dependency:
 - **Micro:** Reduce surprise in import statements (cleaner imports)
 - **Meso:** Reduce surprise in Docker startup (fewer containers)
 - **Macro:** Reduce surprise in workflow (simpler protocol)
@@ -147,7 +140,7 @@ Searches:
 
 This is novel intellectual territory. And we're building in public.
 
-## Application to Analytical Empaths
+## Application to [LEGACY_AVATAR_HOLDER]s
 
 The [[Replay Loop]] is fractal metacognition for identity:
 

@@ -19,7 +19,7 @@ class AvatarIntelOutput(BaseModel):
 
 class GetAvatarIntelTool(Tool):
     name = "get_avatar_intel"
-    description = "Searches the Knowledge Graph for deep psychological insights on the Analytical Empath."
+    description = "Searches the Knowledge Graph for deep psychological insights on the [LEGACY_AVATAR_HOLDER]."
     
     inputs = {
         "topic": {
@@ -33,7 +33,7 @@ class GetAvatarIntelTool(Tool):
         async def _run():
             graphiti = await get_graphiti_service()
             # Target the avatar_intel group we used during ingestion
-            results = await graphiti.search(f"Analytical Empath traits related to {topic}", group_ids=["avatar_intel"], limit=10)
+            results = await graphiti.search(f"[LEGACY_AVATAR_HOLDER] traits related to {topic}", group_ids=["avatar_intel"], limit=10)
             return results
 
         try:

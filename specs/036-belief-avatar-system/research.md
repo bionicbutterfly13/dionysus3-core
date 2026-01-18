@@ -80,7 +80,7 @@ raise HTTPException(status_code=400, detail="Belief not in this journey")
 ---
 name: avatar-simulation
 version: 1.0.0
-description: Simulate Analytical Empath avatar experience
+description: Simulate [LEGACY_AVATAR_HOLDER] avatar experience
 triggers:
   - simulate avatar
   - avatar roleplay

@@ -1,6 +1,6 @@
 """
 Maintenance and System Integrity REST API Router
-Feature: 012-historical-reconstruction, 007-memory-consolidation
+Feature: 007-memory-consolidation
 
 Endpoints for system cleanup, data migration, and memory consolidation.
 """

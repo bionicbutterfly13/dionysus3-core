@@ -2,7 +2,7 @@
 
 ## Phase 1: Agent Definition
 - [ ] **Step 1**: Create `api/agents/marketing_strategist.py` defining the `CodeAgent`.
-- [ ] **Step 2**: Add specialized prompt engineering for the "Analytical Empath" mirror tone.
+- [ ] **Step 2**: Add specialized prompt engineering for the "[LEGACY_AVATAR_HOLDER]" mirror tone.
 
 ## Phase 2: Marketing Tools
 - [ ] **Step 3**: Create `api/agents/tools/marketing_tools.py`.

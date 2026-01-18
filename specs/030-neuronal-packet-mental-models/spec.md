@@ -46,7 +46,7 @@ As the system, I want to use "Explorer Agents" to scan the knowledge graph and i
 - **FR-030-005**: Implement a `MetaplasticityController` (Level 3) that monitors OODA cycle "Surprise" (based on aggregate `prediction_error` and MemEvolve trajectories) and adjusts the `learning_rate` and `max_steps` of `smolagents`. [P]
 - **FR-030-006**: Persist mental model evolution history as `Trajectory` nodes with specific `type` attributes (`EPISODIC` vs `STRUCTURAL`).
 - **FR-030-007**: Create a `ContextExplorerTool` for `smolagents` that implements the `/research.agent` protocol from Context-Engineering to identify and activate project-specific semantic attractors.
-- **FR-030-008**: Map the **Avatar Mental Model** (Analytical Empath state) into the Energy Well framework, allowing agents to track user "Attractor Basins" (e.g., Resistance, Breakthrough) using the same stability and energy metrics.
+- **FR-030-008**: Map the **Avatar Mental Model** ([LEGACY_AVATAR_HOLDER] state) into the Energy Well framework, allowing agents to track user "Attractor Basins" (e.g., Resistance, Breakthrough) using the same stability and energy metrics.
 
 ### Non-Functional Requirements
 - **NFR-030-001**: EFE calculations MUST complete in <50ms per thoughtseed to maintain system responsiveness.

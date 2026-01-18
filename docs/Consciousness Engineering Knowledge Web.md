@@ -76,7 +76,7 @@ This is the documented build log for Dionysus - a consciousness-inspired cogniti
 ## Application to Humans
 
 **[[Replay Loop]]** - The Inner Architect System core framework
-- For Analytical Empaths (optimized for crisis, terrified in peace)
+- For [LEGACY_AVATAR_HOLDER]s (optimized for crisis, terrified in peace)
 - Thoughtseeds + basins + OODA for psychological change
 - Memory reconsolidation (Ecker et al., 2012) made computational
 - **Lead magnet / conversion path**
@@ -86,7 +86,6 @@ This is the documented build log for Dionysus - a consciousness-inspired cogniti
 ## Real-World Examples
 
 **[[2025-12-31-infrastructure-liberation]]** - Infrastructure cleanup session
-- Removed 4GB RAM hog (Archon dependency)
 - Basin transition demonstration
 - Fractal metacognition in practice
 - TodoWrite replacing external task management
@@ -204,7 +203,7 @@ Current search landscape (2025-12-31):
 
 ---
 
-## Why This Works for Analytical Empaths
+## Why This Works for [LEGACY_AVATAR_HOLDER]s
 
 Standard therapy marketing: "Feel your feelings! Be authentic!"
 - **Reaction:** Vague. Suspicious. Sounds like bullshit.
