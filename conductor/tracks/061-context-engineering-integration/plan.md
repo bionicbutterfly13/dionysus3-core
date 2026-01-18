@@ -29,7 +29,7 @@
 **Goal**: Add decay, importance signals, and cross-basin connections for long-term stability.
 
 - [x] **Task 4.1**: [TDD] Add decay/importance signals for basin strength updates. (099359e) - Added `_apply_decay_to_other_basins()` in `memory_basin_router.py`
-- [ ] **Task 4.2**: [TDD] Implement cross-basin connections (co-activation or relatedness edges).
+- [~] **Task 4.2**: [TDD] Implement cross-basin connections (co-activation or relatedness edges).
 
 ## Dependencies
 

@@ -3,42 +3,43 @@
 ## Phase 1: Marker Integration + REST Upload (P0)
 
 ### T062-001: Install and configure Marker
-- [ ] Add `marker-pdf` to requirements.txt
-- [ ] Verify GPU/CPU mode configuration
-- [ ] Test Marker on sample PDFs (simple, complex, scanned)
-- [ ] Document system requirements (RAM, GPU optional)
+- [x] Add `marker-pdf` to requirements.txt
+- [x] Verify GPU/CPU mode configuration (CPU mode, isolated in marker-env)
+- [~] Test Marker on sample PDFs (simple, complex, scanned) - Marker installing
+- [x] Document system requirements (RAM, GPU optional) - subprocess isolation
 
 ### T062-002: Create MarkerExtractionService
-- [ ] Create `api/services/marker_extraction.py`
-- [ ] Implement `extract_pdf()` - Marker extraction
-- [ ] Implement `extract_with_fallback()` - Marker → PyMuPDF → Tesseract chain
-- [ ] Add structured output model: `MarkerResult`
-- [ ] Handle: tables, equations, figures, multi-column
+- [x] Create `api/services/marker_extraction.py`
+- [x] Implement `extract_pdf()` - Marker extraction via subprocess to marker-env
+- [x] Implement `extract_with_fallback()` - Marker → PyMuPDF → Tesseract chain
+- [x] Add structured output model: `MarkerResult`
+- [x] Handle: tables, equations, figures, multi-column
 - [ ] Unit tests: `tests/unit/test_marker_extraction.py`
 
 ### T062-003: Create document upload router
-- [ ] Create `api/routers/documents.py`
-- [ ] `POST /api/documents/upload` - multipart file upload
-- [ ] `GET /api/documents/{doc_id}/status` - status check
-- [ ] `GET /api/documents/{doc_id}/results` - extraction results
-- [ ] `GET /api/documents` - list all documents
-- [ ] `DELETE /api/documents/{doc_id}` - remove document
-- [ ] Register router in `api/main.py`
+- [x] Create `api/routers/documents.py`
+- [x] `POST /api/documents/upload` - multipart file upload
+- [x] `GET /api/documents/{doc_id}/status` - status check
+- [x] `GET /api/documents/{doc_id}/results` - extraction results
+- [x] `GET /api/documents` - list all documents
+- [x] `DELETE /api/documents/{doc_id}` - remove document
+- [x] Register router in `api/main.py`
 
 ### T062-004: Create document registry (SQLite)
-- [ ] Create `api/services/document_lifecycle.py`
-- [ ] Define `Document` model with status tracking
-- [ ] SQLite database: `data/documents.db`
-- [ ] CRUD operations: create, read, update, delete
-- [ ] Status enum: `uploaded`, `processing`, `completed`, `failed`
-- [ ] Timestamp tracking: upload, start, complete
+- [x] Create `api/services/document_lifecycle.py`
+- [x] Define `Document` model with status tracking
+- [x] SQLite database: `data/documents.db`
+- [x] CRUD operations: create, read, update, delete
+- [x] Status enum: `uploaded`, `processing`, `completed`, `failed`
+- [x] Timestamp tracking: upload, start, complete
 
 ### T062-005: Basic async processing
-- [ ] Upload returns immediately with doc_id
-- [ ] Background task starts processing
-- [ ] Status endpoint reflects current state
-- [ ] Store extraction results to filesystem
-- [ ] Update document record on completion/failure
+- [x] Upload returns immediately with doc_id
+- [x] Background task starts processing
+- [x] Status endpoint reflects current state
+- [x] Store extraction results to filesystem
+- [x] Update document record on completion/failure
+- [x] Retry logic (3 attempts, exponential backoff)
 
 ### T062-006: CLI script for Marker extraction
 - [ ] Create `scripts/extract_with_marker.py`
