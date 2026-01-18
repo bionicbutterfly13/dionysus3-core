@@ -114,6 +114,12 @@ Smolagents consumption
   - **Implementation**: Add MERGE statements for graph edges in store_event Cypher
 - [x] **Task 2.3**: [TDD] Add tests for metadata propagation and graph links
 
+**QA Validation Notes (2026-01-17):**
+- **P0 Bug Fixed**: Markov Blanket ID was using Python's `hash()` which is non-deterministic across sessions (PEP 456 salt). Changed to `hashlib.sha256().hexdigest()[:16]` in `nemori_river_flow.py:120`.
+- **P1 Enhancement**: Added epistemic value computation to `ActiveInferenceState.update_beliefs()` for proper EFE decomposition (pragmatic - epistemic). High uncertainty beliefs now reduce free energy, encouraging exploration.
+- Test: `tests/unit/test_nemori_linking.py::test_blanket_id_determinism` verifies deterministic IDs
+- Test: `tests/unit/test_meta_tot_engine.py::test_epistemic_value_*` verifies epistemic term computation
+
 ## Phase 3: Graphiti-Only Neo4j Access (US3) - P1
 
 **Goal**: Route Neo4j access through Graphiti to avoid direct connections elsewhere.
@@ -158,8 +164,20 @@ Smolagents consumption
 
 **Goal**: Integrate AutoSchemaKG with Graphiti and correct concept ingest signature.
 
-- [ ] **Task 5.1**: Add AutoSchemaKG integration service using Graphiti storage
-- [ ] **Task 5.2**: Fix `concept_extraction` Graphiti ingest signature mismatch
+- [x] **Task 5.1**: Add AutoSchemaKG integration service using Graphiti storage
+- [x] **Task 5.2**: Fix `concept_extraction` Graphiti ingest signature mismatch
+
+**Implementation Notes (2026-01-17):**
+- Task 5.2: Fixed `store_in_graphiti` signature mismatch in `api/services/concept_extraction/service.py`
+  - Changed parameter names: `source_name`→`head_id`, `relation_type`→`relation`, `target_name`→`tail_id`
+  - Changed `context` from string to proper dict with `confidence` and `details`
+- Task 5.1: Implemented full AutoSchemaKG integration in `api/services/consciousness/autoschemakg_integration.py`
+  - `ConceptType` enum: ENTITY, EVENT, RELATION
+  - `InferredConcept` dataclass with deterministic SHA256-based IDs
+  - Concept hierarchy mapping (Agent, Place, Temporal, Activity, Causal, etc.)
+  - `infer_schema()`, `store_schema()`, `infer_and_store()` methods
+  - Stores via Graphiti `ingest_contextual_triplet`
+- Test coverage: 15 tests in `tests/unit/test_autoschemakg_integration.py` (all pass)
 ## Phase 6: Context Packaging (Context-Engineering) - P2
 
 **Goal**: Implement "Cellular" memory physics (Token Budgets, Resonance, State) as defined in `Context-Engineering` schemas.

@@ -7,6 +7,7 @@
 | 038-thoughtseeds-framework | In Progress | Thoughtseeds Framework Enhancement | EFE decision engine, Markov blankets, prior hierarchy, inner screen |
 | 039-smolagents-v2-alignment | Done | Smolagents V2 Alignment | ManagedAgent pattern, planning intervals, execution traces |
 | 056-beautiful-loop-hyper | Planned | Beautiful Loop Hyper-Model | Active inference consciousness with Bayesian binding, precision forecasting |
+| 057-memory-systems-integration | In Progress (5/6) | Memory Systems Integration | Active inference Meta-ToT, Nemori basin links, Graphiti-only Neo4j, MemEvolve + AutoSchemaKG |
 
 <!--
 Status: Planned, In Progress, In Review, Done, Cancelled
