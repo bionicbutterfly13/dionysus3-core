@@ -126,40 +126,41 @@
 
 ---
 
-## Phase 4: Trajectory Visualizer (P1)
+## Phase 4: Trajectory Visualizer (P1) ✅
 
 ### T062-017: Create trajectory capture callback
-- [ ] Create `api/agents/callbacks/trajectory_capture.py`
-- [ ] Implement smolagents callback interface
-- [ ] Capture: tool calls, agent transitions, decisions
-- [ ] Store structured trace per session
+- [x] Reused existing `api/agents/callbacks/execution_trace_callback.py`
+- [x] ExecutionTraceCollector implements smolagents callback interface
+- [x] Captures: tool calls, planning steps, basin activations
+- [x] Stores structured trace per session via ExecutionTraceService
 
 ### T062-018: Define trace storage format
-- [ ] Create `api/models/trajectory.py`
-- [ ] Models: `TrajectoryTrace`, `OODAPhase`, `AgentCall`, `BasinTransition`
-- [ ] JSON serialization for storage
-- [ ] SQLite table: `trajectory_traces`
+- [x] Created `api/services/trajectory_viz.py` with models
+- [x] Models: `TrajectoryTrace`, `OODAPhase`, `AgentCall`, `BasinTransition`
+- [x] JSON serialization via `generate_json()`
+- [x] Uses existing Neo4j storage via ExecutionTraceService
 
 ### T062-019: Create trajectory visualization service
-- [ ] Create `api/services/trajectory_viz.py`
-- [ ] `generate_mermaid()` - Mermaid sequence diagram
-- [ ] `generate_json()` - Raw trace export
-- [ ] `generate_html()` - Standalone HTML viewer
+- [x] Created `api/services/trajectory_viz.py`
+- [x] `generate_mermaid()` - Mermaid sequence diagram
+- [x] `generate_json()` - Raw trace export
+- [x] `generate_html()` - Standalone HTML viewer with tabs
 
 ### T062-020: Mermaid diagram generator
-- [ ] OODA cycle visualization (Observe → Orient → Decide → Act)
-- [ ] Agent hierarchy (HeartbeatAgent → ConsciousnessManager → sub-agents)
-- [ ] Tool call annotations
-- [ ] Basin transition markers
-- [ ] Thoughtseed activation indicators
+- [x] OODA cycle visualization (Observe → Orient → Decide → Act)
+- [x] Agent hierarchy (HeartbeatAgent → ConsciousnessManager → sub-agents)
+- [x] Tool call annotations with truncated args
+- [x] Basin transition markers with strength
+- [ ] Thoughtseed activation indicators (future enhancement)
 
 ### T062-021: REST endpoint for trajectories
-- [ ] Create `api/routers/trajectory.py`
-- [ ] `GET /api/trajectory/{session_id}` - get trace
-- [ ] `GET /api/trajectory/{session_id}/mermaid` - Mermaid output
-- [ ] `GET /api/trajectory/{session_id}/html` - HTML viewer
-- [ ] `GET /api/trajectory` - list recent sessions
-- [ ] Query params: time_range, agent_type, basin_filter
+- [x] Created `api/routers/trajectory.py`
+- [x] `GET /api/trajectory/{trace_id}` - get trace metadata
+- [x] `GET /api/trajectory/{trace_id}/mermaid` - Mermaid output
+- [x] `GET /api/trajectory/{trace_id}/html` - HTML viewer
+- [x] `GET /api/trajectory` - list recent traces
+- [x] `GET /api/trajectory/demo/sample` - demo visualization
+- [ ] Query params: time_range, agent_type, basin_filter (future)
 
 ### T062-022: HTML dashboard component
 - [ ] Create `dionysus-dashboard/pages/trajectory.tsx`
