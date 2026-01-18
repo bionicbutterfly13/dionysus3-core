@@ -32,20 +32,20 @@ The IAS curriculum is documented in these canonical files:
 ```
 IASCurriculum (root)
  ├── Phase 1: Revelation
- │   ├── Lesson 1: Breakthrough Mapping
- │   ├── Lesson 2: [TBD]
- │   └── Lesson 3: Replay Loop Breaker
+ │   ├── Lesson 1: The Natural Loop
+ │   ├── Lesson 2: The Mosaeic Method
+ │   └── Lesson 3: The Replay Loop Breaker
  │       ├── Step 1: Spot the Story
  │       ├── Step 2: Name the Feeling
  │       └── Step 3: Reveal the Prediction
  ├── Phase 2: Repatterning
- │   ├── Lesson 4: Conviction Gauntlet
- │   ├── Lesson 5: [TBD]
- │   └── Lesson 6: [TBD]
+ │   ├── Lesson 4: The Conviction Gauntlet
+ │   ├── Lesson 5: The Perspective Matrix
+ │   └── Lesson 6: The Vision Accelerator
  └── Phase 3: Stabilization
-     ├── Lesson 7: Habit Harmonizer
-     ├── Lesson 8: [TBD]
-     └── Lesson 9: [TBD]
+     ├── Lesson 7: The Habit Harmonizer
+     ├── Lesson 8: The Execution Engine
+     └── Lesson 9: The Growth Anchor
 ```
 
 **Total**: 3 Phases × 3 Lessons = 9 Lessons

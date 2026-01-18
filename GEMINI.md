@@ -107,6 +107,7 @@ docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py
 ```
 
 ## Recent Changes
+- 058-ias-dashboard: Aligned `IAS MOSAEIC Source of Truth.md` with Cleaned CSV data. Implemented Voice Input/Output in `story-chat.tsx` (Phase 4 Active).
 - 020-daedalus-coordination: Implemented full Coordination Pool with context isolation, exponential backoff retries, and health metrics.
 - 038-thoughtseeds-framework: Added Python 3.11+ + smolagents, litellm, pydantic, numpy, scipy, neo4j (Graphiti)
 - 022-agentic-kg-learning: Implemented dynamic relationship extraction with provenance and low-confidence gating. Added review queue API.

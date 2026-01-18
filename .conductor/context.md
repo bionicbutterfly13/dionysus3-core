@@ -37,3 +37,11 @@
 - **No SQL**: Strictly graph-based persistence.
 - **Agentic First**: Logic resides in Agents/Tools, not just Services.
 - **Ultrathink**: Architectural decisions prioritize depth, resonance, and system sovereignty.
+
+## Current Focus
+**Active Track**: Feature 058 - IAS Experience Dashboard
+**Status**: Phase 4 (Final Polish)
+**Goals**:
+1.  **Voice UI**: Implemented `SpeechRecognition`/`Synthesis` in `story-chat.tsx`. Verified build.
+2.  **Data Alignment**: `IAS MOSAEIC Source of Truth.md` is strictly aligned with the `CleanedFormat.csv`.
+3.  **Deployment**: Preparing for final VPS deployment.
