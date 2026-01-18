@@ -30,6 +30,7 @@ async def test_record_event_merges_basin_for_resonance_link():
 
     assert "MERGE (b:AttractorBasin" in cypher
     assert "ON CREATE SET" in cypher
-    assert params["basin_description"]
+    assert params["strange_attractor_id"] == "conceptual-basin"
+    assert params["basin_description"] == "Facts, relationships, and conceptual knowledge"
     assert isinstance(params["basin_concepts"], list)
     assert params["basin_strength"] > 0
