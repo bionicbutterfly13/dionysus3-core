@@ -133,7 +133,7 @@ Smolagents consumption
 
 - [x] **Task 4.1**: Confirm MemEvolve adapter stores Trajectory nodes + relationships
 - [x] **Task 4.2**: Ensure Graphiti recall/evolve backends are default
-- [ ] **Task 4.3**: [TDD] Add tests for Graphiti-backed MemEvolve ingest + recall
+- [x] **Task 4.3**: [TDD] Add tests for Graphiti-backed MemEvolve ingest + recall (63d081c)
 
 **Implementation Notes (2025-01-16)**:
 - MemEvolve ingest now supports pre-extracted entities/edges, uses confidence gating, and writes low-confidence edges to `RelationshipProposal` for human review.
@@ -150,7 +150,9 @@ Smolagents consumption
 - **TDD Deviation**: Tests were added after implementation for this change; deviation recorded here per workflow.
 
 **Test Status (2026-01-17):**
-- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p asyncio tests/integration/test_semantic_search.py tests/integration/test_hybrid_search.py tests/unit/test_neural_metrics.py` (17 passed, 2 skipped)
+- `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p asyncio -p pytest_cov tests/integration/test_semantic_search.py tests/integration/test_hybrid_search.py tests/unit/test_neural_metrics.py tests/unit/test_memevolve_adapter.py --cov=api.services.memevolve_adapter --cov=api.services.vector_search --cov=api.services.context_stream --cov-report=term-missing`
+  - Result: 33 passed, 2 skipped
+  - Coverage: `memevolve_adapter 86%`, `context_stream 84%`, `vector_search 90%`, total 87%
 
 ## Phase 5: AutoSchemaKG + Concept Extraction (US5) - P2
 
