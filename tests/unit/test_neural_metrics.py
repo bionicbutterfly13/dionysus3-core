@@ -40,3 +40,22 @@ async def test_flow_state_mapping():
     # Low resonance -> DRIFTING
     flow = service.map_to_flow_state(density=0.5, turbulence=0.1, compression=1.0, resonance=0.2)
     assert flow.state == FlowState.DRIFTING
+
+
+@pytest.mark.asyncio
+async def test_analyze_current_flow_uses_memories():
+    """Verify flow analysis uses MemEvolve recall output."""
+    service = ContextStreamService()
+    adapter = AsyncMock()
+    adapter.recall_memories.return_value = {
+        "memories": [
+            {"content": "error detected"},
+            {"content": "mismatch observed"},
+        ]
+    }
+
+    with patch("api.services.context_stream.get_memevolve_adapter", return_value=adapter):
+        flow = await service.analyze_current_flow(project_id="proj-1")
+
+    assert flow.density == 0.2
+    assert flow.turbulence == 0.4

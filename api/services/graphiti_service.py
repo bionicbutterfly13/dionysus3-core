@@ -13,13 +13,27 @@ from datetime import datetime
 from typing import Optional, Any
 from uuid import uuid4
 
-from graphiti_core import Graphiti
-from graphiti_core.nodes import EpisodeType
+from typing import TYPE_CHECKING
 # Note: search_config_recipes not available in graphiti-core 0.24.3
-from api.models.memevolve import TrajectoryData
-from api.services.llm_service import chat_completion, GPT5_NANO
+from api.models.memevolve import TrajectoryData, TrajectoryStep
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from graphiti_core import Graphiti
+
+
+def _get_graphiti_class():
+    from graphiti_core import Graphiti
+    return Graphiti
+
+
+def _get_episode_type_message():
+    try:
+        from graphiti_core.nodes import EpisodeType
+        return EpisodeType.message
+    except Exception:  # pragma: no cover - fallback for test environments
+        return "message"
 
 try:
     from neo4j.graph import Node, Relationship, Path
@@ -138,7 +152,7 @@ def get_graphiti_loop() -> asyncio.AbstractEventLoop:
     return _graphiti_loop
 
 # Global Graphiti instance
-_global_graphiti: Optional[Graphiti] = None
+_global_graphiti: Optional["Graphiti"] = None
 _global_graphiti_lock = threading.Lock() # Use threading lock for initialization
 
 class GraphitiService:
@@ -175,6 +189,7 @@ class GraphitiService:
         with _global_graphiti_lock:
             if _global_graphiti is None:
                 logger.info(f"Initializing Global Graphiti with Neo4j at {self.config.neo4j_uri}")
+                Graphiti = _get_graphiti_class()
                 _global_graphiti = Graphiti(
                     uri=self.config.neo4j_uri,
                     user=self.config.neo4j_user,
@@ -240,7 +255,7 @@ class GraphitiService:
         result = await graphiti.add_episode(
             name=f"episode_{uuid4().hex[:8]}",
             episode_body=content,
-            source=EpisodeType.message,
+            source=_get_episode_type_message(),
             source_description=source_description,
             group_id=group,
             reference_time=timestamp,
@@ -290,7 +305,27 @@ class GraphitiService:
         if metadata_lines:
             lines.append("Metadata: " + " | ".join(metadata_lines))
 
-        for idx, step in enumerate(trajectory.steps, start=1):
+        if trajectory.query:
+            lines.append(f"Query: {trajectory.query}")
+
+        if trajectory.result is not None:
+            lines.append(f"Result: {trajectory.result}")
+
+        steps = trajectory.steps
+        if not steps and trajectory.trajectory:
+            for entry in trajectory.trajectory:
+                if isinstance(entry, dict):
+                    steps.append(
+                        TrajectoryStep(
+                            observation=entry.get("observation"),
+                            thought=entry.get("thought"),
+                            action=entry.get("action"),
+                        )
+                    )
+                else:
+                    steps.append(TrajectoryStep(observation=str(entry)))
+
+        for idx, step in enumerate(steps, start=1):
             if step.observation:
                 lines.append(f"Step {idx} Observation: {step.observation}")
             if step.thought:
@@ -304,6 +339,7 @@ class GraphitiService:
         return text
 
     async def _summarize_trajectory(self, trajectory_text: str) -> str:
+        from api.services.llm_service import chat_completion, GPT5_NANO
         if not trajectory_text:
             return "Empty trajectory."
 
@@ -436,6 +472,7 @@ class GraphitiService:
         Returns:
             Dict with keys: summary, entities, relationships
         """
+        from api.services.llm_service import chat_completion, GPT5_NANO
         trajectory_text = self._format_trajectory_text(trajectory)
         summary = trajectory.summary or await self._summarize_trajectory(trajectory_text)
 
@@ -497,6 +534,7 @@ class GraphitiService:
         Returns:
             Dict with entities, relationships (with confidence), approved/pending counts
         """
+        from api.services.llm_service import chat_completion, GPT5_NANO
         use_model = model or GPT5_NANO
         
         # Build context-aware prompt
@@ -567,6 +605,7 @@ IMPORTANT:
         relationships: list[dict[str, Any]],
         source_id: str,
         group_id: Optional[str] = None,
+        valid_at: Optional[datetime] = None,
     ) -> dict[str, Any]:
         """
         Ingest pre-extracted relationships without re-extraction.
@@ -600,10 +639,10 @@ IMPORTANT:
                 await graphiti.add_episode(
                     name=f"fact_{uuid4().hex[:8]}",
                     episode_body=fact,
-                    source=EpisodeType.message,
+                    source=_get_episode_type_message(),
                     source_description=source_id,
                     group_id=group,
-                    reference_time=datetime.now(),
+                    reference_time=valid_at or datetime.now(),
                 )
                 ingested += 1
                 

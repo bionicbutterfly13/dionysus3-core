@@ -326,28 +326,41 @@ class FiveLevelConceptExtractionService:
 
         for concept in result.all_concepts:
             try:
-                # Store concept as entity
+                # Build context dict for Graphiti's ingest_contextual_triplet
+                context_dict = {
+                    "confidence": concept.confidence,
+                    "details": {
+                        "description": concept.description,
+                        "source_type": f"concept_{concept.level.name.lower()}",
+                        "target_type": "concept_type",
+                    }
+                }
+                
+                # Store concept as entity using correct parameter names
                 await graphiti_service.ingest_contextual_triplet(
-                    source_name=concept.name,
-                    relation_type="is_a",
-                    target_name=concept.concept_type,
-                    context=concept.description,
-                    source_type=f"concept_{concept.level.name.lower()}",
-                    target_type="concept_type",
-                    weight=concept.confidence,
+                    head_id=concept.name,
+                    relation="is_a",
+                    tail_id=concept.concept_type,
+                    context=context_dict,
                     group_id=group_id,
                 )
                 stored_entities += 1
 
                 # Store relationships
                 for related_id in concept.related_concepts:
+                    rel_context = {
+                        "confidence": concept.confidence,
+                        "details": {
+                            "description": f"Cross-concept relationship from {concept.level.name}",
+                            "source_type": f"concept_{concept.level.name.lower()}",
+                            "target_type": "concept",
+                        }
+                    }
                     await graphiti_service.ingest_contextual_triplet(
-                        source_name=concept.name,
-                        relation_type="relates_to",
-                        target_name=related_id,
-                        context=f"Cross-concept relationship from {concept.level.name}",
-                        source_type=f"concept_{concept.level.name.lower()}",
-                        target_type="concept",
+                        head_id=concept.name,
+                        relation="relates_to",
+                        tail_id=related_id,
+                        context=rel_context,
                         group_id=group_id,
                     )
                     stored_relationships += 1

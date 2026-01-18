@@ -7,7 +7,7 @@ Connects Mental Models to ThoughtSeed 5-layer hierarchy:
 - ThoughtSeed competition winners → Basin activation
 - Prediction resolution → Basin strengthening (CLAUSE)
 
-Database: Neo4j via Graphiti-backed driver
+Database: Neo4j via MemEvolve adapter (Graphiti gateway)
 """
 
 import json
@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
-from api.services.remote_sync import get_neo4j_driver
+from api.services.memevolve_adapter import get_memevolve_adapter
 
 logger = logging.getLogger("dionysus.thoughtseed_integration")
 
@@ -48,7 +48,7 @@ class ThoughtSeedIntegrationService:
 
     def __init__(self, driver=None):
         """Initialize with Neo4j driver."""
-        self._driver = driver or get_neo4j_driver()
+        self._adapter = driver or get_memevolve_adapter()
 
     async def generate_thoughtseed_from_prediction(
         self,
@@ -101,12 +101,12 @@ class ThoughtSeedIntegrationService:
         """
         
         try:
-            await self._driver.execute_query(cypher, {
+            await self._adapter.execute_cypher(cypher, {
                 "model_id": str(model_id),
                 "id": thoughtseed_id,
                 "layer": layer,
                 "activation": activation_level,
-                "packet": json.dumps(packet),
+                "packet": json.dumps(packet, default=str),
                 "parent_id": str(parent_thought_id) if parent_thought_id else None,
                 "child_ids": [str(cid) for cid in (child_thought_ids or [])]
             })
@@ -141,11 +141,11 @@ class ThoughtSeedIntegrationService:
         """
         
         try:
-            result = await self._driver.execute_query(cypher, {
+            result = await self._adapter.execute_cypher(cypher, {
                 "id": str(thoughtseed_id),
                 "strength": activation_strength
             })
-            return [{"id": row["b"]["id"]} for row in result]
+            return [{"id": row.get("b", {}).get("id")} for row in result if row.get("b")]
         except Exception as e:
             logger.error(f"Error activating basins: {e}")
             return []

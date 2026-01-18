@@ -13,7 +13,6 @@ from api.services.meta_tot_engine import (
     MetaToTNodeType,
     MetaToTConfig,
     MetaToTEngine,
-    POMCPActiveInferencePlanner,
     get_meta_tot_engine,
 )
 from api.models.meta_tot import MetaToTDecision
@@ -45,78 +44,91 @@ class TestActiveInferenceState:
         assert state.free_energy > 0
         assert state.surprise > 0
 
+    def test_epistemic_value_computation(self):
+        """Test that epistemic value is computed from belief uncertainty."""
+        # High certainty beliefs (near 0 or 1) = low epistemic value
+        certain_state = ActiveInferenceState(beliefs={"a": 0.99, "b": 0.01})
+        certain_epistemic = certain_state._compute_epistemic_value()
+        
+        # Uncertain beliefs (near 0.5) = high epistemic value
+        uncertain_state = ActiveInferenceState(beliefs={"a": 0.5, "b": 0.5})
+        uncertain_epistemic = uncertain_state._compute_epistemic_value()
+        
+        # Uncertain beliefs should have higher epistemic value
+        assert uncertain_epistemic > certain_epistemic
+        # Both should be non-negative
+        assert certain_epistemic >= 0
+        assert uncertain_epistemic >= 0
+
+    def test_epistemic_value_reduces_free_energy(self):
+        """Test that high epistemic value reduces free energy (encourages exploration)."""
+        # Two states with same prediction error but different belief uncertainty
+        certain_state = ActiveInferenceState(beliefs={"a": 0.99})
+        uncertain_state = ActiveInferenceState(beliefs={"a": 0.5})
+        
+        # Same prediction error
+        certain_state.update_beliefs(prediction_error=0.3)
+        uncertain_state.update_beliefs(prediction_error=0.3)
+        
+        # Uncertain state should have LOWER free energy (epistemic bonus)
+        # This encourages exploration of uncertain states
+        assert uncertain_state.free_energy < certain_state.free_energy
+
 
 class TestMetaToTNode:
     def test_default_node(self):
         node = MetaToTNode()
         assert node.node_type == MetaToTNodeType.ROOT
         assert node.depth == 0
-        assert node.visit_count == 0
-        assert node.value_estimate == 0.0
+        assert node.score == 0.0
+        assert node.thought_content == ""
+        assert node.cpa_domain == "explore"
 
-    def test_ucb_score_unvisited(self):
-        node = MetaToTNode()
-        score = node.compute_ucb_score(total_parent_visits=10)
-        assert score == float("inf")
 
-    def test_ucb_score_visited(self):
-        node = MetaToTNode(visit_count=5, value_estimate=0.6)
-        score = node.compute_ucb_score(total_parent_visits=20, exploration_constant=2.0)
-        # exploitation + exploration + prediction_bonus
-        exploitation = 0.6
-        exploration = 2.0 * math.sqrt(math.log(20) / 5)
-        prediction_bonus = 1.0 / (1.0 + 0.0)  # no prediction error
-        expected = exploitation + exploration + prediction_bonus
-        assert score == pytest.approx(expected, rel=0.01)
+    def test_node_with_active_inference_state(self):
+        state = ActiveInferenceState(beliefs={"x": 0.7}, precision=0.9)
+        node = MetaToTNode(
+            node_type=MetaToTNodeType.EXPLORATION,
+            depth=2,
+            thought_content="test thought",
+            cpa_domain="challenge",
+            active_inference_state=state,
+            score=0.8,
+        )
+        assert node.node_type == MetaToTNodeType.EXPLORATION
+        assert node.depth == 2
+        assert node.score == 0.8
+        assert node.active_inference_state.beliefs == {"x": 0.7}
 
-    def test_update_from_rollout(self):
-        node = MetaToTNode(visit_count=0, value_estimate=0.0)
-        node.update_from_rollout(reward=0.8, prediction_error=0.1, learning_rate=0.1)
-        assert node.visit_count == 1
-        assert node.value_estimate > 0
-        assert node.uncertainty_estimate < 1.0
+
+
+
 
 
 class TestMetaToTConfig:
     def test_defaults(self):
         config = MetaToTConfig()
         assert config.max_depth == 4
-        assert config.simulation_count == 32
-        assert config.exploration_constant == 2.0
         assert config.branching_factor == 3
         assert config.time_budget_seconds == 5.0
         assert config.use_llm is True
         assert config.persist_trace is True
 
     def test_from_overrides(self):
-        overrides = {"max_depth": 6, "simulation_count": 50, "use_llm": False}
+        overrides = {"max_depth": 6, "branching_factor": 5, "use_llm": False}
         config = MetaToTConfig.from_overrides(overrides)
         assert config.max_depth == 6
-        assert config.simulation_count == 50
+        assert config.branching_factor == 5
         assert config.use_llm is False
         # Default values preserved
-        assert config.branching_factor == 3
+        assert config.time_budget_seconds == 5.0
 
     def test_from_overrides_none(self):
         config = MetaToTConfig.from_overrides(None)
         assert config.max_depth == 4
 
 
-class TestPOMCPActiveInferencePlanner:
-    @pytest.mark.asyncio
-    async def test_plan_no_actions(self):
-        planner = POMCPActiveInferencePlanner()
-        action, value = await planner.plan({"x": 0.5}, [])
-        assert action == ""
-        assert value == 0.0
 
-    @pytest.mark.asyncio
-    async def test_plan_selects_action(self):
-        planner = POMCPActiveInferencePlanner(simulation_count=10)
-        actions = ["action_a", "action_b", "action_c"]
-        action, value = await planner.plan({"x": 0.5}, actions)
-        assert action in actions
-        assert value >= 0.0
 
 
 class TestMetaToTEngine:
@@ -126,7 +138,6 @@ class TestMetaToTEngine:
             use_llm=False,
             persist_trace=False,
             max_depth=2,
-            simulation_count=5,
             branching_factor=2,
             random_seed=42,
         )
@@ -157,7 +168,6 @@ class TestMetaToTEngine:
             use_llm=False,
             persist_trace=True,
             max_depth=1,
-            simulation_count=2,
             random_seed=42,
         )
         engine = MetaToTEngine(config)
@@ -239,6 +249,22 @@ class TestMetaToTEngine:
         actions = engine._generate_actions(root)
         assert actions == ["action A", "action B"]
 
+    def test_select_best_path_prefers_score(self):
+        engine = MetaToTEngine()
+        root = MetaToTNode(node_id="root")
+        # Higher score is better (lower Free Energy)
+        child_low_score = MetaToTNode(node_id="low", score=0.1)
+        child_high_score = MetaToTNode(node_id="high", score=0.9)
+        root.children_ids = ["low", "high"]
+        engine.node_storage = {
+            "root": root,
+            "low": child_low_score,
+            "high": child_high_score,
+        }
+
+        path = engine._select_best_path(root)
+        assert path[1] == "high"
+
     def test_node_to_trace(self):
         engine = MetaToTEngine()
         node = MetaToTNode(
@@ -249,8 +275,6 @@ class TestMetaToTEngine:
             cpa_domain="explore",
             thought_content="test thought",
             score=0.8,
-            visit_count=5,
-            value_estimate=0.7,
         )
         trace = engine._node_to_trace(node)
         assert trace.node_id == "n1"

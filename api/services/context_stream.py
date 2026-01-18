@@ -10,7 +10,8 @@ import logging
 from typing import List, Optional
 from pydantic import BaseModel
 from api.models.cognitive import FlowState
-from api.services.graphiti_service import get_graphiti_service
+from api.models.memevolve import MemoryRecallRequest
+from api.services.memevolve_adapter import get_memevolve_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -89,22 +90,29 @@ class ContextStreamService:
         last_output: Optional[str] = None
     ) -> ContextFlow:
         """
-        Calculate flow state based on recent Graphiti activity and neural metrics.
+        Calculate flow state based on recent MemEvolve activity and neural metrics.
         """
-        graphiti = await get_graphiti_service()
-        
-        # 1. Fetch recent episodes for context
-        results = await graphiti.search(f"Latest activity for project {project_id}", limit=10)
-        edges = results.get("edges", [])
+        adapter = get_memevolve_adapter()
+
+        # 1. Fetch recent memories for context
+        recall = await adapter.recall_memories(
+            MemoryRecallRequest.model_construct(
+                query=f"Latest activity for project {project_id}",
+                limit=10,
+                project_id=project_id,
+                include_temporal_metadata=False,
+            )
+        )
+        memories = recall.get("memories", [])
         
         # 2. Calculate Density
-        density = len(edges) / 10.0
+        density = len(memories) / 10.0
         
         # 3. Calculate Turbulence
         turbulence = 0.0
         negative_markers = ["contradict", "fail", "error", "hallucination", "mismatch", "unclear"]
-        for edge in edges:
-            fact = str(edge.get("fact", "")).lower()
+        for memory in memories:
+            fact = str(memory.get("content", "")).lower()
             if any(m in fact for m in negative_markers):
                 turbulence += 0.2
         turbulence = min(1.0, turbulence)

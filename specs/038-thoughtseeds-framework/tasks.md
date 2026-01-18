@@ -41,6 +41,6 @@
 
 ## Phase 5: Verification & Polish
 
-- [ ] T017 Run "Thoughtseeds" paper ingestion task (T060 from Archon)
+- [ ] T017 Run "Thoughtseeds" paper ingestion task
 - [ ] T018 Verify "Affordances" mapping (FR-030-003)
 - [ ] T019 Final system-wide integration test for OODA + EFE + Screen

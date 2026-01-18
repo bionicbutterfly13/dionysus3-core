@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 from api.models.sync import MemoryType
 from api.services.llm_service import chat_completion, GPT5_NANO
-from api.services.graphiti_service import get_graphiti_service, GraphitiService
+from api.services.memevolve_adapter import get_memevolve_adapter, MemEvolveAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -58,16 +58,16 @@ class MemoryBasinRouter:
     Implements:
     1. LLM-based memory type classification
     2. Basin activation for the appropriate memory type
-    3. Context-aware ingestion through Graphiti with basin context
+    3. Context-aware ingestion through MemEvolve (Graphiti gateway) with basin context
     """
 
-    def __init__(self, graphiti_service: Optional[GraphitiService] = None):
-        self._graphiti_service = graphiti_service
+    def __init__(self, memevolve_adapter: Optional[MemEvolveAdapter] = None):
+        self._memevolve_adapter = memevolve_adapter
 
-    async def _get_graphiti_service(self) -> GraphitiService:
-        if self._graphiti_service is None:
-            self._graphiti_service = await get_graphiti_service()
-        return self._graphiti_service
+    async def _get_memevolve_adapter(self) -> MemEvolveAdapter:
+        if self._memevolve_adapter is None:
+            self._memevolve_adapter = get_memevolve_adapter()
+        return self._memevolve_adapter
 
     async def classify_memory_type(self, content: str) -> MemoryType:
         """
@@ -122,6 +122,10 @@ Respond with ONLY the memory type name in uppercase (EPISODIC, SEMANTIC, PROCEDU
         except Exception as e:
             logger.error(f"Memory type classification failed: {e}")
             return MemoryType.SEMANTIC
+
+    def get_basin_for_type(self, memory_type: MemoryType) -> Dict[str, Any]:
+        """Get the basin configuration for a given memory type."""
+        return BASIN_MAPPING.get(memory_type, BASIN_MAPPING[MemoryType.SEMANTIC])
 
     async def route_memory(
         self,
@@ -226,8 +230,8 @@ Respond with ONLY the memory type name in uppercase (EPISODIC, SEMANTIC, PROCEDU
         }
         
         try:
-            graphiti = await self._get_graphiti_service()
-            rows = await graphiti.execute_cypher(create_cypher, params)
+            memevolve = await self._get_memevolve_adapter()
+            rows = await memevolve.execute_cypher(create_cypher, params)
             
             if rows:
                 basin = rows[0]
@@ -276,7 +280,7 @@ When extracting entities and relationships, prioritize:
         source_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Ingest content through Graphiti with basin context.
+        Ingest content through MemEvolve with basin context.
         
         Args:
             content: Content to ingest
@@ -288,10 +292,10 @@ When extracting entities and relationships, prioritize:
         Returns:
             Ingestion result from Graphiti
         """
-        graphiti = await get_graphiti_service()
+        memevolve = await self._get_memevolve_adapter()
         
         # Extract with basin context
-        extraction = await graphiti.extract_with_context(
+        extraction = await memevolve.extract_with_context(
             content=content,
             basin_context=basin_context,
             strategy_context=f"Memory Type: {memory_type.value.upper()}",
@@ -311,7 +315,7 @@ When extracting entities and relationships, prioritize:
         
         if approved_rels:
             source = source_id or f"basin_router:{basin_name}"
-            ingest_result = await graphiti.ingest_extracted_relationships(
+            ingest_result = await memevolve.ingest_relationships(
                 relationships=approved_rels,
                 source_id=source,
             )
@@ -352,8 +356,8 @@ When extracting entities and relationships, prioritize:
         }
         
         try:
-            graphiti = await self._get_graphiti_service()
-            await graphiti.execute_cypher(cypher, params)
+            memevolve = await self._get_memevolve_adapter()
+            await memevolve.execute_cypher(cypher, params)
         except Exception as e:
             logger.warning(f"Failed to record basin-memory stats: {e}")
 
@@ -388,8 +392,8 @@ When extracting entities and relationships, prioritize:
             params = {}
         
         try:
-            graphiti = await self._get_graphiti_service()
-            rows = await graphiti.execute_cypher(cypher, params)
+            memevolve = await self._get_memevolve_adapter()
+            rows = await memevolve.execute_cypher(cypher, params)
             return {"basins": rows}
         except Exception as e:
             logger.error(f"Failed to get basin stats: {e}")

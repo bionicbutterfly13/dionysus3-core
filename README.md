@@ -59,6 +59,15 @@ docker exec dionysus-api python3 /app/scripts/test_memevolve_ingest.py
 docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py
 ```
 
+## Conductor Protocol Required
+
+All agents must follow the Conductor workflow for this repo.
+
+- Source of truth: `.conductor/workflow.md` and `conductor/workflow.md`
+- TDD is mandatory (red → green → refactor)
+- Use plan tracking in `conductor/tracks/*/plan.md`
+- Use feature branches per item and attach git notes per Conductor steps
+
 ## Integration with Archon
 
 Archon remains a **local-only** task management service. Dionysus connects to Archon via prefetched task payloads in hooks to maintain context without exposing Archon to the public internet.

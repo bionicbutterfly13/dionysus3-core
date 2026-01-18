@@ -1,21 +1,21 @@
 """
-Vector Search Service (Webhook-only)
+Vector Search Service (MemEvolve-backed)
 Feature: 003-semantic-search
 
-The application never connects to Neo4j directly. Vector search is executed via n8n
-webhooks (which may embed the query and run the Neo4j vector index query).
+The application routes through MemEvolve, which uses Graphiti as the sole Neo4j gateway.
+This replaces the legacy n8n webhook implementation.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional
 
-from api.services.remote_sync import RemoteSyncService, SyncConfig
+from api.models.memevolve import MemoryRecallRequest
+from api.services.memevolve_adapter import get_memevolve_adapter
 
 logger = logging.getLogger("dionysus.vector_search")
 
@@ -57,45 +57,40 @@ class SearchResponse:
 
 class VectorSearchService:
     """
-    Webhook-backed vector search.
-
-    Expected n8n payload/response is intentionally flexible:
-    - Request: {operation:'vector_search', query, k, threshold, filters}
-    - Response: {success:true, results:[...]} or {memories:[...]}.
+    MemEvolve-backed vector search service.
+    
+    Features:
+    - MemEvolve routing through Graphiti gateway (no direct Neo4j access)
+    - Hybrid search (semantic + graph)
+    - Dynamic retrieval strategy
     """
 
-    def __init__(
-        self,
-        *,
-        sync_service: Optional[RemoteSyncService] = None,
-        webhook_url: Optional[str] = None,
-    ):
-        self._sync = sync_service or RemoteSyncService(
-            config=SyncConfig(
-                recall_webhook_url=os.getenv(
-                    "N8N_VECTOR_SEARCH_URL",
-                    os.getenv("N8N_RECALL_URL", "http://localhost:5678/webhook/memory/v1/recall"),
-                )
-            )
-        )
-        self._webhook_url = webhook_url or self._sync.config.recall_webhook_url
+    def __init__(self):
+        pass
 
     async def close(self) -> None:
         return None
 
     async def health_check(self) -> dict[str, Any]:
-        """Check connectivity for the vector search webhook."""
-        health = await self._sync.check_health()
-        health["vector_search_webhook_url"] = self._webhook_url
-        return health
+        """Check connectivity via MemEvolve adapter."""
+        try:
+            adapter = get_memevolve_adapter()
+            await adapter.execute_cypher("RETURN 1 AS status", {})
+            return {"healthy": True, "backend": "memevolve"}
+        except Exception as e:
+            return {"healthy": False, "error": str(e)}
 
     async def _get_latest_strategy(self) -> dict[str, Any]:
         """Fetch the latest RetrievalStrategy node from Neo4j (T006)."""
         cypher = "MATCH (s:RetrievalStrategy) RETURN s ORDER BY s.created_at DESC LIMIT 1"
         try:
-            records = await self._sync.run_cypher(cypher)
-            if records.get("records"):
-                strategy = records["records"][0]
+            adapter = get_memevolve_adapter()
+            records = await adapter.execute_cypher(cypher)
+            
+            if records:
+                # Graphiti returns records as dicts directly
+                # Access 's' from the record dict
+                strategy = records[0].get('s', {})
                 return {
                     "top_k": int(strategy.get("top_k", DEFAULT_TOP_K)),
                     "threshold": float(strategy.get("threshold", DEFAULT_THRESHOLD)),
@@ -120,59 +115,57 @@ class VectorSearchService:
             strategy = await self._get_latest_strategy()
             top_k = top_k or strategy["top_k"]
             threshold = threshold or strategy["threshold"]
-            logger.info(f"Using strategy: {strategy.get('id', 'default')} (k={top_k}, t={threshold})")
+            # logger.info(f"Using strategy: {strategy.get('id', 'default')} (k={top_k}, t={threshold})")
 
-        payload: dict[str, Any] = {
-            "operation": "vector_search",
-            "query": query,
-            "k": top_k,
-            "threshold": threshold,
-        }
-
-        if filters:
-            payload["filters"] = {
-                "project_id": filters.project_id,
-                "session_id": filters.session_id,
-                "from_date": filters.from_date.isoformat() if filters.from_date else None,
-                "to_date": filters.to_date.isoformat() if filters.to_date else None,
-                "memory_types": filters.memory_types,
-            }
-
-        # n8n may do embedding internally; keep metrics placeholders
-        embed_ms = 0.0
+        # Start search timer
         search_start = time.time()
-        raw = await self._sync._send_to_webhook(payload, webhook_url=self._webhook_url)
+        
+        try:
+            adapter = get_memevolve_adapter()
+            recall = await adapter.recall_memories(
+                MemoryRecallRequest.model_construct(
+                    query=query,
+                    limit=top_k,
+                    project_id=filters.project_id if filters else None,
+                    session_id=filters.session_id if filters else None,
+                    memory_types=filters.memory_types if filters else None,
+                    include_temporal_metadata=False,
+                )
+            )
+            items = recall.get("memories", [])
+            
+        except Exception as e:
+            logger.error(f"MemEvolve search failed: {e}")
+            items = []
+
         search_ms = (time.time() - search_start) * 1000
 
-        items = raw.get("results") or raw.get("memories") or []
         results: list[SearchResult] = []
         for item in items:
-            if not isinstance(item, dict):
-                continue
+            content = str(item.get("content") or "")
+            similarity = float(item.get("similarity", 0.0))
+            
             results.append(
                 SearchResult(
-                    id=str(item.get("id") or item.get("memory_id") or item.get("message_id") or ""),
-                    content=str(item.get("content") or ""),
-                    memory_type=str(item.get("memory_type") or item.get("type") or "unknown"),
-                    importance=float(item.get("importance") or 0.5),
-                    similarity_score=float(item.get("similarity_score") or item.get("score") or 0.0),
+                    id=str(item.get("id", "")),
+                    content=content,
+                    memory_type=item.get("type") or "semantic",
+                    importance=float(item.get("importance", 0.5)),
+                    similarity_score=similarity,
                     session_id=item.get("session_id"),
                     project_id=item.get("project_id"),
-                    tags=item.get("tags"),
+                    created_at=None,
+                    tags=item.get("tags", []),
                 )
             )
 
         total_ms = (time.time() - total_start) * 1000
-        logger.info(
-            "Vector search via n8n completed",
-            extra={"query_length": len(query), "results_count": len(results), "total_ms": total_ms},
-        )
-
+        
         return SearchResponse(
             query=query,
             results=results,
             count=len(results),
-            embedding_time_ms=embed_ms,
+            embedding_time_ms=0.0, # Handled internally by Graphiti
             search_time_ms=search_ms,
             total_time_ms=total_ms,
         )

@@ -15,9 +15,8 @@ from uuid import uuid4
 
 from api.models.kg_learning import ExtractionResult, RelationshipProposal
 from api.models.sync import MemoryType
-from api.services.graphiti_service import get_graphiti_service
+from api.services.memevolve_adapter import get_memevolve_adapter, MemEvolveAdapter
 from api.services.llm_service import chat_completion, GPT5_NANO
-from api.services.webhook_neo4j_driver import get_neo4j_driver
 from api.services.memory_basin_router import get_memory_basin_router, BASIN_MAPPING
 from api.models.network_state import get_network_state_config
 
@@ -25,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 class KGLearningService:
-    def __init__(self, driver=None):
-        self._driver = driver or get_neo4j_driver()
+    def __init__(self, adapter: Optional[MemEvolveAdapter] = None):
+        self._adapter = adapter or get_memevolve_adapter()
 
     async def extract_and_learn(self, content: str, source_id: str) -> ExtractionResult:
         """Extract relationships with basin-guidance and strategy-boosting."""
@@ -34,11 +33,9 @@ class KGLearningService:
         basin_context = await self._get_relevant_basins(content)
         strategy_context = await self._get_active_strategies()
 
-        # 2. Extract via consolidated GraphitiService extractor (eliminates double extraction)
+        # 2. Extract via MemEvolve adapter (Graphiti gateway) to avoid double extraction
         CONFIDENCE_THRESHOLD = 0.6
-        graphiti = await get_graphiti_service()
-        
-        extraction = await graphiti.extract_with_context(
+        extraction = await self._adapter.extract_with_context(
             content=content,
             basin_context=basin_context,
             strategy_context=strategy_context,
@@ -71,10 +68,10 @@ class KGLearningService:
             relationships=relationships,
         )
         
-        # 4. Ingest approved relationships via GraphitiService (no double extraction)
+        # 4. Ingest approved relationships via MemEvolve adapter
         approved_rels = [r for r in extraction.get("relationships", []) if r["status"] == "approved"]
         if approved_rels:
-            await graphiti.ingest_extracted_relationships(
+            await self._adapter.ingest_relationships(
                 relationships=approved_rels,
                 source_id=f"agentic_extraction:{source_id}:{run_id}",
             )
@@ -137,11 +134,9 @@ class KGLearningService:
         strategy_context += f"\nMemory Type: {memory_type.value.upper()}"
         strategy_context += f"\nExtraction Focus: {basin_config['extraction_focus']}"
         
-        # 4. Extract via consolidated GraphitiService extractor
+        # 4. Extract via MemEvolve adapter
         CONFIDENCE_THRESHOLD = 0.6
-        graphiti = await get_graphiti_service()
-        
-        extraction = await graphiti.extract_with_context(
+        extraction = await self._adapter.extract_with_context(
             content=content,
             basin_context=basin_context,
             strategy_context=strategy_context,
@@ -174,10 +169,10 @@ class KGLearningService:
             relationships=relationships,
         )
         
-        # 6. Ingest approved relationships via GraphitiService
+        # 6. Ingest approved relationships via MemEvolve adapter
         approved_rels = [r for r in extraction.get("relationships", []) if r["status"] == "approved"]
         if approved_rels:
-            await graphiti.ingest_extracted_relationships(
+            await self._adapter.ingest_relationships(
                 relationships=approved_rels,
                 source_id=f"typed_extraction:{memory_type.value}:{source_id}:{run_id}",
             )
@@ -209,7 +204,7 @@ class KGLearningService:
         ORDER BY b.strength DESC
         LIMIT 5
         """
-        rows = await self._driver.execute_query(cypher)
+        rows = await self._adapter.execute_cypher(cypher)
         if not rows:
             return "No active attractor basins yet."
         
@@ -226,7 +221,7 @@ class KGLearningService:
         ORDER BY s.priority_boost DESC
         LIMIT 10
         """
-        rows = await self._driver.execute_query(cypher)
+        rows = await self._adapter.execute_cypher(cypher)
         if not rows:
             return "Preferred Relation Types: THEORETICALLY_EXTENDS, EMPIRICALLY_VALIDATES, CONTRADICTS, REPLACES"
         
@@ -294,7 +289,7 @@ class KGLearningService:
         }})
         """
         params = rel.model_dump(by_alias=True)
-        await self._driver.execute_query(cypher, params)
+        await self._adapter.execute_cypher(cypher, params)
 
     async def _strengthen_basins(self, entities: List[str]):
         """Update/Create basins based on extracted entities."""
@@ -307,7 +302,7 @@ class KGLearningService:
             b.last_strengthened = datetime()
         """
         params = {"main": entities[0], "all": entities}
-        await self._driver.execute_query(cypher, params)
+        await self._adapter.execute_cypher(cypher, params)
 
     async def _record_learning(self, relationships: List[RelationshipProposal]):
         """Update strategy priorities based on successful extractions."""
@@ -319,7 +314,7 @@ class KGLearningService:
                     s.priority_boost = coalesce(s.priority_boost, 0.0) + 0.05,
                     s.last_used = datetime()
                 """
-                await self._driver.execute_query(cypher, {"name": rel.relation_type})
+                await self._adapter.execute_cypher(cypher, {"name": rel.relation_type})
 
         # T048: Hebbian co-activation learning (conditional on feature flag)
         config = get_network_state_config()
@@ -426,7 +421,7 @@ class KGLearningService:
             "hallucinations": eval_data.get("hallucinations", []),
             "signal": eval_data.get("learning_signal", "")
         }
-        await self._driver.execute_query(cypher, params)
+        await self._adapter.execute_cypher(cypher, params)
 
 
 _kg_learning_service: Optional[KGLearningService] = None

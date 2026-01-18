@@ -40,8 +40,40 @@ class ActiveInferenceState(BaseModel):
             gradient = self.prediction_updates.get(belief_key, 0.0)
             belief_update = -learning_rate * gradient * prediction_error
             self.beliefs[belief_key] = max(0.0, min(1.0, belief_value + belief_update))
-        self.free_energy = prediction_error + 0.01 * len(self.beliefs)
+        
+        # Full EFE decomposition: pragmatic (prediction error) - epistemic (information gain)
+        pragmatic_value = prediction_error
+        epistemic_value = self._compute_epistemic_value()
+        
+        # Lower free_energy when epistemic value is high (encourages exploration)
+        self.free_energy = pragmatic_value - epistemic_value + 0.01 * len(self.beliefs)
         self.surprise = -math.log(max(0.001, 1.0 - min(prediction_error, 0.99)))
+
+    def _compute_epistemic_value(self) -> float:
+        """
+        Compute epistemic value (expected information gain) from belief uncertainty.
+        
+        Higher uncertainty = higher epistemic value = incentive to explore.
+        Uses binary entropy of each belief as proxy for information gain potential.
+        """
+        if not self.beliefs:
+            return 0.0
+        
+        total_entropy = 0.0
+        for belief in self.beliefs.values():
+            # Clamp to avoid log(0)
+            b = max(0.001, min(0.999, belief))
+            # Binary entropy: H(b) = -b*log(b) - (1-b)*log(1-b)
+            entropy = -b * math.log(b) - (1 - b) * math.log(1 - b)
+            total_entropy += entropy
+        
+        # Normalize by number of beliefs and scale
+        avg_entropy = total_entropy / len(self.beliefs) if self.beliefs else 0.0
+        
+        # Scale factor: max binary entropy is ln(2) ≈ 0.693
+        # Normalize to [0, 1] range and apply exploration weight
+        exploration_weight = 0.3  # Tunable: higher = more exploration
+        return (avg_entropy / 0.693) * exploration_weight
 
 
 class MetaToTDecision(BaseModel):
@@ -64,8 +96,6 @@ class MetaToTNodeTrace(BaseModel):
     cpa_domain: str
     thought: str
     score: float
-    visit_count: int
-    value_estimate: float
     prediction_error: float
     free_energy: float
     children_ids: List[str] = Field(default_factory=list)

@@ -37,24 +37,24 @@ def mock_search_results():
         {
             "id": "mem-001",
             "content": "Implemented token bucket algorithm for request throttling",
-            "memory_type": "procedural",
+            "type": "procedural",
             "importance": 0.8,
             "session_id": "sess-abc",
             "project_id": "dionysus-core",
             "created_at": "2025-12-10T14:30:00Z",
             "tags": ["rate-limiting", "api"],
-            "score": 0.92,
+            "similarity": 0.92,
         },
         {
             "id": "mem-002",
             "content": "Rate limiting prevents API abuse and ensures fair usage",
-            "memory_type": "semantic",
+            "type": "semantic",
             "importance": 0.7,
             "session_id": "sess-def",
             "project_id": "dionysus-core",
             "created_at": "2025-12-11T10:00:00Z",
             "tags": ["rate-limiting"],
-            "score": 0.85,
+            "similarity": 0.85,
         },
     ]
 
@@ -72,7 +72,7 @@ class TestEmbeddingService:
         service = EmbeddingService()
 
         with patch.object(service, '_get_client') as mock_client:
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"embeddings": [mock_embedding]}
             mock_response.raise_for_status = MagicMock()
@@ -119,7 +119,7 @@ class TestEmbeddingService:
         texts = ["query one", "query two", "query three"]
 
         with patch.object(service, '_get_client') as mock_client:
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "embeddings": [mock_embedding, mock_embedding, mock_embedding]
@@ -141,11 +141,12 @@ class TestEmbeddingService:
         service = EmbeddingService()
 
         with patch.object(service, '_get_client') as mock_client:
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "models": [{"name": "nomic-embed-text:latest"}]
             }
+            mock_response.raise_for_status = MagicMock()
 
             mock_http = AsyncMock()
             mock_http.get.return_value = mock_response
@@ -165,47 +166,44 @@ class TestVectorSearchService:
     """Tests for vector similarity search service."""
 
     @pytest.mark.asyncio
-    async def test_semantic_search_success(self, mock_embedding, mock_search_results):
-        """Test successful semantic search."""
-        mock_embed_service = AsyncMock(spec=EmbeddingService)
-        mock_embed_service.generate_embedding.return_value = mock_embedding
+    async def test_semantic_search_success(self, mock_search_results):
+        """Test successful semantic search via MemEvolve adapter."""
+        service = VectorSearchService()
+        adapter = AsyncMock()
+        adapter.recall_memories.return_value = {
+            "memories": mock_search_results,
+            "query": "rate limiting strategies",
+            "result_count": 2,
+        }
 
-        service = VectorSearchService(embedding_service=mock_embed_service)
-
-        with patch.object(service, '_get_driver') as mock_driver:
-            mock_session = AsyncMock()
-            mock_result = AsyncMock()
-            mock_result.data.return_value = mock_search_results
-
-            mock_session.run.return_value = mock_result
-            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock(return_value=None)
-
-            mock_driver_instance = AsyncMock()
-            mock_driver_instance.session.return_value = mock_session
-            mock_driver.return_value = mock_driver_instance
-
+        with patch("api.services.vector_search.get_memevolve_adapter", return_value=adapter):
             response = await service.semantic_search(
                 query="rate limiting strategies",
                 top_k=10,
                 threshold=0.7,
             )
 
-            assert isinstance(response, SearchResponse)
-            assert response.query == "rate limiting strategies"
-            assert response.count == 2
-            assert len(response.results) == 2
-            assert response.results[0].similarity_score == 0.92
-            assert response.embedding_time_ms > 0
-            assert response.search_time_ms > 0
+        assert isinstance(response, SearchResponse)
+        assert response.query == "rate limiting strategies"
+        assert response.count == 2
+        assert len(response.results) == 2
+        assert response.results[0].similarity_score == 0.92
+        assert response.search_time_ms > 0
+
+        call = adapter.recall_memories.call_args[0][0]
+        assert call.query == "rate limiting strategies"
+        assert call.limit == 10
 
     @pytest.mark.asyncio
-    async def test_semantic_search_with_filters(self, mock_embedding, mock_search_results):
+    async def test_semantic_search_with_filters(self, mock_search_results):
         """Test semantic search with project/session filters."""
-        mock_embed_service = AsyncMock(spec=EmbeddingService)
-        mock_embed_service.generate_embedding.return_value = mock_embedding
-
-        service = VectorSearchService(embedding_service=mock_embed_service)
+        service = VectorSearchService()
+        adapter = AsyncMock()
+        adapter.recall_memories.return_value = {
+            "memories": [mock_search_results[0]],
+            "query": "rate limiting",
+            "result_count": 1,
+        }
 
         filters = SearchFilters(
             project_id="dionysus-core",
@@ -215,19 +213,7 @@ class TestVectorSearchService:
             memory_types=["procedural", "semantic"],
         )
 
-        with patch.object(service, '_get_driver') as mock_driver:
-            mock_session = AsyncMock()
-            mock_result = AsyncMock()
-            mock_result.data.return_value = [mock_search_results[0]]
-
-            mock_session.run.return_value = mock_result
-            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock(return_value=None)
-
-            mock_driver_instance = AsyncMock()
-            mock_driver_instance.session.return_value = mock_session
-            mock_driver.return_value = mock_driver_instance
-
+        with patch("api.services.vector_search.get_memevolve_adapter", return_value=adapter):
             response = await service.semantic_search(
                 query="rate limiting",
                 top_k=5,
@@ -235,162 +221,43 @@ class TestVectorSearchService:
                 filters=filters,
             )
 
-            assert response.count == 1
-            # Verify the cypher query included filter parameters
-            call_args = mock_session.run.call_args
-            query = call_args[0][0]
-            params = call_args[0][1]
-
-            assert "project_id" in params
-            assert params["project_id"] == "dionysus-core"
-            assert "session_id" in params
-            assert "from_date" in params
-            assert "memory_types" in params
+        assert response.count == 1
+        call = adapter.recall_memories.call_args[0][0]
+        assert call.project_id == "dionysus-core"
+        assert call.session_id == "sess-abc"
+        assert call.memory_types == ["procedural", "semantic"]
 
     @pytest.mark.asyncio
-    async def test_semantic_search_no_results(self, mock_embedding):
-        """Test semantic search with no matching results."""
-        mock_embed_service = AsyncMock(spec=EmbeddingService)
-        mock_embed_service.generate_embedding.return_value = mock_embedding
-
-        service = VectorSearchService(embedding_service=mock_embed_service)
-
-        with patch.object(service, '_get_driver') as mock_driver:
-            mock_session = AsyncMock()
-            mock_result = AsyncMock()
-            mock_result.data.return_value = []
-
-            mock_session.run.return_value = mock_result
-            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock(return_value=None)
-
-            mock_driver_instance = AsyncMock()
-            mock_driver_instance.session.return_value = mock_session
-            mock_driver.return_value = mock_driver_instance
-
-            response = await service.semantic_search(
-                query="completely unrelated topic xyz123",
-                top_k=10,
-                threshold=0.9,
-            )
-
-            assert response.count == 0
-            assert response.results == []
-
-    @pytest.mark.asyncio
-    async def test_search_results_ordered_by_score(self, mock_embedding):
-        """Test that results are ordered by similarity score descending."""
-        mock_embed_service = AsyncMock(spec=EmbeddingService)
-        mock_embed_service.generate_embedding.return_value = mock_embedding
-
-        service = VectorSearchService(embedding_service=mock_embed_service)
-
-        # Results in descending score order (as they should come from Neo4j)
-        results = [
-            {"id": "1", "content": "a", "memory_type": "semantic", "importance": 0.5,
-             "session_id": None, "project_id": None, "created_at": None, "tags": None, "score": 0.95},
-            {"id": "2", "content": "b", "memory_type": "semantic", "importance": 0.5,
-             "session_id": None, "project_id": None, "created_at": None, "tags": None, "score": 0.85},
-            {"id": "3", "content": "c", "memory_type": "semantic", "importance": 0.5,
-             "session_id": None, "project_id": None, "created_at": None, "tags": None, "score": 0.75},
-        ]
-
-        with patch.object(service, '_get_driver') as mock_driver:
-            mock_session = AsyncMock()
-            mock_result = AsyncMock()
-            mock_result.data.return_value = results
-
-            mock_session.run.return_value = mock_result
-            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock(return_value=None)
-
-            mock_driver_instance = AsyncMock()
-            mock_driver_instance.session.return_value = mock_session
-            mock_driver.return_value = mock_driver_instance
-
-            response = await service.semantic_search("test", top_k=10)
-
-            scores = [r.similarity_score for r in response.results]
-            assert scores == sorted(scores, reverse=True)
-
-    @pytest.mark.asyncio
-    async def test_find_similar_memories(self, mock_embedding):
-        """Test finding memories similar to an existing memory."""
-        mock_embed_service = AsyncMock(spec=EmbeddingService)
-        service = VectorSearchService(embedding_service=mock_embed_service)
-
-        similar_results = [
-            {"id": "mem-002", "content": "similar content", "memory_type": "semantic",
-             "importance": 0.6, "session_id": None, "project_id": None,
-             "created_at": None, "tags": None, "score": 0.88},
-        ]
-
-        with patch.object(service, '_get_driver') as mock_driver:
-            mock_session = AsyncMock()
-
-            # First call returns source embedding
-            mock_result1 = AsyncMock()
-            mock_record = {"embedding": mock_embedding}
-            mock_result1.single.return_value = mock_record
-
-            # Second call returns similar memories
-            mock_result2 = AsyncMock()
-            mock_result2.data.return_value = similar_results
-
-            mock_session.run.side_effect = [mock_result1, mock_result2]
-            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock(return_value=None)
-
-            mock_driver_instance = AsyncMock()
-            mock_driver_instance.session.return_value = mock_session
-            mock_driver.return_value = mock_driver_instance
-
-            results = await service.find_similar_memories(
-                memory_id="mem-001",
-                top_k=5,
-                threshold=0.7,
-                exclude_self=True,
-            )
-
-            assert len(results) == 1
-            assert results[0].id == "mem-002"
-            assert results[0].similarity_score == 0.88
-
-    @pytest.mark.asyncio
-    async def test_health_check(self, mock_embedding):
-        """Test health check returns comprehensive status."""
-        mock_embed_service = AsyncMock(spec=EmbeddingService)
-        mock_embed_service.health_check.return_value = {
-            "healthy": True,
-            "model_available": True,
+    async def test_semantic_search_uses_strategy_when_missing_overrides(self):
+        """Use latest RetrievalStrategy when top_k/threshold not provided."""
+        service = VectorSearchService()
+        adapter = AsyncMock()
+        adapter.execute_cypher.return_value = [{"s": {"top_k": 5, "threshold": 0.6, "id": "strat"}}]
+        adapter.recall_memories.return_value = {
+            "memories": [],
+            "query": "test",
+            "result_count": 0,
         }
 
-        service = VectorSearchService(embedding_service=mock_embed_service)
+        with patch("api.services.vector_search.get_memevolve_adapter", return_value=adapter):
+            response = await service.semantic_search(query="test")
 
-        with patch.object(service, '_get_driver') as mock_driver:
-            mock_session = AsyncMock()
+        assert response.count == 0
+        call = adapter.recall_memories.call_args[0][0]
+        assert call.limit == 5
 
-            # Neo4j connection check
-            mock_result1 = AsyncMock()
-            mock_result1.single.return_value = {"n": 1}
+    @pytest.mark.asyncio
+    async def test_health_check(self):
+        """Test health check returns status via MemEvolve adapter."""
+        service = VectorSearchService()
+        adapter = AsyncMock()
+        adapter.execute_cypher.return_value = [{"status": 1}]
 
-            # Vector index check
-            mock_result2 = AsyncMock()
-            mock_result2.data.return_value = [{"name": "memory_embedding_index"}]
-
-            mock_session.run.side_effect = [mock_result1, mock_result2]
-            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock(return_value=None)
-
-            mock_driver_instance = AsyncMock()
-            mock_driver_instance.session.return_value = mock_session
-            mock_driver.return_value = mock_driver_instance
-
+        with patch("api.services.vector_search.get_memevolve_adapter", return_value=adapter):
             health = await service.health_check()
 
-            assert health["healthy"] is True
-            assert health["neo4j_connected"] is True
-            assert health["vector_index_exists"] is True
+        assert health["healthy"] is True
+        assert health["backend"] == "memevolve"
 
 
 # =============================================================================

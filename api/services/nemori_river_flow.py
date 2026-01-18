@@ -1,5 +1,6 @@
 import logging
 import json
+import hashlib
 from datetime import datetime, timezone
 from typing import List, Optional, Any, Dict, Tuple
 from uuid import uuid4
@@ -15,6 +16,7 @@ from api.models.autobiographical import (
 from api.models.beautiful_loop import ResonanceSignal, ResonanceMode
 from api.agents.consolidated_memory_stores import get_consolidated_memory_store
 from api.services.llm_service import chat_completion, GPT5_NANO
+from api.services.memory_basin_router import get_memory_basin_router
 
 logger = logging.getLogger("dionysus.nemori_river_flow")
 
@@ -187,14 +189,25 @@ class NemoriRiverFlow:
                 river_stage=RiverStage.MAIN_RIVER
             )
 
-    async def predict_and_calibrate(self, episode: DevelopmentEpisode, original_events: List[DevelopmentEvent]) -> Tuple[List[str], Dict[str, Any]]:
+    async def predict_and_calibrate(
+        self, 
+        episode: DevelopmentEpisode, 
+        original_events: List[DevelopmentEvent],
+        basin_context: Optional[Dict[str, Any]] = None
+    ) -> Tuple[List[str], Dict[str, Any]]:
         """
         Implements the Predict-Calibrate Principle (Nemori 3.2 for DELTA).
         Returns distilled facts AND 'Symbolic Residue' for incremental continuity.
+        Now context-aware via Attractor Basins.
         """
-        # 1. Prediction Stage
+        # 1. Prediction Stage with Basin Context
+        basin_prompt = ""
+        if basin_context:
+            basin_prompt = f"\nContext from Attractor Basin ({basin_context.get('name')}): {basin_context.get('description')}"
+
         prediction_prompt = (
             f"Based on the episode title '{episode.title}' and summary '{episode.summary}', "
+            f"{basin_prompt}\n"
             "predict what semantic facts or architectural lessons should be confirmed by this experience. "
             "Respond ONLY with a bulleted list of predictions."
         )
@@ -224,8 +237,46 @@ class NemoriRiverFlow:
             new_facts = data.get("new_facts", [])
             residue = data.get("symbolic_residue", {})
             
-            # Record semantic distillation event
+            # Record semantic distillation event with Basin Linkage
             distill_id = f"distill_{uuid4().hex[:6]}"
+            metadata = {"new_facts": new_facts, "residue": residue}
+            if basin_context:
+                metadata["linked_basin_id"] = basin_context.get("id")
+                metadata["basin_r_score"] = basin_context.get("resonance_score", 0.0)
+
+            # Basin Classification
+            linked_basin_id = None
+            basin_score = 0.0
+            if basin_context:
+                linked_basin_id = basin_context.get("id")
+                basin_score = basin_context.get("resonance_score", 0.0)
+            else:
+                try:
+                    router = get_memory_basin_router()
+                    # 1. Classify
+                    mem_type = await router.classify_memory_type(f"{episode.title}: {episode.summary}")
+                    # 2. Get Basin Config
+                    basin_config = router.get_basin_for_type(mem_type)
+                    # 3. Use Basin Name (and default strength)
+                    linked_basin_id = basin_config.get("basin_name") 
+                    basin_score = basin_config.get("default_strength", 0.5)
+                    
+                    logger.info(f"Classified episode as {mem_type} -> Basin: {linked_basin_id}")
+                except Exception as e:
+                    logger.warning(f"Basin classification failed: {e}")
+
+            # Markov Blanket ID Calculation
+            blanket_id = None
+            # Aggregating TWA states from events to form a stable blanket ID for the distillation
+            # Simple approach: hash of sorted event IDs + episode ID to represent this specific blanket configuration context
+            # Or use the last event's blanket state if available
+            last_valid_state = next((e.active_inference_state for e in reversed(original_events) if e.active_inference_state), None)
+            if last_valid_state and last_valid_state.twa_state:
+                # Deterministic hash of TWA state keys/values (session-stable)
+                state_str = json.dumps(last_valid_state.twa_state, sort_keys=True)
+                state_hash = hashlib.sha256(state_str.encode()).hexdigest()[:16]
+                blanket_id = f"mb_{state_hash}"
+
             distill_event = DevelopmentEvent(
                 event_id=distill_id,
                 timestamp=datetime.now(timezone.utc),
@@ -233,9 +284,12 @@ class NemoriRiverFlow:
                 summary=f"Distilled {len(new_facts)} facts from episode {episode.title}",
                 rationale=f"Predict-Calibrate on {episode.episode_id}",
                 impact="Semantic knowledge enrichment",
-                metadata={"new_facts": new_facts, "residue": residue},
+                metadata=metadata,
                 river_stage=RiverStage.DELTA,
-                parent_episode_id=episode.episode_id
+                parent_episode_id=episode.episode_id,
+                linked_basin_id=linked_basin_id, # If we had it
+                basin_r_score=basin_score,
+                markov_blanket_id=blanket_id 
             )
             await self.store.store_event(distill_event)
             

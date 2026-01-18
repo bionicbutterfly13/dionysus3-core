@@ -43,6 +43,6 @@
 
 **Goal**: Full integration testing and validation.
 
-- [ ] **Task 5.1**: Run "Thoughtseeds" paper ingestion task (T060 from Archon)
+- [ ] **Task 5.1**: Run "Thoughtseeds" paper ingestion task
 - [ ] **Task 5.2**: Verify "Affordances" mapping (FR-030-003)
 - [ ] **Task 5.3**: Final system-wide integration test for OODA + EFE + Screen
