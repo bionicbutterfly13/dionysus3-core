@@ -1,0 +1,214 @@
+Market and Product Awareness: 
+Understanding Your Audience's Journey
+Welcome to the research modules of RMBC2, where we'll explore the critical concept of market and product awareness. This 
+framework, popularized by Eugene Schwartz in Breakthrough Advertising, has become increasingly important in modern 
+marketing. Understanding where your audience sits on the awareness spectrum is crucial for crafting effective copy that 
+resonates with your target market. This document will guide you through the five stages of awareness, explain why they 
+matter, and provide practical examples to help you identify and address your audience's specific needs.
+
+
+The Five Stages of Awareness
+Unaware
+Prospects are not even aware of a problem or need that your product or service can solve. They go about their daily 
+lives without recognizing any issues that need addressing.
+Problem-Aware
+Prospects recognize that they have a problem or need, but are unaware of potential solutions. They know something is 
+wrong but don't know what to do about it.
+Solution-Aware
+Prospects know that solutions exist for their problem, but they are not yet aware of your specific solution. They 
+understand there are ways to address their issue but don't know which approach is best.
+Product-Aware
+Prospects know about your solution category (your product or service type) and are evaluating its features and 
+benefits. They're researching different options within the category.
+Most-Aware
+Prospects are highly aware of your specific solution, its benefits, and are likely to make a purchase decision soon. They 
+know your brand, understand your approach, and need minimal convincing.
+Understanding these stages is crucial because they determine how you should craft your marketing messages. The journey 
+from unaware to most-aware represents the path your prospects take before becoming customers, and your copy needs to 
+meet them where they are.
+
+
+Why Awareness Matters in Copywriting
+When creating copy for various marketing assets4whether ads, landing pages, VSLs, or emails4it's essential to understand 
+where in the journey your target market is. The average person you're targeting may be at any stage of awareness, and your 
+copy needs to address them appropriately.
+The gap between awareness stages isn't equal. Moving someone from unaware to problem-aware is significantly more 
+challenging than moving them from product-aware to most-aware. This is why direct response marketing typically doesn't 
+target the unaware segment4it's too resource-intensive and yields lower conversion rates.
+Who's Most Likely to Buy?
+Most-aware prospects are the easiest to convert because 
+they already know your brand and are close to making a 
+purchase decision. However, they typically represent only 
+about 1% of your total addressable market (TAM), even for 
+well-known brands.
+Product-aware prospects (those familiar with your product 
+category) are the next best segment, but they might only 
+represent 10-15% of your TAM. The solution-aware and 
+problem-aware segments are much larger but require more 
+education before they're ready to buy.
+1%
+Most-Aware
+Percentage of your market 
+that knows your specific 
+brand and is ready to buy
+13.5%
+Product-Aware
+Percentage that knows 
+about your product 
+category
+99%
+Solution-Aware
+Percentage that knows 
+solutions exist for their 
+problem
+60%
+Problem-Aware
+Percentage that recognizes 
+they have a problem
+The key insight is that your marketing approach should differ dramatically based on which awareness stage you're targeting. 
+The copy that works for most-aware prospects will fail with problem-aware prospects, and vice versa.
+
+
+The Buyer's Journey: Steps to Purchase
+Understanding the buyer's journey is crucial for effective copywriting. Each step from unaware to purchase represents a 
+significant mental shift for your prospect, and your copy needs to facilitate these transitions.
+Recognize the Problem
+The prospect must first acknowledge they have an issue that needs solving. This is the transition from unaware to 
+problem-aware.
+Seek Solutions
+Once aware of their problem, prospects begin looking for ways to solve it, becoming solution-aware in the process.
+Discover Product Categories
+Prospects learn about specific types of products or services that can address their needs, becoming product-
+aware.
+Evaluate Specific Brands
+After understanding the product category, prospects research specific brands and offerings, becoming most-
+aware of particular solutions.
+Make Purchase Decision
+Finally, prospects decide which specific solution to buy, completing their journey from awareness to customer.
+The first step4moving from unaware to problem-aware4is typically the largest and most difficult. This is why traditional 
+advertising, educational content, and brand-building efforts often focus on this transition, while direct response marketing 
+targets prospects who are already at least problem-aware.
+
+
+Real-World Example: Peptide Eye Serum
+Let's examine how awareness stages apply to a specific product: a peptide eye serum targeted at women 35+.
+Awareness Stage Customer Mindset
+Unaware A 38-year-old woman goes about her daily routine 
+without noticing or thinking about the fine lines around 
+her eyes. She might catch glimpses in the mirror but 
+doesn't register any changes or concerns about aging. Eye 
+cream isn't even on her radar.
+Problem-Aware She starts noticing crow's feet in photos or catches herself 
+in harsh lighting and thinks, "When did I start looking so 
+tired?" She's aware something has changed around her 
+eyes but doesn't know what to do about it.
+Solution-Aware She knows eye creams exist and that there are anti-aging 
+treatments available. She's seen ads for various skincare 
+products and knows people use things like retinol, 
+hyaluronic acid, and cosmetic procedures, but doesn't 
+know which approach is best.
+Product-Aware She's learned about peptides specifically for eye care and 
+knows that peptide-based eye creams are a category of 
+anti-aging products. She understands peptides can help 
+with collagen production and fine lines.
+Most-Aware She knows about your specific peptide eye cream brand, 
+has researched your company's approach, understands 
+your unique formulation and benefits, and is ready to 
+make a purchase decision.
+For this product, nearly all women in the target demographic are solution-aware (they know skincare products exist), but a 
+smaller percentage are product-aware (they know about peptide eye creams specifically). The most effective marketing would 
+likely target the problem-aware and solution-aware segments, educating them about peptides as an effective solution for their 
+aging concerns.
+
+
+Marketing Mistakes: Mismatching 
+Awareness Levels
+One common marketing mistake is creating copy that targets the wrong awareness level. The presenter shared a personal 
+example about marketing a whipped tallow skincare product. Despite writing compelling copy about the product's texture, 
+scent, and benefits, the ads didn't perform as well as expected.
+The Mistake
+The copy assumed prospects were already product-aware4
+that they knew what beef tallow was and why it would be 
+beneficial for skin. In reality, most prospects were only 
+problem-aware or solution-aware. They knew they wanted 
+better skin, and they knew skincare products existed, but 
+they had no idea what beef tallow was or why they should 
+put it on their face.
+The ads failed to bridge this knowledge gap by educating 
+prospects about why beef tallow is an effective skincare 
+ingredient. Without this educational component, prospects 
+couldn't move from solution-aware to product-aware.
+The Solution
+A better approach would have been to create copy that 
+educated prospects about beef tallow's benefits:
+Rich in omega fatty acids that support the skin barrier
+Contains vitamins A, D, K, and E that naturally occur in 
+healthy skin
+Has anti-inflammatory properties to help reduce 
+inflammation
+Recommended by dermatologists for dry skin conditions
+Provides hydration while protecting the skin's barrier
+This educational approach would help move prospects from 
+solution-aware to product-aware, making them more 
+receptive to the benefits described in the original copy.
+The key lesson is that your copy needs to meet prospects where they are in their awareness journey. If they don't understand 
+why your product category is valuable, they won't care about the specific features and benefits of your brand.
+
+
+Contrasting Examples: GLP-1 Medications 
+vs. NAD+
+Different products require different marketing approaches based on market awareness. The presenter contrasted two 
+telemedicine products to illustrate this point:
+GLP-1 Medications (Ozempic, etc.)
+Nearly everyone is already product-aware. They've heard 
+of Ozempic and know what GLP-1 medications do for 
+weight loss. Marketing can be simple and direct: "Get GLP-
+1 medication, save $100 off your first month. " No 
+education needed4just focus on convenience, price, and 
+trust.
+NAD+ Injections
+Most people are unaware or only problem-aware. They 
+don't know what NAD+ is or why they would want it. 
+Marketing requires significant education about what 
+NAD+ does, its anti-aging benefits, and why injections are 
+effective. This demands longer copy, advertorials, or VSLs.
+The results were predictable: The GLP-1 marketing performed well with minimal copy, while the NAD+ marketing struggled 
+despite using the same approach. The only channel where NAD+ performed adequately was Google Search, where users were 
+already product-aware (actively searching for NAD+).
+This example demonstrates why understanding market awareness is crucial for determining your marketing approach. 
+Products with high awareness can use simpler, more direct marketing, while products with low awareness require educational 
+content to move prospects through the awareness stages.
+
+
+Additional Examples and Practical 
+Applications
+Eco-Friendly Cleaning Products
+For eco-friendly cleaning products, awareness levels vary significantly. Many consumers are problem-aware (they notice skin 
+reactions or are concerned about chemicals) but aren't necessarily solution-aware about green cleaning alternatives. Others 
+may be solution-aware but skeptical about effectiveness or price. Your marketing needs to address these concerns differently:
+For problem-aware prospects: "The surprising reason your child's skin rashes keep coming back4and it's hiding in your 
+cleaning cabinet. "
+For solution-aware prospects: "Yes, eco-friendly cleaners actually work4here's how our plant-based formula outperforms 
+chemical cleaners without the toxic residue. "
+For product-aware prospects: "Why our eco-friendly cleaner has 2x the cleaning power with half the environmental 
+impact of other green brands. "
+Personal Branding Mastermind
+For a personal branding program targeting professionals, the awareness journey might look like this:
+1Problem-Aware (30%)
+"Why am I getting passed over for promotions 
+despite working harder than everyone else?"
+2 Solution-Aware (10%)
+"I've noticed personal branding helps careers, but it 
+seems complicated and time-consuming. "
+3Product-Aware (5%)
+"I'm researching personal branding programs and 
+masterminds to help advance my career. "
+4 Most-Aware (1%)
+"I'm comparing your mastermind to two others 
+before making my final decision. "
+The key takeaway is that understanding your audience's awareness level is fundamental to creating effective copy. As you 
+develop marketing materials, always ask: "Where is my audience in their awareness journey, and how can my copy meet them 
+there?" This approach will help you craft messages that resonate with your prospects and guide them toward becoming 
+customers.
+
+

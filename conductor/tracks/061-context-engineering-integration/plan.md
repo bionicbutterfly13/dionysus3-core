@@ -8,7 +8,7 @@
 **Goal**: Fix critical misalignments between Nemori, archetypes, and basin linkage; restore correctness in distillation flow.
 
 - [x] **Task 1.1**: [TDD] Fix `predict_and_calibrate` tuple handling in `ConsciousnessMemoryCore` and add failing test for residue retention. (9ee3f49)
-- [ ] **Task 1.2**: [TDD] Implement explicit archetype→basin linkage (seed/lookup or mapping) and verify `RESONATES_WITH` edges attach.
+- [~] **Task 1.2**: [TDD] Implement explicit archetype→basin linkage (seed/lookup or mapping) and verify `RESONATES_WITH` edges attach.
 
 ## Phase 2: P1 Nemori & Narrative Alignment
 
