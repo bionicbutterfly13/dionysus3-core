@@ -28,6 +28,7 @@ class ConsciousnessMemoryCore:
         self._event_buffer: List[DevelopmentEvent] = []
         self._buffer_lock = asyncio.Lock()
         self._max_buffer_size = 25
+        self._last_symbolic_residue: Dict[str, Any] = {}
         
     async def record_interaction(self, event: DevelopmentEvent, resonance_signal: Optional[ResonanceSignal] = None):
         """Main entry point for agents to record an interaction."""
@@ -66,6 +67,7 @@ class ConsciousnessMemoryCore:
             # 3. Trigger Predict-Calibrate distillation (DELTA)
             # predict_and_calibrate returns (new_facts, symbolic_residue) tuple
             new_facts, symbolic_residue = await self.river.predict_and_calibrate(episode, events_to_process)
+            self._last_symbolic_residue = dict(symbolic_residue or {})
             logger.info(f"Episode '{episode.title}' created. Distilled {len(new_facts)} semantic facts, residue keys: {list(symbolic_residue.keys())}")
             
             # 4. Link EPISODE to JOURNEY
@@ -78,6 +80,11 @@ class ConsciousnessMemoryCore:
         """Retrieves a summary of the current journey for agent orientation."""
         # This could summarize the last few episodes
         return "System is currently in the 'Autonomous Evolution' journey, focused on Nemori integration."
+
+    @property
+    def last_symbolic_residue(self) -> Dict[str, Any]:
+        """Expose the most recent symbolic residue from distillation."""
+        return dict(self._last_symbolic_residue)
 
 _instance: Optional[ConsciousnessMemoryCore] = None
 
