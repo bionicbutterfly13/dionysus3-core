@@ -314,7 +314,7 @@ git log --since="1 week ago" --oneline --all
 rg "class |def |async def " api/ --type py | grep -oE "class \w+|def \w+"
 
 # 3. Check against existing concepts
-ls docs/silver-bullets/concepts/*.md
+ls docs/garden/content/silver-bullets/concepts/*.md
 
 # 4. Update backlog
 vim docs/DOCUMENTATION_BACKLOG.md
@@ -324,7 +324,7 @@ vim docs/DOCUMENTATION_BACKLOG.md
 ```bash
 # Run by Link Weaver Agent
 # 1. Find all [[wikilinks]]
-rg "\[\[[\w-]+\]\]" docs/silver-bullets/ -o
+rg "\[\[[\w-]+\]\]" docs/garden/content/silver-bullets/ -o
 
 # 2. Verify target files exist
 # 3. Check for broken links
@@ -367,11 +367,11 @@ git checkout -b docs/concept-$TASK
 rg "precision.?weight" --type py api/
 
 # 6. Write concept page
-vim docs/silver-bullets/concepts/$TASK.md
+vim docs/garden/content/silver-bullets/concepts/$TASK.md
 # Follow template above
 
 # 7. Create PR
-git add docs/silver-bullets/concepts/$TASK.md
+git add docs/garden/content/silver-bullets/concepts/$TASK.md
 git commit -m "docs: add $TASK atomic concept page"
 git push origin docs/concept-$TASK
 
@@ -385,14 +385,14 @@ git push origin docs/concept-$TASK
 git checkout -b docs/update-thoughtseed
 
 # 2. Edit concept
-vim docs/silver-bullets/concepts/thoughtseed.md
+vim docs/garden/content/silver-bullets/concepts/thoughtseed.md
 
 # 3. Add implementation reference
 # ## Implementation
 # **Code**: `api/models/thoughtseed.py:15-45`
 
 # 4. Commit and PR
-git add docs/silver-bullets/concepts/thoughtseed.md
+git add docs/garden/content/silver-bullets/concepts/thoughtseed.md
 git commit -m "docs: add code reference to thoughtseed concept"
 git push origin docs/update-thoughtseed
 ```
@@ -437,7 +437,7 @@ Track documentation health:
 ### Coverage
 ```bash
 # Concepts documented vs code classes/functions
-CONCEPTS=$(ls docs/silver-bullets/concepts/*.md | wc -l)
+CONCEPTS=$(ls docs/garden/content/silver-bullets/concepts/*.md | wc -l)
 CLASSES=$(rg "^class " api/ --type py | wc -l)
 echo "Coverage: $((CONCEPTS * 100 / CLASSES))%"
 ```
@@ -445,21 +445,21 @@ echo "Coverage: $((CONCEPTS * 100 / CLASSES))%"
 ### Link Density
 ```bash
 # Average links per concept page
-LINKS=$(rg "\[\[" docs/silver-bullets/concepts/ | wc -l)
+LINKS=$(rg "\[\[" docs/garden/content/silver-bullets/concepts/ | wc -l)
 echo "Avg links/page: $((LINKS / CONCEPTS))"
 ```
 
 ### Code Integration
 ```bash
 # Concepts with implementation references
-WITH_CODE=$(rg "## Implementation" docs/silver-bullets/concepts/ | wc -l)
+WITH_CODE=$(rg "## Implementation" docs/garden/content/silver-bullets/concepts/ | wc -l)
 echo "Code-linked: $((WITH_CODE * 100 / CONCEPTS))%"
 ```
 
 ### Freshness
 ```bash
 # Concepts updated in last 30 days
-find docs/silver-bullets/concepts/ -mtime -30 -name "*.md" | wc -l
+find docs/garden/content/silver-bullets/concepts/ -mtime -30 -name "*.md" | wc -l
 ```
 
 **Goals**:
@@ -502,7 +502,7 @@ fi
 ## 📚 Reference Examples
 
 ### Good Atomic Concept Page
-See: `docs/silver-bullets/concepts/thoughtseed.md`
+See: `docs/garden/content/silver-bullets/concepts/thoughtseed.md`
 - Clear definition
 - Step-by-step lifecycle
 - Code references
@@ -510,7 +510,7 @@ See: `docs/silver-bullets/concepts/thoughtseed.md`
 - Examples with code snippets
 
 ### Good Index Structure
-See: `docs/silver-bullets/00-INDEX.md`
+See: `docs/garden/content/silver-bullets/00-INDEX.md`
 - Multiple navigation paths
 - Topic clustering
 - Quick navigation shortcuts
@@ -549,7 +549,7 @@ See: `docs/visualizations/thoughtseed-competition.html`
 
 ### For New Agents
 1. Read this guide
-2. Review `docs/silver-bullets/00-INDEX.md`
+2. Review `docs/garden/content/silver-bullets/00-INDEX.md`
 3. Read 2-3 existing atomic concept pages as examples
 4. Check `docs/DOCUMENTATION_BACKLOG.md` for available tasks
 5. Claim a task and create your first concept page

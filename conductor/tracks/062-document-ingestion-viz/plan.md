@@ -3,42 +3,43 @@
 ## Phase 1: Marker Integration + REST Upload (P0)
 
 ### T062-001: Install and configure Marker
-- [ ] Add `marker-pdf` to requirements.txt
-- [ ] Verify GPU/CPU mode configuration
-- [ ] Test Marker on sample PDFs (simple, complex, scanned)
-- [ ] Document system requirements (RAM, GPU optional)
+- [x] Add `marker-pdf` to requirements.txt
+- [x] Verify GPU/CPU mode configuration (CPU mode, isolated in marker-env)
+- [~] Test Marker on sample PDFs (simple, complex, scanned) - Marker installing
+- [x] Document system requirements (RAM, GPU optional) - subprocess isolation
 
 ### T062-002: Create MarkerExtractionService
-- [ ] Create `api/services/marker_extraction.py`
-- [ ] Implement `extract_pdf()` - Marker extraction
-- [ ] Implement `extract_with_fallback()` - Marker → PyMuPDF → Tesseract chain
-- [ ] Add structured output model: `MarkerResult`
-- [ ] Handle: tables, equations, figures, multi-column
+- [x] Create `api/services/marker_extraction.py`
+- [x] Implement `extract_pdf()` - Marker extraction via subprocess to marker-env
+- [x] Implement `extract_with_fallback()` - Marker → PyMuPDF → Tesseract chain
+- [x] Add structured output model: `MarkerResult`
+- [x] Handle: tables, equations, figures, multi-column
 - [ ] Unit tests: `tests/unit/test_marker_extraction.py`
 
 ### T062-003: Create document upload router
-- [ ] Create `api/routers/documents.py`
-- [ ] `POST /api/documents/upload` - multipart file upload
-- [ ] `GET /api/documents/{doc_id}/status` - status check
-- [ ] `GET /api/documents/{doc_id}/results` - extraction results
-- [ ] `GET /api/documents` - list all documents
-- [ ] `DELETE /api/documents/{doc_id}` - remove document
-- [ ] Register router in `api/main.py`
+- [x] Create `api/routers/documents.py`
+- [x] `POST /api/documents/upload` - multipart file upload
+- [x] `GET /api/documents/{doc_id}/status` - status check
+- [x] `GET /api/documents/{doc_id}/results` - extraction results
+- [x] `GET /api/documents` - list all documents
+- [x] `DELETE /api/documents/{doc_id}` - remove document
+- [x] Register router in `api/main.py`
 
 ### T062-004: Create document registry (SQLite)
-- [ ] Create `api/services/document_lifecycle.py`
-- [ ] Define `Document` model with status tracking
-- [ ] SQLite database: `data/documents.db`
-- [ ] CRUD operations: create, read, update, delete
-- [ ] Status enum: `uploaded`, `processing`, `completed`, `failed`
-- [ ] Timestamp tracking: upload, start, complete
+- [x] Create `api/services/document_lifecycle.py`
+- [x] Define `Document` model with status tracking
+- [x] SQLite database: `data/documents.db`
+- [x] CRUD operations: create, read, update, delete
+- [x] Status enum: `uploaded`, `processing`, `completed`, `failed`
+- [x] Timestamp tracking: upload, start, complete
 
 ### T062-005: Basic async processing
-- [ ] Upload returns immediately with doc_id
-- [ ] Background task starts processing
-- [ ] Status endpoint reflects current state
-- [ ] Store extraction results to filesystem
-- [ ] Update document record on completion/failure
+- [x] Upload returns immediately with doc_id
+- [x] Background task starts processing
+- [x] Status endpoint reflects current state
+- [x] Store extraction results to filesystem
+- [x] Update document record on completion/failure
+- [x] Retry logic (3 attempts, exponential backoff)
 
 ### T062-006: CLI script for Marker extraction
 - [ ] Create `scripts/extract_with_marker.py`
@@ -125,40 +126,41 @@
 
 ---
 
-## Phase 4: Trajectory Visualizer (P1)
+## Phase 4: Trajectory Visualizer (P1) ✅
 
 ### T062-017: Create trajectory capture callback
-- [ ] Create `api/agents/callbacks/trajectory_capture.py`
-- [ ] Implement smolagents callback interface
-- [ ] Capture: tool calls, agent transitions, decisions
-- [ ] Store structured trace per session
+- [x] Reused existing `api/agents/callbacks/execution_trace_callback.py`
+- [x] ExecutionTraceCollector implements smolagents callback interface
+- [x] Captures: tool calls, planning steps, basin activations
+- [x] Stores structured trace per session via ExecutionTraceService
 
 ### T062-018: Define trace storage format
-- [ ] Create `api/models/trajectory.py`
-- [ ] Models: `TrajectoryTrace`, `OODAPhase`, `AgentCall`, `BasinTransition`
-- [ ] JSON serialization for storage
-- [ ] SQLite table: `trajectory_traces`
+- [x] Created `api/services/trajectory_viz.py` with models
+- [x] Models: `TrajectoryTrace`, `OODAPhase`, `AgentCall`, `BasinTransition`
+- [x] JSON serialization via `generate_json()`
+- [x] Uses existing Neo4j storage via ExecutionTraceService
 
 ### T062-019: Create trajectory visualization service
-- [ ] Create `api/services/trajectory_viz.py`
-- [ ] `generate_mermaid()` - Mermaid sequence diagram
-- [ ] `generate_json()` - Raw trace export
-- [ ] `generate_html()` - Standalone HTML viewer
+- [x] Created `api/services/trajectory_viz.py`
+- [x] `generate_mermaid()` - Mermaid sequence diagram
+- [x] `generate_json()` - Raw trace export
+- [x] `generate_html()` - Standalone HTML viewer with tabs
 
 ### T062-020: Mermaid diagram generator
-- [ ] OODA cycle visualization (Observe → Orient → Decide → Act)
-- [ ] Agent hierarchy (HeartbeatAgent → ConsciousnessManager → sub-agents)
-- [ ] Tool call annotations
-- [ ] Basin transition markers
-- [ ] Thoughtseed activation indicators
+- [x] OODA cycle visualization (Observe → Orient → Decide → Act)
+- [x] Agent hierarchy (HeartbeatAgent → ConsciousnessManager → sub-agents)
+- [x] Tool call annotations with truncated args
+- [x] Basin transition markers with strength
+- [ ] Thoughtseed activation indicators (future enhancement)
 
 ### T062-021: REST endpoint for trajectories
-- [ ] Create `api/routers/trajectory.py`
-- [ ] `GET /api/trajectory/{session_id}` - get trace
-- [ ] `GET /api/trajectory/{session_id}/mermaid` - Mermaid output
-- [ ] `GET /api/trajectory/{session_id}/html` - HTML viewer
-- [ ] `GET /api/trajectory` - list recent sessions
-- [ ] Query params: time_range, agent_type, basin_filter
+- [x] Created `api/routers/trajectory.py`
+- [x] `GET /api/trajectory/{trace_id}` - get trace metadata
+- [x] `GET /api/trajectory/{trace_id}/mermaid` - Mermaid output
+- [x] `GET /api/trajectory/{trace_id}/html` - HTML viewer
+- [x] `GET /api/trajectory` - list recent traces
+- [x] `GET /api/trajectory/demo/sample` - demo visualization
+- [ ] Query params: time_range, agent_type, basin_filter (future)
 
 ### T062-022: HTML dashboard component
 - [ ] Create `dionysus-dashboard/pages/trajectory.tsx`

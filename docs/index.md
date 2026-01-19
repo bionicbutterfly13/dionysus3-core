@@ -15,7 +15,7 @@ Welcome to the Dionysus Core knowledge base.
 ## 📚 Concepts & Philosophy
 *   [[docs/concepts/index|Concepts]] - Core conceptual models.
 *   [[docs/journal/index|Journal]] - Project logs and thoughts.
-*   [[docs/silver-bullets/index|Silver Bullets]] - Technical decisions and patterns.
+*   [[docs/garden/content/silver-bullets/index|Silver Bullets]] - Technical decisions and patterns (via Quartz).
 
 ## 🤖 API & Integration
 *   [[docs/api-search|API Search]]

@@ -16,13 +16,13 @@ The system distinguishes between two complementary metacognitive layers:
 
 - **Metacognitive Bridge**: Thoughtseed competition and attractor basin transitions connect declarative knowledge to procedural control, enabling metacognitive feelings (uncertainty, confidence) to guide action selection.
 
-See `docs/silver-bullets/` for detailed explanations of declarative/procedural distinctions, basin geometry, and the cognitive implementation.
+See `docs/garden/content/silver-bullets/` for detailed explanations of declarative/procedural distinctions, basin geometry, and the cognitive implementation. Documentation is rendered via Quartz at `docs/garden/`.
 
-## 🔴 MANDATORY: SpecKit Best Practices
+## 🔴 MANDATORY: Conductor Workflow
 
-**CRITICAL**: When working in dionysus3-core, you MUST follow SpecKit workflow for non-trivial changes.
+**CRITICAL**: When working in dionysus3-core, you MUST follow the Conductor workflow for non-trivial changes.
 
-### When SpecKit is REQUIRED:
+### When Conductor is REQUIRED:
 - New feature implementation (3+ files affected)
 - Architectural changes
 - API endpoint additions
@@ -30,53 +30,71 @@ See `docs/silver-bullets/` for detailed explanations of declarative/procedural d
 - Agent behavior changes
 - Integration of new external systems
 
-### When SpecKit is OPTIONAL:
+### When Conductor is OPTIONAL:
 - Bug fixes (single file, isolated issue)
 - Documentation updates
 - Test additions for existing code
 - Refactoring within existing architecture
 
-### Mandatory SpecKit Workflow:
+### Conductor Structure
 
-1. **Specify First**: Use `/speckit.specify` to create feature specification
-   - Generates: `specs/{NNN}-{feature-name}/spec.md`
-   - Creates feature branch: `{NNN}-{feature-name}`
-   - Captures requirements, constraints, success criteria
+**Source of Truth**:
+- `.conductor/workflow.md` - Team workflow preferences
+- `.conductor/constraints.md` - Project constraints
+- `.conductor/context.md` - Project context
+- `conductor/workflow.md` - Full workflow documentation
 
-2. **Clarify Ambiguities**: Use `/speckit.clarify` if requirements unclear
-   - Asks targeted questions
-   - Updates spec.md with answers
-   - Prevents implementation mistakes
+**Feature Tracks**:
+- Location: `conductor/tracks/{NNN}-{feature-name}/`
+- Each track contains: `spec.md`, `plan.md`
+- Active tracks listed in `conductor/tracks.md`
 
-3. **Plan Implementation**: Use `/speckit.plan` to generate design
-   - Generates: `specs/{NNN}-{feature-name}/plan.md`
-   - Identifies critical files
-   - Considers architectural trade-offs
+### Mandatory Conductor Workflow:
 
-4. **Generate Tasks**: Use `/speckit.tasks` to create task breakdown
-   - Generates: `specs/{NNN}-{feature-name}/tasks.md`
-   - Dependency-ordered task list
-   - Status tracking per task
+1. **Create Track**: Create new directory in `conductor/tracks/{NNN}-{feature-name}/`
+   - Write `spec.md` - Requirements, constraints, success criteria
+   - The Spec is the law - all work must match the spec
 
-5. **Implement**: Work through tasks.md systematically
-   - Use TodoWrite to track progress
-   - Mark tasks as in_progress/completed
-   - Update plan.md if approach changes
+2. **Plan Implementation**: Create `plan.md` for every major feature
+   - Implementation approach with phases
+   - Task breakdown with status markers: `[ ]` pending, `[~]` in progress, `[x]` complete
+   - Identify critical files and architectural trade-offs
 
-6. **Analyze**: Use `/speckit.analyze` after task generation
-   - Cross-artifact consistency check
-   - Quality analysis
-   - Identifies gaps/conflicts
+3. **TDD Execution**: Follow Red-Green-Refactor cycle
+   - Write failing tests first (Red)
+   - Implement minimum code to pass (Green)
+   - Refactor with safety of passing tests
 
-### Verification Checklist:
-- [ ] Spec created before implementation
-- [ ] Plan reviewed and approved
-- [ ] Tasks generated and ordered
-- [ ] Implementation matches spec
-- [ ] Tests cover acceptance criteria
-- [ ] Documentation updated
+4. **Task Management**: Work through plan.md systematically
+   - Mark tasks `[~]` before starting work
+   - Verify against `.conductor/constraints.md`
+   - Mark `[x]` and append commit SHA when complete
 
-**VIOLATION**: Implementing features without SpecKit workflow creates technical debt and requires rework.
+5. **Phase Checkpoints**: At phase completion
+   - Run automated tests with coverage
+   - Manual verification per `conductor/workflow.md` protocol
+   - Create checkpoint commit with git notes
+
+### Quality Gates (Before marking task complete):
+- [ ] All tests pass
+- [ ] Code coverage >80%
+- [ ] Follows `conductor/code_styleguides/` conventions
+- [ ] Documentation updated if needed
+- [ ] No security vulnerabilities introduced
+
+### Key Commands:
+```bash
+# View active tracks
+cat conductor/tracks.md
+
+# Check project constraints
+cat .conductor/constraints.md
+
+# Full workflow reference
+cat conductor/workflow.md
+```
+
+**VIOLATION**: Implementing features without Conductor workflow creates technical debt and requires rework.
 
 ## 🤖 MANDATORY: Ralph Oversight Integration
 
@@ -105,9 +123,9 @@ See `docs/silver-bullets/` for detailed explanations of declarative/procedural d
 4. **Dependency Management**: Tracks inter-task dependencies
 5. **Progress Reporting**: Clear status updates throughout process
 
-### Ralph + SpecKit Integration:
+### Ralph + Conductor Integration:
 ```
-1. SpecKit generates spec/plan/tasks
+1. Conductor tracks define spec/plan
 2. Ralph coordinates implementation execution
 3. Ralph verifies each task against spec
 4. Ralph ensures quality gates pass
@@ -120,7 +138,7 @@ See `docs/silver-bullets/` for detailed explanations of declarative/procedural d
 - **Scope**: Full project context, all specifications
 - **Reporting**: Detailed progress tracking with validation
 
-**Best Practice**: For features affecting 3+ files or architectural components, ALWAYS use Ralph + SpecKit together.
+**Best Practice**: For features affecting 3+ files or architectural components, ALWAYS use Ralph + Conductor together.
 
 ### External Ralph Orchestrator
 
@@ -307,16 +325,17 @@ class MyTool(Tool):
 
 ## Key Specifications
 
-Feature specs live in `specs/{NNN}-{feature-name}/` with:
+Feature tracks live in `conductor/tracks/{NNN}-{feature-name}/` with:
 - `spec.md` - Requirements and design
-- `plan.md` - Implementation approach
-- `tasks.md` - Task breakdown with status
+- `plan.md` - Implementation approach with task breakdown
 
-Active features:
+Active tracks (see `conductor/tracks.md` for full list):
 - 038-thoughtseeds-framework: Active inference, Free Energy Engine
 - 039-smolagents-v2-alignment: ManagedAgent pattern, execution traces
-- 041-meta-tot-engine: MCTS-based reasoning with active inference
-- 042-cognitive-tools-upgrade: D2-validated reasoning tools
+- 056-beautiful-loop-hyper: Python 3.11+, FastAPI, smolagents
+- 057-memory-systems-integration: Memory systems architecture
+- 058-ias-dashboard: IAS Dashboard implementation
+- 060-marketing-skills-system: Marketing skills integration
 
 ## Environment Variables
 
@@ -340,10 +359,11 @@ Required in `.env`:
 
 ### Documentation Pattern
 
-**Silver Bullets Structure**:
-- `docs/silver-bullets/` - Main documentation hub
-- `docs/silver-bullets/00-INDEX.md` - Navigation index (always update)
-- `docs/silver-bullets/concepts/` - Atomic concept pages (one per concept)
+**Quartz Documentation Structure** (`docs/garden/`):
+- `content/silver-bullets/` - Main documentation hub
+- `content/silver-bullets/00-INDEX.md` - Navigation index (always update)
+- `content/silver-bullets/concepts/` - Atomic concept pages (one per concept)
+- `content/` - All documentation content (specs, papers, journal, etc.)
 - `docs/IAS-INDEX.md` - IAS curriculum navigation hub
 
 **Atomic Concept Template**: See `docs/DOCUMENTATION-AGENT-GUIDE.md`
@@ -375,7 +395,7 @@ git checkout -b docs/concept-{concept-name}
 # See docs/DOCUMENTATION-AGENT-GUIDE.md for full template
 
 # 5. Create PR
-git add docs/silver-bullets/concepts/{concept-name}.md
+git add docs/garden/content/silver-bullets/concepts/{concept-name}.md
 git commit -m "docs: add {concept-name} atomic concept page
 
 AUTHOR Mani Saint-Victor, MD"

@@ -69,6 +69,17 @@ class MemoryBasinRouter:
             self._memevolve_adapter = get_memevolve_adapter()
         return self._memevolve_adapter
 
+    def _get_basin_seed(self, basin_name: str) -> Dict[str, Any]:
+        """Return seed metadata for a basin name."""
+        for config in BASIN_MAPPING.values():
+            if config["basin_name"] == basin_name:
+                return config
+        return {
+            "description": "Autobiographical attractor basin",
+            "concepts": [],
+            "default_strength": 0.5,
+        }
+
     async def classify_memory_type(self, content: str) -> MemoryType:
         """
         Use LLM to classify content into a memory type.
@@ -655,11 +666,21 @@ Respond with ONLY a decimal number between 0.0 and 1.0:
             
             if transition_result:
                 # Use the better-fitting basin
+                original_basin = basin_name
                 final_basin = transition_result["basin"]
                 final_memory_type = transition_result["memory_type"]
                 resonance_score = transition_result["resonance"]
                 basin_name = final_basin["basin_name"]
                 logger.info(f"Basin transition: {basin_config['basin_name']} → {basin_name}")
+                try:
+                    await self._link_basins(
+                        source_basin=original_basin,
+                        target_basin=basin_name,
+                        resonance_score=resonance_score,
+                        improvement=transition_result.get("improvement", 0.0),
+                    )
+                except Exception as exc:
+                    logger.warning(f"Failed to link basins: {exc}")
         
         # Activate the (possibly transitioned) basin
         basin_context = await self._activate_basin(basin_name, content)
@@ -771,6 +792,63 @@ Respond with ONLY a decimal number between 0.0 and 1.0:
                 )
         except Exception as e:
             logger.warning(f"Failed to update basin from resonance: {e}")
+
+    async def _link_basins(
+        self,
+        source_basin: str,
+        target_basin: str,
+        resonance_score: float,
+        improvement: float,
+    ) -> None:
+        """Record a cross-basin link when transitions occur."""
+        if source_basin == target_basin:
+            return
+
+        source_meta = self._get_basin_seed(source_basin)
+        target_meta = self._get_basin_seed(target_basin)
+
+        cypher = """
+        MERGE (a:AttractorBasin {name: $source})
+        ON CREATE SET
+            a.description = $source_description,
+            a.concepts = $source_concepts,
+            a.strength = $source_strength,
+            a.created_at = datetime()
+        MERGE (b:AttractorBasin {name: $target})
+        ON CREATE SET
+            b.description = $target_description,
+            b.concepts = $target_concepts,
+            b.strength = $target_strength,
+            b.created_at = datetime()
+        MERGE (a)-[r:BASIN_LINK]->(b)
+        ON CREATE SET
+            r.count = 1,
+            r.avg_resonance = $resonance,
+            r.avg_improvement = $improvement,
+            r.last_activated = datetime()
+        ON MATCH SET
+            r.count = coalesce(r.count, 0) + 1,
+            r.avg_resonance = coalesce(r.avg_resonance, $resonance) * 0.9 + $resonance * 0.1,
+            r.avg_improvement = coalesce(r.avg_improvement, $improvement) * 0.9 + $improvement * 0.1,
+            r.last_activated = datetime()
+        RETURN r.count as count
+        """
+
+        params = {
+            "source": source_basin,
+            "target": target_basin,
+            "source_description": source_meta["description"],
+            "source_concepts": source_meta["concepts"],
+            "source_strength": source_meta["default_strength"],
+            "target_description": target_meta["description"],
+            "target_concepts": target_meta["concepts"],
+            "target_strength": target_meta["default_strength"],
+            "resonance": resonance_score,
+            "improvement": improvement,
+        }
+
+        memevolve = await self._get_memevolve_adapter()
+        await memevolve.execute_cypher(cypher, params)
 
     async def get_basin_stats(self, basin_name: Optional[str] = None) -> Dict[str, Any]:
         """

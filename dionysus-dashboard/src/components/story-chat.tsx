@@ -35,6 +35,7 @@ export function StoryChat({ onAnalysisComplete }: StoryChatProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null); // SpeechRecognition type is not standard in generic TS
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Initialize Speech Recognition and Synthesis
   useEffect(() => {
@@ -104,30 +105,75 @@ export function StoryChat({ onAnalysisComplete }: StoryChatProps) {
     },
   });
 
-  const speak = (text: string) => {
-    if (synthRef.current) {
-      // Cancel current speech
-      synthRef.current.cancel();
+  const speak = async (text: string) => {
+    // Stop any existing playback
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    stopSpeaking();
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+    // Use Web Speech API if strict mode off or fallback?
+    // User requested ElevenLabs, so we prioritize the API.
+    // If we want to support toggle, we could do check here.
 
-      // Attempt to select a nicer voice
-      const voices = synthRef.current.getVoices();
-      const preferredVoice = voices.find(v => v.name.includes('Google US English') || v.name.includes('Samantha'));
-      if (preferredVoice) utterance.voice = preferredVoice;
+    // Fallback to browser synthesis if user explicitly wants "Offline" or API fails?
+    // For now, let's implement the API call.
 
-      synthRef.current.speak(utterance);
+    try {
+      setIsSpeaking(true);
+      const response = await fetch('/api/voice/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Voice generation failed');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(url);
+      };
+
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(url);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error("Voice API Error:", error);
+      // Fallback to browser synthesis
+      if (synthRef.current) {
+        synthRef.current.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        synthRef.current.speak(utterance);
+      } else {
+        setIsSpeaking(false);
+      }
     }
   };
 
   const stopSpeaking = () => {
     if (synthRef.current) {
       synthRef.current.cancel();
-      setIsSpeaking(false);
     }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setIsSpeaking(false);
   };
 
   const toggleListening = () => {

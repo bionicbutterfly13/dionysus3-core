@@ -61,6 +61,43 @@ def get_basin_for_archetype(archetype: DevelopmentArchetype) -> str:
     return ARCHETYPE_TO_BASIN.get(archetype.value, "conceptual-basin")
 
 
+# Basin metadata used to seed AttractorBasin nodes when missing.
+BASIN_METADATA: Dict[str, Dict[str, Any]] = {
+    "experiential-basin": {
+        "description": "Time-tagged personal experiences and events",
+        "concepts": ["experience", "event", "timeline", "context", "memory"],
+        "strength": 0.7,
+    },
+    "conceptual-basin": {
+        "description": "Facts, relationships, and conceptual knowledge",
+        "concepts": ["concept", "fact", "relationship", "definition", "knowledge"],
+        "strength": 0.8,
+    },
+    "procedural-basin": {
+        "description": "How-to knowledge and skill-based patterns",
+        "concepts": ["procedure", "skill", "step", "technique", "method"],
+        "strength": 0.75,
+    },
+    "strategic-basin": {
+        "description": "Planning patterns and decision frameworks",
+        "concepts": ["strategy", "goal", "plan", "decision", "tradeoff"],
+        "strength": 0.85,
+    },
+}
+
+
+def get_basin_metadata(basin_name: str) -> Dict[str, Any]:
+    """Return metadata for basin seeding, with safe defaults."""
+    return BASIN_METADATA.get(
+        basin_name,
+        {
+            "description": "Autobiographical attractor basin",
+            "concepts": [],
+            "strength": 0.5,
+        },
+    )
+
+
 class AutobiographicalService:
     def __init__(self, driver=None):
         self._driver = driver or get_neo4j_driver()
@@ -121,6 +158,9 @@ class AutobiographicalService:
         Persist a development event to Neo4j.
         Stores rich cognitive metadata (Archetype, Coherence, Active Inference).
         """
+        basin_name = event.strange_attractor_id or "conceptual-basin"
+        basin_meta = get_basin_metadata(basin_name)
+
         cypher = """
         MERGE (e:DevelopmentEvent {id: $id})
         SET e.timestamp = $timestamp,
@@ -142,7 +182,12 @@ class AutobiographicalService:
         
         // Link to Attractor Basin (SOHM Resonance)
         WITH e
-        MATCH (b:AttractorBasin {name: $strange_attractor_id})
+        MERGE (b:AttractorBasin {name: $strange_attractor_id})
+        ON CREATE SET
+            b.description = $basin_description,
+            b.concepts = $basin_concepts,
+            b.strength = $basin_strength,
+            b.created_at = datetime()
         MERGE (e)-[:RESONATES_WITH {frequency: $frequency, mode: $mode}]->(b)
 
         // Link to Genesis if this is a reflection on it
@@ -181,13 +226,16 @@ class AutobiographicalService:
             "coherence": event.narrative_coherence,
             "active_inference": active_inference_json,
             "resonance_score": event.resonance_score,
-            "strange_attractor_id": event.strange_attractor_id,
+            "strange_attractor_id": basin_name,
             "frequency": event.active_inference_state.resonance_frequency if event.active_inference_state else 0.0,
             "mode": event.active_inference_state.harmonic_mode_id if event.active_inference_state else None,
             "related_files": event.related_files,
             "mci_score": 0.0,
             "emotional_valence": 0.0,
-            "sensual_vividness": 0.0
+            "sensual_vividness": 0.0,
+            "basin_description": basin_meta["description"],
+            "basin_concepts": basin_meta["concepts"],
+            "basin_strength": basin_meta["strength"],
         }
 
         # Extract strict Resonance Criteria if available
