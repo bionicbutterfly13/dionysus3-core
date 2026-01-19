@@ -328,6 +328,48 @@ class ActiveInferenceService:
 
         return float(vfe)
 
+    def calculate_semantic_vfe(
+        self,
+        query: str,
+        results: List[Dict[str, Any]]
+    ) -> float:
+        """
+        Calculate VFE for Semantic Retrieval (Surprisal).
+        
+        Approximation:
+        VFE ≈ 1.0 - Resonance
+        Resonance ≈ Average Similarity of Top Results
+        
+        If the system is "surprised" (High VFE), it means the
+        internal model (search strategy) failed to predict (retrieve)
+        highly consonant information.
+        
+        Args:
+            query: The user query
+            results: List of memory dicts with 'similarity' or 'score'
+            
+        Returns:
+            float: VFE score (0.0 to 1.0)
+        """
+        if not results:
+            return 1.0 # Maximum surprisal (found nothing)
+            
+        similarities = []
+        for res in results:
+            score = res.get('similarity', 0.0) or res.get('score', 0.0) or 0.0
+            similarities.append(float(score))
+            
+        if not similarities:
+            return 1.0
+            
+        avg_resonance = sum(similarities) / len(similarities)
+        
+        # VFE is minimizing free energy (maximizing resonance)
+        vfe = 1.0 - avg_resonance
+        
+        logger.debug(f"Semantic VFE: {vfe:.4f} (Avg Resonance: {avg_resonance:.4f})")
+        return max(0.0, min(1.0, vfe))
+
     def calculate_efe(
         self,
         belief: BeliefState,
@@ -458,6 +500,132 @@ class ActiveInferenceService:
         """Calculate KL divergence D_KL[p || q]."""
         return np.sum(p * np.log((p + 1e-16) / (q + 1e-16)))
 
+    async def expand_query(
+        self, 
+        query: str, 
+        context: Optional[str] = None
+    ) -> List[str]:
+        """
+        Expand a query with latent concepts (Active Priors).
+        
+        Uses the Generative Model (LLM) to predict:
+        "Given this query and context, what other concepts are likely relevant?"
+        
+        This implements the "Active Inquiry" principle:
+        Searching not just for what was asked, but for what *should* be there.
+        
+        Args:
+            query: The raw user query.
+            context: Optional context (e.g., "Marketing", "Coding").
+            
+        Returns:
+            List[str]: A list of expanded concepts/terms.
+        """
+        from api.services.llm_service import chat_completion, GPT5_NANO
+        
+        system_prompt = (
+            "You are the Active Inference Prior Generator for a semantic memory system.\n"
+            "Your task is to predict LATENT CONCEPTS that are semantically necessary "
+            "to answer the user's query, even if not explicitly stated.\n"
+            "Think: 'If I were an expert, what related concepts would I check?'\n"
+            "Return ONLY a comma-separated list of 3-5 key concepts."
+        )
+        
+        user_prompt = f"Query: {query}"
+        if context:
+            user_prompt += f"\nContext: {context}"
+            
+        try:
+            response = await chat_completion(
+                messages=[{"role": "user", "content": user_prompt}],
+                system_prompt=system_prompt,
+                model=GPT5_NANO
+            )
+            
+            content = response.strip()
+            # Clean and split
+            concepts = [c.strip() for c in content.split(',') if c.strip()]
+            
+            logger.info(f"Expanded query '{query}' -> {concepts}")
+            return concepts
+            
+        except Exception as e:
+            logger.error(f"Failed to expand query: {e}")
+            return [query] # Fallback to original query
+
+    async def expand_state_space(self, suggestion: str, context: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Structure Learning: Expand the state space by adding a new Concept.
+        
+        Triggered when VFE > ExpansionThreshold (e.g. 0.7).
+        The system "hallucinates" a new hidden state (Concept) to explain the surprisal.
+        
+        Args:
+            suggestion: The proposed concept name/description.
+            context: Context for where to attach this concept.
+            
+        Returns:
+            Dict with creation details.
+        """
+        from api.services.graphiti_service import get_graphiti_service
+        graphiti = await get_graphiti_service()
+        
+        try:
+             # Create new Concept Node
+            result = await graphiti.execute_cypher(
+                """
+                CREATE (c:Concept {
+                    uuid: randomUUID(),
+                    name: $name,
+                    origin: 'ActiveInference_Expansion',
+                    created_at: datetime(),
+                    context: $context,
+                    status: 'experimental'
+                })
+                RETURN c
+                """,
+                {"name": suggestion, "context": context or "Universal"}
+            )
+            logger.info(f"Structure Expansion: Created Concept '{suggestion}'")
+            return {"success": True, "concept": result[0]['c']}
+        except Exception as e:
+            logger.error(f"Failed to expand state space: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def reduce_model(self, threshold: float = 0.1) -> Dict[str, Any]:
+        """
+        Bayesian Model Reduction: Prune states with low evidence.
+        
+        Removes 'experimental' Concepts that haven't gained traction (relationships).
+        
+        Args:
+            threshold: Minimum evidence required to keep.
+            
+        Returns:
+            Dict with pruned count.
+        """
+        from api.services.graphiti_service import get_graphiti_service
+        graphiti = await get_graphiti_service()
+        
+        try:
+            # Find and Archive unused experimental concepts (> 1 day old, no rels)
+            result = await graphiti.execute_cypher(
+                """
+                MATCH (c:Concept {status: 'experimental'})
+                WHERE c.created_at < datetime() - duration('P1D')
+                AND NOT (c)-[:RELATES_TO]-()
+                SET c.status = 'archived', c.archived_at = datetime()
+                RETURN count(c) as pruned
+                """
+            )
+            count = result[0]['pruned']
+            logger.info(f"Model Reduction: Pruned {count} concepts.")
+            return {"success": True, "pruned": count}
+        except Exception as e:
+            logger.error(f"Failed to reduce model: {e}")
+            return {"success": False, "error": str(e)}
+
+            
     def _entropy(self, p: np.ndarray) -> float:
         """Calculate Shannon entropy H[p]."""
         return -np.sum(p * np.log(p + 1e-16))

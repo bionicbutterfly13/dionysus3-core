@@ -315,10 +315,12 @@ class MemEvolveAdapter:
         request: MemoryRecallRequest
     ) -> Dict[str, Any]:
         """
-        Recall memories for MemEvolve query via n8n webhook.
+        Recall memories for MemEvolve query via Active Inquiry.
         
-        Performs semantic vector search using RemoteSyncService which
-        calls the N8N_RECALL_URL webhook with operation "vector_search".
+        Orchestration:
+        1. [Active Inference] Expand query with latent concepts (Priors).
+        2. [Retrieval Strategy] Fetch active strategy for parameters (alpha, top_k).
+        3. [Execution] Perform hybrid search (Graphiti/Vector).
         
         Args:
             request: MemoryRecallRequest with query and filter parameters
@@ -327,40 +329,74 @@ class MemEvolveAdapter:
             Dict with memories list, query, result_count, and search_time_ms
         """
         start_time = time.time()
-        backend = os.getenv("MEMEVOLVE_RECALL_BACKEND", "graphiti").lower()
-
-        if backend == "graphiti":
-            return await self._recall_from_graphiti(request, start_time)
         
-        # Build webhook payload for vector search
-        payload: Dict[str, Any] = {
-            "operation": "vector_search",
-            "query": request.query,
-            "k": request.limit,
-            "threshold": 0.5,  # Default similarity threshold
-        }
-        
-        # Add filters if provided
-        filters: Dict[str, Any] = {}
-        if request.memory_types:
-            filters["memory_types"] = request.memory_types
-        if request.project_id:
-            filters["project_id"] = request.project_id
-        if request.session_id:
-            filters["session_id"] = request.session_id
-        if request.include_temporal_metadata:
-            filters["include_temporal"] = True
-        if request.context:
-            if isinstance(request.context, str):
-                payload["context"] = request.context
-            else:
-                filters.update(request.context)
-        
-        if filters:
-            payload["filters"] = filters
-        
-        # Call n8n webhook via RemoteSyncService
         try:
+            # 1. Fetch Retrieval Strategy (Active Policy)
+            # Future: Use Graphiti to fetch context-specific strategy.
+            # For now, default to Standard.
+            from api.models.kg_learning import RetrievalStrategy
+            strategy = RetrievalStrategy(
+                strategy_name="Standard",
+                top_k=request.limit or 10,
+                alpha=0.7,
+                expansion_depth=1
+            )
+            
+            # 2. Expand Query (Active Inference)
+            from api.services.active_inference_service import get_active_inference_service
+            active_inf = get_active_inference_service()
+            
+            expanded_concepts = await active_inf.expand_query(
+                query=request.query,
+                context=request.context if isinstance(request.context, str) else None
+            )
+            
+            # Combine original query with high-confidence latent concepts
+            expanded_query = f"{request.query} {' '.join(expanded_concepts)}"
+            logger.info(f"Active Inquiry: '{request.query}' -> '{expanded_query}' (Strategy: {strategy.strategy_name})")
+            
+            # 3. Execute Search
+            backend = os.getenv("MEMEVOLVE_RECALL_BACKEND", "graphiti").lower()
+
+            if backend == "graphiti":
+                return await self._recall_from_graphiti(
+                    request=request, 
+                    start_time=start_time,
+                    expanded_query=expanded_query, # Pass down
+                    strategy=strategy,
+                    expansion_concepts=expanded_concepts
+                )
+            
+            # n8n Webhook Path
+            payload: Dict[str, Any] = {
+                "operation": "vector_search",
+                "query": expanded_query, # Use expanded
+                "original_query": request.query,
+                "k": strategy.top_k,
+                "threshold": 0.5,
+                "strategy": strategy.model_dump(mode='json')
+            }
+            
+            # Add filters if provided
+            filters: Dict[str, Any] = {}
+            if request.memory_types:
+                filters["memory_types"] = request.memory_types
+            if request.project_id:
+                filters["project_id"] = request.project_id
+            if request.session_id:
+                filters["session_id"] = request.session_id
+            if request.include_temporal_metadata:
+                filters["include_temporal"] = True
+            if request.context:
+                if isinstance(request.context, str):
+                    payload["context"] = request.context
+                else:
+                    filters.update(request.context)
+            
+            if filters:
+                payload["filters"] = filters
+            
+            # Call n8n webhook via RemoteSyncService
             result = await self._sync_service._send_to_webhook(
                 payload,
                 webhook_url=self._sync_service.config.recall_webhook_url
@@ -403,14 +439,18 @@ class MemEvolveAdapter:
             return {
                 "memories": memories,
                 "query": request.query,
+                "expanded_query": expanded_query,
+                "expansion_concepts": expanded_concepts,
+                "strategy": strategy.strategy_name,
                 "result_count": len(memories),
                 "search_time_ms": round(search_time_ms, 2),
             }
             
         except Exception as e:
             # Return empty results on error, log for debugging
-            logging.getLogger(__name__).error(f"MemEvolve recall failed: {e}")
+            logger.error(f"MemEvolve recall failed: {e}")
             if os.getenv("MEMEVOLVE_RECALL_FALLBACK", "true").lower() == "true":
+                # Fallback to Graphiti if webhook fails
                 return await self._recall_from_graphiti(request, start_time, error=str(e))
 
             return {
@@ -426,13 +466,21 @@ class MemEvolveAdapter:
         request: MemoryRecallRequest,
         start_time: float,
         error: Optional[str] = None,
+        expanded_query: Optional[str] = None,
+        strategy: Optional[Any] = None,
+        expansion_concepts: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         graphiti = await self._get_graphiti_service()
         group_ids = [request.project_id] if request.project_id else None
+        
+        # Use expanded query or fallback to original
+        search_query = expanded_query or request.query
+        limit = strategy.top_k if strategy else (request.limit or 10)
+        
         results = await graphiti.search(
-            query=request.query,
+            query=search_query,
             group_ids=group_ids,
-            limit=request.limit,
+            limit=limit,
         )
         edges = results.get("edges", [])
         memories: List[Dict[str, Any]] = []
@@ -457,6 +505,9 @@ class MemEvolveAdapter:
         response = {
             "memories": memories,
             "query": request.query,
+            "expanded_query": expanded_query,
+            "expansion_concepts": expansion_concepts,
+            "strategy": strategy.strategy_name if strategy else "Standard",
             "result_count": len(memories),
             "search_time_ms": round(search_time_ms, 2),
         }
@@ -507,47 +558,141 @@ class MemEvolveAdapter:
 
     async def trigger_evolution(self) -> Dict[str, Any]:
         """
-        Trigger the meta-evolution workflow to optimize retrieval strategies (T003).
+        Trigger the meta-evolution workflow (Active Inference).
+        
+        Logic:
+        1. Analyze recent trajectories (Search Precision).
+        2. Calculate Averge VFE (Surprisal = 1 - Resonance).
+        3. If VFE > Threshold -> Update Strategy.
         
         Returns:
             Dict with evolution result summary
         """
-        backend = os.getenv("MEMEVOLVE_EVOLVE_BACKEND", "graphiti").lower()
-        payload = {
-            "operation": "trigger_evolution",
-            "timestamp": datetime.utcnow().isoformat(),
-        }
+        from api.services.active_inference_service import get_active_inference_service
         
+        active_inf = get_active_inference_service()
+        backend = os.getenv("MEMEVOLVE_EVOLVE_BACKEND", "graphiti").lower()
+        
+        if backend != "graphiti":
+             # Fallback to n8n if configured
+            payload = {
+                "operation": "trigger_evolution",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            return await self._sync_service._send_to_webhook(
+                payload, 
+                webhook_url=self._sync_service.config.memevolve_evolve_webhook_url
+            )
+
         try:
-            if backend == "graphiti":
-                graphiti = await self._get_graphiti_service()
-                records = await graphiti.execute_cypher(
-                    """
-                    MATCH (t:Trajectory)
-                    WHERE t.created_at > datetime() - duration('P1D')
-                    RETURN t
-                    ORDER BY t.created_at DESC
-                    LIMIT 50
-                    """
+            graphiti = await self._get_graphiti_service()
+            
+            # 1. Fetch recent Search Trajectories
+            records = await graphiti.execute_cypher(
+                """
+                MATCH (t:Trajectory)
+                WHERE t.trajectory_type = 'search' 
+                  AND t.created_at > datetime() - duration('P1D')
+                RETURN t
+                ORDER BY t.created_at DESC
+                LIMIT 50
+                """
+            )
+            
+            if not records:
+                return {"success": True, "action": "none", "reason": "No recent search trajectories"}
+                
+            # 2. Calculate VFE for each
+            total_vfe = 0.0
+            analyzed_count = 0
+            
+            for rec in records:
+                node = rec['t']
+                query = node.get('query')
+                result_json = node.get('result') # Stored as JSON string potentially
+                
+                if not query or not result_json:
+                    continue
+                    
+                # Parse result if string
+                results = []
+                if isinstance(result_json, str):
+                    try:
+                        results = json.loads(result_json)
+                    except:
+                        pass
+                elif isinstance(result_json, list):
+                    results = result_json
+                
+                vfe = active_inf.calculate_semantic_vfe(query, results)
+                total_vfe += vfe
+                analyzed_count += 1
+                
+            if analyzed_count == 0:
+                 return {"success": True, "action": "none", "reason": "No valid search results to analyze"}
+
+            avg_vfe = total_vfe / analyzed_count
+            logger.info(f"Meta-Evolution: Analyzed {analyzed_count} trajectories. Avg VFE: {avg_vfe:.4f}")
+            
+            # 3. Trigger Logic
+            EVOLUTION_THRESHOLD = 0.3 
+            EXPANSION_THRESHOLD = 0.7 # Structure Learning Threshold
+            
+            if avg_vfe > EXPANSION_THRESHOLD:
+                # STRUCTURE LEARNING: Expand State Space
+                # The system failed significantly, implying a missing concept.
+                
+                # Ask Generative Model for hypothesis
+                from api.services.llm_service import chat_completion, GPT5_NANO
+                
+                # Contextualize the failure
+                # Sample a few failed queries
+                failed_queries = [r['t'].get('query') for r in records[:3]]
+                
+                prompt = (
+                    f"The memory system failed to retrieve relevant info (VFE {avg_vfe:.2f}) "
+                    f"for queries: {failed_queries}. "
+                    "What ONE missing concept/domain would best explain this gap? "
+                    "Return ONLY the concept name."
                 )
-                count = len(records)
-
-                top_k = 5
-                threshold = 0.7
-                if count > 20:
-                    top_k = 7
-                    threshold = 0.75
-                if count > 40:
-                    top_k = 10
-                    threshold = 0.8
-
-                basis = f"Analyzed {count} recent trajectories"
+                
+                suggestion = await chat_completion(
+                    messages=[{"role": "user", "content": prompt}],
+                    system_prompt="You are the Meta-Cognitive module of a Semantic Memory system.",
+                    model=GPT5_NANO
+                )
+                
+                suggestion = suggestion.strip().replace('"', '').replace('.', '')
+                
+                # Expand State Space
+                result = await active_inf.expand_state_space(suggestion, context="Meta-Evolution")
+                
+                return {
+                    "success": True, 
+                    "action": "structure_expanded", 
+                    "avg_vfe": avg_vfe, 
+                    "new_concept": result.get('concept'),
+                    "msg": f"High Surprisal ({avg_vfe:.2f}) triggered Structure Learning."
+                }
+                
+            elif avg_vfe > EVOLUTION_THRESHOLD:
+                # PARAMETER LEARNING: Update Strategy
+                # Evolve Strategy: Simple heurisitc -> Increase top_k or alpha
+                new_top_k = 15 # Boost recall
+                new_alpha = 0.8 # Boost vector similarity (precision)
+                
+                basis = f"High VFE ({avg_vfe:.4f}) detected over {analyzed_count} searches."
+                
+                # Create Strategy Node
                 created = await graphiti.execute_cypher(
                     """
                     CREATE (s:RetrievalStrategy {
                         id: randomUUID(),
                         top_k: $top_k,
                         threshold: $threshold,
+                        alpha: $alpha,
+                        expansion_depth: 1,
+                        strategy_name: 'Adaptive_VFE_Response',
                         version: $version,
                         created_at: datetime(),
                         basis: $basis
@@ -555,21 +700,32 @@ class MemEvolveAdapter:
                     RETURN s
                     """,
                     {
-                        "top_k": top_k,
-                        "threshold": threshold,
-                        "version": int(time.time() * 1000),
+                        "top_k": new_top_k,
+                        "threshold": 0.6,
+                        "alpha": new_alpha,
+                        "version": int(time.time()),
                         "basis": basis,
                     },
                 )
-                return {"success": True, "records": created, "basis": basis}
+                
+                return {
+                    "success": True, 
+                    "action": "evolved", 
+                    "avg_vfe": avg_vfe, 
+                    "new_strategy": created[0]['s']
+                }
+            else:
+                return {
+                    "success": True, 
+                    "action": "maintained", 
+                    "avg_vfe": avg_vfe,
+                    "msg": "System performing within tolerance."
+                }
 
-            result = await self._sync_service._send_to_webhook(
-                payload,
-                webhook_url=self._sync_service.config.memevolve_evolve_webhook_url,
-            )
-            return result
         except Exception as e:
             logger.error(f"Meta-evolution trigger failed: {e}")
+            import traceback
+            traceback.print_exc()
             return {"success": False, "error": str(e)}
 
     @staticmethod
