@@ -1,7 +1,7 @@
 # Track Plan: Context Engineering Integration
 
 **Track ID**: 061-context-engineering-integration
-**Status**: In Progress (87.5% - 7/8 tasks complete)
+**Status**: Complete (100%)
 
 ## Phase 1: P0 Correctness + Archetype/Basin Linkage ✅
 
@@ -24,12 +24,12 @@
 - [x] **Task 3.1**: [TDD] Integrate symbolic residue into `ContextCell` and retrieval cues; ensure residue survives distillation. (099359e) - Added ContextCell creation and SymbolicResidueTracker in `nemori_river_flow.py`
 - [x] **Task 3.2**: [TDD] Wire context packaging to memory operations (budgeting + cell selection for recall). (099359e) - Integrated TokenBudgetManager in `predict_and_calibrate()`
 
-## Phase 4: P2 Basin Dynamics Parity 🔄
+## Phase 4: P2 Basin Dynamics Parity ✅
 
 **Goal**: Add decay, importance signals, and cross-basin connections for long-term stability.
 
 - [x] **Task 4.1**: [TDD] Add decay/importance signals for basin strength updates. (099359e) - Added `_apply_decay_to_other_basins()` in `memory_basin_router.py`
-- [~] **Task 4.2**: [TDD] Implement cross-basin connections (co-activation or relatedness edges).
+- [x] **Task 4.2**: [TDD] Implement cross-basin connections (co-activation or relatedness edges). (cf182cf) - Added `_link_basins()` and basin transition linking in `memory_basin_router.py`
 
 ## Dependencies
 
