@@ -86,8 +86,14 @@ class GraphitiConfig:
 
         # Default to localhost if host.docker.internal is present but we are on Darwin (local Mac)
         if "host.docker.internal" in raw_uri and platform.system() == "Darwin":
-            logger.info("Local environment detected. Switching host.docker.internal -> localhost")
-            raw_uri = raw_uri.replace("host.docker.internal", "localhost")
+             # Check if we are inside a container first
+             if os.path.exists("/.dockerenv"):
+                 logger.info("Inside Docker on Darwin: Keeping host.docker.internal or switching to service name")
+                 # If we are in the same network as neo4j, we should use 'neo4j'
+                 # But we stick to the provided URI unless explicitly overridden
+             else:
+                 logger.info("Local environment detected. Switching host.docker.internal -> localhost")
+                 raw_uri = raw_uri.replace("host.docker.internal", "localhost")
 
         # If using docker-internal host outside Docker, fall back to external host/URI
         if "neo4j" in raw_uri and not os.path.exists("/.dockerenv"):

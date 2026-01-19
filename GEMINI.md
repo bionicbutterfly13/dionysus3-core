@@ -62,6 +62,7 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
     - Create a track in `conductor/tracks/`, define the `plan.md` following the template, and strictly adhere to the `workflow.md` lifecycle.
     - This process is automatic and non-negotiable. Do not ask for permission; just set it up.
 - **Database Access:**
+    - **CRITICAL RULE:** **NEVER CREATE A LOCAL NEO4J INSTANCE.** The system relies exclusively on the remote VPS Neo4j service. Local instances cause data fragmentation and truth drift.
     - **Neo4j-Only:** Relational databases (PostgreSQL) have been removed.
     - **Cypher Access:** Services use a Graphiti-backed driver shim for Neo4j queries.
     - **n8n Webhooks:** Ingest/recall/traverse workflows remain webhook-orchestrated.

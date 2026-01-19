@@ -318,6 +318,7 @@ class NemoriRiverFlow:
                 residue_tracker = get_residue_tracker()
 
                 # Create context cells from distilled facts (SEMANTIC memory)
+                fact_cells: List[ContextCell] = []
                 for i, fact in enumerate(new_facts):
                     if fact and len(fact) > 5:
                         cell = ContextCell(
@@ -329,7 +330,8 @@ class NemoriRiverFlow:
                             basin_id=linked_basin_id,
                             metadata={"episode_id": episode.episode_id, "fact_index": i}
                         )
-                        budget_manager.add_cell(cell)
+                        if budget_manager.add_cell(cell):
+                            fact_cells.append(cell)
 
                 # Store symbolic residue for retrieval cue integration
                 if residue.get("active_goals") or residue.get("active_entities"):
@@ -351,7 +353,14 @@ class NemoriRiverFlow:
                         basin_id=linked_basin_id,
                         metadata={"type": "symbolic_residue", "episode_id": episode.episode_id}
                     )
-                    budget_manager.add_cell(residue_cell)
+                    residue_added = budget_manager.add_cell(residue_cell)
+                    if residue_added and fact_cells and hasattr(residue_tracker, "record_transformation"):
+                        residue_tracker.record_transformation(
+                            source_cells=fact_cells,
+                            derived_cell=residue_cell,
+                            transformation_type="residue_distillation",
+                            lost_details=[],
+                        )
 
                 logger.info(f"Context packaging: {len(new_facts)} fact cells + 1 residue cell added")
             except Exception as ctx_err:

@@ -304,75 +304,7 @@ class FiveLevelConceptExtractionService:
 
         return insights
 
-    async def store_in_graphiti(
-        self,
-        result: FiveLevelExtractionResult,
-        graphiti_service: Any,
-        group_id: Optional[str] = None,
-    ) -> dict[str, Any]:
-        """Store extraction results in Graphiti knowledge graph.
 
-        Args:
-            result: The extraction result to store.
-            graphiti_service: GraphitiService instance.
-            group_id: Optional Graphiti group ID.
-
-        Returns:
-            Dict with storage statistics.
-        """
-        stored_entities = 0
-        stored_relationships = 0
-        errors: list[str] = []
-
-        for concept in result.all_concepts:
-            try:
-                # Build context dict for Graphiti's ingest_contextual_triplet
-                context_dict = {
-                    "confidence": concept.confidence,
-                    "details": {
-                        "description": concept.description,
-                        "source_type": f"concept_{concept.level.name.lower()}",
-                        "target_type": "concept_type",
-                    }
-                }
-                
-                # Store concept as entity using correct parameter names
-                await graphiti_service.ingest_contextual_triplet(
-                    head_id=concept.name,
-                    relation="is_a",
-                    tail_id=concept.concept_type,
-                    context=context_dict,
-                    group_id=group_id,
-                )
-                stored_entities += 1
-
-                # Store relationships
-                for related_id in concept.related_concepts:
-                    rel_context = {
-                        "confidence": concept.confidence,
-                        "details": {
-                            "description": f"Cross-concept relationship from {concept.level.name}",
-                            "source_type": f"concept_{concept.level.name.lower()}",
-                            "target_type": "concept",
-                        }
-                    }
-                    await graphiti_service.ingest_contextual_triplet(
-                        head_id=concept.name,
-                        relation="relates_to",
-                        tail_id=related_id,
-                        context=rel_context,
-                        group_id=group_id,
-                    )
-                    stored_relationships += 1
-
-            except Exception as e:
-                errors.append(f"Failed to store {concept.name}: {str(e)}")
-
-        return {
-            "stored_entities": stored_entities,
-            "stored_relationships": stored_relationships,
-            "errors": errors,
-        }
 
 
 def register_all_extractors(service: FiveLevelConceptExtractionService) -> None:

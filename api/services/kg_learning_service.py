@@ -19,6 +19,7 @@ from api.services.memevolve_adapter import get_memevolve_adapter, MemEvolveAdapt
 from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.memory_basin_router import get_memory_basin_router, BASIN_MAPPING
 from api.models.network_state import get_network_state_config
+from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger(__name__)
 
@@ -401,27 +402,122 @@ class KGLearningService:
             logger.error(f"evaluation_failed: {e}")
             return {"error": "Evaluation parsing failed", "precision_score": 0.0}
 
-    async def _record_evaluation_metric(self, run_id: str, eval_data: Dict[str, Any]):
-        """Persist learning metrics to Neo4j (T014)."""
-        cypher = """
-        MATCH (r:RelationshipProposal {run_id: $run_id})
-        MERGE (m:LearningMetric {run_id: $run_id})
-        SET m.precision = $precision,
-            m.recall = $recall,
-            m.timestamp = datetime(),
-            m.hallucinations = $hallucinations,
-            m.signal = $signal
-        WITH m, r
-        CREATE (r)-[:EVALUATED_AS]->(m)
+    async def ingest_unified(
+        self,
+        content: str,
+        source_id: str,
+        memory_type: Optional[MemoryType] = None,
+        strategy_context: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        params = {
-            "run_id": run_id,
-            "precision": eval_data.get("precision_score", 0.0),
-            "recall": eval_data.get("recall_proxy", 0.0),
-            "hallucinations": eval_data.get("hallucinations", []),
-            "signal": eval_data.get("learning_signal", "")
+        Unified Ingestion Pipeline (The 'Express Highway').
+        
+        Orchestrates:
+        1. Nemori (Context & Basin Alignment) - inferred via Router
+        2. AutoSchema (5-Level Concept Extraction) - Transformer step
+        3. MemEvolve (Persistence Gateway) - Consumer step
+        
+        Args:
+            content: The raw content to ingest
+            source_id: Provenance identifier
+            memory_type: Optional memory type override
+            strategy_context: Optional active inference / strategy context
+            
+        Returns:
+            Dict containing ingestion stats and run_id
+        """
+        from api.services.concept_extraction.service import get_concept_extraction_service
+        
+        start_time = datetime.utcnow()
+        router = get_memory_basin_router()
+        
+        # 1. Nemori / Basin Alignment
+        if memory_type is None:
+            memory_type = await router.classify_memory_type(content)
+            
+        basin_config = BASIN_MAPPING.get(memory_type, BASIN_MAPPING[MemoryType.EPISODIC])
+        basin_context = await router._activate_basin(basin_config["basin_name"], content)
+        
+        # 2. AutoSchema (Transformation)
+        extractor_service = await get_concept_extraction_service()
+        
+        extraction_context = {
+            "domain_focus": basin_config["extraction_focus"],
+            "basin_context": basin_context,
+            "strategy_context": strategy_context or await self._get_active_strategies(),
+            "min_confidence": 0.6
         }
-        await self._adapter.execute_cypher(cypher, params)
+        
+        five_level_result = await extractor_service.extract_all(
+            content=content,
+            context=extraction_context,
+            document_id=source_id
+        )
+        
+        # Map 5-Level Result to flat lists for Graphiti/MemEvolve
+        flat_entities = []
+        for c in five_level_result.all_concepts:
+            flat_entities.append(c.name)
+            
+        flat_relationships = []
+        # Add explicit relationships
+        for rel in five_level_result.cross_level_relationships:
+            flat_relationships.append({
+                "source": rel.source_concept_id,
+                "target": rel.target_concept_id,
+                "type": rel.relationship_type.upper(),
+                "confidence": rel.strength,
+                "evidence": f"Cross-level: {rel.source_level.name} -> {rel.target_level.name}"
+            })
+            
+        # Add hierarchy relationships
+        for parent, children in five_level_result.concept_hierarchy.items():
+            for child in children:
+                flat_relationships.append({
+                    "source": child,
+                    "target": parent,
+                    "type": "IS_PART_OF",
+                    "confidence": 0.9,
+                    "evidence": "Hierarchical Structure"
+                })
+
+        # 3. MemEvolve (Persistence)
+        # Construct ingestion request
+        from api.models.memevolve import MemoryIngestRequest, TrajectoryData, TrajectoryStep, TrajectoryMetadata
+        
+        trajectory = TrajectoryData(
+            query=source_id,
+            steps=[TrajectoryStep(observation=content)],
+            metadata=TrajectoryMetadata(
+                timestamp=start_time,
+                tags=[c.name for c in five_level_result.all_concepts[:5]], # Top concepts as tags
+                memory_type=memory_type.value,
+                project_id="unified_pipeline",
+                session_id=str(uuid4())
+            )
+        )
+        
+        ingest_request = MemoryIngestRequest(
+            trajectory=trajectory,
+            conversation_id=source_id,
+            memory_type=memory_type.value,
+            entities=flat_entities,
+            edges=flat_relationships
+        )
+
+        ingestion_result = await self._adapter.ingest_trajectory(ingest_request)
+        
+        # 4. Feedback Loop (Structure Learning / Hebbian)
+        if five_level_result.overall_consciousness_level > 0.7:
+             # If high quality, reinforce the basin
+             await self._strengthen_basins(flat_entities[:5])
+
+        return {
+            "run_id": five_level_result.document_id,
+            "ingestion_stats": ingestion_result,
+            "consciousness_level": five_level_result.overall_consciousness_level,
+            "concept_count": len(five_level_result.all_concepts)
+        }
 
 
 _kg_learning_service: Optional[KGLearningService] = None
