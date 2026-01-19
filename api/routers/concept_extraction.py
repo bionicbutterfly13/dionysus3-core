@@ -190,34 +190,68 @@ async def extract_single_level(
 @router.post("/store", response_model=StoreResponse)
 async def store_extraction_results(request: StoreRequest):
     """
-    Store extraction results in Graphiti knowledge graph.
-
-    Maps concepts to entity types based on extraction level and
-    creates relationships between concepts.
+    Store extraction results via MemEvolve Adapter (Gateway).
+    
+    Orchestrates:
+    1. Mapping 5-Level Result to unified Knowledge Graph format
+    2. Persisting via MemEvolveAdapter -> Graphiti
     """
     try:
-        service = await get_concept_extraction_service(auto_register=True)
-
         # Reconstruct FiveLevelExtractionResult from dict
+        # (Using the model validation from Pydantic)
         result = FiveLevelExtractionResult(**request.extraction_result)
+        
+        # Get MemEvolve Adapter (The Gateway)
+        from api.services.memevolve_adapter import get_memevolve_adapter
+        adapter = get_memevolve_adapter()
 
-        # Get Graphiti service
-        from api.services.graphiti_service import get_graphiti_service
+        # Map to flat format for MemEvolve/Graphiti
+        flat_relationships = []
+        
+        # 1. Cross-level relationships
+        for rel in result.cross_level_relationships:
+            flat_relationships.append({
+                "source": rel.source_concept_id,
+                "target": rel.target_concept_id,
+                "relation_type": rel.relationship_type.upper(),
+                "confidence": rel.strength,
+                "evidence": f"Cross-level: {rel.source_level.name} -> {rel.target_level.name}",
+                "status": "approved"
+            })
+            
+        # 2. Hierarchy (Parent-Child)
+        for parent, children in result.concept_hierarchy.items():
+            for child in children:
+                flat_relationships.append({
+                    "source": child,
+                    "target": parent,
+                    "relation_type": "IS_PART_OF",
+                    "confidence": 0.9,
+                    "evidence": "Hierarchical Structure",
+                    "status": "approved"
+                })
 
-        graphiti = await get_graphiti_service()
-
-        # Store in Graphiti
-        store_result = await service.store_in_graphiti(
-            result=result,
-            graphiti_service=graphiti,
-            group_id=request.group_id,
+        # 3. Ingest via Gateway
+        # Use a generated run_id/source_id if none provided
+        source_id = f"manual_store:{result.document_id or 'unknown'}"
+        
+        ingest_result = await adapter.ingest_relationships(
+            relationships=flat_relationships,
+            source_id=source_id
         )
-
+        
+        # Note: ingest_relationships via adapter returns {'ingested': count, 'errors': []}
+        # It doesn't separate entities vs relationships count detailedly in all backends, 
+        # but Graphiti returns 'ingested' which is usually edges.
+        
+        count = int(ingest_result.get("ingested", 0))
+        
         return StoreResponse(
-            stored_entities=store_result.get("stored_entities", 0),
-            stored_relationships=store_result.get("stored_relationships", 0),
-            errors=store_result.get("errors", []),
+            stored_entities=len(result.all_concepts), # Proxied, as nodes are created implicitly by edges
+            stored_relationships=count,
+            errors=ingest_result.get("errors", [])
         )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
