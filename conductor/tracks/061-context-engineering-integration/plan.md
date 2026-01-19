@@ -1,7 +1,7 @@
 # Track Plan: Context Engineering Integration
 
 **Track ID**: 061-context-engineering-integration
-**Status**: Complete (100%)
+**Status**: In Progress
 
 ## Phase 1: P0 Correctness + Archetype/Basin Linkage ✅
 
@@ -30,6 +30,12 @@
 
 - [x] **Task 4.1**: [TDD] Add decay/importance signals for basin strength updates. (099359e) - Added `_apply_decay_to_other_basins()` in `memory_basin_router.py`
 - [x] **Task 4.2**: [TDD] Implement cross-basin connections (co-activation or relatedness edges). (cf182cf) - Added `_link_basins()` and basin transition linking in `memory_basin_router.py`
+
+## Phase 5: P2 Integration Verification
+
+**Goal**: Add integration coverage for Nemori flow bridging basin routing and context packaging.
+
+- [~] **Task 5.1**: [TDD] Add integration test for Nemori predict-calibrate routing and context packaging residue tracking.
 
 ## Dependencies
 
