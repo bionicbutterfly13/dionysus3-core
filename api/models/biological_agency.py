@@ -23,10 +23,13 @@ See also:
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from uuid import uuid4
 from pydantic import BaseModel, Field
 from api.models.belief_state import BeliefState
+
+if TYPE_CHECKING:
+    from api.models.priors import PriorHierarchy
 
 
 # =============================================================================
@@ -476,7 +479,14 @@ class BiologicalAgentState(BaseModel):
     
     # Feature 064: The Moral Ledger (Reconciliation History)
     reconciliation_ledger: List[ReconciliationEvent] = Field(default_factory=list)
-    
+
+    # Track 038 Phase 2: Evolutionary Priors Hierarchy
+    # Serialized as JSON string for Graphiti persistence
+    prior_hierarchy_json: Optional[str] = Field(
+        default=None,
+        description="JSON-serialized PriorHierarchy for constraint checking"
+    )
+
     # Developmental state
     developmental_stage: int = Field(
         default=1,
@@ -513,6 +523,34 @@ class BiologicalAgentState(BaseModel):
             collective_goal=goal
         )
 
+    def get_prior_hierarchy(self) -> Optional["PriorHierarchy"]:
+        """
+        Get the prior hierarchy for this agent.
+
+        Track 038 Phase 2 - Evolutionary Priors
+
+        Returns:
+            PriorHierarchy if set, None otherwise
+        """
+        if not self.prior_hierarchy_json:
+            return None
+        try:
+            from api.models.priors import PriorHierarchy
+            return PriorHierarchy.model_validate_json(self.prior_hierarchy_json)
+        except Exception:
+            return None
+
+    def set_prior_hierarchy(self, hierarchy: "PriorHierarchy") -> None:
+        """
+        Set the prior hierarchy for this agent.
+
+        Track 038 Phase 2 - Evolutionary Priors
+
+        Args:
+            hierarchy: PriorHierarchy to set
+        """
+        self.prior_hierarchy_json = hierarchy.model_dump_json()
+
     def to_graph_properties(self) -> Dict[str, Any]:
         """
         Serialize state for Graphiti/Neo4j storage.
@@ -533,6 +571,7 @@ class BiologicalAgentState(BaseModel):
             "last_decision": self.last_decision.model_dump_json() if self.last_decision else None,
             "collective_agency": self.collective_agency.model_dump_json() if self.collective_agency else None,
             "reconciliation_ledger": json.dumps([e.model_dump(mode='json') for e in self.reconciliation_ledger]),
+            "prior_hierarchy_json": self.prior_hierarchy_json,
             "timestamp": datetime.utcnow().isoformat()
         }
 

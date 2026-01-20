@@ -1,26 +1,27 @@
 # Track Plan: Thoughtseeds Framework Enhancement
 
 **Track ID**: 038-thoughtseeds-framework
-**Status**: In Progress (0%)
+**Status**: In Progress (40%)
 
 ## Phase 1: EFE-Driven Decision Engine (US1) - P1
 
 **Goal**: Implement the mathematical core for active inference decision making.
 
-- [ ] **Task 1.1**: Create `api/utils/efe_engine.py` with `EFEEngine` class
-- [ ] **Task 1.2**: Implement `calculate_entropy` using `scipy.stats.entropy`
-- [ ] **Task 1.3**: Implement `calculate_goal_divergence` (Cosine Distance)
-- [ ] **Task 1.4**: Integrate `EFEEngine` into `HeartbeatService._make_decision`
-- [ ] **Task 1.5**: [TDD] Write unit tests in `tests/unit/test_efe_engine.py`
+- [x] **Task 1.1**: Create `api/services/efe_engine.py` with `EFEEngine` class
+- [x] **Task 1.2**: Implement `calculate_entropy` using `scipy.stats.entropy`
+- [x] **Task 1.3**: Implement `calculate_goal_divergence` (Cosine Distance)
+- [x] **Task 1.4**: Integrate `EFEEngine` into HeartbeatService decision making
+- [x] **Task 1.5**: [TDD] Write unit tests in `tests/unit/test_efe_engine.py`
 
 ## Phase 2: Evolutionary Priors (US3) - P1
 
 **Goal**: Establish the hierarchy of identity and safety constraints.
 
-- [ ] **Task 2.1**: Create `api/models/priors.py` with `PriorLevel` enum and `PriorHierarchy` model
-- [ ] **Task 2.2**: Implement `prior_constraint_check` utility
-- [ ] **Task 2.3**: Seed "Basal Priors" in Neo4j (Identity, Data Integrity)
-- [ ] **Task 2.4**: Update `ConsciousnessManager` to check Priors before committing to a plan
+- [x] **Task 2.1**: Create `api/models/priors.py` with `PriorLevel` enum and `PriorHierarchy` model
+- [x] **Task 2.2**: Implement `prior_constraint_service.py` with constraint checking
+- [x] **Task 2.3**: Implement `prior_persistence_service.py` + seeding script (`scripts/seed_priors.py`)
+- [x] **Task 2.4**: Add `select_dominant_thought_with_priors()` to EFE engine for prior-filtered selection
+- [x] **Task 2.5**: [TDD] Write unit tests in `tests/unit/test_priors.py` (39 tests passing)
 
 ## Phase 3: Nested Markov Blankets (US2) - P1
 

@@ -8,6 +8,11 @@ from api.services.dynamics_service import DynamicsService
 
 logger = logging.getLogger("dionysus.efe_engine")
 
+# Type hints for optional prior imports
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from api.models.priors import PriorHierarchy
+
 
 # Global precision registry for agent-level precision modulation
 # Keys: agent_name -> precision_value (default 1.0)
@@ -296,11 +301,102 @@ class EFEEngine:
             f"Agency-weighted selection: dominant={dominant_seed_id}, "
             f"agency_score={agency_score:.4f}"
         )
-        
+
         return EFEResponse(
             dominant_seed_id=dominant_seed_id,
             scores=results
         )
+
+    def select_dominant_thought_with_priors(
+        self,
+        candidates: List[Dict[str, Any]],
+        goal_vector: List[float],
+        prior_hierarchy: Optional["PriorHierarchy"] = None,
+        precision: float = 1.0
+    ) -> EFEResponse:
+        """
+        Winner-take-all selection with prior constraint filtering.
+
+        This method filters candidates through the prior hierarchy BEFORE
+        EFE scoring. This ensures that BASAL constraints (survival/integrity)
+        are never violated, regardless of EFE score.
+
+        Track 038 Phase 2 - Evolutionary Priors
+
+        Flow:
+        1. Filter candidates through prior hierarchy
+        2. Apply prior-adjusted precision to each candidate
+        3. Calculate EFE for remaining candidates
+        4. Select dominant thought
+
+        Args:
+            candidates: ThoughtSeed candidates with 'id', 'vector', 'probabilities'
+            goal_vector: Goal state embedding
+            prior_hierarchy: Optional prior hierarchy for constraint checking
+            precision: Base precision for EFE calculation
+
+        Returns:
+            EFEResponse with prior-filtered rankings
+        """
+        if not candidates:
+            return EFEResponse(dominant_seed_id="none", scores={})
+
+        # Filter by priors BEFORE EFE scoring
+        filtered_candidates = candidates
+        if prior_hierarchy:
+            from api.services.prior_constraint_service import PriorConstraintService
+            constraint_service = PriorConstraintService(prior_hierarchy)
+            filtered_candidates = constraint_service.filter_candidates(candidates)
+
+            if not filtered_candidates:
+                logger.warning(
+                    "All candidates blocked by prior constraints. "
+                    f"Agent: {prior_hierarchy.agent_id}"
+                )
+                return EFEResponse(
+                    dominant_seed_id="blocked_by_priors",
+                    scores={}
+                )
+
+        results = {}
+        goal_vec = np.array(goal_vector)
+
+        for candidate in filtered_candidates:
+            seed_id = candidate.get("id")
+            probs = candidate.get("probabilities", [0.5, 0.5])
+            thought_vec = np.array(candidate.get("vector", [0.0] * len(goal_vector)))
+
+            # Get prior-adjusted precision if available
+            candidate_precision = candidate.get("prior_precision", precision)
+
+            # Calculate EFE with adjusted precision
+            efe = self.calculate_efe(probs, thought_vec, goal_vec, candidate_precision)
+
+            results[seed_id] = EFEResult(
+                seed_id=seed_id,
+                efe_score=efe,
+                uncertainty=self.calculate_entropy(probs),
+                goal_divergence=self.calculate_goal_divergence(thought_vec, goal_vec)
+            )
+
+        # Guard: Check if any valid results were produced
+        if not results:
+            logger.warning("No valid candidates with IDs found")
+            return EFEResponse(dominant_seed_id="none", scores={})
+
+        # Select dominant seed (minimum EFE)
+        dominant_seed_id = min(results, key=lambda k: results[k].efe_score)
+
+        logger.info(
+            f"Prior-filtered selection: dominant={dominant_seed_id}, "
+            f"candidates_passed={len(filtered_candidates)}/{len(candidates)}"
+        )
+
+        return EFEResponse(
+            dominant_seed_id=dominant_seed_id,
+            scores=results
+        )
+
 
 _efe_engine: Optional[EFEEngine] = None
 

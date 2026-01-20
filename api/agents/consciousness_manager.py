@@ -1,9 +1,12 @@
 import hashlib
 import json
+import logging
 import uuid
 from typing import Any, Dict
 
 from smolagents import CodeAgent
+
+logger = logging.getLogger("dionysus.consciousness")
 
 # Feature 039: Use ManagedAgent wrappers for native multi-agent orchestration
 from api.agents.managed import (
@@ -106,7 +109,7 @@ class ConsciousnessManager:
                 # smolagents 1.23+: agent IS the ToolCallingAgent directly
                 current_callbacks = agent.step_callbacks or {}
                 # Note: step_callbacks is a dict in smolagents, we extend via audit registry
-                print(f"DEBUG: Self-modeling callback enabled for {agent_name}")
+                logger.debug(f"Self-modeling callback enabled for {agent_name}")
         
         # Add Explorer and Cognitive tools to Reasoning specifically
         # smolagents 1.23+: _reasoning_managed IS the ToolCallingAgent
@@ -175,7 +178,7 @@ The agents will return structured results for synthesis.""",
         """
         from api.agents.resource_gate import run_agent_with_timeout
         
-        print("=== CONSCIOUSNESS OODA CYCLE START (MANAGED AGENTS) ===")
+        logger.info("CONSCIOUSNESS OODA CYCLE START (MANAGED AGENTS)")
 
         # Beautiful Loop: forecast precision profile at cycle start
         hyper_model = get_hyper_model_service()
@@ -199,7 +202,29 @@ The agents will return structured results for synthesis.""",
         # T012: Bootstrap Recall Integration
         project_id = initial_context.get("project_id", "default")
         task_query = initial_context.get("task", "")
-        
+
+        # Track 038 Phase 2: Evolutionary Priors Check
+        # Check task against prior hierarchy BEFORE any action selection
+        agent_id = initial_context.get("agent_id", "dionysus-1")
+        prior_check_result = await self._check_prior_constraints(agent_id, task_query, initial_context)
+
+        if not prior_check_result.get("permitted", True):
+            # BASAL VIOLATION - Hard block, return early
+            logger.warning(f"BASAL PRIOR VIOLATION: {prior_check_result.get('reason')}")
+            return {
+                "final_plan": f"Action blocked by evolutionary prior: {prior_check_result.get('reason')}",
+                "actions": [],
+                "confidence": 0.0,
+                "blocked_by_prior": True,
+                "prior_check": prior_check_result,
+                "orchestrator_log": []
+            }
+
+        # Store prior context for downstream EFE selection
+        initial_context["prior_check"] = prior_check_result
+        if prior_check_result.get("warnings"):
+            logger.debug(f"Prior warnings: {prior_check_result['warnings']}")
+
         # Check if bootstrap is requested or allowed
         if initial_context.get("bootstrap_recall", True):
             config = BootstrapConfig(
@@ -217,7 +242,7 @@ The agents will return structured results for synthesis.""",
             
             # Inject into context
             initial_context["bootstrap_past_context"] = bootstrap_result.formatted_context
-            print(f"DEBUG: Bootstrap Recall injected {bootstrap_result.source_count} sources (summarized={bootstrap_result.summarized})")
+            logger.debug(f"Bootstrap Recall injected {bootstrap_result.source_count} sources (summarized={bootstrap_result.summarized})")
 
         # T005 (043): Meta-Cognitive Episodic Retrieval
         if initial_context.get("meta_learning_enabled", True):
@@ -225,7 +250,7 @@ The agents will return structured results for synthesis.""",
             if past_episodes:
                 lessons_learned = await self.meta_learner.synthesize_lessons(past_episodes)
                 initial_context["meta_cognitive_lessons"] = lessons_learned
-                print(f"DEBUG: Meta-Cognitive Learner injected lessons from {len(past_episodes)} past episodes.")
+                logger.debug(f"Meta-Cognitive Learner injected lessons from {len(past_episodes)} past episodes.")
 
         # FEATURE 049: Cognitive Meta-Coordinator
         # Dynamically selects reasoning mode and afforded tools
@@ -270,7 +295,7 @@ The agents will return structured results for synthesis.""",
             resonance_signal = ResonanceSignal(**resonance_signal)
             
         if resonance_signal and resonance_signal.mode == ResonanceMode.DISSONANT:
-            print(f"!!! ULTRATHINK PROTOCOL ACTIVATED (Score: {resonance_signal.resonance_score:.2f}) !!!")
+            logger.info(f"ULTRATHINK PROTOCOL ACTIVATED (Score: {resonance_signal.resonance_score:.2f})")
             ultrathink_instruction = """
         !!! PROTOCOL OVERRIDE: ULTRATHINK ACTIVATED !!!
         CRITICAL DISSONANCE DETECTED. You are now in ULTRATHINK MODE.
@@ -360,7 +385,7 @@ The agents will return structured results for synthesis.""",
         # FEATURE 048: Update Dynamic Precision
         for agent_name in ["perception", "reasoning", "metacognition"]:
             new_prec = self.metaplasticity_svc.update_precision_from_surprise(agent_name, surprise_level)
-            print(f"DEBUG: Agent '{agent_name}' Precision adjusted to {new_prec:.2f}")
+            logger.debug(f"Agent '{agent_name}' Precision adjusted to {new_prec:.2f}")
 
         # FEATURE 045 & 050: Unified Consciousness Integration Pipeline via EventBus
         # Ensures every cognitive event updates internal physics and self-story
@@ -399,9 +424,9 @@ The agents will return structured results for synthesis.""",
                 state=ai_state,
                 context=initial_context
             )
-            print(f"DEBUG: EventBus emitted cognitive event (Mode: {initial_context['coordination_plan']['mode']}).")
+            logger.debug(f"EventBus emitted cognitive event (Mode: {initial_context['coordination_plan']['mode']}).")
         except Exception as e:
-            print(f"DEBUG: EventBus cognitive emission failed: {e}")
+            logger.warning(f"EventBus cognitive emission failed: {e}")
 
         # T006 (043): Record Cognitive Episode for Meta-Learning
         if initial_context.get("meta_learning_enabled", True):
@@ -427,10 +452,10 @@ The agents will return structured results for synthesis.""",
                 )
                 await self.meta_learner.record_episode(episode)
             except Exception as e:
-                print(f"DEBUG: Failed to record cognitive episode: {e}")
+                logger.warning(f"Failed to record cognitive episode: {e}")
 
         # Log adjustment for observability
-        print(f"DEBUG: Metaplasticity adjusted learning_rate={adjusted_lr:.4f}, max_steps={new_max_steps} (surprise={surprise_level:.2f})")
+        logger.debug(f"Metaplasticity adjusted learning_rate={adjusted_lr:.4f}, max_steps={new_max_steps} (surprise={surprise_level:.2f})")
 
         # Note: In smolagents, we update the agent properties directly
         # smolagents 1.23+: managed instances ARE ToolCallingAgents directly
@@ -438,7 +463,7 @@ The agents will return structured results for synthesis.""",
             for agent in [self._perception_managed, self._reasoning_managed, self._metacognition_managed]:
                 agent.max_steps = new_max_steps
         
-        print("\n=== CONSCIOUSNESS OODA CYCLE COMPLETE ===")
+        logger.info("CONSCIOUSNESS OODA CYCLE COMPLETE")
 
         # Beautiful Loop: compute precision errors and update hyper-model
         errors = []
@@ -476,7 +501,7 @@ The agents will return structured results for synthesis.""",
             initial_context["resonance_signal"] = resonance_signal.model_dump()
             
             if resonance_signal.mode == ResonanceMode.DISSONANT:
-                print(f"⚠️ DISSONANCE DETECTED (Urgency: {resonance_signal.discovery_urgency:.2f})")
+                logger.warning(f"DISSONANCE DETECTED (Urgency: {resonance_signal.discovery_urgency:.2f})")
                 # Release a metacognitive particle via current reality model to signal the crunch
                 from api.models.meta_cognition import MetacognitiveParticle
                 particle = MetacognitiveParticle(
@@ -487,7 +512,7 @@ The agents will return structured results for synthesis.""",
                 )
                 urm_service.add_metacognitive_particle(particle)
         except Exception as e:
-            print(f"DEBUG: Resonance detection failed: {e}")
+            logger.debug(f"Resonance detection failed: {e}")
 
         return {
             "final_plan": structured_result.get("reasoning", str(raw_result)),
@@ -502,3 +527,62 @@ The agents will return structured results for synthesis.""",
         for wrapper in [self.perception_wrapper, self.reasoning_wrapper, self.metacognition_wrapper]:
             if hasattr(wrapper, 'close'):
                 wrapper.close()
+
+    async def _check_prior_constraints(
+        self,
+        agent_id: str,
+        task_query: str,
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Check task against the evolutionary prior hierarchy.
+
+        Track 038 Phase 2 - Evolutionary Priors Integration
+
+        This method:
+        1. Hydrates or creates the agent's prior hierarchy
+        2. Checks the task query against BASAL/DISPOSITIONAL/LEARNED priors
+        3. Returns check result with permission status
+
+        Args:
+            agent_id: The agent's identifier
+            task_query: The task/action to check
+            context: Current cycle context
+
+        Returns:
+            Dict with permitted, warnings, effective_precision, etc.
+        """
+        from api.services.prior_constraint_service import get_prior_constraint_service
+        from api.services.prior_persistence_service import get_prior_persistence_service
+
+        try:
+            # Try to hydrate existing hierarchy from Graphiti
+            persistence = get_prior_persistence_service()
+            hierarchy = await persistence.hydrate_hierarchy(agent_id)
+
+            if hierarchy is None:
+                # No hierarchy in graph - use default (in-memory only)
+                # Note: For production, run scripts/seed_priors.py first
+                logger.debug(f"No prior hierarchy found for {agent_id}, using defaults")
+                from api.services.prior_constraint_service import create_default_hierarchy
+                hierarchy = create_default_hierarchy(agent_id)
+
+            # Store hierarchy in context for downstream use
+            context["prior_hierarchy_agent_id"] = agent_id
+
+            # Check the task query
+            service = get_prior_constraint_service(agent_id, hierarchy)
+            result = service.check_constraint(task_query, context)
+
+            return result.model_dump()
+
+        except Exception as e:
+            # On error, log and permit (fail-open for now)
+            # In production, consider fail-closed
+            logger.warning(f"Prior check failed: {e}. Permitting action (fail-open).")
+            return {
+                "permitted": True,
+                "warnings": [f"Prior check failed: {str(e)}"],
+                "effective_precision": 1.0,
+                "error": str(e)
+            }
