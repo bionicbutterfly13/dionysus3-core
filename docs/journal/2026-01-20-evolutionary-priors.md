@@ -120,13 +120,116 @@ The system now has an immune system against self-destructive actions.
 ## Next Steps
 
 1. **Seed Priors in Production**: Run `python scripts/seed_priors.py` after deployment
-2. **Phase 3**: Implement Nested Markov Blankets (context isolation)
-3. **Phase 4**: Add learned prior acquisition from experience
+2. ~~**Phase 3**: Implement Nested Markov Blankets (context isolation)~~ COMPLETE
+3. ~~**Phase 4**: Add learned prior acquisition from experience~~ COMPLETE
+4. **Phase 5**: Verification & Polish (integration testing)
+
+---
+
+# Phase 4 Update: Fractal Metacognition Integration
+
+**Date:** 2026-01-20 (continued)
+**Focus:** Biographical Constraint Propagation
+
+## Summary
+
+Extended the prior hierarchy to support **fractal metacognition** - the propagation of autobiographical constraints across time-scales (Identity → Episode → Event).
+
+## New Components
+
+### 1. Biographical Prior Merging
+
+`PriorHierarchy` now supports dynamic injection of biographical priors:
+
+```python
+hierarchy.merge_biographical_priors(bio_priors)  # Adds to LEARNED layer
+hierarchy.clear_biographical_priors()  # Clears biographical priors only
+```
+
+Biographical priors are ALWAYS forced to LEARNED level (soft biases, not hard blocks).
+
+### 2. FractalReflectionTracer
+
+New debug/analysis tool in `api/services/fractal_reflection_tracer.py`:
+
+```
+FractalTrace[abc12345] (0.34s)
+  Identity: 3 | Episode: 1 | Event: 2
+  Effects: 0 blocked, 1 warned, 4 boosted
+  Narrative Coherence: 87.5%
+```
+
+Traces constraint propagation across three levels:
+- **IDENTITY**: Journey-level (years) - themes, archetypes
+- **EPISODE**: Episode-level (hours-days) - current arc
+- **EVENT**: Event-level (seconds-minutes) - prior checks
+
+### 3. ConsciousnessManager Integration
+
+The OODA cycle now:
+1. Starts a fractal trace at cycle begin
+2. Traces prior check results (blocked/warned/boosted)
+3. Traces biographical injection (themes, markers)
+4. Ends trace and includes summary in return dict
+
+## Test Coverage
+
+```
+56 passed in 12.71s
+
+TestBiographicalPriorMerging (4)
+TestFractalReflectionTracer (9)
+```
+
+## Architecture: Fractal Constraint Flow
+
+```
+Journey (Identity)          ← Autobiographical Narrative
+    │
+    ├─ unresolved_themes
+    ├─ identity_markers
+    └─ dominant_archetype
+           │
+           ▼
+Episode (Narrative Arc)     ← Current Session Context
+    │
+    └─ narrative_arcs
+           │
+           ▼
+Event (Action Selection)    ← Prior Hierarchy Check
+    │
+    ├─ BASAL priors     → BLOCK
+    ├─ DISPOSITIONAL    → WARN
+    └─ LEARNED (+ bio)  → BIAS
+           │
+           ▼
+    EFE Selection (with effective_precision)
+```
+
+## Files Modified/Created
+
+| File | Purpose |
+|------|---------|
+| `api/models/priors.py` | Added `merge_biographical_priors()`, `clear_biographical_priors()` |
+| `api/services/fractal_reflection_tracer.py` | NEW: Fractal tracing infrastructure |
+| `api/agents/consciousness_manager.py` | Integrated tracer into OODA cycle |
+| `tests/unit/test_priors.py` | Added 13 new tests for Phase 4 |
+
+## Theoretical Grounding
+
+The fractal structure mirrors Conway & Pleydell-Pearce's Self-Memory System (SMS):
+
+> "The autobiographical knowledge base is organized hierarchically... from lifetime periods through general events to event-specific knowledge." - Conway (2005)
+
+Our implementation maps:
+- **Lifetime Periods** → Journey (Identity constraints)
+- **General Events** → Episode (Narrative arc constraints)
+- **Event-Specific Knowledge** → Event (Prior checks)
 
 ## Commit
 
 ```
-7fb6ced feat(038): implement Evolutionary Priors Hierarchy (Phase 2)
+feat(038): implement Fractal Metacognition Integration (Phase 4)
 ```
 
 ---

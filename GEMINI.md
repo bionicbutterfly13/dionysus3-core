@@ -75,6 +75,11 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
     - **Episodic:** Temporal sequences of events.
     - **Semantic:** Facts and entities via Graphiti (`valid_at`/`invalid_at`).
     - **Strategic:** Lessons learned from agent trajectories.
+- **Journal Protocol (MANDATORY):**
+    - Upon completion of ANY feature or significant milestone, you **MUST** create or update a journal entry in `docs/journal/`.
+    - Format: `YYYY-MM-DD-feature-name.md`.
+    - Content: Brief summary of the "why", the "what", and the "how". Link to relevant code or artifacts.
+    - Consistency: This ensures the "Quartz Journal" remains the definitive narrative log of the system's evolution.
 
 ## Roadmap & Pending Tasks
 

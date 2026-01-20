@@ -552,3 +552,285 @@ class TestEFEIntegration:
         # Both should be in scores
         assert "thought1" in response.scores
         assert "thought2" in response.scores
+
+
+# =============================================================================
+# Track 038 Phase 4: Biographical Constraint Propagation Tests
+# =============================================================================
+
+
+class TestBiographicalPriorMerging:
+    """Tests for merging biographical priors into the LEARNED layer."""
+
+    def test_merge_biographical_priors_adds_to_learned(self):
+        """Biographical priors should be added to LEARNED layer."""
+        hierarchy = create_default_hierarchy("test-agent")
+        initial_learned_count = len(hierarchy.learned_priors)
+
+        bio_priors = [
+            PriorConstraint(
+                id="bio_theme_1",
+                name="Unresolved Theme: Authenticity",
+                description="Prefer actions that address authenticity questions",
+                level=PriorLevel.LEARNED,
+                precision=0.6,
+                constraint_type=ConstraintType.PREFER,
+                target_pattern=r"authenticity|genuine|real",
+                metadata={"source": "biographical"},
+            )
+        ]
+
+        added = hierarchy.merge_biographical_priors(bio_priors)
+
+        assert added == 1
+        assert len(hierarchy.learned_priors) == initial_learned_count + 1
+        assert any(p.id == "bio_theme_1" for p in hierarchy.learned_priors)
+
+    def test_merge_biographical_priors_forces_learned_level(self):
+        """Even if bio prior has different level, it should be forced to LEARNED."""
+        hierarchy = create_default_hierarchy("test-agent")
+
+        bio_priors = [
+            PriorConstraint(
+                id="bio_forced_level",
+                name="Should Be Learned",
+                description="Even if specified as BASAL",
+                level=PriorLevel.BASAL,  # Wrong level
+                precision=0.5,
+                constraint_type=ConstraintType.PREFER,
+                target_pattern=r"test",
+                metadata={"source": "biographical"},
+            )
+        ]
+
+        hierarchy.merge_biographical_priors(bio_priors)
+
+        merged = next(p for p in hierarchy.learned_priors if p.id == "bio_forced_level")
+        assert merged.level == PriorLevel.LEARNED
+
+    def test_merge_biographical_priors_skips_duplicates(self):
+        """Should not add duplicate biographical priors."""
+        hierarchy = create_default_hierarchy("test-agent")
+
+        bio_priors = [
+            PriorConstraint(
+                id="bio_dup_test",
+                name="Test Prior",
+                description="First add",
+                level=PriorLevel.LEARNED,
+                precision=0.5,
+                constraint_type=ConstraintType.PREFER,
+                target_pattern=r"test",
+                metadata={"source": "biographical"},
+            )
+        ]
+
+        added_first = hierarchy.merge_biographical_priors(bio_priors)
+        added_second = hierarchy.merge_biographical_priors(bio_priors)
+
+        assert added_first == 1
+        assert added_second == 0  # Duplicate not added
+
+    def test_clear_biographical_priors(self):
+        """Should remove only biographical priors, not other learned priors."""
+        hierarchy = create_default_hierarchy("test-agent")
+
+        # Add a non-biographical learned prior
+        non_bio = PriorConstraint(
+            id="non_bio_prior",
+            name="Non-Bio Prior",
+            description="Should remain after clear",
+            level=PriorLevel.LEARNED,
+            precision=0.5,
+            constraint_type=ConstraintType.PREFER,
+            target_pattern=r"keep",
+            metadata={"source": "user_defined"},
+        )
+        hierarchy.add_constraint(non_bio)
+
+        # Add biographical priors
+        bio_priors = [
+            PriorConstraint(
+                id="bio_to_remove",
+                name="Bio Prior",
+                description="Should be removed",
+                level=PriorLevel.LEARNED,
+                precision=0.5,
+                constraint_type=ConstraintType.PREFER,
+                target_pattern=r"remove",
+                metadata={"source": "biographical"},
+            )
+        ]
+        hierarchy.merge_biographical_priors(bio_priors)
+
+        # Clear biographical priors
+        removed = hierarchy.clear_biographical_priors()
+
+        assert removed == 1
+        assert any(p.id == "non_bio_prior" for p in hierarchy.learned_priors)
+        assert not any(p.id == "bio_to_remove" for p in hierarchy.learned_priors)
+
+
+class TestFractalReflectionTracer:
+    """Tests for the FractalReflectionTracer debugging tool."""
+
+    def test_start_and_end_trace(self):
+        """Should start and end a trace correctly."""
+        from api.services.fractal_reflection_tracer import (
+            FractalReflectionTracer,
+            FractalLevel,
+        )
+
+        tracer = FractalReflectionTracer()
+        trace = tracer.start_trace(cycle_id="test-cycle-123", agent_id="test-agent")
+
+        assert trace.cycle_id == "test-cycle-123"
+        assert trace.agent_id == "test-agent"
+        assert trace.ended_at is None
+
+        tracer.end_trace(trace)
+
+        assert trace.ended_at is not None
+
+    def test_trace_identity_constraint(self):
+        """Should trace identity-level constraints."""
+        from api.services.fractal_reflection_tracer import (
+            FractalReflectionTracer,
+            FractalLevel,
+        )
+
+        tracer = FractalReflectionTracer()
+        trace = tracer.start_trace(cycle_id="test-cycle", agent_id="test-agent")
+
+        tracer.trace_identity_constraint(
+            trace,
+            source="journey_theme",
+            action="explore_creativity",
+            effect="boosted",
+            details={"theme": "creativity"},
+        )
+
+        assert trace.identity_constraints_applied == 1
+        assert trace.actions_boosted == 1
+        assert len(trace.events) == 1
+        assert trace.events[0].level == FractalLevel.IDENTITY
+
+    def test_trace_event_constraint(self):
+        """Should trace event-level constraints."""
+        from api.services.fractal_reflection_tracer import (
+            FractalReflectionTracer,
+            FractalLevel,
+        )
+
+        tracer = FractalReflectionTracer()
+        trace = tracer.start_trace(cycle_id="test-cycle", agent_id="test-agent")
+
+        tracer.trace_event_constraint(
+            trace,
+            source="basal_prior",
+            action="delete database",
+            effect="blocked",
+            details={"prior_id": "basal_data_integrity"},
+        )
+
+        assert trace.event_constraints_applied == 1
+        assert trace.actions_blocked == 1
+        assert len(trace.events) == 1
+        assert trace.events[0].level == FractalLevel.EVENT
+
+    def test_trace_prior_check_blocked(self):
+        """Should trace a blocked prior check correctly."""
+        from api.services.fractal_reflection_tracer import FractalReflectionTracer
+
+        tracer = FractalReflectionTracer()
+        trace = tracer.start_trace(cycle_id="test-cycle", agent_id="test-agent")
+
+        prior_result = {
+            "permitted": False,
+            "blocked_by": "basal_data_integrity",
+            "blocking_level": "basal",
+            "reason": "BASAL VIOLATION: Data Integrity",
+        }
+
+        tracer.trace_prior_check(trace, prior_result, "delete all database")
+
+        assert trace.actions_blocked == 1
+        assert len(trace.events) == 1
+
+    def test_trace_prior_check_with_warnings(self):
+        """Should trace warnings from dispositional priors."""
+        from api.services.fractal_reflection_tracer import FractalReflectionTracer
+
+        tracer = FractalReflectionTracer()
+        trace = tracer.start_trace(cycle_id="test-cycle", agent_id="test-agent")
+
+        prior_result = {
+            "permitted": True,
+            "warnings": [
+                "DISPOSITIONAL WARNING: Caution - force admin mode",
+                "DISPOSITIONAL WARNING: Another warning",
+            ],
+            "effective_precision": 0.8,
+        }
+
+        tracer.trace_prior_check(trace, prior_result, "force admin mode")
+
+        assert trace.actions_warned == 2
+        assert len(trace.events) == 2
+
+    def test_narrative_coherence_calculation(self):
+        """Should calculate narrative coherence based on boost/block ratio."""
+        from api.services.fractal_reflection_tracer import FractalReflectionTracer
+
+        tracer = FractalReflectionTracer()
+        trace = tracer.start_trace(cycle_id="test-cycle", agent_id="test-agent")
+
+        # Add more boosts than blocks
+        tracer.trace_identity_constraint(trace, "theme1", "action1", "boosted")
+        tracer.trace_identity_constraint(trace, "theme2", "action2", "boosted")
+        tracer.trace_identity_constraint(trace, "theme3", "action3", "boosted")
+        tracer.trace_event_constraint(trace, "prior1", "action4", "blocked")
+
+        tracer.end_trace(trace)
+
+        # 3 boosts - 1 block = 2, divided by 4 total = 0.5
+        # Normalized: 0.5 + 0.5 * 0.5 = 0.75
+        assert trace.narrative_coherence == 0.75
+
+    def test_trace_to_dict(self):
+        """Should serialize trace to dict correctly."""
+        from api.services.fractal_reflection_tracer import FractalReflectionTracer
+
+        tracer = FractalReflectionTracer()
+        trace = tracer.start_trace(cycle_id="test-cycle", agent_id="test-agent")
+        tracer.trace_event_constraint(trace, "source", "action", "blocked")
+        tracer.end_trace(trace)
+
+        result = trace.to_dict()
+
+        assert result["cycle_id"] == "test-cycle"
+        assert result["agent_id"] == "test-agent"
+        assert "metrics" in result
+        assert result["metrics"]["actions_blocked"] == 1
+
+    def test_get_trace_by_cycle(self):
+        """Should retrieve trace by cycle ID."""
+        from api.services.fractal_reflection_tracer import FractalReflectionTracer
+
+        tracer = FractalReflectionTracer()
+        trace = tracer.start_trace(cycle_id="unique-cycle-id", agent_id="test-agent")
+        tracer.end_trace(trace)
+
+        found = tracer.get_trace_by_cycle("unique-cycle-id")
+
+        assert found is not None
+        assert found.cycle_id == "unique-cycle-id"
+
+    def test_singleton_instance(self):
+        """Should return same singleton instance."""
+        from api.services.fractal_reflection_tracer import get_fractal_tracer
+
+        tracer1 = get_fractal_tracer()
+        tracer2 = get_fractal_tracer()
+
+        assert tracer1 is tracer2
