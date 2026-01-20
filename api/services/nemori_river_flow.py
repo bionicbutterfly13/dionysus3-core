@@ -13,6 +13,7 @@ from api.models.autobiographical import (
     RiverStage,
     DevelopmentArchetype
 )
+from api.models.memevolve import TrajectoryData
 from api.models.beautiful_loop import ResonanceSignal, ResonanceMode
 from api.agents.consolidated_memory_stores import get_consolidated_memory_store
 from api.services.llm_service import chat_completion, GPT5_NANO
@@ -371,12 +372,131 @@ class NemoriRiverFlow:
             logger.error(f"Error in predict-calibrate cycle: {e}")
             return [], {}
 
-    async def _sharpen_episode_narrative(self, episode: DevelopmentEpisode, events: List[DevelopmentEvent]) -> str:
+    async def check_boundary_for_trajectories(self, trajectories: List[TrajectoryData]) -> bool:
+        """
+        Check for boundary condition in a stream of Trajectories (Protocol 060).
+        """
+        if not trajectories:
+            return False
+            
+        context_lines = []
+        for t in trajectories:
+            line = f"- Trajectory {t.id or 'unknown'}: {t.summary or 'No summary'}"
+            if t.metadata and t.metadata.agent_id:
+                line += f" [Agent: {t.metadata.agent_id}]"
+            context_lines.append(line)
+            
+        context = "\n".join(context_lines)
+        
+        prompt = f"""
+        Analyze the following sequence of MemEvolve Trajectories.
+        Determine if the latest trajectory represents a SIGNIFICANT shift in focus, goal, or context (Episode Boundary).
+        
+        Trajectories:
+        {context}
+
+        Respond ONLY with a JSON object:
+        {{
+            "boundary_detected": true/false,
+            "confidence": 0.0-1.0,
+            "rationale": "Explanation"
+        }}
+        """
+        try:
+            response = await chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="You are a Nemori Memory Architect, detecting phase shifts in trajectory flows.",
+                model=GPT5_NANO
+            )
+            result = json.loads(response.strip().strip("`").replace("json", "").strip())
+            return result.get("boundary_detected", False)
+        except Exception as e:
+            logger.error(f"Error in check_boundary_for_trajectories: {e}")
+            return False
+
+    async def construct_episode_from_trajectories(self, trajectories: List[TrajectoryData], journey_id: str, parent_episode_id: Optional[str] = None) -> Optional[DevelopmentEpisode]:
+        """
+        Constructs a DevelopmentEpisode from a sequence of Trajectories (Protocol 060).
+        Promotes Level 1 (Trajectory) to Level 3 (Episode) via linking.
+        """
+        logger.info(f"Constructing episode from {len(trajectories)} trajectories for journey {journey_id}")
+        if not trajectories:
+            return None
+        
+        context = "\n".join([f"- {t.summary or 'No summary'} (ID: {t.id})" for t in trajectories])
+        
+        prompt = f"""
+        Synthesize these Trajectories into a coherent 'Development Episode'.
+        Identify the overarching goal or theme that unites these execution traces.
+
+        Trajectories:
+        {context}
+
+        Respond ONLY with a JSON object:
+        {{
+            "title": "Short descriptive title",
+            "summary": "Brief summary",
+            "narrative": "Coherent story of what happened",
+            "archetype": "one of: innocent, orphan, warrior, caregiver, explorer, rebel, lover, creator, jester, sage, magician, ruler",
+            "stabilizing_attractor": "The core theme",
+            "strand_id": "One-word thematic strand"
+        }}
+        """
+        try:
+            response = await chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="You are a Narrative Architect, distilling execution traces into hierarchical episodes.",
+                model=GPT5_NANO
+            )
+            data = json.loads(response.strip().strip("`").replace("json", "").strip())
+            
+            # Map Trajectory IDs
+            traj_ids = [t.id for t in trajectories if t.id]
+            
+            episode = DevelopmentEpisode(
+                episode_id=str(uuid4()),
+                journey_id=journey_id,
+                title=data.get("title", "Untitled Episode"),
+                summary=data.get("summary", ""),
+                narrative=data.get("narrative", ""),
+                start_time=trajectories[0].metadata.timestamp if trajectories[0].metadata and trajectories[0].metadata.timestamp else datetime.now(timezone.utc),
+                end_time=trajectories[-1].metadata.timestamp if trajectories[-1].metadata and trajectories[-1].metadata.timestamp else datetime.now(timezone.utc),
+                events=[], # Empty: we rely on source_trajectory_ids
+                source_trajectory_ids=traj_ids, # Protocol 060 Link
+                dominant_archetype=DevelopmentArchetype(data.get("archetype", "sage")) if data.get("archetype") else None,
+                river_stage=RiverStage.MAIN_RIVER,
+                stabilizing_attractor=data.get("stabilizing_attractor", None),
+                parent_episode_id=parent_episode_id,
+                strand_id=data.get("strand_id", "general"),
+                peak_consciousness_level=0.5, # Default, as trajectories lack this metric typically
+                avg_consciousness_level=0.5
+            )
+            
+            # Hippocampal Binding
+            episode.narrative = await self._sharpen_episode_narrative(episode, trajectories)
+            
+            await self.store.create_episode(episode)
+            return episode
+        except Exception as e:
+            logger.error(f"Error in trajectory episode construction: {e}")
+            return None
+
+    async def _sharpen_episode_narrative(self, episode: DevelopmentEpisode, context_items: List[Any]) -> str:
         """
         Hippocampal Binding (Now Print) function.
         Sharps the narrative by reinforcing key situational features and goals.
+        Supports both DevelopmentEvent and TrajectoryData input.
         """
         logger.debug(f"Sharpening narrative for episode {episode.title}")
+        
+        context_str = ""
+        if not context_items:
+            return episode.narrative
+            
+        if isinstance(context_items[0], TrajectoryData):
+             context_str = ", ".join([t.summary or "No summary" for t in context_items])
+        elif hasattr(context_items[0], 'summary'): # Duck typing for DevelopmentEvent
+             context_str = ", ".join([e.summary for e in context_items])
         
         prompt = f"""
         Refine and 'Sharpen' the following episode narrative. 
@@ -386,7 +506,7 @@ class NemoriRiverFlow:
         - Symbolic Residue (What remains for the next episode)
         
         Original Narrative: {episode.narrative}
-        Events: {", ".join([e.summary for e in events])}
+        Events/Trajectories: {context_str}
         
         Produce a more vivid, high-fidelity narrative that captures the essence of this cognitive scene.
         """

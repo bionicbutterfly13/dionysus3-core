@@ -189,6 +189,7 @@ class DevelopmentEpisode(BaseModel):
     sub_episodes: List[str] = Field(default_factory=list, description="IDs of child episodes (Hierarchical structure)")
     strand_id: Optional[str] = Field(None, description="Thematic 'strand' identifier (Richmond/Zacks)")
     stabilizing_attractor: Optional[str] = Field(None, description="Core theme/goal anchoring this episode")
+    source_trajectory_ids: List[str] = Field(default_factory=list, description="IDs of source Trajectories (Protocol 060)")
 
 
 class AutobiographicalJourney(BaseModel):

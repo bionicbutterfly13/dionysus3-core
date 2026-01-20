@@ -614,48 +614,97 @@ IMPORTANT:
         valid_at: Optional[datetime] = None,
     ) -> dict[str, Any]:
         """
-        Ingest pre-extracted relationships without re-extraction.
-        
-        This bypasses Graphiti's internal extraction when relationships
-        are already extracted by extract_with_context.
+        Ingest pre-extracted relationships using direct Cypher.
+        Bypasses `add_episode` to prevent redundant node creation (Protocol 060).
         
         Args:
-            relationships: List of relationship dicts with source/target/type/evidence
-            source_id: Source identifier for provenance
-            group_id: Optional group ID for the ingestion
+            relationships: List of relationship dicts (source, target, relation_type, evidence, status)
+            source_id: ID of the source node (e.g., Trajectory UUID)
+            group_id: Optional group context
             
         Returns:
-            Dict with ingestion results
+            Dict with ingestion stats
         """
-        graphiti = self._get_graphiti()
-        group = group_id or self.config.group_id
         ingested = 0
         errors = []
         
-        for rel in relationships:
-            if rel.get("status") != "approved":
-                continue
-                
+        # Filter for approved relationships
+        to_ingest = [r for r in relationships if r.get("status") == "approved"]
+        if not to_ingest:
+            return {"ingested": 0, "skipped": len(relationships), "errors": []}
+
+        # Handle provenance ID (strip prefix if present, though cleaner to fix in caller)
+        # We perform a generic link: (Entity)-[:MENTIONED_IN]->(Source)
+        # where Source is looked up by ID.
+        
+        cypher = """
+        UNWIND $batch as row
+        
+        // 1. Merge Entities
+        MERGE (s:Entity {name: row.source})
+        ON CREATE SET s.id = randomUUID(), s.created_at = datetime()
+        
+        MERGE (t:Entity {name: row.target})
+        ON CREATE SET t.id = randomUUID(), t.created_at = datetime()
+        
+        // 2. Merge Relationship
+        // Note: Dynamic relationship types require APOC or careful handling. 
+        // For standard Cypher without APOC, we might default to RELATES_TO and set a type property,
+        // or use a safe interpolation if types are controlled.
+        // Here we use a standard relationship with type property for safety:
+        MERGE (s)-[r:RELATED_TO {type: row.relation_type}]->(t)
+        SET r.evidence = row.evidence,
+            r.updated_at = datetime()
+            
+        // 3. Link Evidence to Source (Trajectory/Episode)
+        WITH s, t, row
+        MATCH (source {id: $source_id}) 
+        MERGE (s)-[:MENTIONED_IN]->(source)
+        MERGE (t)-[:MENTIONED_IN]->(source)
+        """
+
+        # Note: Cypher doesn't support dynamic relationship types cleanly in MERGE without APOC.
+        # If we need dynamic types (e.g. [:LIKES]), we can use apoc.merge.relationship
+        # checking if APOC is available is expensive.
+        # For now, we will stick to a generic :RELATED_TO relationship with a type property
+        # OR we can iterate (slower but strictly correct for types).
+        # Given "Protocol 060" emphasizes speed and correctness, let's use a loop for now 
+        # to support real relationship types if possible, or fallback to APOC if we trust the env.
+        # Use Python loop for dynamic edge types (safer than string injection)
+        
+        for rel in to_ingest:
             try:
-                fact = (
-                    f"{rel['source']} {rel['relation_type']} {rel['target']}. "
-                    f"Evidence: {rel.get('evidence', 'N/A')}"
-                )
+                rel_type = rel['relation_type'].upper().replace(" ", "_")
+                # Basic sanitization
+                if not rel_type.replace("_","").isalnum():
+                    rel_type = "RELATED_TO"
                 
-                await graphiti.add_episode(
-                    name=f"fact_{uuid4().hex[:8]}",
-                    episode_body=fact,
-                    source=_get_episode_type_message(),
-                    source_description=source_id,
-                    group_id=group,
-                    reference_time=valid_at or datetime.now(),
-                )
+                query = f"""
+                MATCH (source {{id: $source_id}})
+                MERGE (s:Entity {{name: $source_name}})
+                ON CREATE SET s.id = randomUUID(), s.created_at = datetime()
+                
+                MERGE (t:Entity {{name: $target_name}})
+                ON CREATE SET t.id = randomUUID(), t.created_at = datetime()
+                
+                MERGE (s)-[r:{rel_type}]->(t)
+                SET r.evidence = $evidence, r.updated_at = datetime()
+                
+                MERGE (s)-[:MENTIONED_IN]->(source)
+                MERGE (t)-[:MENTIONED_IN]->(source)
+                """
+                
+                await self.execute_cypher(query, {
+                    "source_id": source_id.split(":")[-1], # Handle 'memevolve:uuid'
+                    "source_name": rel['source'],
+                    "target_name": rel['target'],
+                    "evidence": rel.get('evidence', ''),
+                })
                 ingested += 1
-                
             except Exception as e:
                 errors.append({"relationship": rel, "error": str(e)})
-                logger.warning(f"Failed to ingest relationship: {e}")
-        
+                logger.error(f"Failed to ingest relation: {e}")
+
         return {
             "ingested": ingested,
             "skipped": len(relationships) - ingested - len(errors),

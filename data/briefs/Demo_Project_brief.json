@@ -1,0 +1,88 @@
+{
+    "project_name": "Solar_Independence",
+    "timestamp": "2026-01-19T10:30:00.000000",
+    "sections": {
+        "Part 1: The Core Foundation": {
+            "1": {
+                "question": "Who is the Audience?",
+                "answer": "Homeowners in Florida, aged 45-65."
+            },
+            "2": {
+                "question": "What are the Pain Points?",
+                "answer": "Rising electricity bills, fear of grid failure, feeling helpless during hurricanes."
+            },
+            "3": {
+                "question": "The Big Promise",
+                "answer": "Never pay an electric bill again and keep your lights on when the neighbors go dark."
+            },
+            "4": {
+                "question": "The 'Solved' State",
+                "answer": "Complete energy independence and peace of mind."
+            }
+        },
+        "Part 2: The Mechanism (The Heart)": {
+            "5": {
+                "question": "Existing Solutions",
+                "answer": "Gas generators (loud/dangerous). Traditional solar (expensive/complex)."
+            },
+            "6": {
+                "question": "The UMP & UMS Pair",
+                "answer": "The UMP is 'Energy Leakage' (your house bleeds power). The UMS is 'Photon Capture efficiency' (capturing more light)."
+            },
+            "7": {
+                "question": "Unique Nickname",
+                "answer": "The Photon Trap"
+            },
+            "8": {
+                "question": "Ingredients/Components",
+                "answer": "Nano-coated panels, Lithium battery, Smart inverter."
+            }
+        },
+        "Part 3: The Offer & Claims": {
+            "9": {
+                "question": "Bold Product Claims",
+                "answer": "Cut bills by 90% in 30 days."
+            },
+            "10": {
+                "question": "Product Details",
+                "answer": "The SunStick 3000."
+            },
+            "11": {
+                "question": "Background/Discovery Story",
+                "answer": "I was stuck in Hurricane Ian with no power for weeks. My fish died. I swore never again."
+            },
+            "12": {
+                "question": "Main Speaker",
+                "answer": "Dr. Mani"
+            }
+        },
+        "Part 4: Proof & Logistics": {
+            "16": {
+                "question": "Credibility Builders",
+                "answer": "MIT technology review."
+            },
+            "17": {
+                "question": "Retail Price",
+                "answer": "$10,000"
+            },
+            "18": {
+                "question": "Actual Price",
+                "answer": "$4,997"
+            },
+            "20": {
+                "question": "The Guarantee",
+                "answer": "365 Day Money Back Guarantee."
+            }
+        },
+        "Part 5: Closing Logic": {
+            "22": {
+                "question": "Scarcity Elements",
+                "answer": "Only 50 units left at this price."
+            },
+            "25": {
+                "question": "Hooks/Big Ideas",
+                "answer": "The Grid is Dying."
+            }
+        }
+    }
+}

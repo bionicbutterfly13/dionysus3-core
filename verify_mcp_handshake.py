@@ -4,6 +4,9 @@ import os
 import sys
 import threading
 import time
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configuration from settings.json
 PYTHON_EXE = "/Volumes/Asylum/dev/dionysus3-core/.venv/bin/python"
@@ -11,9 +14,9 @@ SERVER_SCRIPT = "/Volumes/Asylum/dev/dionysus3-core/dionysus_mcp/server.py"
 
 ENV = os.environ.copy()
 ENV["PYTHONPATH"] = "/Volumes/Asylum/dev/dionysus3-core"
-ENV["NEO4J_URI"] = "bolt://localhost:7687"
-ENV["NEO4J_USER"] = "neo4j"
-ENV["NEO4J_PASSWORD"] = "Mmsm2280"
+ENV["NEO4J_URI"] = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+ENV["NEO4J_USER"] = os.getenv("NEO4J_USER", "neo4j")
+ENV["NEO4J_PASSWORD"] = os.getenv("NEO4J_PASSWORD")
 
 def run_handshake():
     print(f"🚀 Launching server: {PYTHON_EXE} {SERVER_SCRIPT}")

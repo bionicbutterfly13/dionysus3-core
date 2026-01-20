@@ -4,7 +4,11 @@ import glob
 import json
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
 import sys
+
+# Load environment variables
+load_dotenv()
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -71,8 +75,8 @@ async def main():
     
     # Initialize Graphiti connection
     config = GraphitiConfig(
-        neo4j_uri="bolt://127.0.0.1:7687",
-        neo4j_password="Mmsm2280",
+        neo4j_uri=os.getenv("NEO4J_URI", "bolt://127.0.0.1:7687"),
+        neo4j_password=os.getenv("NEO4J_PASSWORD"),
         openai_api_key=os.getenv("OPENAI_API_KEY")
     )
     

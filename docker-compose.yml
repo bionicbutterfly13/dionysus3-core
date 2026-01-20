@@ -26,16 +26,7 @@ services:
       retries: 3
       start_period: 20s
 
-  silverbullet:
-    image: zefhemel/silverbullet
-    container_name: dionysus-docs
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - .:/space
-    networks:
-      - dionysus3-core_default
+
 
 networks:
   dionysus3-core_default:

@@ -69,6 +69,7 @@ class TrajectoryData(BaseModel):
     """Trajectory data from MemEvolve."""
     model_config = ConfigDict(extra="allow")
 
+    id: Optional[str] = Field(None, description="Trajectory UUID")
     query: Optional[str] = Field(None, description="Original task query")
     trajectory: Optional[List[Dict[str, Any]]] = Field(
         None,

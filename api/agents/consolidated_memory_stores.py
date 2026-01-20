@@ -63,20 +63,33 @@ class ConsolidatedMemoryStore:
             return False
 
     async def create_episode(self, episode: DevelopmentEpisode) -> bool:
-        """Create a TRIBUTARY (Episode) and link its events."""
+        """Create a TRIBUTARY (Episode) and link its events/trajectories."""
         cypher = """
         MERGE (ep:DevelopmentEpisode {id: $id})
         SET ep += $props,
             ep.river_stage = 'tributary'
+        
+        // Link Events
         WITH ep
-        UNWIND $event_ids as event_id
-        MATCH (e:DevelopmentEvent {id: event_id})
-        MERGE (ep)-[:CONTAINS_EVENT]->(e)
-        SET e.parent_episode_id = $id,
-            e.river_stage = 'tributary'  // Promote to tributary stage
+        UNWIND CASE WHEN $event_ids = [] THEN [null] ELSE $event_ids END as event_id
+        OPTIONAL MATCH (e:DevelopmentEvent {id: event_id})
+        FOREACH (_ IN CASE WHEN e IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (ep)-[:CONTAINS_EVENT]->(e)
+            SET e.parent_episode_id = $id,
+                e.river_stage = 'tributary'
+        )
+        
+        // Link Trajectories (Protocol 060)
+        WITH ep
+        UNWIND CASE WHEN $traj_ids = [] THEN [null] ELSE $traj_ids END as t_id
+        OPTIONAL MATCH (t:Trajectory {id: t_id})
+        FOREACH (_ IN CASE WHEN t IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (ep)-[:SUMMARIZES]->(t)
+        )
+        
         RETURN ep.id
         """
-        props = episode.model_dump(exclude={"episode_id", "events", "start_time", "end_time"})
+        props = episode.model_dump(exclude={"episode_id", "events", "start_time", "end_time", "source_trajectory_ids"})
         props["start_time"] = episode.start_time.isoformat()
         props["end_time"] = episode.end_time.isoformat()
         
@@ -84,7 +97,8 @@ class ConsolidatedMemoryStore:
             await self._driver.execute_query(cypher, {
                 "id": episode.episode_id,
                 "props": props,
-                "event_ids": episode.events
+                "event_ids": episode.events,
+                "traj_ids": episode.source_trajectory_ids
             })
             return True
         except Exception as e:
