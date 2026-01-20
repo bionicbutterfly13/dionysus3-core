@@ -1,7 +1,7 @@
 # Track Plan: Thoughtseeds Framework Enhancement
 
 **Track ID**: 038-thoughtseeds-framework
-**Status**: In Progress (40%)
+**Status**: In Progress (65%) - Phase 3 Complete, Phase 4 Ready
 
 ## Phase 1: EFE-Driven Decision Engine (US1) - P1
 
@@ -31,14 +31,14 @@
 - [x] **Task 3.2**: Implement `blanket_isolation` logic in `AgentMemoryService`
 - [x] **Task 3.3**: Refactor `PerceptionAgent` to map inputs strictly to the "Sensory" blanket surface
 
-## Phase 4: Inner Screen (US4) - P2
+## Phase 4: Fractal Inner Screen (Bio-Constraints) (US4) - P2
 
-**Goal**: Provide a formal data structure for serial conscious attention.
+**Goal**: Enforce Biography as a Fractal Constraint on the OODA Loop.
 
-- [ ] **Task 4.1**: Create `api/models/workspace.py` with `InnerScreen` model
-- [ ] **Task 4.2**: Implement `attentional_spotlight` logic (weighting mechanism)
-- [ ] **Task 4.3**: Update `ConsciousnessManager` to use `InnerScreen` as the primary reasoning state
-- [ ] **Task 4.4**: [TDD] Add visualization tool for `InnerScreen` in `dionysus_mcp/server.py`
+- [x] **Task 4.1**: Implement `BiographicalConstraintCell` in `context_packaging.py` (Fractal Memory)
+- [x] **Task 4.2**: Implement `fetch_biographical_context` in `ConsciousnessManager` (Constraint Injection)
+- [x] **Task 4.3**: [TDD] Verify constraint injection with `tests/unit/test_fractal_constraints.py`
+- [ ] **Task 4.4**: Add visualization for Constraint Cells in `dionysus_mcp` (Optional/Next)
 
 ## Phase 5: Verification & Polish (US5)
 

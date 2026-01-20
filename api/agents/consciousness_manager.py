@@ -37,6 +37,8 @@ from api.models.beautiful_loop import PrecisionError, ResonanceMode, ResonanceSi
 from api.services.hyper_model_service import get_hyper_model_service
 from api.services.resonance_detector import get_resonance_detector
 from api.services.unified_reality_model import get_unified_reality_model
+from api.agents.consolidated_memory_stores import get_consolidated_memory_store
+from api.services.context_packaging import BiographicalConstraintCell, CellPriority
 
 class ConsciousnessManager:
     """
@@ -250,7 +252,21 @@ The agents will return structured results for synthesis.""",
             if past_episodes:
                 lessons_learned = await self.meta_learner.synthesize_lessons(past_episodes)
                 initial_context["meta_cognitive_lessons"] = lessons_learned
+                initial_context["meta_cognitive_lessons"] = lessons_learned
                 logger.debug(f"Meta-Cognitive Learner injected lessons from {len(past_episodes)} past episodes.")
+
+        # FEATURE (Phase 4): Fractal Biographical Constraints
+        # Injection of 'Biography-as-Constraint' from the current Journey
+        try:
+            biographical_cell = await self._fetch_biographical_context()
+            if biographical_cell:
+                # Inject directly into initial_context which becomes context for reasoning
+                # Note: We rely on context_packaging service to format this if used there,
+                # but here we also make it available as a raw field for the prompt template.
+                initial_context["biographical_constraints"] = biographical_cell.content
+                logger.info(f"FRACTAL CONSTRAINT: Injected biography '{biographical_cell.journey_id}'")
+        except Exception as bio_err:
+            logger.warning(f"Failed to inject biographical constraints: {bio_err}")
 
         # FEATURE 049: Cognitive Meta-Coordinator
         # Dynamically selects reasoning mode and afforded tools
@@ -586,3 +602,28 @@ The agents will return structured results for synthesis.""",
                 "effective_precision": 1.0,
                 "error": str(e)
             }
+
+    async def _fetch_biographical_context(self) -> Any:
+        """
+        Fetch the active Autobiographical Journey and package it as a constraint cell.
+        Phase 4: Fractal Metacognition.
+        """
+        try:
+            store = get_consolidated_memory_store()
+            journey = await store.get_active_journey()
+            
+            if journey:
+                # Create the cell
+                cell = BiographicalConstraintCell(
+                    cell_id=f"bio_{journey.journey_id}",
+                    content="", # Auto-generated
+                    priority=CellPriority.CRITICAL, # MUST be visible
+                    token_count=200, # Initial budget
+                    journey_id=journey.title,
+                    unresolved_themes=list(journey.themes)[:5], # Top 5 themes
+                    identity_markers=["Narrative Coherence", "Fractal Self-Similarity"]
+                )
+                return cell
+        except Exception as e:
+            logger.warning(f"Error fetching biographical context: {e}")
+        return None

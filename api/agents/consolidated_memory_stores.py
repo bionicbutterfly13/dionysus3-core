@@ -155,6 +155,28 @@ class ConsolidatedMemoryStore:
             logger.error(f"Error fetching recent events: {e}")
             return []
 
+    async def get_active_journey(self) -> Optional[AutobiographicalJourney]:
+        """Retrieve the currently active Autobiographical Journey (most recently updated)."""
+        cypher = """
+        MATCH (j:AutobiographicalJourney)
+        RETURN j
+        ORDER BY j.updated_at DESC
+        LIMIT 1
+        """
+        try:
+            result = await self._driver.execute_query(cypher)
+            if result and result[0]:
+                data = result[0]["j"]
+                # Rehydrate dates
+                if isinstance(data.get("created_at"), str):
+                    data["created_at"] = datetime.fromisoformat(data["created_at"])
+                if isinstance(data.get("updated_at"), str):
+                    data["updated_at"] = datetime.fromisoformat(data["updated_at"])
+                return AutobiographicalJourney(**data)
+        except Exception as e:
+            logger.error(f"Failed to retrieve active journey: {e}")
+        return None
+
 _instance: Optional[ConsolidatedMemoryStore] = None
 
 def get_consolidated_memory_store() -> ConsolidatedMemoryStore:

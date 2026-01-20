@@ -310,6 +310,58 @@ class PriorHierarchy(BaseModel):
             self.learned_priors.append(constraint)
         self.updated_at = datetime.utcnow()
 
+    def merge_biographical_priors(self, priors: List[PriorConstraint]) -> int:
+        """
+        Merge biographical priors into the LEARNED layer.
+
+        Track 038 Phase 4: Fractal Metacognition Integration
+
+        Biographical priors are dynamic constraints derived from the agent's
+        autobiographical journey. They provide soft biases toward actions
+        that address unresolved narrative themes.
+
+        Args:
+            priors: List of biographical PriorConstraints
+
+        Returns:
+            Number of priors added
+        """
+        added = 0
+        existing_ids = {p.id for p in self.learned_priors}
+
+        for prior in priors:
+            # Only add if not already present
+            if prior.id not in existing_ids:
+                # Force to LEARNED level
+                prior.level = PriorLevel.LEARNED
+                self.learned_priors.append(prior)
+                existing_ids.add(prior.id)
+                added += 1
+
+        if added > 0:
+            self.updated_at = datetime.utcnow()
+
+        return added
+
+    def clear_biographical_priors(self) -> int:
+        """
+        Remove all biographical priors (those with source='biographical' in metadata).
+
+        Returns:
+            Number of priors removed
+        """
+        original_count = len(self.learned_priors)
+        self.learned_priors = [
+            p for p in self.learned_priors
+            if p.metadata.get("source") != "biographical"
+        ]
+        removed = original_count - len(self.learned_priors)
+
+        if removed > 0:
+            self.updated_at = datetime.utcnow()
+
+        return removed
+
 
 # =============================================================================
 # Default BASAL Priors (Seeding)

@@ -141,15 +141,68 @@ class SchemaContextCell(ContextCell):
 {items}
 </active_schema>"""
 
+@dataclass
+class BiographicalConstraintCell(ContextCell):
+    """
+    A cell carrying biographical constraints (identity, unresolved themes).
+    Injects the 'Biography constraint' into the OODA loop.
+
+    Track 038 Phase 4: Fractal Metacognition Integration
+    """
+    journey_id: str = "unknown"
+    unresolved_themes: List[str] = field(default_factory=list)
+    identity_markers: List[str] = field(default_factory=list)
+    narrative_arcs: List[str] = field(default_factory=list)
+    dominant_archetype: Optional[str] = None
+
+    def __post_init__(self):
+        """Auto-generate content XML if not provided."""
+        if not self.content:
+            themes = "\n".join(f"        <theme>{t}</theme>" for t in self.unresolved_themes)
+            markers = "\n".join(f"        <marker>{m}</marker>" for m in self.identity_markers)
+            arcs = "\n".join(f"        <arc>{a}</arc>" for a in self.narrative_arcs)
+
+            archetype_xml = ""
+            if self.dominant_archetype:
+                archetype_xml = f'\n    <dominant_archetype>{self.dominant_archetype}</dominant_archetype>'
+
+            self.content = f"""<biographical_constraints journey="{self.journey_id}">{archetype_xml}
+    <unresolved_themes>
+{themes}
+    </unresolved_themes>
+    <identity_markers>
+{markers}
+    </identity_markers>
+    <narrative_arcs>
+{arcs}
+    </narrative_arcs>
+</biographical_constraints>"""
+
+    def to_prior_patterns(self) -> List[str]:
+        """
+        Convert biographical constraints to prior constraint patterns.
+
+        Returns regex patterns that can be used with PriorHierarchy.
+        """
+        patterns = []
+
+        # Unresolved themes become soft biases
+        for theme in self.unresolved_themes:
+            # Create pattern that matches actions related to theme
+            safe_theme = theme.replace(" ", ".*").replace("(", r"\(").replace(")", r"\)")
+            patterns.append(f"(?i).*{safe_theme}.*")
+
+        return patterns
+
 
 class TokenBudgetManager:
     """
     Manages token allocation across context cells.
-    
+
     Implements budget-aware memory where cells compete for limited token space
     based on priority, resonance, and attractor strength.
     """
-    
+
     def __init__(self, total_budget: int = 8000, reserve_ratio: float = 0.1):
         """
         Initialize budget manager.
@@ -529,5 +582,160 @@ async def fetch_schema_context(query: str, budget_manager: TokenBudgetManager) -
                 
     except Exception as e:
         logger.warning(f"Failed to fetch schema context: {e}")
-        
+
     return None
+
+
+async def fetch_biographical_context(
+    agent_id: str,
+    budget_manager: TokenBudgetManager,
+    query: Optional[str] = None,
+) -> Optional[BiographicalConstraintCell]:
+    """
+    Retrieves autobiographical context to inject narrative constraints.
+
+    Track 038 Phase 4: Fractal Metacognition Integration
+
+    Orchestration:
+    1. Retrieve active AutobiographicalJourney from Graphiti/Neo4j.
+    2. Extract unresolved themes, identity markers, narrative arcs.
+    3. Package into BiographicalConstraintCell (CRITICAL priority).
+    4. Inject into Budget Manager.
+
+    Args:
+        agent_id: The agent's identifier.
+        budget_manager: The active token budget manager.
+        query: Optional query for relevance filtering.
+
+    Returns:
+        The created BiographicalConstraintCell if successful, else None.
+    """
+    try:
+        # Lazy import to avoid circular dependency
+        from api.agents.consolidated_memory_stores import ConsolidatedMemoryStores
+
+        memory_stores = ConsolidatedMemoryStores()
+        journey = await memory_stores.get_active_journey()
+
+        if not journey:
+            logger.debug(f"No active journey found for biographical context")
+            return None
+
+        # Extract themes and narrative arcs
+        themes = list(journey.themes) if journey.themes else []
+
+        # Extract identity markers from journey description and episodes
+        identity_markers = []
+        if journey.description:
+            # Simple extraction - first sentence as identity marker
+            identity_markers.append(journey.description.split('.')[0])
+
+        # Calculate narrative arcs from consciousness evolution
+        narrative_arcs = []
+        if journey.consciousness_evolution:
+            for domain, level in journey.consciousness_evolution.items():
+                if level > 0.5:
+                    narrative_arcs.append(f"High {domain} awareness ({level:.1f})")
+
+        # Calculate tokens (approximation)
+        total_chars = (
+            sum(len(t) for t in themes) +
+            sum(len(m) for m in identity_markers) +
+            sum(len(a) for a in narrative_arcs) +
+            len(journey.journey_id) + 100
+        )
+        token_count = int(total_chars / 4) + 30
+
+        cell = BiographicalConstraintCell(
+            cell_id=f"bio_{journey.journey_id[:8]}",
+            content="",  # Auto-generated in __post_init__
+            priority=CellPriority.CRITICAL,  # Biography is identity-critical
+            token_count=token_count,
+            journey_id=journey.journey_id,
+            unresolved_themes=themes,
+            identity_markers=identity_markers,
+            narrative_arcs=narrative_arcs,
+            dominant_archetype=None,  # Could be enhanced with archetype detection
+        )
+
+        created = budget_manager.add_cell(cell)
+        if created:
+            logger.info(
+                f"Biographical Context Injected: journey={journey.journey_id}, "
+                f"themes={len(themes)}, markers={len(identity_markers)}"
+            )
+            return cell
+
+    except Exception as e:
+        logger.warning(f"Failed to fetch biographical context: {e}")
+
+    return None
+
+
+def create_biographical_priors_from_cell(
+    cell: BiographicalConstraintCell,
+    agent_id: str,
+) -> List[Any]:
+    """
+    Convert a BiographicalConstraintCell into PriorConstraint objects.
+
+    This bridges the Context Packaging system with the Prior Hierarchy,
+    allowing biographical context to both:
+    1. Inject into the Inner Screen (via XML content)
+    2. Constrain action selection (via PriorHierarchy)
+
+    Track 038 Phase 4: Dual-path integration
+
+    Args:
+        cell: The biographical constraint cell.
+        agent_id: The agent's identifier.
+
+    Returns:
+        List of PriorConstraint objects for the LEARNED layer.
+    """
+    from api.models.priors import PriorConstraint, PriorLevel, ConstraintType
+
+    priors = []
+
+    # Create PREFER constraints for unresolved themes
+    # These bias the agent toward actions that address unresolved narrative threads
+    for i, theme in enumerate(cell.unresolved_themes):
+        safe_pattern = theme.replace(" ", ".*").replace("(", r"\(").replace(")", r"\)")
+        priors.append(
+            PriorConstraint(
+                id=f"bio_theme_{cell.journey_id[:6]}_{i}",
+                name=f"Narrative: {theme[:30]}",
+                description=f"Bias toward actions addressing unresolved theme: {theme}",
+                level=PriorLevel.LEARNED,
+                precision=0.6,  # Moderate bias
+                constraint_type=ConstraintType.PREFER,
+                target_pattern=f"(?i).*{safe_pattern}.*",
+                metadata={
+                    "source": "biographical",
+                    "journey_id": cell.journey_id,
+                    "theme": theme,
+                }
+            )
+        )
+
+    # Create PREFER constraints for identity markers
+    for i, marker in enumerate(cell.identity_markers):
+        safe_pattern = marker.replace(" ", ".*").replace("(", r"\(").replace(")", r"\)")
+        priors.append(
+            PriorConstraint(
+                id=f"bio_identity_{cell.journey_id[:6]}_{i}",
+                name=f"Identity: {marker[:30]}",
+                description=f"Bias toward actions aligned with identity: {marker}",
+                level=PriorLevel.LEARNED,
+                precision=0.5,
+                constraint_type=ConstraintType.PREFER,
+                target_pattern=f"(?i).*{safe_pattern}.*",
+                metadata={
+                    "source": "biographical",
+                    "journey_id": cell.journey_id,
+                    "marker": marker,
+                }
+            )
+        )
+
+    return priors
