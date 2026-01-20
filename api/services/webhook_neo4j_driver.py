@@ -9,7 +9,6 @@ authorized component for Neo4j communication.
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any, Optional
 
 logger = logging.getLogger("dionysus.webhook_driver")

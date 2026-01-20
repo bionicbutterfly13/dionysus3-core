@@ -3,15 +3,13 @@ Resonance Detector Service.
 Calculates cognitive resonance states using ULTRATHINK architectural synthesis.
 """
 
-from typing import List, Optional
+from typing import Optional
 import logging
-from datetime import datetime
 
 from api.models.beautiful_loop import (
     ResonanceMode,
     ResonanceSignal,
-    UnifiedRealityModel,
-    BoundInference
+    UnifiedRealityModel
 )
 
 logger = logging.getLogger(__name__)

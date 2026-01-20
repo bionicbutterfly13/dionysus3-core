@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Protocol
-from pydantic import BaseModel, Field
-from api.models.marketing import Product, Lesson, Step, KeyPhrase, Avatar
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
+from api.models.marketing import Product
 
 # --- 1. THE MEMEVOLVE INTERFACE (The 4 Modules) ---
 

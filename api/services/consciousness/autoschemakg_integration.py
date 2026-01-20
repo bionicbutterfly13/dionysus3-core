@@ -9,7 +9,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 import logging
 import hashlib
-import json
 
 logger = logging.getLogger(__name__)
 

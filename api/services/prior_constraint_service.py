@@ -15,7 +15,6 @@ from api.models.priors import (
     PriorHierarchy,
     PriorConstraint,
     PriorCheckResult,
-    PriorLevel,
     ConstraintType,
     get_default_basal_priors,
     get_default_dispositional_priors,

@@ -17,7 +17,6 @@ from typing import Any, Dict, Optional, List
 from uuid import UUID, uuid4
 
 from api.models.mental_model import (
-    BasinRelationship,
     BasinRelationships,
     CreateModelRequest,
     MentalModel,
@@ -31,7 +30,6 @@ from api.models.mental_model import (
     ReviseModelRequest,
     RevisionTrigger,
     UpdateModelRequest,
-    RelationshipType,
 )
 from api.services.remote_sync import get_neo4j_driver
 from api.services.dynamics_service import DynamicsService

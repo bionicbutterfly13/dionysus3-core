@@ -8,7 +8,6 @@ from uuid import uuid4
 from api.models.autobiographical import (
     DevelopmentEvent,
     DevelopmentEpisode,
-    AutobiographicalJourney,
     RiverStage,
     RiverStage,
     DevelopmentArchetype

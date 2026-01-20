@@ -12,7 +12,6 @@ import uuid
 
 from api.models.autobiographical import DevelopmentEvent, DevelopmentEventType
 from api.models.meta_cognition import CognitiveEpisode
-from api.models.beautiful_loop import ResonanceSignal
 from api.services.graphiti_service import get_graphiti_service
 from api.services.meta_cognitive_service import get_meta_learner
 from api.services.multi_tier_service import get_multi_tier_service

@@ -14,10 +14,9 @@ AUTHOR: Mani Saint-Victor, MD
 """
 
 import logging
-import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional
 from enum import Enum
 from uuid import uuid4
 

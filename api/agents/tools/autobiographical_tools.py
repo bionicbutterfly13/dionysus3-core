@@ -4,12 +4,12 @@ Feature: 028-autobiographical-memory
 Tasks: T4.1, T4.2
 """
 
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseModel, Field
 from smolagents import Tool
 
 from api.services.autobiographical_service import get_autobiographical_service
-from api.models.autobiographical import DevelopmentEvent, DevelopmentEventType
+from api.models.autobiographical import DevelopmentEventType
 from api.agents.resource_gate import async_tool_wrapper
 
 class AutobiographicalMemoryOutput(BaseModel):

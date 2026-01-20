@@ -19,7 +19,6 @@ from api.services.memevolve_adapter import get_memevolve_adapter, MemEvolveAdapt
 from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.memory_basin_router import get_memory_basin_router, BASIN_MAPPING
 from api.models.network_state import get_network_state_config
-from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger(__name__)
 

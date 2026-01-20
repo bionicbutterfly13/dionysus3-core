@@ -4,7 +4,6 @@ Marketing Tools for specialized Strategist agent.
 
 import os
 import logging
-from typing import Optional, Dict, Any
 from smolagents import Tool
 from pydantic import BaseModel, Field
 from api.services.graphiti_service import get_graphiti_service

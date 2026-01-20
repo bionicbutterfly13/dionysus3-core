@@ -10,7 +10,7 @@ Implements a triadic active inference loop where:
 """
 
 import numpy as np
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from pymdp.agent import Agent
 from pymdp import utils
 import logging

@@ -6,10 +6,8 @@ Task: T062-004 - Create document registry (SQLite)
 Manages document state from upload through processing to completion.
 """
 
-import asyncio
 import hashlib
 import logging
-import os
 import shutil
 from datetime import datetime
 from enum import Enum

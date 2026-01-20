@@ -1,7 +1,6 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
 import logging
-import time
 
 logger = logging.getLogger("dionysus.coordination.metrics")
 

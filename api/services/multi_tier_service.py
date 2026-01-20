@@ -9,13 +9,11 @@ Handles memory across three performance tiers:
 """
 
 import logging
-import asyncio
 import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-import uuid
+from typing import Dict, List, Optional, Any
 
-from api.models.memory_tier import MemoryTier, TieredMemoryItem, MigrationReport
+from api.models.memory_tier import MemoryTier, TieredMemoryItem
 from api.services.webhook_neo4j_driver import get_neo4j_driver
 from api.services.graphiti_service import get_graphiti_service
 from api.services.llm_service import chat_completion, GPT5_NANO

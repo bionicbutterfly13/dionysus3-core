@@ -24,7 +24,6 @@ from api.models.autobiographical import (
 from api.services.webhook_neo4j_driver import get_neo4j_driver
 from api.services.consciousness.active_inference_analyzer import ActiveInferenceAnalyzer
 from api.services.conversation_moment_service import (
-    ConversationMomentService,
     get_conversation_moment_service,
 )
 

@@ -8,13 +8,11 @@ propose and apply strategic improvements to the system's cognitive architecture.
 import logging
 import json
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 
 from api.models.evolution import SystemMoment, EvolutionUpdate
-from api.models.meta_cognition import CognitiveEpisode
-from api.services.meta_cognitive_service import get_meta_learner
 from api.services.webhook_neo4j_driver import get_neo4j_driver
-from api.services.llm_service import chat_completion, GPT5_NANO
+from api.services.llm_service import chat_completion
 from api.services.consciousness_integration_pipeline import get_consciousness_pipeline
 from api.services.memory_basin_router import get_memory_basin_router
 

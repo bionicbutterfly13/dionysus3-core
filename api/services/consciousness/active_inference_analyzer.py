@@ -9,7 +9,7 @@ Analyzes agent interactions to detect:
 3. Autopoietic boundaries (Self-definition)
 """
 
-from typing import List, Dict, Set, Any, Optional
+from typing import List, Dict, Any
 from api.models.autobiographical import (
     ActiveInferenceState, 
     DevelopmentArchetype, 

@@ -13,7 +13,6 @@ Migrated from D2 claude_autobiographical_memory.py
 """
 
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
 from api.models.autobiographical import (

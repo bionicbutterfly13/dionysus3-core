@@ -9,8 +9,7 @@ Cold: Deep archival consolidated wisdom (Entities/Relationships in Graphiti).
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-import json
+from typing import Optional
 from uuid import uuid4
 
 from api.services.webhook_neo4j_driver import get_neo4j_driver

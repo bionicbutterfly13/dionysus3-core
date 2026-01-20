@@ -1,17 +1,13 @@
 import logging
-import json
 from datetime import datetime
-from typing import List, Optional, Any, Dict, Set
-from uuid import uuid4
+from typing import List, Optional
 
 from api.models.autobiographical import (
     DevelopmentEvent,
     DevelopmentEpisode,
-    AutobiographicalJourney,
-    RiverStage
+    AutobiographicalJourney
 )
 from api.services.webhook_neo4j_driver import get_neo4j_driver
-from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger("dionysus.memory.consolidated")
 

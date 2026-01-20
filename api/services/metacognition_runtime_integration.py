@@ -21,10 +21,7 @@ from datetime import datetime
 
 from api.services.metacognition_patterns_storage import (
     get_metacognition_patterns_storage,
-    ProceduralMetacognitionPatternsStorage,
-    MonitoringPattern,
     ControlPattern,
-    ThoughtseedCompetitionPattern,
     LoopPreventionPattern,
 )
 from api.services.procedural_metacognition import ProceduralMetacognition, CognitiveAssessment

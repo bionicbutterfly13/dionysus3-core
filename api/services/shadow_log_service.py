@@ -1,7 +1,6 @@
 
 import logging
 from typing import Optional
-from datetime import datetime
 from api.models.biological_agency import DissonanceEvent
 from api.services.graphiti_service import GraphitiService
 

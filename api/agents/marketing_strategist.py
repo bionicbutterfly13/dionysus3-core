@@ -6,9 +6,8 @@ Grounded in '[LEGACY_AVATAR_HOLDER]' research and the '21 Forbidden Email Framew
 """
 
 import logging
-from typing import Optional, List
-from smolagents import CodeAgent, LiteLLMModel
-from api.services.llm_service import GPT5_NANO, get_router_model
+from smolagents import CodeAgent
+from api.services.llm_service import get_router_model
 from api.agents.tools.cognitive_tools import understand_question, recall_related, examine_answer
 from api.agents.tools.marketing_tools import get_marketing_framework, get_avatar_intel
 

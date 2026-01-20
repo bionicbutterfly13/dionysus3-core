@@ -19,7 +19,6 @@ Reference:
 import logging
 import json
 from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime
 
 from api.models.biological_agency import (
     AgencyTier,
@@ -35,8 +34,11 @@ from api.models.biological_agency import (
     BiologicalAgentState,
     DevelopmentalStage,
     ReconciliationEvent,
+    SubcorticalState,
+    MentalAffordance,
+    ObjectAffordance,
+    CompetitiveAffordance,
 )
-from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,13 @@ class BiologicalAgencyService:
         self._shadow_log = None
         self._dissonance_threshold = 5.0 # Threshold for logging to Shadow
         self._reconciliation_service = None
+        self._arousal_service = None
+
+    async def _get_arousal_service(self):
+        if self._arousal_service is None:
+            from api.services.arousal_system_service import ArousalSystemService
+            self._arousal_service = ArousalSystemService(await self._get_shadow_log())
+        return self._arousal_service
 
     async def _get_reconciliation_service(self):
         if self._reconciliation_service is None:
@@ -228,6 +237,10 @@ class BiologicalAgencyService:
             executive = ExecutiveState.model_validate_json(data['executive_state'])
             metacog = MetacognitiveState.model_validate_json(data['metacognitive_state'])
             
+            # Feature 070: Subcortical State hydration
+            subcortical_data = data.get('subcortical_state')
+            subcortical = SubcorticalState.model_validate_json(subcortical_data) if subcortical_data else SubcorticalState()
+            
             # Handle optionals
             last_decision = BehavioralDecision.model_validate_json(data['last_decision']) if data.get('last_decision') else None
             joint_agency = JointAgency.model_validate_json(data['joint_agency']) if data.get('joint_agency') else None
@@ -253,6 +266,7 @@ class BiologicalAgencyService:
                 goals=goals,
                 executive=executive,
                 metacognitive=metacog,
+                subcortical=subcortical,
                 last_decision=last_decision,
                 joint_agency=joint_agency,
                 collective_agency=collective_agency,
@@ -418,7 +432,7 @@ class BiologicalAgencyService:
             selected_action=best_action,
             alternatives_considered=alternatives,
             simulated_outcomes=simulated_outcomes,
-            decision_confidence=0.7
+            decision_confidence=0.7 * agent.subcortical.synaptic_gain
         )
         
         agent.executive = executive
@@ -473,9 +487,26 @@ class BiologicalAgencyService:
         
         # Initialize metacognitive state
         metacog = MetacognitiveState(
-            cognitive_effort_budget=self._allocate_cognitive_effort(goals),
-            prior_weight=0.5  # Balanced prior/evidence weighting
+            cognitive_effort_budget=self._allocate_cognitive_effort(goals) * agent.subcortical.synaptic_gain,
+            prior_weight=0.5
         )
+        
+        # Feature 070: Set-Switching (NE-driven)
+        arousal_svc = await self._get_arousal_service()
+        if arousal_svc.should_set_switch(agent.subcortical):
+            logger.info(f"SET-SWITCH TRIGGERED for agent {agent_id} (NE: {agent.subcortical.ne_phasic:.2f})")
+            metacog.active_strategies.append("set_switching")
+            # If set-switching, we might abandon the current tree or heavily deweight it
+            metacog.prior_weight = 0.1 # Prioritize current evidence heavily
+        
+        # Feature 070: Metacognitive 'Doability' (Proust 2024)
+        # If mental affordances are hopeless, adjust strategy
+        for aff in perception.mental_opportunities:
+            # We assume dict for raw perception, need to convert or handle both
+            doability = aff.get("doability_feeling", 0.5) if isinstance(aff, dict) else getattr(aff, 'doability_feeling', 0.5)
+            if doability < 0.2:
+                 metacog.active_strategies.append("seek_alternative_mental_path")
+                 metacog.cognitive_effort_budget *= 0.5 # Reduce wasted effort on hopeless tasks
         
         # Assess competence for this decision domain
         domain = goals.active_goals[0] if goals.active_goals else "general"
@@ -792,7 +823,10 @@ class BiologicalAgencyService:
         agent_id: str,
         observe_data: Dict[str, Any],
         orient_analysis: Dict[str, Any],
-        decide_context: Dict[str, Any]
+        decide_context: Dict[str, Any],
+        surprisal: float = 0.0,
+        goal_proximity: float = 0.5,
+        affective_atmosphere: float = 0.0
     ) -> BehavioralDecision:
         """
         Integrate with the OODA loop from HeartbeatAgent.
@@ -819,7 +853,15 @@ class BiologicalAgencyService:
             attended_situations=observe_data.get("situations", []),
             goal_relevance=observe_data.get("relevance", {}),
             affordances=observe_data.get("affordances", []),
-            obstacles=observe_data.get("obstacles", [])
+            obstacles=observe_data.get("obstacles", []),
+            state_probabilities=observe_data.get("state_probabilities", []),
+            affective_atmosphere=observe_data.get("affective_atmosphere", affective_atmosphere),
+            mental_opportunities=observe_data.get("mental_opportunities", []),
+            object_affordances=[
+                ObjectAffordance.model_validate(obj) if isinstance(obj, dict) else obj 
+                for obj in observe_data.get("object_affordances", [])
+            ],
+            recipient_objects=observe_data.get("recipient_objects", [])
         )
         
         # Map ORIENT to GoalState
@@ -829,6 +871,114 @@ class BiologicalAgencyService:
             goal_priorities=orient_analysis.get("goal_priorities", {})
         )
         
+        # Update Subcortical State (Feature 070)
+        arousal_svc = await self._get_arousal_service()
+        agent.subcortical = await arousal_svc.update_subcortical_state(
+            current_state=agent.subcortical,
+            surprisal=surprisal,
+            goal_proximity=goal_proximity,
+            affective_atmosphere=affective_atmosphere,
+            agency_tier=agent.current_tier
+        )
+        
+        # Potentiate Mental Affordances (McClelland/Proust 2024)
+        if perception.mental_opportunities:
+            # Convert dicts to models if necessary
+            aff_models = []
+            for m in perception.mental_opportunities:
+                if isinstance(m, dict):
+                    aff_models.append(MentalAffordance.model_validate(m))
+                else:
+                    aff_models.append(m)
+            
+            perception.mental_opportunities = arousal_svc.potentiate_mental_affordances(
+                agent.subcortical, aff_models
+            )
+        
+        # Bach et al. (2014) Interpretation: Seen Action -> Object Function -> Goal
+        observed_manipulation = observe_data.get("observed_manipulation")
+        if observed_manipulation and perception.object_affordances:
+            updates = arousal_svc.interpret_action_goal(observed_manipulation, perception.object_affordances)
+            for g, val in updates.items():
+                perception.goal_relevance[g] = max(perception.goal_relevance.get(g, 0.0), val)
+
+        # Bach et al. (2014) Prediction: Goal -> Object Function -> Expected Action
+        if agent.goals.active_goals and perception.object_affordances:
+            perception.expected_manipulations = arousal_svc.predict_manipulations(
+                agent.goals.active_goals, 
+                perception.object_affordances, 
+                perception.recipient_objects
+            )
+
+        # Feature 072: Generate Attendabilia (Priority Map)
+        perception.attendabilia = arousal_svc.generate_attendabilia(
+            perception.object_affordances,
+            perception.mental_opportunities
+        )
+        
+        # Feature 072: Resolve Attentional Competition (Orient Phase)
+        # This occurs BEFORE physical action selection to bias the landscape.
+        perception.attendabilia, winner_id = arousal_svc.resolve_attention_competition(
+            perception.attendabilia,
+            agent.goals.active_goals,
+            agent.subcortical
+        )
+        perception.focal_attention_target = winner_id
+        
+        if winner_id:
+             logger.info(f"Agent {agent_id} focal attention captured by: {winner_id}")
+        
+        # Feature 071: Cisek (2007) Affordance Competition
+        # 1. Update/Initialize Competition State with current affordances
+        current_comp = agent.affordance_competition
+        
+        # Add new physical affordances
+
+        # Feature 071: Cisek (2007) Affordance Competition
+        # 1. Update/Initialize Competition State with current affordances
+        current_comp = agent.affordance_competition
+        
+        # Add new physical affordances
+        for obj in perception.object_affordances:
+            for knowledge in obj.knowledge:
+                aff_id = f"phys_{obj.object_label}_{knowledge.manipulation}"
+                if aff_id not in current_comp.competing_affordances:
+                    # New entrant
+                    current_comp.competing_affordances[aff_id] = CompetitiveAffordance(
+                        affordance_id=aff_id,
+                        action_type=AffordanceType.BODILY,
+                        source_physical=obj,
+                        bottom_up_salience=0.5 # Default salience
+                    )
+
+        # Add new mental affordances
+        if perception.mental_opportunities:
+           for m in perception.mental_opportunities:
+               # Ensure m is a model
+               m_model = m if isinstance(m, MentalAffordance) else MentalAffordance.model_validate(m)
+               aff_id = f"mental_{m_model.label}"
+               if aff_id not in current_comp.competing_affordances:
+                   current_comp.competing_affordances[aff_id] = CompetitiveAffordance(
+                       affordance_id=aff_id,
+                       action_type=AffordanceType.MENTAL,
+                       source_mental=m_model,
+                       bottom_up_salience=m_model.potentiation_level # Inherit potentiation
+                   )
+        
+        # 2. Resolve Competition
+        agent.affordance_competition = arousal_svc.resolve_competition(
+            competition_state=current_comp,
+            subcortical=agent.subcortical,
+            active_goals=agent.goals.active_goals
+        )
+        
+        # 3. Check for Winner
+        if agent.affordance_competition.winning_affordance_id:
+             winner = agent.affordance_competition.competing_affordances[agent.affordance_competition.winning_affordance_id]
+             logger.info(f"Agent {agent_id} selected action via Cisek Competition: {winner.affordance_id}")
+
+        logger.debug(f"Agent {agent_id} subcortical state updated: NE_p={agent.subcortical.ne_phasic:.2f}, DA_p={agent.subcortical.da_phasic:.2f}, Gain={agent.subcortical.synaptic_gain:.2f}")
+
         # Select tier-appropriate decision process
         if agent.current_tier == AgencyTier.GOAL_DIRECTED:
             return await self.process_tier1_decision(agent_id, perception, goals)

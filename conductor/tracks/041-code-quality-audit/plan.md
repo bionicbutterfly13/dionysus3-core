@@ -43,11 +43,11 @@
 
 ## Phase 2: Code Quality (P1)
 
-### T041-008: Run ruff for unused imports
-- [ ] Run `ruff check api/services/ --select F401`
-- [ ] Fix unused imports in each file
-- [ ] Run `ruff check api/agents/ --select F401`
-- [ ] Fix unused imports in agents
+### T041-008: Run ruff for unused imports ✅
+- [x] Run `ruff check api/services/ --select F401` → 74 errors
+- [x] Fix unused imports in each file → 73 fixed (1 intentional exception: module availability check)
+- [x] Run `ruff check api/agents/ --select F401` → 19 errors
+- [x] Fix unused imports in agents → 19 fixed
 
 ### T041-009: Verify Pydantic model validators
 - [ ] List all models in `api/models/`

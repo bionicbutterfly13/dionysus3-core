@@ -53,7 +53,6 @@ def _initialize_julia():
 
     try:
         from julia import Main
-        from julia import Pkg
 
         # Load ActiveInference.jl
         logger.info("Loading ActiveInference.jl...")
