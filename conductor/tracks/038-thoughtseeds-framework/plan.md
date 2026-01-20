@@ -1,7 +1,7 @@
 # Track Plan: Thoughtseeds Framework Enhancement
 
 **Track ID**: 038-thoughtseeds-framework
-**Status**: In Progress (65%) - Phase 3 Complete, Phase 4 Ready
+**Status**: In Progress (80%) - Phase 4 Complete, Phase 5 Ready
 
 ## Phase 1: EFE-Driven Decision Engine (US1) - P1
 
@@ -37,8 +37,11 @@
 
 - [x] **Task 4.1**: Implement `BiographicalConstraintCell` in `context_packaging.py` (Fractal Memory)
 - [x] **Task 4.2**: Implement `fetch_biographical_context` in `ConsciousnessManager` (Constraint Injection)
-- [x] **Task 4.3**: [TDD] Verify constraint injection with `tests/unit/test_fractal_constraints.py`
-- [ ] **Task 4.4**: Add visualization for Constraint Cells in `dionysus_mcp` (Optional/Next)
+- [x] **Task 4.3**: Extend `PriorHierarchy` with `merge_biographical_priors()` and `clear_biographical_priors()` methods
+- [x] **Task 4.4**: Create `FractalReflectionTracer` in `api/services/fractal_reflection_tracer.py` for debug/analysis
+- [x] **Task 4.5**: Integrate fractal tracer into `ConsciousnessManager._run_ooda_cycle()`
+- [x] **Task 4.6**: [TDD] 56 tests passing in `tests/unit/test_priors.py` (incl. Phase 4 tests)
+- [ ] **Task 4.7**: Add visualization for Constraint Cells in `dionysus_mcp` (Optional/Next)
 
 ## Phase 5: Verification & Polish (US5)
 

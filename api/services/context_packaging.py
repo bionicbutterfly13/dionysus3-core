@@ -194,6 +194,67 @@ class BiographicalConstraintCell(ContextCell):
 
         return patterns
 
+    def to_prior_constraints(self) -> List["PriorConstraint"]:
+        """
+        Convert biographical constraints to PriorConstraint objects.
+
+        Track 038 Phase 4: Fractal Metacognition Integration
+
+        Creates LEARNED-level constraints that provide soft biases toward
+        actions addressing unresolved narrative themes. These constraints
+        flow into the prior hierarchy to influence action selection.
+
+        Returns:
+            List of PriorConstraint objects for merge_biographical_priors()
+        """
+        from api.models.priors import PriorConstraint, PriorLevel, ConstraintType
+
+        constraints = []
+
+        # Each unresolved theme becomes a PREFER constraint (soft bias)
+        for i, theme in enumerate(self.unresolved_themes):
+            safe_theme = theme.replace(" ", ".*").replace("(", r"\\(").replace(")", r"\\)")
+            target_pattern = f"(?i).*{safe_theme}.*"
+
+            constraint = PriorConstraint(
+                id=f"bio_{self.journey_id}_{i}",
+                name=f"theme_{theme[:20].replace(' ', '_')}",
+                description=f"Soft bias toward actions addressing: {theme}",
+                target_pattern=target_pattern,
+                level=PriorLevel.LEARNED,
+                constraint_type=ConstraintType.PREFER,
+                precision=0.6,  # Moderate precision for soft bias
+                metadata={
+                    "source": "biographical",
+                    "journey_id": self.journey_id,
+                    "theme": theme,
+                }
+            )
+            constraints.append(constraint)
+
+        # Identity markers become stronger PREFER constraints
+        for i, marker in enumerate(self.identity_markers):
+            safe_marker = marker.replace(" ", ".*").replace("(", r"\\(").replace(")", r"\\)")
+            target_pattern = f"(?i).*{safe_marker}.*"
+
+            constraint = PriorConstraint(
+                id=f"bio_{self.journey_id}_id_{i}",
+                name=f"identity_{marker[:20].replace(' ', '_')}",
+                description=f"Identity-aligned action bias: {marker}",
+                target_pattern=target_pattern,
+                level=PriorLevel.LEARNED,
+                constraint_type=ConstraintType.PREFER,
+                precision=0.75,  # Higher precision for identity alignment
+                metadata={
+                    "source": "biographical",
+                    "journey_id": self.journey_id,
+                    "identity_marker": marker,
+                }
+            )
+            constraints.append(constraint)
+
+        return constraints
+
 
 class TokenBudgetManager:
     """

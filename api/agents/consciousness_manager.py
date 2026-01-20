@@ -39,6 +39,7 @@ from api.services.resonance_detector import get_resonance_detector
 from api.services.unified_reality_model import get_unified_reality_model
 from api.agents.consolidated_memory_stores import get_consolidated_memory_store
 from api.services.context_packaging import BiographicalConstraintCell, CellPriority
+from api.services.fractal_reflection_tracer import get_fractal_tracer
 
 class ConsciousnessManager:
     """
@@ -186,6 +187,12 @@ The agents will return structured results for synthesis.""",
         hyper_model = get_hyper_model_service()
         cycle_id = initial_context.get("cycle_id") or str(uuid.uuid4())
         initial_context["cycle_id"] = cycle_id
+
+        # Track 038 Phase 4: Start fractal reflection trace
+        fractal_tracer = get_fractal_tracer()
+        agent_id = initial_context.get("agent_id", "dionysus-1")
+        fractal_trace = fractal_tracer.start_trace(cycle_id=cycle_id, agent_id=agent_id)
+
         precision_profile = hyper_model.forecast_precision_profile(
             context=initial_context,
             internal_states={},
@@ -207,12 +214,15 @@ The agents will return structured results for synthesis.""",
 
         # Track 038 Phase 2: Evolutionary Priors Check
         # Check task against prior hierarchy BEFORE any action selection
-        agent_id = initial_context.get("agent_id", "dionysus-1")
         prior_check_result = await self._check_prior_constraints(agent_id, task_query, initial_context)
+
+        # Track 038 Phase 4: Trace prior check through fractal tracer
+        fractal_tracer.trace_prior_check(fractal_trace, prior_check_result, task_query)
 
         if not prior_check_result.get("permitted", True):
             # BASAL VIOLATION - Hard block, return early
             logger.warning(f"BASAL PRIOR VIOLATION: {prior_check_result.get('reason')}")
+            fractal_tracer.end_trace(fractal_trace)  # End trace before early return
             return {
                 "final_plan": f"Action blocked by evolutionary prior: {prior_check_result.get('reason')}",
                 "actions": [],
@@ -257,6 +267,7 @@ The agents will return structured results for synthesis.""",
 
         # FEATURE (Phase 4): Fractal Biographical Constraints
         # Injection of 'Biography-as-Constraint' from the current Journey
+        biographical_cell = None
         try:
             biographical_cell = await self._fetch_biographical_context()
             if biographical_cell:
@@ -265,6 +276,8 @@ The agents will return structured results for synthesis.""",
                 # but here we also make it available as a raw field for the prompt template.
                 initial_context["biographical_constraints"] = biographical_cell.content
                 logger.info(f"FRACTAL CONSTRAINT: Injected biography '{biographical_cell.journey_id}'")
+                # Track 038 Phase 4: Trace biographical injection
+                fractal_tracer.trace_biographical_injection(fractal_trace, biographical_cell)
         except Exception as bio_err:
             logger.warning(f"Failed to inject biographical constraints: {bio_err}")
 
@@ -530,11 +543,16 @@ The agents will return structured results for synthesis.""",
         except Exception as e:
             logger.debug(f"Resonance detection failed: {e}")
 
+        # Track 038 Phase 4: End fractal trace and include summary
+        fractal_tracer.end_trace(fractal_trace)
+        logger.debug(f"Fractal trace complete: {fractal_trace.summary()}")
+
         return {
             "final_plan": structured_result.get("reasoning", str(raw_result)),
             "actions": structured_result.get("actions", []),
             "confidence": structured_result.get("confidence", 0.5),
-            "orchestrator_log": self.orchestrator.memory.steps
+            "orchestrator_log": self.orchestrator.memory.steps,
+            "fractal_trace": fractal_trace.to_dict(),
         }
 
     def close(self):
@@ -603,15 +621,30 @@ The agents will return structured results for synthesis.""",
                 "error": str(e)
             }
 
-    async def _fetch_biographical_context(self) -> Any:
+    async def _fetch_biographical_context(self, agent_id: str = "dionysus-1") -> Any:
         """
         Fetch the active Autobiographical Journey and package it as a constraint cell.
-        Phase 4: Fractal Metacognition.
+
+        Track 038 Phase 4: Fractal Metacognition Integration
+
+        This method bridges biography to action selection by:
+        1. Retrieving the active AutobiographicalJourney
+        2. Creating a BiographicalConstraintCell (for context injection)
+        3. Merging biographical priors into the agent's PriorHierarchy
+
+        The merged priors create soft biases that influence action selection,
+        ensuring the agent's behavior aligns with its narrative identity.
+
+        Args:
+            agent_id: The agent's identifier for prior hierarchy lookup
+
+        Returns:
+            BiographicalConstraintCell if journey exists, else None
         """
         try:
             store = get_consolidated_memory_store()
             journey = await store.get_active_journey()
-            
+
             if journey:
                 # Create the cell
                 cell = BiographicalConstraintCell(
@@ -623,6 +656,34 @@ The agents will return structured results for synthesis.""",
                     unresolved_themes=list(journey.themes)[:5], # Top 5 themes
                     identity_markers=["Narrative Coherence", "Fractal Self-Similarity"]
                 )
+
+                # PHASE 4 PATCH: Merge biographical priors into hierarchy
+                # This closes the fractal loop: Biography → Priors → Action Selection
+                try:
+                    from api.services.prior_persistence_service import get_prior_persistence_service
+                    from api.services.prior_constraint_service import get_prior_constraint_service, create_default_hierarchy
+
+                    persistence = get_prior_persistence_service()
+                    hierarchy = await persistence.hydrate_hierarchy(agent_id)
+
+                    if hierarchy is None:
+                        hierarchy = create_default_hierarchy(agent_id)
+
+                    # Clear stale biographical priors and merge fresh ones
+                    hierarchy.clear_biographical_priors()
+                    bio_priors = cell.to_prior_constraints()
+                    added = hierarchy.merge_biographical_priors(bio_priors)
+
+                    if added > 0:
+                        # Update cache so subsequent checks use merged priors
+                        get_prior_constraint_service(agent_id, hierarchy)
+                        logger.info(
+                            f"FRACTAL PRIOR MERGE: {added} biographical priors injected "
+                            f"from journey '{journey.title}'"
+                        )
+                except Exception as prior_err:
+                    logger.warning(f"Failed to merge biographical priors: {prior_err}")
+
                 return cell
         except Exception as e:
             logger.warning(f"Error fetching biographical context: {e}")
