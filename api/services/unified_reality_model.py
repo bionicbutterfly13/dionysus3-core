@@ -9,7 +9,8 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import math
 
-from api.models.beautiful_loop import BoundInference, UnifiedRealityModel
+from api.models.beautiful_loop import BoundInference, ResonanceSignal, UnifiedRealityModel
+from api.models.metacognitive_particle import MetacognitiveParticle
 
 
 def _cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
@@ -83,6 +84,23 @@ class UnifiedRealityModelService:
                 if isinstance(value, str) and value.strip():
                     affordances.append(value.strip())
         return sorted(set(affordances))
+
+    def update_resonance(self, signal: ResonanceSignal) -> None:
+        """Store resonance signal in model (FR-020, FR-021)."""
+        self._model.resonance = signal
+        self._touch()
+
+    def add_metacognitive_particle(self, particle: MetacognitiveParticle) -> None:
+        """Append metacognitive particle to accumulator (FR-030, FR-031)."""
+        self._model.metacognitive_particles.append(particle)
+        self._touch()
+
+    def clear_cycle_state(self) -> None:
+        """Reset transient state for new cycle (keeps bound_inferences and context)."""
+        self._model.metacognitive_particles = []
+        self._model.active_inference_states = []
+        self._model.resonance = None
+        self._touch()
 
     def _touch(self) -> None:
         self._model.last_updated = datetime.utcnow()

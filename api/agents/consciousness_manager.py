@@ -166,16 +166,17 @@ The agents will return structured results for synthesis.""",
         self.metacognition_wrapper.__exit__(exc_type, exc_val, exc_tb)
         self._entered = False
 
-    async def run_ooda_cycle(self, initial_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def run_ooda_cycle(self, initial_context: Dict[str, Any], async_topology: bool = False) -> Dict[str, Any]:
         """
-        Execute a full OODA loop via the managed agent hierarchy.
+        Execute a full OODA loop.
+        If async_topology=True, it submits a task-graph to Daedalus instead of blocking.
         """
         if not self._entered:
             with self:
-                return await self._run_ooda_cycle(initial_context)
-        return await self._run_ooda_cycle(initial_context)
+                return await self._run_ooda_cycle(initial_context, async_topology)
+        return await self._run_ooda_cycle(initial_context, async_topology)
 
-    async def _run_ooda_cycle(self, initial_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _run_ooda_cycle(self, initial_context: Dict[str, Any], async_topology: bool = False) -> Dict[str, Any]:
         """
         Internal implementation of OODA loop execution with timeout and gating.
         """
@@ -187,6 +188,11 @@ The agents will return structured results for synthesis.""",
         hyper_model = get_hyper_model_service()
         cycle_id = initial_context.get("cycle_id") or str(uuid.uuid4())
         initial_context["cycle_id"] = cycle_id
+
+        # Track 071 (FR-001): Populate UnifiedRealityModel with cycle context at START
+        urm_service = get_unified_reality_model()
+        urm_service.clear_cycle_state()  # Reset transient state from previous cycle
+        urm_service.update_context(initial_context, cycle_id=cycle_id)
 
         # Track 038 Phase 4: Start fractal reflection trace
         fractal_tracer = get_fractal_tracer()
@@ -383,6 +389,22 @@ The agents will return structured results for synthesis.""",
         # Determine if we are using Ollama for gating
         is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
         
+        # Phase 4 (F091): Async Topology Gating
+        if async_topology:
+            from api.services.coordination_service import get_coordination_service, TaskType
+            pool = get_coordination_service()
+            initial_context["expand_topology"] = True # Trigger AFlow in CoordinationService
+            task_id = pool.submit_task(
+                payload={"query": task_query, **initial_context},
+                task_type=TaskType.RESEARCH
+            )
+            logger.info(f"OODA Cycle delegated to ASYNC TOPOLOGY in Daedalus Pool (Task: {task_id})")
+            return {
+                "task_id": task_id,
+                "status": "ASYNCHRONOUS_ORCHESTRATION_TRIGGERED",
+                "reasoning": "Goal submitted to Daedalus Coordination Pool for multi-agent DAG expansion."
+            }
+
         # Run with timeout and gating (T0.3, Q4)
         raw_result = await run_agent_with_timeout(
             self.orchestrator, 
@@ -445,7 +467,10 @@ The agents will return structured results for synthesis.""",
                     precision=confidence,
                     beliefs={"context_certainty": confidence}
                 )
-            
+
+            # Track 071 (FR-010): Update URM with active inference state
+            urm_service.update_active_inference_states([ai_state])
+
             await bus.emit_cognitive_event(
                 source="consciousness_manager",
                 problem=task_query,
@@ -522,22 +547,22 @@ The agents will return structured results for synthesis.""",
         # FEATURE 049: Resonance Signaling (ULTRATHINK Architectural Synthesis)
         # Final resonance check based on bound inferences in the Unified Reality Model
         try:
-            urm_service = get_unified_reality_model()
             resonance_detector = get_resonance_detector()
             resonance_signal = resonance_detector.detect(urm_service.get_model(), cycle_id=cycle_id)
-            
+
+            # Track 071 (FR-021): Store resonance signal in URM
+            urm_service.update_resonance(resonance_signal)
+
             # Store signal for next cycle grounding
             initial_context["resonance_signal"] = resonance_signal.model_dump()
-            
+
             if resonance_signal.mode == ResonanceMode.DISSONANT:
                 logger.warning(f"DISSONANCE DETECTED (Urgency: {resonance_signal.discovery_urgency:.2f})")
                 # Release a metacognitive particle via current reality model to signal the crunch
-                from api.models.meta_cognition import MetacognitiveParticle
+                from api.models.metacognitive_particle import MetacognitiveParticle
                 particle = MetacognitiveParticle(
-                    particle_id=f"res_{cycle_id[:8]}",
-                    content=f"Resonance failure in cycle {cycle_id}. Mode: DISSONANT.",
-                    urgency=resonance_signal.discovery_urgency,
-                    metadata={"surprisal": resonance_signal.surprisal}
+                    id=f"res_{cycle_id[:8]}",
+                    name=f"Resonance failure in cycle {cycle_id}. Mode: DISSONANT.",
                 )
                 urm_service.add_metacognitive_particle(particle)
         except Exception as e:

@@ -13,7 +13,7 @@
 | 061-context-engineering-integration | Done | Context Engineering Integration | Nemori/archetype/basin alignment, context packaging, symbolic residue |
 | 062-document-ingestion-viz | Planned | Document Ingestion & Trajectory Visualizer | Marker PDF extraction, RLM-style recursive processing, OODA trajectory visualization |
 | 070-text2story-fallback | In Progress | Text2Story Narrative Fallback | English-only narrative extraction with LLM fallback in ingestion |
-| 071-urm-live-integration | Planned | UnifiedRealityModel Live Integration | Wire ConsciousnessManager to populate URM with real OODA cycle data |
+| 071-urm-live-integration | In Progress | UnifiedRealityModel Live Integration | Wire ConsciousnessManager to populate URM with real OODA cycle data |
 
 <!--
 Status: Planned, In Progress, In Review, Done, Cancelled
