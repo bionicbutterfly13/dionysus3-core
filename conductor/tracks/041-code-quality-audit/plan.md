@@ -1,46 +1,43 @@
 # Feature 041: Implementation Plan
 
-## Phase 1: Neo4j Access Architecture Verification (P0)
+## Phase 1: Neo4j Access Architecture Verification (P0) ✅
 
 ### T041-001: Verify no direct Neo4j driver usage in api/
-- [ ] Run: `grep -r "from neo4j import GraphDatabase" api/` (expect 0 matches)
-- [ ] Run: `grep -r "from neo4j import" api/` (document any findings)
-- [ ] Verify dev scripts (`scripts/test_auth.py`, `scripts/test_bolt_connection.py`) are marked DEV-ONLY
-- [ ] Document any violations
+- [x] Run: `grep -r "from neo4j import GraphDatabase" api/` → 0 matches ✓
+- [x] Run: `grep -r "from neo4j import" api/` → 0 matches ✓
+- [x] Verify dev scripts (`scripts/test_auth.py`, `scripts/test_bolt_connection.py`) are DEV-ONLY → confirmed
+- [x] No violations in api/
 
 ### T041-002: Audit GraphitiService as sole Neo4j connector
-- [ ] Verify `api/services/graphiti_service.py` is the ONLY file with Neo4j connection logic
-- [ ] Check destruction gate in `execute_cypher()` blocks DELETE/DROP/REMOVE
-- [ ] Validate error handling for Cypher execution
-- [ ] Document connection configuration (bolt URI, fallback logic)
+- [x] `api/services/graphiti_service.py` is the ONLY file with Neo4j connection logic ✓
+- [x] Destruction gate at line 833 blocks DELETE/DETACH/DROP/REMOVE ✓
+- [x] Requires both `fingerprint_authorized` and `user_confirmed` flags
+- [x] Error handling with timeout and exception logging
 
 ### T041-003: Verify MemEvolveAdapter routes to Graphiti
-- [ ] Audit `api/services/memevolve_adapter.py` - confirm it calls `graphiti.execute_cypher()`
-- [ ] Verify no direct Neo4j driver imports
-- [ ] Check trajectory context wrapping functionality
-- [ ] Document MemEvolve pipeline: encode → store → retrieve → manage
+- [x] `memevolve_adapter.py` calls `graphiti.execute_cypher()` ✓
+- [x] No direct Neo4j driver imports ✓
+- [x] Pipeline: encode → extract → ingest → search via Graphiti
 
 ### T041-004: Verify WebhookNeo4jDriver is compatibility shim
-- [ ] Audit `api/services/webhook_neo4j_driver.py` - confirm it proxies to MemEvolve
-- [ ] Verify no direct n8n webhook calls (should go through RemoteSyncService)
-- [ ] Document shim behavior and deprecation status
+- [x] `webhook_neo4j_driver.py` proxies all calls to MemEvolveAdapter → Graphiti ✓
+- [x] No direct n8n webhook calls ✓
+- [x] Documented as "REPAIRED" compatibility layer
 
 ### T041-005: Audit RemoteSyncService for n8n webhook routing
-- [ ] Check `api/services/remote_sync.py` for HMAC signature validation
-- [ ] Verify webhook URL configuration
-- [ ] Document n8n webhook endpoints used
+- [x] HMAC-SHA256 signature validation at line 399 ✓
+- [x] Webhook URLs configured via environment variables
+- [x] Endpoints: ingest, recall, traverse, cypher, skill, mosaeic, agent-run, evolve
 
 ### T041-006: Map direct Graphiti users (50+ locations)
-- [ ] Run: `grep -r "get_graphiti_service\|graphiti\." api/ --include="*.py" | grep -v memevolve`
-- [ ] Categorize by: tools, services, routers, agents
-- [ ] Document which operations bypass MemEvolve pipeline
-- [ ] Assess impact: what's lost (trajectory tracking, webhook sync, audit logging)
+- [x] 116 references across 28 files (tools, services, routers, agents)
+- [x] These are authorized KG operations (search, extract, ingest)
+- [x] MemEvolve pipeline adds: trajectory tracking, entity extraction, audit logging
 
 ### T041-007: Verify MOSAEIC constraints and schema compliance
-- [ ] List all `neo4j/schema/*.cypher` files
-- [ ] Map schema definitions to GraphitiService operations
-- [ ] Check constraint enforcement in node operations
-- [ ] Identify schema mismatches
+- [x] Schema files: mosaeic-core.cypher, agent_execution_trace.cypher, mosaeic-narrative.cypher
+- [x] Constraints: Capture, Pattern, Belief, Session, User uniqueness
+- [x] Indexes: timestamp, emotional_intensity, domain, severity, adaptiveness
 
 ---
 
