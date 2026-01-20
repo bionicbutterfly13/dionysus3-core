@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
-import httpx
 from smolagents.memory import ActionStep, PlanningStep
 
+from api.services.vps_gateway import VpsGatewayClient
 logger = logging.getLogger(__name__)
 
 
@@ -271,13 +271,18 @@ class AgentAuditCallback:
     Callback handler for smolagents steps.
     Sends real-time telemetry to n8n for observability.
     """
-    def __init__(self, webhook_url: Optional[str] = None, project_id: str = "dionysus"):
+    def __init__(
+        self,
+        webhook_url: Optional[str] = None,
+        project_id: str = "dionysus",
+        gateway: Optional[VpsGatewayClient] = None,
+    ):
         self.webhook_url = webhook_url or os.getenv(
             "N8N_AUDIT_WEBHOOK_URL", 
             "http://72.61.78.89:5678/webhook/memory/v1/ingest/agent-step"
         )
         self.project_id = project_id
-        self._client = httpx.AsyncClient(timeout=5.0)
+        self._gateway = gateway or VpsGatewayClient()
 
     async def on_step(self, step: Any, agent_name: str, trace_id: str = "no-trace"):
         """
@@ -320,7 +325,7 @@ class AgentAuditCallback:
 
     async def _send_payload(self, payload: Dict[str, Any]):
         try:
-            await self._client.post(self.webhook_url, json=payload)
+            await self._gateway.post_json(self.webhook_url, payload, timeout=5.0)
         except Exception as e:
             # We don't want audit failures to crash the agent
             logger.error(f"Audit webhook failed: {e}")

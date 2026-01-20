@@ -9,8 +9,6 @@ Includes queue management, retry logic, and recovery operations.
 IMPORTANT: Sync operations use n8n webhooks.
 """
 
-import hashlib
-import hmac
 import json
 import logging
 import os
@@ -19,8 +17,9 @@ from collections import deque
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
-import httpx
 from pydantic import BaseModel, Field
+
+from api.services.vps_gateway import VpsGatewayClient, VpsGatewayConfig
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +177,11 @@ class RemoteSyncService:
         await sync_service.process_queue()
     """
 
-    def __init__(self, config: Optional[SyncConfig] = None):
+    def __init__(
+        self,
+        config: Optional[SyncConfig] = None,
+        gateway: Optional[VpsGatewayClient] = None,
+    ):
         """
         Initialize sync service.
 
@@ -186,6 +189,12 @@ class RemoteSyncService:
             config: Sync configuration (uses defaults if not provided)
         """
         self.config = config or SyncConfig()
+        self._gateway = gateway or VpsGatewayClient(
+            VpsGatewayConfig(
+                hmac_secret=self.config.webhook_token,
+                default_timeout_seconds=self.config.request_timeout_seconds,
+            )
+        )
         self._queue: deque[QueueItem] = deque()
         self._processing = False
         self._paused = False
@@ -371,38 +380,12 @@ class RemoteSyncService:
         """
         payload = item.payload.copy()
 
-        # Generate HMAC signature
-        payload_bytes = json.dumps(payload, default=str).encode("utf-8")
-        signature = self._generate_signature(payload_bytes)
+        webhook_result = await self._send_to_webhook(payload)
+        if webhook_result.get("success", True):  # Empty response = success
+            logger.info(f"Successfully synced memory {item.memory_id}")
+            return webhook_result
 
-        async with httpx.AsyncClient(
-            timeout=self.config.request_timeout_seconds
-        ) as client:
-            response = await client.post(
-                self.config.webhook_url,
-                content=payload_bytes,
-                headers={
-                    "Content-Type": "application/json",
-                    "X-Webhook-Signature": signature,
-                },
-            )
-
-            if response.status_code == 200:
-                logger.info(f"Successfully synced memory {item.memory_id}")
-                return response.json() if response.text else {"success": True}
-            else:
-                raise Exception(
-                    f"Webhook returned {response.status_code}: {response.text}"
-                )
-
-    def _generate_signature(self, payload: bytes) -> str:
-        """Generate HMAC-SHA256 signature for payload."""
-        digest = hmac.new(
-            key=self.config.webhook_token.encode("utf-8"),
-            msg=payload,
-            digestmod=hashlib.sha256,
-        ).hexdigest()
-        return f"sha256={digest}"
+        raise Exception(webhook_result.get("error", "Webhook returned failure"))
 
     # =========================================================================
     # Health & Status
@@ -439,10 +422,9 @@ class RemoteSyncService:
 
         # Check n8n webhook connectivity
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                base_url = self.config.webhook_url.rsplit("/webhook", 1)[0]
-                response = await client.get(f"{base_url}/healthz")
-                health["n8n_reachable"] = response.status_code == 200
+            base_url = self.config.webhook_url.rsplit("/webhook", 1)[0]
+            status = await self._gateway.get_status(f"{base_url}/healthz", timeout=5.0)
+            health["n8n_reachable"] = status == 200
         except Exception as e:
             health["errors"].append(f"n8n: {e}")
             health["healthy"] = False
@@ -640,28 +622,11 @@ class RemoteSyncService:
             Webhook response
         """
         url = webhook_url or self.config.webhook_url
-        payload_bytes = json.dumps(payload, default=str).encode("utf-8")
-        signature = self._generate_signature(payload_bytes)
-
-        async with httpx.AsyncClient(
-            timeout=self.config.request_timeout_seconds
-        ) as client:
-            response = await client.post(
-                url,
-                content=payload_bytes,
-                headers={
-                    "Content-Type": "application/json",
-                    "X-Webhook-Signature": signature,
-                },
-            )
-
-            if response.status_code == 200:
-                return response.json() if response.text else {"success": True}
-            else:
-                return {
-                    "success": False,
-                    "error": f"Webhook returned {response.status_code}: {response.text}",
-                }
+        return await self._gateway.post_json(
+            url,
+            payload,
+            timeout=self.config.request_timeout_seconds,
+        )
 
     # =========================================================================
     # Cypher Execution (Webhook-only)
