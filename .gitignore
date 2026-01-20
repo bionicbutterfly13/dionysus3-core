@@ -81,3 +81,4 @@ marker-env/
 
 # Raw data files
 scripts/rmbc_raw.txt
+.mypy_cache/

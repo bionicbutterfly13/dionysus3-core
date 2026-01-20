@@ -176,8 +176,6 @@ class EmbeddingService:
             raise EmbeddingError(f"Ollama connection error: {e}") from e
         except Exception as e:
             raise EmbeddingError(f"Embedding generation failed: {e}") from e
-        except Exception as e:
-            raise EmbeddingError(f"Embedding generation failed: {e}") from e
 
     async def generate_embeddings_batch(
         self,
