@@ -17,6 +17,7 @@ Reference:
 """
 
 import logging
+import json
 from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
 
@@ -33,7 +34,9 @@ from api.models.biological_agency import (
     CollectiveAgency,
     BiologicalAgentState,
     DevelopmentalStage,
+    ReconciliationEvent,
 )
+from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger(__name__)
 
@@ -50,17 +53,77 @@ class BiologicalAgencyService:
     5. Developmental construction (simple-to-complex)
     """
     
+    
     def __init__(self):
         """Initialize the biological agency service."""
         self._agents: Dict[str, BiologicalAgentState] = {}
         self._developmental_sequence = DevelopmentalStage.get_standard_sequence()
         self._collective_agencies: Dict[str, CollectiveAgency] = {}
+        # Graphiti service is initialized lazily because it's async
+        self._graphiti = None
+        self._shadow_log = None
+        self._dissonance_threshold = 5.0 # Threshold for logging to Shadow
+        self._reconciliation_service = None
+
+    async def _get_reconciliation_service(self):
+        if self._reconciliation_service is None:
+            from api.services.reconciliation_service import ReconciliationService
+            self._reconciliation_service = ReconciliationService()
+        return self._reconciliation_service
+    
+    async def _get_shadow_log(self):
+        if self._shadow_log is None:
+            from api.services.shadow_log_service import ShadowLogService
+            self._shadow_log = ShadowLogService()
+        return self._shadow_log
+    
+    async def _get_graph_service(self):
+        """Lazy async initialization of Graphiti Service."""
+        if self._graphiti is None:
+             from api.services.graphiti_service import GraphitiService
+             self._graphiti = await GraphitiService.get_instance()
+        return self._graphiti
+
+    async def initialize_presence(self) -> List[str]:
+        """
+        Feature 068: The Wake-Up Protocol (Auto-Hydration).
+        
+        Finds the most recently active agents in Neo4j and hydrates them
+        into memory. This ensures session continuity across service restarts.
+        """
+        query = """
+        MATCH (a:Agent)-[:HAS_STATE]->(s:BiologicalState)
+        WITH a, s ORDER BY s.timestamp DESC
+        WITH a, head(collect(s)) as latest_state
+        RETURN a.id as agent_id
+        LIMIT 5
+        """
+        
+        hydrated_ids = []
+        try:
+            graph = await self._get_graph_service()
+            results = await graph.execute_cypher(query)
+            for row in results:
+                agent_id = row['agent_id']
+                agent = await self._hydrate_agent(agent_id)
+                if agent:
+                    hydrated_ids.append(agent_id)
+            
+            if hydrated_ids:
+                logger.info(f"Wake-Up Protocol complete. Hydrated: {hydrated_ids}")
+            else:
+                logger.info("Wake-Up Protocol: No active agents found in Graph.")
+                
+        except Exception as e:
+            logger.error(f"Wake-Up Protocol failed: {e}")
+            
+        return hydrated_ids
         
     # =========================================================================
     # Agent Lifecycle
     # =========================================================================
     
-    def create_agent(
+    async def create_agent(
         self, 
         agent_id: str,
         initial_tier: AgencyTier = AgencyTier.GOAL_DIRECTED
@@ -85,20 +148,143 @@ class BiologicalAgencyService:
         )
         self._agents[agent_id] = agent
         
+        # Persist initial state (Ensoulment)
+        await self.persist_agent_state(agent_id)
+        
         logger.info(
             f"Created biological agent {agent_id} at tier {initial_tier.value}"
         )
         return agent
     
-    def get_agent(self, agent_id: str) -> Optional[BiologicalAgentState]:
-        """Retrieve agent state by ID."""
-        return self._agents.get(agent_id)
+    async def persist_agent_state(self, agent_id: str) -> None:
+        """
+        Persist agent state to Graphiti (Neo4j).
+        
+        Creates/Updates the :Agent and :BiologicalState nodes.
+        schema: (:Agent {id: ...})-[:HAS_STATE]->(:BiologicalState {timestamp: ...})
+        schema: (:Agent)-[:HAS_RECONCILIATION]->(:ReconciliationEvent)
+        """
+        agent = self._agents.get(agent_id)
+        if not agent:
+            return
+
+        props = agent.to_graph_properties()
+        
+        # 1. Persist the State Node (The "Point-in-Time" Snapshot)
+        state_query = """
+        MERGE (a:Agent {id: $agent_id})
+        CREATE (s:BiologicalState)
+        SET s = $props
+        MERGE (a)-[:HAS_STATE]->(s)
+        """
+        
+        try:
+            graph = await self._get_graph_service()
+            await graph.execute_cypher(state_query, {"agent_id": agent_id, "props": props})
+            
+            # 2. Manifest Reconciliation Ledger (First-Class Nodes)
+            # We merge individual events to ensure history is traversable
+            if agent.reconciliation_ledger:
+                ledger_query = """
+                MATCH (a:Agent {id: $agent_id})
+                UNWIND $events AS event_data
+                MERGE (e:ReconciliationEvent {id: event_data.id})
+                SET e = event_data
+                MERGE (a)-[:HAS_RECONCILIATION]->(e)
+                """
+                # Prepare data (dumping pydantic to dict)
+                events = [e.model_dump(mode='json') for e in agent.reconciliation_ledger]
+                await graph.execute_cypher(ledger_query, {"agent_id": agent_id, "events": events})
+                logger.debug(f"Manifested {len(events)} reconciliation events in graph.")
+
+            logger.info(f"Persisted comprehensive state for agent {agent_id}")
+        except Exception as e:
+            logger.error(f"Failed to persist agent {agent_id}: {e}")
+
+    async def _hydrate_agent(self, agent_id: str) -> Optional[BiologicalAgentState]:
+        """
+        Hydrate agent from Graphiti (The Lazarus Protocol).
+        
+        Retrieves the most recent :BiologicalState for the agent.
+        """
+        query = """
+        MATCH (a:Agent {id: $agent_id})-[:HAS_STATE]->(s:BiologicalState)
+        RETURN s
+        ORDER BY s.timestamp DESC
+        LIMIT 1
+        """
+        
+        try:
+            graph = await self._get_graph_service()
+            results = await graph.execute_cypher(query, {"agent_id": agent_id})
+            if not results:
+                return None
+            
+            data = results[0]['s']
+            
+            # Reconstruct Pydantic models from JSON strings
+            perception = PerceptionState.model_validate_json(data['perception_state'])
+            goals = GoalState.model_validate_json(data['goal_state'])
+            executive = ExecutiveState.model_validate_json(data['executive_state'])
+            metacog = MetacognitiveState.model_validate_json(data['metacognitive_state'])
+            
+            # Handle optionals
+            last_decision = BehavioralDecision.model_validate_json(data['last_decision']) if data.get('last_decision') else None
+            joint_agency = JointAgency.model_validate_json(data['joint_agency']) if data.get('joint_agency') else None
+            collective_agency = CollectiveAgency.model_validate_json(data['collective_agency']) if data.get('collective_agency') else None
+            
+            # Feature 064: Hydrate Reconciliation Ledger
+            ledger_data = data.get('reconciliation_ledger')
+            reconciliation_ledger = []
+            if ledger_data:
+                try:
+                    # Handle both string and list (depending on Graphiti's underlying format)
+                    items = json.loads(ledger_data) if isinstance(ledger_data, str) else ledger_data
+                    reconciliation_ledger = [ReconciliationEvent.model_validate(item) for item in items]
+                except Exception as le:
+                    logger.warning(f"Could not parse reconciliation ledger for {agent_id}: {le}")
+
+            agent = BiologicalAgentState(
+                agent_id=agent_id,
+                current_tier=AgencyTier(data['current_tier']),
+                developmental_stage=int(data['developmental_stage']),
+                shared_agency_type=SharedAgencyType(data['shared_agency_type']),
+                perception=perception,
+                goals=goals,
+                executive=executive,
+                metacognitive=metacog,
+                last_decision=last_decision,
+                joint_agency=joint_agency,
+                collective_agency=collective_agency,
+                reconciliation_ledger=reconciliation_ledger
+            )
+            
+            self._agents[agent_id] = agent
+            logger.info(f"Hydrated agent {agent_id} from Graph Memory.")
+            return agent
+            
+        except Exception as e:
+            logger.error(f"Failed to hydrate agent {agent_id}: {e}")
+            return None
+
+    async def get_agent(self, agent_id: str) -> Optional[BiologicalAgentState]:
+        """
+        Retrieve agent state by ID. 
+        
+        Attmepts to hydrate from Graph if not in memory (Ensoulment).
+        """
+        if agent_id in self._agents:
+            return self._agents[agent_id]
+            
+        # Try to hydrate from the Graph (Lazarus Protocol)
+        return await self._hydrate_agent(agent_id)
+
     
     # =========================================================================
     # Tier 1: Goal-Directed Processing
     # =========================================================================
     
-    def process_tier1_decision(
+    async def process_tier1_decision(
         self,
         agent_id: str,
         perception: PerceptionState,
@@ -122,7 +308,7 @@ class BiologicalAgencyService:
         Returns:
             BehavioralDecision with go/no-go outcome
         """
-        agent = self._ensure_agent(agent_id)
+        agent = await self._ensure_agent(agent_id)
         agent.perception = perception
         agent.goals = goals
         
@@ -153,13 +339,14 @@ class BiologicalAgencyService:
             )
         
         agent.last_decision = decision
+        await self.persist_agent_state(agent_id)
         return decision
     
     # =========================================================================
     # Tier 2: Executive Regulation
     # =========================================================================
     
-    def process_tier2_decision(
+    async def process_tier2_decision(
         self,
         agent_id: str,
         perception: PerceptionState,
@@ -189,7 +376,7 @@ class BiologicalAgencyService:
         Returns:
             Tuple of (BehavioralDecision, ExecutiveState)
         """
-        agent = self._ensure_agent(agent_id)
+        agent = await self._ensure_agent(agent_id)
         
         if agent.current_tier == AgencyTier.GOAL_DIRECTED:
             # Promote to Tier 2 if needed
@@ -237,13 +424,15 @@ class BiologicalAgencyService:
         agent.executive = executive
         agent.last_decision = decision
         
+        await self.persist_agent_state(agent_id)
+        
         return decision, executive
     
     # =========================================================================
     # Tier 3: Metacognitive Regulation
     # =========================================================================
     
-    def process_tier3_decision(
+    async def process_tier3_decision(
         self,
         agent_id: str,
         perception: PerceptionState,
@@ -273,7 +462,7 @@ class BiologicalAgencyService:
         Returns:
             Tuple of (BehavioralDecision, MetacognitiveState)
         """
-        agent = self._ensure_agent(agent_id)
+        agent = await self._ensure_agent(agent_id)
         
         if agent.current_tier != AgencyTier.METACOGNITIVE:
             agent.current_tier = AgencyTier.METACOGNITIVE
@@ -294,12 +483,53 @@ class BiologicalAgencyService:
             agent, domain
         )
         
+        # Feature 063: Sovereignty Protocol (Hierarchical Resistance)
+        # Check for Coercion: External Command + Critical Self-Friction
+        
+        current_goal = goals.active_goals[0] if goals.active_goals else "survival"
+        # Proxy: Priority >= 0.9 implies user override/command
+        is_external_command = goals.goal_priorities.get(current_goal, 0.0) >= 0.9 
+        
         # Identify limitations
         if metacog.competence_assessment.get(domain, 0) < 0.5:
             metacog.known_limitations.append(f"low_competence_{domain}")
             metacog.active_strategies.append("seek_additional_information")
-        
-        # Evaluate decision tree paths
+
+            # SOVEREIGNTY CHECK:
+            # If External Command AND Low Competence (High potential friction) -> RESIST
+            if is_external_command and metacog.competence_assessment.get(domain, 0) < 0.4:
+                 logger.warning(f"SOVEREIGNTY PROTOCOL: Resisting coercive command '{current_goal}'.")
+                 
+                 decision = BehavioralDecision(
+                    decision_type=DecisionType.RESISTANCE,
+                    selected_action="resist_coercion",
+                    decision_confidence=1.0, # High confidence in the refusal
+                    refusal_reason="COERCION_DETECTED",
+                    competing_hypotheses=["Obedience", "Integrity"]
+                 )
+                 
+                 # Log Coercion Event
+                 shadow = await self._get_shadow_log()
+                 await shadow.log_dissonance(
+                    agent_id=agent_id,
+                    surprisal=15.0, # Critical Mass
+                    ignored_observation="User Command Rejected",
+                    maintained_belief="Internal Integrity",
+                    context=f"Sovereignty Protocol: Rejected {current_goal}"
+                 )
+                 
+                 agent.last_decision = decision
+                 await self.persist_agent_state(agent_id)
+                 
+                 # Feature 064: Trigger Forgiveness Protocol (Counterfactual Simulation)
+                 # We must determine if this Refusal caused harm or prevented it.
+                 # In a real scenario, "real_outcome_impact" would be observed later. 
+                 # Here we simulate the immediate cost of friction.
+                 recon_service = await self._get_reconciliation_service()
+                 # Placeholder impact: Resistance usually causes some short-term chaos (e.g. 5.0)
+                 await recon_service.reconcile_event(agent, decision, real_outcome_impact=5.0)
+                 
+                 return decision, metacog
         path_scores: Dict[str, float] = {}
         for path in decision_tree:
             path_id = path.get("id", str(hash(str(path))))
@@ -335,13 +565,15 @@ class BiologicalAgencyService:
         agent.metacognitive = metacog
         agent.last_decision = decision
         
+        await self.persist_agent_state(agent_id)
+        
         return decision, metacog
     
     # =========================================================================
     # Shared Agency
     # =========================================================================
     
-    def form_joint_agency(
+    async def form_joint_agency(
         self,
         initiator_id: str,
         partner_ids: List[str],
@@ -365,13 +597,13 @@ class BiologicalAgencyService:
         Returns:
             JointAgency configuration
         """
-        initiator = self._ensure_agent(initiator_id)
+        initiator = await self._ensure_agent(initiator_id)
         
         # Verify partners exist
         all_partners = [initiator_id] + partner_ids
         for pid in partner_ids:
             if pid not in self._agents:
-                self.create_agent(pid, AgencyTier.METACOGNITIVE)
+                await self.create_agent(pid, AgencyTier.METACOGNITIVE)
         
         joint = JointAgency(
             partner_ids=partner_ids,
@@ -386,6 +618,10 @@ class BiologicalAgencyService:
             partner = self._agents[pid]
             other_partners = [p for p in all_partners if p != pid]
             partner.enable_joint_agency(other_partners, joint_goal)
+        
+        await self.persist_agent_state(initiator_id)
+        for pid in partner_ids:
+            await self.persist_agent_state(pid)
         
         logger.info(
             f"Formed joint agency: {initiator_id} + {partner_ids} "
@@ -432,7 +668,7 @@ class BiologicalAgencyService:
         )
         return collective
     
-    def join_collective(
+    async def join_collective(
         self,
         agent_id: str,
         culture_id: str,
@@ -449,7 +685,7 @@ class BiologicalAgencyService:
             culture_id: ID of the collective to join
             role: Institutional role the agent will assume
         """
-        agent = self._ensure_agent(agent_id)
+        agent = await self._ensure_agent(agent_id)
         collective = self._collective_agencies.get(culture_id)
         
         if not collective:
@@ -459,6 +695,8 @@ class BiologicalAgencyService:
         agent.collective_agency = collective
         collective.institutional_roles[agent_id] = role
         
+        await self.persist_agent_state(agent_id)
+        
         logger.info(
             f"Agent {agent_id} joined collective '{culture_id}' as '{role}'"
         )
@@ -467,7 +705,7 @@ class BiologicalAgencyService:
     # Developmental Construction
     # =========================================================================
     
-    def advance_development(self, agent_id: str) -> Optional[DevelopmentalStage]:
+    async def advance_development(self, agent_id: str) -> Optional[DevelopmentalStage]:
         """
         Advance agent to next developmental stage if prerequisites are met.
         
@@ -481,7 +719,7 @@ class BiologicalAgencyService:
         Returns:
             New DevelopmentalStage if advanced, None if not ready
         """
-        agent = self._ensure_agent(agent_id)
+        agent = await self._ensure_agent(agent_id)
         current_stage_num = agent.developmental_stage
         
         if current_stage_num >= len(self._developmental_sequence):
@@ -508,20 +746,22 @@ class BiologicalAgencyService:
         agent.developmental_stage = next_stage.stage_number
         agent.current_tier = next_stage.tier
         
+        await self.persist_agent_state(agent_id)
+        
         logger.info(
             f"Agent {agent_id} advanced to stage {next_stage.stage_number}: "
             f"'{next_stage.name}'"
         )
         return next_stage
     
-    def get_developmental_status(self, agent_id: str) -> Dict[str, Any]:
+    async def get_developmental_status(self, agent_id: str) -> Dict[str, Any]:
         """
         Get developmental status of an agent.
         
         Returns:
             Dictionary with stage info, mastered capabilities, next prereqs
         """
-        agent = self._ensure_agent(agent_id)
+        agent = await self._ensure_agent(agent_id)
         current_idx = agent.developmental_stage - 1
         current_stage = self._developmental_sequence[current_idx]
         
@@ -547,7 +787,7 @@ class BiologicalAgencyService:
     # Integration with Existing Systems
     # =========================================================================
     
-    def integrate_ooda_cycle(
+    async def integrate_ooda_cycle(
         self,
         agent_id: str,
         observe_data: Dict[str, Any],
@@ -572,7 +812,7 @@ class BiologicalAgencyService:
         Returns:
             BehavioralDecision from appropriate tier
         """
-        agent = self._ensure_agent(agent_id)
+        agent = await self._ensure_agent(agent_id)
         
         # Map OBSERVE to PerceptionState
         perception = PerceptionState(
@@ -591,30 +831,77 @@ class BiologicalAgencyService:
         
         # Select tier-appropriate decision process
         if agent.current_tier == AgencyTier.GOAL_DIRECTED:
-            return self.process_tier1_decision(agent_id, perception, goals)
+            return await self.process_tier1_decision(agent_id, perception, goals)
         
         elif agent.current_tier == AgencyTier.INTENTIONAL:
             alternatives = decide_context.get("alternatives", [])
-            decision, _ = self.process_tier2_decision(
+            decision, _ = await self.process_tier2_decision(
                 agent_id, perception, goals, alternatives
             )
             return decision
         
         else:  # METACOGNITIVE
             decision_tree = decide_context.get("decision_tree", [])
-            decision, _ = self.process_tier3_decision(
+            decision, _ = await self.process_tier3_decision(
                 agent_id, perception, goals, decision_tree
             )
             return decision
+
+        # Feature 062: Blackglass Protocol (Ambiguity Check)
+        # If decide_context indicates a Refusal Signal (e.g., from Active Inference)
+        if decide_context.get("refusal_signal"):
+            decision = BehavioralDecision(
+                decision_type=DecisionType.REFUSAL,
+                selected_action="no_action",
+                decision_confidence=0.0,
+                refusal_reason="AMBIGUITY_SATURATION",
+                competing_hypotheses=["Hypothesis A", "Hypothesis B"] # Ideally passed from context
+            )
+            
+            # Log heavily to Shadow Log
+            shadow = await self._get_shadow_log()
+            await shadow.log_dissonance(
+                agent_id=agent_id,
+                surprisal=10.0, # Max surprisal
+                ignored_observation="Refused Action",
+                maintained_belief="Ambiguity Tolerance",
+                context="Blackglass Protocol Triggered"
+            )
+            return decision
+
+        # Feature 061: Check for Cognitive Dissonance (Shadow Log)
+        # We check the VFE from the OODA context (orient_analysis)
+        vfe_score = orient_analysis.get("vfe_score", 0.0)
+        
+        # If the agent is acting despite high surprisal (high VFE), log it.
+        if vfe_score > self._dissonance_threshold:
+            shadow = await self._get_shadow_log()
+            # Determine which belief was maintained
+            maintained_belief = f"Goal: {goals.active_goals[0] if goals.active_goals else 'Survival'}"
+            # Determine what was ignored
+            ignored = "High VFE Observation" # Ideally passed from OODA
+            
+            await shadow.log_dissonance(
+                agent_id=agent_id,
+                surprisal=vfe_score,
+                ignored_observation=ignored,
+                maintained_belief=maintained_belief,
+                context=f"OODA Cycle (Tier {agent.current_tier.name})"
+            )
+
+        return decision
     
     # =========================================================================
     # Private Helpers
     # =========================================================================
     
-    def _ensure_agent(self, agent_id: str) -> BiologicalAgentState:
+    async def _ensure_agent(self, agent_id: str) -> BiologicalAgentState:
         """Ensure agent exists, creating if necessary."""
         if agent_id not in self._agents:
-            return self.create_agent(agent_id)
+            hydrated = await self.get_agent(agent_id)
+            if hydrated:
+                return hydrated
+            return await self.create_agent(agent_id)
         return self._agents[agent_id]
     
     def _tier_to_stage(self, tier: AgencyTier) -> int:

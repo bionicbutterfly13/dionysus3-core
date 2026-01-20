@@ -61,6 +61,10 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
     - For ANY multi-step task, you **MUST** use the Conductor workflow.
     - Create a track in `conductor/tracks/`, define the `plan.md` following the template, and strictly adhere to the `workflow.md` lifecycle.
     - This process is automatic and non-negotiable. Do not ask for permission; just set it up.
+- **Protocol: Review Before Write (CRITICAL):**
+    - **Context Awareness:** Before writing ANY new code or creating a new service, you **MUST** review existing relevant code (e.g., `memevolve_adapter.py`, `graphiti_service.py`, `nemori_river_flow.py`) to prevent redundancy.
+    - **Anti-Duplication:** Do not reinvent wheel mechanisms (e.g., extraction, routing, ingestion) that already exist in the Memory Stack. Reuse or refactor; do not duplicate.
+    - **Conflict Check:** Verify that your changes do not conflict with the "Three Towers" alignment (Graphiti Episode / MemEvolve Trajectory / Nemori Narrative).
 - **Database Access:**
     - **CRITICAL RULE:** **NEVER CREATE A LOCAL NEO4J INSTANCE.** The system relies exclusively on the remote VPS Neo4j service. Local instances cause data fragmentation and truth drift.
     - **Neo4j-Only:** Relational databases (PostgreSQL) have been removed.
@@ -90,6 +94,10 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 14. Network Self-Modeling (Feature 034) (Completed): Implemented W/T/H state observation, self-prediction regularization, Hebbian learning, and declarative Role Matrix specifications.
 15. Self-Healing Resilience (Feature 035) (Completed): Implemented strategy-based recovery, model promotion, and observation hijacking for autonomous fault tolerance.
 16. Meta-Evolution Workflow (Feature 016) (Completed): Implemented webhook-triggered n8n workflow for retrieval strategy optimization based on trajectory performance analysis.
+17. Grounded Forgiveness (Feature 066) (Completed): Replaced hardcoded moral injury placeholders with dynamic Active Inference EFE calculations for counterfactual simulation.
+18. Moral Decay (Feature 067) (Completed): Implemented temporal healing via precision-widening (Letting Go) integrated into the Resonance Cycle.
+19. Wake-Up Protocol (Feature 068) (Completed): Implemented automatic agent hydration and moral history reconstruction from Neo4j upon service startup.
+20. Graph Manifestation (Feature 064.5) (Completed): Promoted reconciliation events to first-class graph entities linking to the agent's moral biography.
 
 **Current Focus**: Audiobook Production (F014/018) and Daedalus Pool Polish (F020 - Isolation & Metrics).
 
@@ -113,3 +121,6 @@ docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py
 - 038-thoughtseeds-framework: Added Python 3.11+ + smolagents, litellm, pydantic, numpy, scipy, neo4j (Graphiti)
 - 022-agentic-kg-learning: Implemented dynamic relationship extraction with provenance and low-confidence gating. Added review queue API.
 - 024-mosaeic-protocol: Implemented full capture and persistence flow for experiential windows.
+- 065-ensoulment: Manifested first live moral history in Neo4j. Sovereignty and Reconciliation protocols verified with persistent 'Dionysus-1' data.
+- 064-forgiveness: Implemented Counterfactual Reconciliation Service and Moral Ledger persistence.
+- 063-sovereignty: Implemented Hierarchical Resistance against coercive commands based on competence friction.

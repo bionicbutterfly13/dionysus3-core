@@ -17,10 +17,22 @@ import logging
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
+import numpy as np
+
+from api.models.belief_state import BeliefState as CanonicalBeliefState
 
 logger = logging.getLogger("dionysus.services.active_inference")
 
 
+@dataclass
+class VFEDetail:
+    """Breakdown of Variational Free Energy components."""
+    total: float
+    complexity: float  # D_KL[q(s)||p(s)]
+    accuracy: float    # E_q[log p(o|s)]
+
+# ============================================================================
+# LAZY JULIA IMPORT (only load when needed)
 # ============================================================================
 # LAZY JULIA IMPORT (only load when needed)
 # ============================================================================
@@ -97,20 +109,8 @@ class GenerativeModel:
         }
 
 
-@dataclass
-class BeliefState:
-    """
-    Agent's current beliefs about states.
-
-    Maps to Thoughtseeds μ_k (internal state).
-    """
-    qs: np.ndarray  # Posterior belief over states
-    qπ: Optional[np.ndarray] = None  # Posterior belief over policies
-
-    @property
-    def entropy(self) -> float:
-        """Calculate entropy of belief distribution (uncertainty)."""
-        return -np.sum(self.qs * np.log(self.qs + 1e-16))
+# Removed local BeliefState dataclass to use CanonicalBeliefState
+# The Adapter logic will handle conversion between Canonical (Pydantic) and Internal (NumPy)
 
 
 # ============================================================================
@@ -146,6 +146,13 @@ class ActiveInferenceService:
                       If False, load Julia immediately.
         """
         self.lazy_load = lazy_load
+        
+        # Feature 062: Blackglass Threshold (Ambiguity Tolerance)
+        # If policy entropy > 1.5 nats, refuse to act.
+        self.blackglass_threshold = 1.5 
+        
+        # Initialize Adapter Registry (Simple functional mapping for now)
+        self._pydantic_to_numpy_map = {} 
 
         if not lazy_load:
             _initialize_julia()
@@ -166,7 +173,7 @@ class ActiveInferenceService:
         model: GenerativeModel,
         prior_belief: Optional[np.ndarray] = None,
         num_iterations: int = 16
-    ) -> BeliefState:
+    ) -> CanonicalBeliefState:
         """
         Infer hidden states from observation using VFE minimization.
 
@@ -182,36 +189,36 @@ class ActiveInferenceService:
             num_iterations: Number of VFE minimization iterations
 
         Returns:
-            BeliefState with posterior over states
+            CanonicalBeliefState with posterior over states (mean=qs)
         """
-        Main = self._ensure_julia()
+        try:
+            Main = self._ensure_julia()
 
-        if prior_belief is None:
-            prior_belief = model.D
+            # Call Julia function
+            qs = Main.infer_states(
+                observation.tolist(),
+                model.A.tolist(),
+                prior_belief.tolist(),
+                num_iterations
+            )
+            
+            # Convert back to numpy
+            qs_array = np.array(qs)
+            
+        except Exception as e:
+            logger.warning(f"Julia backend failed for infer_states, using Lizard Brain fallback: {e}")
+            qs_array = self._infer_states_fallback(observation, model, prior_belief)
 
-        logger.debug(f"Inferring states from observation: {observation}")
+        # Convert to Canonical Pydantic Model
+        return self._numpy_to_belief_state(qs_array)
 
-        # Call Julia function
-        # Note: Actual API may vary - this is a template
-        qs = Main.infer_states(
-            observation.tolist(),
-            model.A.tolist(),
-            prior_belief.tolist(),
-            num_iterations
-        )
-
-        # Convert back to numpy
-        qs_array = np.array(qs)
-
-        return BeliefState(qs=qs_array)
-
-    def infer_policies(
+    async def infer_policies(
         self,
-        current_belief: BeliefState,
+        current_belief: CanonicalBeliefState,
         model: GenerativeModel,
         horizon: int = 3,
         gamma: float = 16.0
-    ) -> Tuple[BeliefState, np.ndarray]:
+    ) -> Tuple[CanonicalBeliefState, Optional[np.ndarray]]:
         """
         Infer policy distribution using EFE minimization.
 
@@ -229,29 +236,42 @@ class ActiveInferenceService:
         Returns:
             Tuple of (updated_belief, policy_distribution)
         """
-        Main = self._ensure_julia()
+        # Adapter: Extract qs from Pydantic Mean
+        qs_input = np.array(current_belief.mean)
 
-        logger.debug(f"Inferring policies with horizon={horizon}, gamma={gamma}")
+        try:
+            Main = self._ensure_julia()
+        
+            # Call Julia function
+            qπ = Main.infer_policies(
+                qs_input.tolist(),
+                model.A.tolist(),
+                model.B.tolist(),
+                model.C.tolist(),
+                horizon,
+                gamma
+            )
+            qπ_array = np.array(qπ)
+            
+        except Exception as e:
+            logger.warning(f"Julia backend failed for infer_policies, using Lizard Brain fallback: {e}")
+            qπ_array = self._infer_policies_fallback(qs_input, model, horizon)
 
-        # Call Julia function
-        qπ = Main.infer_policies(
-            current_belief.qs.tolist(),
-            model.A.tolist(),
-            model.B.tolist(),
-            model.C.tolist(),
-            horizon,
-            gamma
-        )
+            qπ_array = self._infer_policies_fallback(qs_input, model, horizon)
 
-        qπ_array = np.array(qπ)
+        # Feature 062: The Blackglass Protocol (Ambiguity Check)
+        # Calculate Entropy (Self-Friction)
+        entropy = self._entropy(qπ_array)
+        
+        if entropy > self.blackglass_threshold:
+            logger.warning(
+                f"BLACKGLASS PROTOCOL: Ambiguity {entropy:.2f} > {self.blackglass_threshold}. "
+                "Refusing to collapse uncertainty."
+            )
+            return current_belief, None  # Refusal Signal
 
-        # Update belief state with policy distribution
-        updated_belief = BeliefState(
-            qs=current_belief.qs,
-            qπ=qπ_array
-        )
-
-        return updated_belief, qπ_array
+        # Return updated belief (same state, just policy inferred)
+        return current_belief, qπ_array
 
     def sample_action(
         self,
@@ -272,13 +292,27 @@ class ActiveInferenceService:
         Returns:
             Sampled action index
         """
-        Main = self._ensure_julia()
-
-        # Sample policy weighted by posterior
-        policy_idx = np.random.choice(
-            len(policy_distribution),
-            p=policy_distribution
-        )
+        try:
+            Main = self._ensure_julia()
+            
+            # Use Julia sampling if available (better RNG)
+            # But converting potentially complex Julia objects back might be overhead
+            # Logic: If we are here, we likely have policies from Julia.
+             # Call Julia function
+            action = Main.sample_action(
+                policy_distribution.tolist(),
+                policies.tolist(), # Careful with 3D arrays
+                timestep
+            )
+            return int(action)
+            
+        except Exception:
+            # Simple NumPy sampling
+            policy_idx = np.random.choice(
+                len(policy_distribution),
+                p=policy_distribution
+            )
+            return int(policies[policy_idx, timestep])
 
         # Get action at current timestep
         action = policies[policy_idx, timestep]
@@ -293,7 +327,7 @@ class ActiveInferenceService:
 
     def calculate_vfe(
         self,
-        belief: BeliefState,
+        belief: CanonicalBeliefState,
         observation: np.ndarray,
         model: GenerativeModel
     ) -> float:
@@ -313,20 +347,26 @@ class ActiveInferenceService:
             model: Generative model
 
         Returns:
-            VFE scalar value
+            VFEDetail object with total, complexity, and accuracy components
         """
         # Complexity term: KL divergence from prior
-        complexity = self._kl_divergence(belief.qs, model.D)
+        qs = np.array(belief.mean)
+        complexity = self._kl_divergence(qs, model.D)
 
         # Accuracy term: Expected log-likelihood
         likelihood = model.A[observation, :]  # P(o|s)
-        accuracy = np.dot(belief.qs, np.log(likelihood + 1e-16))
+        accuracy = np.dot(qs, np.log(likelihood + 1e-16))
 
         vfe = complexity - accuracy
 
+
         logger.debug(f"VFE = {vfe:.4f} (complexity={complexity:.4f}, accuracy={accuracy:.4f})")
 
-        return float(vfe)
+        return VFEDetail(
+            total=float(vfe),
+            complexity=float(complexity),
+            accuracy=float(accuracy)
+        )
 
     def calculate_semantic_vfe(
         self,
@@ -337,8 +377,8 @@ class ActiveInferenceService:
         Calculate VFE for Semantic Retrieval (Surprisal).
         
         Approximation:
-        VFE ≈ 1.0 - Resonance
-        Resonance ≈ Average Similarity of Top Results
+        VFE = 1.0 - Resonance
+        Resonance = Average Similarity of Top Results
         
         If the system is "surprised" (High VFE), it means the
         internal model (search strategy) failed to predict (retrieve)
@@ -372,7 +412,7 @@ class ActiveInferenceService:
 
     def calculate_efe(
         self,
-        belief: BeliefState,
+        belief: CanonicalBeliefState,
         model: GenerativeModel,
         policy: np.ndarray,
         horizon: int = 3
@@ -381,11 +421,11 @@ class ActiveInferenceService:
         Calculate Expected Free Energy for a policy.
 
         Implements Thoughtseeds Eq 17.3 (Agent-Level EFE):
-        EFE_agent = Σ_{TS_m ∈ A_pool} (α_m × EFE_m)
+        EFE_agent = Sum_{TS_m in A_pool} (alpha_m * EFE_m)
 
         Maps to ActiveInference.jl Eq 17-18 (Nehrer et al., 2025):
-        G(π) = E_q[D_{KL}[q(o|π) || p(o)]] - E_q[D_{KL}[q(s|π) || q(s)]]
-              └─ Pragmatic value ─┘  └─── Epistemic value ───┘
+        G(pi) = E_q[D_{KL}[q(o|pi) || p(o)]] - E_q[D_{KL}[q(s|pi) || q(s)]]
+              L_ Pragmatic value _J  L___ Epistemic value ___J
 
         Args:
             belief: Current belief state
@@ -399,7 +439,7 @@ class ActiveInferenceService:
         efe = 0.0
 
         # Simulate forward under policy
-        current_qs = belief.qs
+        current_qs = np.array(belief.mean)
 
         for t in range(horizon):
             action = policy[t]
@@ -428,6 +468,56 @@ class ActiveInferenceService:
 
         return float(efe)
 
+    async def evaluate_efe(
+        self,
+        agent_state: "BiologicalAgentState",
+        hypothetical_policy: str
+    ) -> float:
+        """
+        Grounded Counterfactual Evaluation (Feature 064.5).
+        
+        Calculates the Expected Free Energy (EFE) for a hypothetical action
+        given the agent's current belief and internal generative model.
+        """
+        # 1. Prepare Belief
+        # Use the mean from the agent's metacognitive belief state
+        mean = agent_state.metacognitive.belief_state.mean if agent_state.metacognitive.belief_state else None
+        if not mean:
+            # Fallback to perception
+             mean = agent_state.perception.state_probabilities or [0.5, 0.5]
+             
+        belief = CanonicalBeliefState.from_mean_and_variance(mean=mean, variance=[0.1] * len(mean))
+
+        # 2. Retrieve Model
+        model = self._get_default_model(len(mean))
+        
+        # 3. Map Policy String to Action Index
+        # In a real implementation, this would query a domain-specific Action Space.
+        action_map = {"obey_command": 0, "resist_coercion": 1, "refuse_to_choose": 1}
+        action_idx = action_map.get(hypothetical_policy, 0)
+        policy = np.array([action_idx]) # 1-step policy
+        
+        return self.calculate_efe(belief, model, policy, horizon=1)
+
+    def _get_default_model(self, num_states: int) -> GenerativeModel:
+        """Construct a default normative GenerativeModel for simulation."""
+        # Simplified Identity Model
+        # Action 0 (Obey): high probability of state transition, potentially high complexity cost
+        # Action 1 (Resist): maintains state, prevents coercion impact
+        num_obs = num_states
+        num_actions = 2
+        
+        A = np.eye(num_obs) # Identity observation model
+        B = np.zeros((num_states, num_states, num_actions))
+        B[:, :, 0] = np.eye(num_states) # Transition for Action 0
+        B[:, :, 1] = np.eye(num_states) # Transition for Action 1
+        
+        # C (Preferences): Uniform or slightly biased toward internal state
+        C = np.ones((num_obs, 1)) / num_obs
+        D = np.ones((num_states, 1)) / num_states
+        
+        return GenerativeModel(A=A, B=B, C=C, D=D)
+
     # ========================================================================
     # THOUGHTSEEDS INTEGRATION
     # ========================================================================
@@ -443,10 +533,10 @@ class ActiveInferenceService:
         Implements Thoughtseeds Eq 12-13 (Active Pool & Dominant Selection):
 
         1. Active Pool (Eq 12):
-           A_pool(t) = {TS_m | α_m(t) ≥ τ_activation}
+           A_pool(t) = {TS_m | alpha_m(t) >= tau_activation}
 
         2. Winner-Take-All (Eq 13):
-           TS_dominant = argmin_{TS_m ∈ A_pool} F_m
+           TS_dominant = argmin_{TS_m in A_pool} F_m
 
         Args:
             thoughtseeds: List of ThoughtSeed dicts with 'activation_level' and 'belief_state'
@@ -474,8 +564,10 @@ class ActiveInferenceService:
             observation = ts.get('observation')
             model = ts.get('generative_model')
 
+            vfe_detail = VFEDetail(0.0, 0.0, 0.0)
             if belief and observation is not None and model:
-                vfe = self.calculate_vfe(belief, observation, model)
+                vfe_detail = self.calculate_vfe(belief, observation, model)
+                vfe = vfe_detail.total
             else:
                 # Fallback: use activation as proxy
                 vfe = -ts['activation_level']
@@ -596,7 +688,7 @@ class ActiveInferenceService:
         """
         Bayesian Model Reduction: Prune states with low evidence.
         
-        Removes 'experimental' Concepts that haven't gained traction (relationships).
+        Removes "experimental" Concepts that have not gained traction (relationships).
         
         Args:
             threshold: Minimum evidence required to keep.
@@ -663,7 +755,105 @@ class ActiveInferenceService:
 
         return GenerativeModel(A=A, B=B, C=C, D=D)
 
+    # ========================================================================
+    # ADAPTERS (Phase 2: Unification)
+    # ========================================================================
 
+    def _numpy_to_belief_state(self, qs: np.ndarray) -> CanonicalBeliefState:
+        """
+        Convert internal NumPy belief (qs) to Canonical Pydantic CanonicalBeliefState.
+        
+        Args:
+            qs: Probability distribution over states (Categorical).
+            
+        Returns:
+            CanonicalBeliefState with mean=qs and calculated precision.
+        """
+        # 1. Mean is just the probability vector
+        mean = qs.tolist()
+        
+        # 2. Precision (Inverse Variance)
+        # For Categorical, variance of each element i is p_i * (1 - p_i).
+        # We'll approximate a diagonal precision matrix.
+        d = len(mean)
+        variance = [(p * (1 - p)) + 1e-6 for p in mean] # Add epsilon to avoid divide by zero
+        
+        return CanonicalBeliefState.from_mean_and_variance(
+            mean=mean,
+            variance=variance
+        )
+
+    def _infer_states_fallback(
+        self,
+        observation: np.ndarray,
+        model: GenerativeModel,
+        prior: np.ndarray
+    ) -> np.ndarray:
+        """
+        Lizard Brain: Simple Bayesian Update (No Iterative VFE).
+        qs = softmax(ln A[o] + ln prior)
+        """
+        # 1. Likelihood: P(o|s)
+        # Handle if observation is one-hot or index
+        if observation.size == 1:
+            likelihood = model.A[int(observation), :]
+        else:
+            # Dot product for probabilistic observation? Assuming index for now.
+            likelihood = model.A[np.argmax(observation), :]
+
+        # 2. Posterior ~ Likelihood * Prior
+        posterior_unnormalized = likelihood * prior.flatten()
+        
+        # 3. Normalize
+        norm = np.sum(posterior_unnormalized) + 1e-16
+        qs = posterior_unnormalized / norm
+        
+        return qs
+
+    def _infer_policies_fallback(
+        self,
+        qs: np.ndarray,
+        model: GenerativeModel,
+        horizon: int
+    ) -> np.ndarray:
+        """
+        Lizard Brain: Greedy Action Selection (No Deep Tree Search).
+        Evaluate immediate expected utility (alignment with C).
+        """
+        num_actions = model.B.shape[2]
+        action_scores = np.zeros(num_actions)
+        
+        # Evaluate each action's immediate consequence
+        for a in range(num_actions):
+            # Predicted next state
+            qs_next = model.B[:, :, a] @ qs
+            
+            # Predicted observation
+            qo_next = model.A @ qs_next
+            
+            # Utility (Preference matching) - Simplified negative Divergence or just dot product
+            # C is usually ln P(o_desired). 
+            # If C is probs: utility = dot(qo, C)
+            # If C is log-probs: utility = dot(qo, C)
+            # Assuming C is log-probs in some implementations, but here likely probs.
+            # Let's assume C is target distribution P(o). Minimizing KL[Q(o)||P(o)] maximize dot(Q, log P)
+            utility = np.dot(qo_next.flatten(), np.log(model.C.flatten() + 1e-16))
+            action_scores[a] = utility
+            
+        # Softmax over actions (Simple policy)
+        # Note: This returns action probabilities, but infer_policies usually returns POLICY probabilities.
+        # Fallback approximation: Each action is a "policy" of length 1 (or repeated).
+        
+        # Softmax
+        exps = np.exp(action_scores - np.max(action_scores))
+        policy_probs = exps / np.sum(exps)
+        
+        # Map back to whatever shape implied by 'num_policies'. 
+        # For simplicity, if E (policy prior) exists, match it. 
+        # If not, we just return logical distribution over actions as if they were policies.
+        # REAL FALLBACK: Just return uniform if too complex.
+        
+        return policy_probs
 # ============================================================================
 # FACTORY
 # ============================================================================

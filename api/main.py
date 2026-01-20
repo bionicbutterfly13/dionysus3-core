@@ -42,11 +42,16 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(start_journal_scheduler())
     try:
         from api.services.meta_tot_decision import get_meta_tot_decision_service
+        from api.services.biological_agency_service import get_biological_agency_service
 
         await get_meta_tot_decision_service().warmup()
         logger.info("Meta-ToT thresholds warmup complete.")
+        
+        # Feature 068: The Wake-Up Protocol
+        await get_biological_agency_service().initialize_presence()
+        logger.info("Wake-Up Protocol: Agent presence initialized.")
     except Exception as exc:
-        logger.warning(f"Meta-ToT thresholds warmup skipped: {exc}")
+        logger.warning(f"Startup initialization skipped/failed: {exc}")
     
     # Note: PostgreSQL removed. Using Graphiti/Neo4j for persistence.
     # Services requiring db_pool need migration to Graphiti.

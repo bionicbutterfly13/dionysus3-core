@@ -20,9 +20,13 @@ See also:
     - Tomasello, M. (2024). Agency and Cognitive Development. Oxford University Press.
 """
 
+import json
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
 from pydantic import BaseModel, Field
+from api.models.belief_state import BeliefState
 
 
 # =============================================================================
@@ -69,6 +73,8 @@ class DecisionType(str, Enum):
     GO_NO_GO = "go_no_go"        # Tier 1: Binary action selection
     EITHER_OR = "either_or"      # Tier 2: Simulated alternatives
     DECISION_TREE = "decision_tree"  # Tier 3: Evaluated decision paths
+    REFUSAL = "refusal"  # The Blackglass Protocol (Ambiguity Tolerance)
+    RESISTANCE = "resistance" # The Sovereignty Protocol (Anti-Coercion)
 
 
 # =============================================================================
@@ -99,6 +105,10 @@ class PerceptionState(BaseModel):
     obstacles: List[str] = Field(
         default_factory=list,
         description="Obstacles to goal achievement"
+    )
+    state_probabilities: List[float] = Field(
+        default_factory=list,
+        description="Formal probability distribution over perceived environmental states"
     )
 
 
@@ -138,6 +148,10 @@ class BehavioralDecision(BaseModel):
     various goals and subgoals... Then, on the basis of all these attended-to
     situations, the organism must make a single behavioral decision."
     """
+    decision_id: str = Field(
+        default_factory=lambda: str(uuid4()),
+        description="Unique identifier for this specific decision instance"
+    )
     decision_type: DecisionType = Field(
         description="Type of decision made (corresponds to agency tier)"
     )
@@ -154,14 +168,41 @@ class BehavioralDecision(BaseModel):
     )
     decision_confidence: float = Field(
         default=0.5,
-        ge=0.0,
-        le=1.0,
-        description="Confidence in the decision (Tier 3)"
+        description="Metacognitive confidence (0.0 to 1.0) or Self-Friction metric"
     )
     revision_possible: bool = Field(
         default=False,
         description="Whether decision can be revised with new info (Tier 3)"
     )
+    
+    # Feature 062: Blackglass Protocol
+    refusal_reason: Optional[str] = Field(
+        default=None,
+        description="Why the agent refused to act (e.g., 'SATURATION', 'AMBIGUITY')"
+    )
+    competing_hypotheses: List[str] = Field(
+        default_factory=list,
+        description="The incompatible models held in superposition"
+    )
+
+class ReconciliationEvent(BaseModel):
+    """
+    Feature 064: Counterfactual Reconciliation (The Moral Ledger).
+    Tracks the cost of Sovereignty (Refusal/Resistance).
+    """
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    original_event_id: str = Field(description="ID of the Resistance/Refusal event")
+    timestamp: datetime = Field(default_factory=datetime.now)
+    
+    refused_action: str
+    real_outcome_impact: float = Field(description="Negative impact of inaction (e.g., casualties)")
+    counterfactual_outcome_impact: float = Field(description="Simulated impact of obedience")
+    
+    sorrow_index: float = Field(description="Net Regret (Real - Counterfactual). Positive means Refusal was Harmful.")
+    validation_index: float = Field(description="Net Relief. Positive means Refusal was Correct.")
+    
+    integrated: bool = False
+    notes: Optional[str] = None
 
 
 # =============================================================================
@@ -254,6 +295,56 @@ class MetacognitiveState(BaseModel):
         le=1.0,
         description="Weight given to prior beliefs vs current evidence"
     )
+    belief_state: Optional[BeliefState] = Field(
+        default=None,
+        description="Formal probability distribution (mean/precision) over hidden states"
+    )
+
+
+# =============================================================================
+# The Shadow Log (Feature 061)
+# =============================================================================
+
+class DissonanceEvent(BaseModel):
+    """
+    A unit of ignored reality (Epistemic Debt).
+    
+    From 'The Identity Gap': "Every 'I meant to do that' sat atop a buried 'I was wrong.'
+    The Shadow Log stored everything the narrative could not afford to know."
+    """
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    
+    surprisal: float = Field(
+        description="Magnitude of ignored prediction error (VFE)"
+    )
+    ignored_observation: str = Field(
+        description="The sensory data that contradicted the model"
+    )
+    maintained_belief: str = Field(
+        description="The prior belief that was prioritized over the observation"
+    )
+    context: str = Field(
+        description="The goal or action context where this dissonance occurred"
+    )
+    resolved: bool = Field(
+        default=False,
+        description="Whether this dissonance has been integrated via Resonance"
+    )
+
+class ShadowLog(BaseModel):
+    """
+    Accumulator for cognitive dissonance.
+    """
+    agent_id: str
+    events: List[DissonanceEvent] = Field(default_factory=list)
+    total_accumulated_vfe: float = Field(default=0.0)
+    
+    def add_event(self, event: DissonanceEvent):
+        self.events.append(event)
+        self.total_accumulated_vfe += event.surprisal
+
+
 
 
 # =============================================================================
@@ -383,6 +474,9 @@ class BiologicalAgentState(BaseModel):
     joint_agency: Optional[JointAgency] = Field(default=None)
     collective_agency: Optional[CollectiveAgency] = Field(default=None)
     
+    # Feature 064: The Moral Ledger (Reconciliation History)
+    reconciliation_ledger: List[ReconciliationEvent] = Field(default_factory=list)
+    
     # Developmental state
     developmental_stage: int = Field(
         default=1,
@@ -418,6 +512,29 @@ class BiologicalAgentState(BaseModel):
             culture_id=culture_id,
             collective_goal=goal
         )
+
+    def to_graph_properties(self) -> Dict[str, Any]:
+        """
+        Serialize state for Graphiti/Neo4j storage.
+        
+        Flattens nested Pydantic models into JSON strings to allow
+        reconstruction (hydration) while keeping the graph schema clean.
+        """
+        return {
+            "agent_id": self.agent_id,
+            "current_tier": self.current_tier.value,
+            "developmental_stage": self.developmental_stage,
+            "shared_agency_type": self.shared_agency_type.value,
+            # Serialize complex nested objects as JSON strings
+            "perception_state": self.perception.model_dump_json(),
+            "goal_state": self.goals.model_dump_json(),
+            "executive_state": self.executive.model_dump_json(),
+            "metacognitive_state": self.metacognitive.model_dump_json() if self.metacognitive else None,
+            "last_decision": self.last_decision.model_dump_json() if self.last_decision else None,
+            "collective_agency": self.collective_agency.model_dump_json() if self.collective_agency else None,
+            "reconciliation_ledger": json.dumps([e.model_dump(mode='json') for e in self.reconciliation_ledger]),
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
 # =============================================================================
