@@ -201,3 +201,129 @@ class TestPrecisionWeightedEFE:
         )
 
         assert abs(expected_efe - actual_efe) < 0.0001
+
+
+class TestEFEEngineCoverage:
+    """Additional tests to improve EFE engine coverage."""
+
+    def test_select_top_candidates_alogistic_empty(self, efe_engine):
+        """Empty candidates should return empty list."""
+        result = efe_engine.select_top_candidates_alogistic([])
+        assert result == []
+
+    def test_select_top_candidates_alogistic_with_candidates(self, efe_engine):
+        """Should filter and sort candidates by activation."""
+        candidates = [
+            {"id": "low", "efe_score": 0.9},
+            {"id": "high", "efe_score": 0.1},
+            {"id": "mid", "efe_score": 0.5},
+        ]
+
+        result = efe_engine.select_top_candidates_alogistic(candidates)
+
+        assert len(result) == 3
+        # All should have activation scores
+        for r in result:
+            assert "activation" in r
+        # Should be sorted by activation (descending)
+        activations = [r["activation"] for r in result]
+        assert activations == sorted(activations, reverse=True)
+
+    def test_select_top_candidates_alogistic_same_efe_scores(self, efe_engine):
+        """Should handle candidates with identical EFE scores."""
+        candidates = [
+            {"id": "a", "efe_score": 0.5},
+            {"id": "b", "efe_score": 0.5},
+        ]
+
+        result = efe_engine.select_top_candidates_alogistic(candidates)
+
+        assert len(result) == 2
+        # Both should have activation
+        assert all("activation" in r for r in result)
+
+    def test_select_top_candidates_alogistic_missing_efe_score(self, efe_engine):
+        """Should handle candidates without efe_score key."""
+        candidates = [
+            {"id": "no_score"},
+            {"id": "with_score", "efe_score": 0.5},
+        ]
+
+        result = efe_engine.select_top_candidates_alogistic(candidates)
+
+        assert len(result) == 2
+
+    def test_agency_weighted_efe(self, efe_engine):
+        """Should modulate EFE based on agency score."""
+        probs = [0.7, 0.3]
+        thought_vec = np.array([1.0, 0.0])
+        goal_vec = np.array([1.0, 0.0])
+
+        # Low agency score
+        low_agency = efe_engine.agency_weighted_efe(
+            probs, thought_vec, goal_vec, agency_score=0.1, agency_weight=0.3
+        )
+
+        # High agency score
+        high_agency = efe_engine.agency_weighted_efe(
+            probs, thought_vec, goal_vec, agency_score=1.5, agency_weight=0.3
+        )
+
+        # Higher agency should reduce effective EFE
+        assert high_agency < low_agency
+
+    def test_agency_weighted_efe_zero_weight(self, efe_engine):
+        """Zero agency weight should return base EFE."""
+        probs = [0.7, 0.3]
+        thought_vec = np.array([1.0, 0.0])
+        goal_vec = np.array([1.0, 0.0])
+
+        base_efe = efe_engine.calculate_efe(probs, thought_vec, goal_vec)
+        weighted_efe = efe_engine.agency_weighted_efe(
+            probs, thought_vec, goal_vec, agency_score=2.0, agency_weight=0.0
+        )
+
+        assert abs(base_efe - weighted_efe) < 0.0001
+
+    def test_select_dominant_thought_with_agency_empty(self, efe_engine):
+        """Empty candidates should return 'none' dominant."""
+        from unittest.mock import patch, MagicMock
+
+        mock_detector = MagicMock()
+        mock_detector.calculate_agency_score.return_value = 1.0
+
+        with patch('api.services.agency_detector.get_agency_detector', return_value=mock_detector):
+            result = efe_engine.select_dominant_thought_with_agency(
+                candidates=[],
+                goal_vector=[1.0, 0.0],
+                internal_states=np.array([[1, 2], [3, 4]]),
+                active_states=np.array([[1, 2], [3, 4]])
+            )
+
+        assert result.dominant_seed_id == "none"
+        assert result.scores == {}
+
+    def test_select_dominant_thought_with_agency(self, efe_engine):
+        """Should select dominant thought with agency weighting."""
+        from unittest.mock import patch, MagicMock
+
+        mock_detector = MagicMock()
+        mock_detector.calculate_agency_score.return_value = 1.0
+
+        with patch('api.services.agency_detector.get_agency_detector', return_value=mock_detector):
+            candidates = [
+                {"id": "certain", "vector": [1.0, 0.0], "probabilities": [0.9, 0.1]},
+                {"id": "uncertain", "vector": [1.0, 0.0], "probabilities": [0.5, 0.5]},
+            ]
+
+            result = efe_engine.select_dominant_thought_with_agency(
+                candidates=candidates,
+                goal_vector=[1.0, 0.0],
+                internal_states=np.array([[1, 2], [3, 4]]),
+                active_states=np.array([[1, 2], [3, 4]])
+            )
+
+        assert result.dominant_seed_id is not None
+        assert len(result.scores) == 2
+        # Certain candidate should win (lower EFE)
+        assert result.dominant_seed_id == "certain"

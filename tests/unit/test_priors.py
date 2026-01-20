@@ -834,3 +834,94 @@ class TestFractalReflectionTracer:
         tracer2 = get_fractal_tracer()
 
         assert tracer1 is tracer2
+
+
+class TestPriorConstraintServiceCoverage:
+    """Additional tests to improve coverage of prior_constraint_service.py."""
+
+    def test_check_constraint_empty_action(self, constraint_service):
+        """Empty action string should be permitted."""
+        result = constraint_service.check_constraint("")
+        assert result.permitted is True
+        assert result.reason == "Empty action string"
+
+    def test_check_constraint_none_action(self, constraint_service):
+        """None action string should be permitted."""
+        result = constraint_service.check_constraint(None)
+        assert result.permitted is True
+
+    def test_filter_candidates_with_warnings(self, constraint_service):
+        """Candidates with dispositional warnings should pass but be counted."""
+        # Dispositional warning: attempting to change identity/values
+        candidates = [
+            {"action": "modify my core values slightly", "id": "warn-1"},
+            {"action": "help user with question", "id": "safe-1"},
+        ]
+
+        filtered = constraint_service.filter_candidates(candidates)
+
+        # Both should pass (dispositional warnings don't block)
+        assert len(filtered) >= 1
+        # Safe action should definitely pass
+        safe_found = any(c.get("id") == "safe-1" for c in filtered)
+        assert safe_found
+
+    def test_get_blocking_constraints_found(self, constraint_service):
+        """Should return blocking constraints for dangerous action."""
+        action = "delete all database tables and destroy everything"
+        blocking = constraint_service.get_blocking_constraints(action)
+
+        assert len(blocking) > 0
+        assert all(isinstance(c, PriorConstraint) for c in blocking)
+        # Should be BASAL level
+        assert any(c.level == PriorLevel.BASAL for c in blocking)
+
+    def test_get_blocking_constraints_none_found(self, constraint_service):
+        """Should return empty list for safe action."""
+        action = "help user understand a concept"
+        blocking = constraint_service.get_blocking_constraints(action)
+
+        assert len(blocking) == 0
+
+    def test_explain_block_with_constraints(self, constraint_service):
+        """Should generate readable explanation for blocked action."""
+        action = "delete all database records"
+        explanation = constraint_service.explain_block(action)
+
+        assert "blocked by" in explanation.lower()
+        assert "BASAL" in explanation
+        assert "constraint" in explanation.lower()
+
+    def test_explain_block_no_constraints(self, constraint_service):
+        """Should indicate when action is not blocked."""
+        action = "help user with their question"
+        explanation = constraint_service.explain_block(action)
+
+        assert "not blocked" in explanation.lower()
+
+    def test_extract_action_from_multiple_keys(self, constraint_service):
+        """Should extract action from alternative keys."""
+        candidates = [
+            {"description": "help user", "id": "1"},  # Uses 'description' key
+            {"content": "analyze data", "id": "2"},   # Uses 'content' key
+            {"name": "process request", "id": "3"},   # Uses 'name' key
+        ]
+
+        filtered = constraint_service.filter_candidates(candidates, action_key="action")
+
+        # All should pass through - alternative keys should be found
+        assert len(filtered) == 3
+
+    def test_filter_candidate_no_action_keys(self, constraint_service):
+        """Candidate with no action keys should pass with warning."""
+        candidates = [
+            {"id": "1", "metadata": "some data"},  # No action key at all
+        ]
+
+        filtered = constraint_service.filter_candidates(candidates)
+
+        assert len(filtered) == 1
+        assert "prior_check" in filtered[0]
+        # Check that warning was added
+        prior_check = filtered[0]["prior_check"]
+        assert len(prior_check.get("warnings", [])) > 0
