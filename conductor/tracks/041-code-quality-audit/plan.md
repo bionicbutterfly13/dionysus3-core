@@ -163,11 +163,11 @@
 3. `prior_constraint_service.py` - Some edge cases untested
 4. `efe_engine.py` - Multi-agent selection paths untested
 
-### T041-019: Add tests for low coverage files
-- [ ] Create tests for `graphiti_service.py` (27% → 80%+)
-- [ ] Create tests for `autobiographical_service.py` (33% → 80%+)
-- [ ] Create tests for `prior_constraint_service.py` (70% → 80%+)
-- [ ] Create tests for `efe_engine.py` (71% → 80%+)
+### T041-019: Add tests for low coverage files ✅ (partial)
+- [ ] Create tests for `graphiti_service.py` (27% → 80%+) - Complex async, deferred
+- [ ] Create tests for `autobiographical_service.py` (33% → 80%+) - Complex async, deferred
+- [x] Create tests for `prior_constraint_service.py` (70% → **96%** ✅)
+- [x] Create tests for `efe_engine.py` (51% → **78%** ✅)
 
 ### T041-020: Create contract tests for routers
 - [ ] List routers without contract tests
