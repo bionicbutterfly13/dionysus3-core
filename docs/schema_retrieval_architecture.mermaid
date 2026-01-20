@@ -1,0 +1,28 @@
+flowchart TD
+    subgraph Cognition ["Cognition Layer"]
+        A[Agent Query] -->|Needs Context| B(Context Packaging)
+        B -->|Check Budget| C{Budget Manager}
+    end
+
+    subgraph AutoSchema ["AutoSchemaKG Integration"]
+        C -->|Fetch Schema| D[fetch_schema_context]
+        D -->|Retrieve| E[retrieve_relevant_concepts]
+    end
+
+    subgraph Memory ["Memory Systems"]
+        E -->|Hybrid Search| F[(Graphiti Service)]
+        F -->|Vector + Graph| G((Neo4j))
+        G -->|Return Concepts| F
+    end
+
+    subgraph Context_Assembly ["Context Assembly"]
+        F -->|InferredConcept Objects| E
+        E -->|List[InferredConcept]| D
+        D -->|Format Constraints| H[SchemaContextCell]
+        H -.->|Inject Validity| C
+        C -->|Assemble Prompt| I[Final XML Prompt]
+    end
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style G fill:#ff9,stroke:#f66,stroke-width:2px,color:black
+    style H fill:#9f9,stroke:#333,stroke-width:2px,color:black

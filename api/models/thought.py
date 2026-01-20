@@ -12,6 +12,15 @@ class ThoughtLayer(str, Enum):
     ABSTRACT = "abstract"
     METACOGNITIVE = "metacognitive"
 
+class MarkovBlanket(str, Enum):
+    """
+    Partitions of the Free Energy Principle's Markov Blanket.
+    """
+    SENSORY = "sensory"     # Inputs from world/user (Read-Only)
+    ACTIVE = "active"       # Outputs to world/tools (Write-Only)
+    INTERNAL = "internal"   # Private cognitive states (Protected)
+    EXTERNAL = "external"   # World states hidden from internal (Unknown)
+
 class CompetitionStatus(str, Enum):
     PENDING = "pending"
     WON = "won"
@@ -24,6 +33,10 @@ class ThoughtSeed(BaseModel):
     """
     id: UUID = Field(default_factory=uuid4)
     layer: ThoughtLayer
+    blanket_tag: MarkovBlanket = Field(
+        default=MarkovBlanket.INTERNAL,
+        description="The Markov Blanket partition this thought belongs to"
+    )
     content: str
     activation_level: float = Field(default=0.0, ge=0.0, le=1.0)
     competition_status: CompetitionStatus = Field(default=CompetitionStatus.PENDING)

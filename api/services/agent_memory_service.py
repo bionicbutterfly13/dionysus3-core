@@ -63,6 +63,54 @@ class AgentMemoryService:
             logger.error(f"Error persisting agent run: {e}")
             return False
 
+    def isolate_context(self, thoughts: list, blanket_type: str) -> list:
+        """
+        Filters a list of thoughts based on the Markov Blanket partition.
+        
+        Logic:
+        - SENSORY: Can see SENSORY (self) and EXTERNAL (observable world).
+        - ACTIVE: Can see ACTIVE (self) and INTERNAL (intentions).
+        - INTERNAL/REASONING: Can see SENSORY, INTERNAL, and ACTIVE (full internal model), but NOT raw EXTERNAL (hidden states).
+        
+        Args:
+            thoughts: List of ThoughtSeed objects (or dicts).
+            blanket_type: The MarkovBlanket partition of the viewer.
+            
+        Returns:
+            Filtered list of thoughts visible to this blanket.
+        """
+        from api.models.thought import MarkovBlanket
+        
+        visible_thoughts = []
+        for thought in thoughts:
+            # Handle both objects and dicts
+            t_tag = getattr(thought, 'blanket_tag', None)
+            if not t_tag and isinstance(thought, dict):
+                t_tag = thought.get('blanket_tag')
+            
+            # Default to INTERNAL if untagged
+            if not t_tag:
+                t_tag = MarkovBlanket.INTERNAL
+            
+            # Filtering Logic
+            if blanket_type == MarkovBlanket.SENSORY:
+                # Senses see the world (EXTERNAL) and themselves (SENSORY)
+                if t_tag in [MarkovBlanket.SENSORY, MarkovBlanket.EXTERNAL]:
+                    visible_thoughts.append(thought)
+                    
+            elif blanket_type == MarkovBlanket.ACTIVE:
+                 # Actions see intentions (INTERNAL) and themselves (ACTIVE)
+                if t_tag in [MarkovBlanket.ACTIVE, MarkovBlanket.INTERNAL]:
+                    visible_thoughts.append(thought)
+                    
+            else:
+                # INTERNAL (Reasoning/Metacognition) sees everything EXCEPT hidden External states
+                # i.e., it sees its Senses, its Actions, and its Thoughts.
+                if t_tag != MarkovBlanket.EXTERNAL:
+                    visible_thoughts.append(thought)
+                    
+        return visible_thoughts
+
 _agent_memory_service: Optional[AgentMemoryService] = None
 
 def get_agent_memory_service() -> AgentMemoryService:

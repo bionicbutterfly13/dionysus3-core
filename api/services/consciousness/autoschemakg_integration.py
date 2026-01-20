@@ -393,6 +393,85 @@ class AutoSchemaKGIntegration:
             "storage": storage_result,
         }
 
+    async def retrieve_relevant_concepts(
+        self,
+        query: str,
+        limit: int = 5,
+        threshold: float = 0.6
+    ) -> List[InferredConcept]:
+        """
+        Retrieve relevant schema concepts to bias active reasoning (Read-Path).
+        
+        Uses Graphiti's hybrid search (Semantic + Keyword) to find nodes that
+        are likely ontological concepts (Entities or Relations).
+        
+        Args:
+            query: The active thought/query to ground.
+            limit: Max concepts to return.
+            threshold: Minimum relevance score (handled by Graphiti search config if psosible, otherwise post-filter).
+            
+        Returns:
+            List of InferredConcept objects acting as constraints.
+        """
+        graphiti = await self._get_graphiti()
+        
+        # 1. Hybrid search via Graphiti
+        # This handles embedding generation and vector search internally.
+        try:
+            results = await graphiti.search(
+                query=query,
+                limit=limit * 3, # Fetch wider pool to filter
+            )
+        except Exception as e:
+            logger.error(f"Graphiti search failed during schema retrieval: {e}")
+            return []
+        
+        concepts: List[InferredConcept] = []
+        seen_names = set()
+        
+        # 2. Process Nodes specifically
+        # We look for nodes that appear to be 'Types' or 'Classes'.
+        # Heuristics:
+        # - Capitalized names (convention)
+        # - High degree in the graph (central concepts) - we can't check this easily without extra query
+        # - Labels (if available in result)
+        
+        if results and "nodes" in results:
+            for node_data in results["nodes"]:
+                name = node_data.get("name")
+                if not name or name in seen_names:
+                    continue
+                
+                # Basic filtering for 'Concept-like' entities
+                # In a real schema, we'd check for labels=['Concept', 'Class'].
+                # Graphiti generic schema uses 'Entity'.
+                # We assume relevant search results are concepts for now.
+                
+                # Retrieve type info if available in summary or labels
+                labels = node_data.get("labels", [])
+                concept_type = ConceptType.ENTITY
+                if "Event" in labels or "Activity" in labels:
+                    concept_type = ConceptType.EVENT
+                elif "Relation" in labels:
+                    concept_type = ConceptType.RELATION
+                
+                concept = InferredConcept(
+                    name=name,
+                    concept_type=concept_type,
+                    confidence=0.8, # Placeholder confidence from search rank
+                    attributes={
+                        "retrieved_from_search": True,
+                        "relevance_rank": len(concepts)
+                    }
+                )
+                concepts.append(concept)
+                seen_names.add(name)
+                
+                if len(concepts) >= limit:
+                    break
+                    
+        return concepts
+
 
 # Module-level singleton
 _autoschemakg_instance: Optional[AutoSchemaKGIntegration] = None

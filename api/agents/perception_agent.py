@@ -31,6 +31,8 @@ class PerceptionAgent:
             
             MANDATORY: Every state snapshot must include a MOSAEIC evaluation 
             (Senses, Actions, Emotions, Impulses, Cognitions) using the mosaeic_capture tool.
+            
+            CRITICAL: All gathered states are MarkovBlanket.SENSORY.
             """
 
     def __enter__(self):

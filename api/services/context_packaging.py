@@ -124,6 +124,24 @@ class ContextCell:
         }
 
 
+@dataclass
+class SchemaContextCell(ContextCell):
+    """
+    A cell carrying active schema constraints to bias agent reasoning.
+    Prevents 'Semantic Drift' by enforcing established ontologies.
+    """
+    schema_domain: str = "general"
+    constraints: List[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        """Auto-generate content XML if not provided."""
+        if not self.content and self.constraints:
+            items = "\n".join(f"    <constraint>{c}</constraint>" for c in self.constraints)
+            self.content = f"""<active_schema domain="{self.schema_domain}">
+{items}
+</active_schema>"""
+
+
 class TokenBudgetManager:
     """
     Manages token allocation across context cells.
@@ -462,3 +480,54 @@ def get_residue_tracker() -> SymbolicResidueTracker:
     if _residue_tracker is None:
         _residue_tracker = SymbolicResidueTracker()
     return _residue_tracker
+
+
+async def fetch_schema_context(query: str, budget_manager: TokenBudgetManager) -> Optional[SchemaContextCell]:
+    """
+    Retrieves latent schemas from AutoSchemaKG to ground the current thought process.
+    
+    Orchestration:
+    1. Call AutoSchemaKG Retrieval (Read-Path).
+    2. Convert inferred concepts into 'Constraints'.
+    3. Package into a SchemaContextCell (HIGH priority).
+    4. Inject into Budget Manager.
+    
+    Args:
+        query: The active thought/query to ground.
+        budget_manager: The active token budget manager.
+        
+    Returns:
+        The created SchemaContextCell if successful, else None.
+    """
+    try:
+        # Lazy import to avoid circular dependency
+        from api.services.consciousness.autoschemakg_integration import get_autoschemakg_service
+        
+        svc = get_autoschemakg_service()
+        concepts = await svc.retrieve_relevant_concepts(query) 
+        
+        if concepts:
+            constraints = [f"{c.name} ({c.concept_type.value})" for c in concepts]
+            
+            # Calculate tokens (approximation: chars / 4)
+            # A strict budget tracking would use a tokenizer, but heuristic is fine here.
+            total_chars = sum(len(c) for c in constraints) + len(concepts) * 10
+            token_count = int(total_chars / 4) + 20
+            
+            cell = SchemaContextCell(
+                cell_id=f"schema_{abs(hash(query))}",
+                content="", # Will be auto-generated in post_init
+                priority=CellPriority.HIGH, # Schema is non-negotiable
+                token_count=token_count,
+                schema_domain="inferred_ontology",
+                constraints=constraints
+            )
+            created = budget_manager.add_cell(cell)
+            if created:
+                logger.info(f"Schema Constraint Injected: {len(constraints)} items from AutoSchemaKG")
+                return cell
+                
+    except Exception as e:
+        logger.warning(f"Failed to fetch schema context: {e}")
+        
+    return None

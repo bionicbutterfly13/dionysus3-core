@@ -91,10 +91,11 @@ class TestInputContract:
         get_or_create_journey = get_tool_function(app, "get_or_create_journey")
         assert get_or_create_journey is not None
 
-        # Calling with invalid UUID should raise error at the database level
-        # (the function itself accepts string, DB validates UUID format)
-        with pytest.raises((ValueError, TypeError, Exception)):
-            await get_or_create_journey(device_id="not-a-uuid")
+        # Calling with invalid UUID returns error dict (not exception)
+        # per MCP convention, tools return error objects rather than raising
+        result = await get_or_create_journey(device_id="not-a-uuid")
+        assert "error" in result
+        assert "Invalid device_id format" in result["error"]
 
 
 # =============================================================================
@@ -302,26 +303,33 @@ class TestExistingJourneyBehavior:
 class TestErrorCases:
     """Test error handling per contract specification."""
 
-    async def test_database_error_returns_500(self, monkeypatch):
-        """Test that database errors return proper error message."""
-        from dionysus_mcp.server import app
+    async def test_database_error_raises_exception(self, monkeypatch):
+        """Test that database errors propagate as exceptions."""
+        from api.services.session_manager import DatabaseUnavailableError
+        import dionysus_mcp.tools.journey as journey_module
 
-        get_or_create_journey = get_tool_function(app, "get_or_create_journey")
+        # Create a mock session manager that raises on get_or_create_journey
+        class MockSessionManager:
+            def __init__(self, driver=None):
+                pass
 
-        # Mock pool to raise database error
-        async def mock_get_pool():
-            raise Exception("Database connection failed")
+            async def get_or_create_journey(self, device_id):
+                raise DatabaseUnavailableError("Database connection failed")
 
-        import dionysus_mcp.server
-        monkeypatch.setattr(dionysus_mcp.server, "get_pool", mock_get_pool)
+        # Replace the singleton with our mock
+        mock_manager = MockSessionManager()
+        original_manager = journey_module._session_manager
+        journey_module._session_manager = mock_manager
 
-        # Should raise or return error per MCP protocol
-        with pytest.raises(Exception) as exc_info:
-            await get_or_create_journey(device_id=str(uuid.uuid4()))
+        try:
+            # Call directly (not through MCP app to avoid fixture interference)
+            with pytest.raises(DatabaseUnavailableError) as exc_info:
+                await journey_module.get_or_create_journey_tool(str(uuid.uuid4()))
 
-        # Error message should mention "Failed to access journey"
-        assert "Failed to access journey" in str(exc_info.value) or \
-               "Database" in str(exc_info.value)
+            assert "Database" in str(exc_info.value)
+        finally:
+            # Restore
+            journey_module._session_manager = original_manager
 
 
 # =============================================================================

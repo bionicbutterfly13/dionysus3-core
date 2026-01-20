@@ -11,6 +11,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from api.services.elevenlabs_service import get_elevenlabs_service
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # Configuration
 DRAFTS_DIR = "specs/marketing_rhapsodies/drafts"
 AUDIO_OUTPUT_DIR = "data/audio_validation"

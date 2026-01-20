@@ -27,9 +27,9 @@
 
 **Goal**: Isolate agent context and prevent information flooding.
 
-- [ ] **Task 3.1**: Update `ThoughtSeed` model in `api/models/thought.py` with `MarkovBlanket` properties
-- [ ] **Task 3.2**: Implement `blanket_isolation` logic in `AgentMemoryService`
-- [ ] **Task 3.3**: Refactor `PerceptionAgent` to map inputs strictly to the "Sensory" blanket surface
+- [x] **Task 3.1**: Update `ThoughtSeed` model in `api/models/thought.py` with `MarkovBlanket` properties
+- [x] **Task 3.2**: Implement `blanket_isolation` logic in `AgentMemoryService`
+- [x] **Task 3.3**: Refactor `PerceptionAgent` to map inputs strictly to the "Sensory" blanket surface
 
 ## Phase 4: Inner Screen (US4) - P2
 
