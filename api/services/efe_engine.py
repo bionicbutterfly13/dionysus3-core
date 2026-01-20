@@ -148,16 +148,16 @@ class EFEEngine:
         if not candidates:
             return EFEResponse(dominant_seed_id="none", scores={})
 
-        results = {}
+        results: dict[str, EFEResult] = {}
         goal_vec = np.array(goal_vector)
-        
-        for candidate in candidates:
-            seed_id = candidate.get("id")
+
+        for i, candidate in enumerate(candidates):
+            seed_id = str(candidate.get("id", f"seed_{i}"))
             probs = candidate.get("probabilities", [0.5, 0.5])
             thought_vec = np.array(candidate.get("vector", [0.0]*len(goal_vector)))
-            
+
             efe = self.calculate_efe(probs, thought_vec, goal_vec, precision)
-            
+
             results[seed_id] = EFEResult(
                 seed_id=seed_id,
                 efe_score=efe,
@@ -270,23 +270,23 @@ class EFEEngine:
         detector = get_agency_detector()
         agency_score = detector.calculate_agency_score(internal_states, active_states)
         
-        results = {}
+        results: dict[str, EFEResult] = {}
         goal_vec = np.array(goal_vector)
-        
-        for candidate in candidates:
-            seed_id = candidate.get("id")
+
+        for i, candidate in enumerate(candidates):
+            seed_id = str(candidate.get("id", f"seed_{i}"))
             probs = candidate.get("probabilities", [0.5, 0.5])
             thought_vec = np.array(candidate.get("vector", [0.0] * len(goal_vector)))
-            
+
             # Calculate agency-weighted EFE
             weighted_efe = self.agency_weighted_efe(
                 probs, thought_vec, goal_vec, agency_score, agency_weight
             )
-            
+
             # Store with base metrics for transparency
             uncertainty = self.calculate_entropy(probs)
             divergence = self.calculate_goal_divergence(thought_vec, goal_vec)
-            
+
             results[seed_id] = EFEResult(
                 seed_id=seed_id,
                 efe_score=weighted_efe,  # Use weighted score for ranking
@@ -358,11 +358,11 @@ class EFEEngine:
                     scores={}
                 )
 
-        results = {}
+        results: dict[str, EFEResult] = {}
         goal_vec = np.array(goal_vector)
 
-        for candidate in filtered_candidates:
-            seed_id = candidate.get("id")
+        for i, candidate in enumerate(filtered_candidates):
+            seed_id = str(candidate.get("id", f"seed_{i}"))
             probs = candidate.get("probabilities", [0.5, 0.5])
             thought_vec = np.array(candidate.get("vector", [0.0] * len(goal_vector)))
 

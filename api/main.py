@@ -23,6 +23,7 @@ from slowapi.errors import RateLimitExceeded
 from api.routers import ias, heartbeat, models, memory, skills, sync, session, memevolve, maintenance, avatar, discovery, coordination, rollback, kg_learning, monitoring, mosaeic, graphiti, monitoring_pulse, network_state, belief_journey, agents, meta_tot, metacognition, consciousness, beautiful_loop, concept_extraction, domain_specialization, voice, documents, trajectory
 from api.models.network_state import get_network_state_config
 from api.services.journal_service import start_journal_scheduler
+from api.services.relatio_narrative_service import RelatioNarrativeService
 import asyncio
 
 # Rate limiter
@@ -55,6 +56,10 @@ async def lifespan(app: FastAPI):
     
     # Note: PostgreSQL removed. Using Graphiti/Neo4j for persistence.
     # Services requiring db_pool need migration to Graphiti.
+    
+    # Feature 073: Relatio Narrative Service
+    relatio_svc = RelatioNarrativeService()
+    
     yield
     # Shutdown
     print("Shutting down Dionysus API server...")

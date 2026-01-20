@@ -113,6 +113,42 @@ class PerceptionState(BaseModel):
         default_factory=list,
         description="Formal probability distribution over perceived environmental states"
     )
+    
+    # Feature 070: Expanded Affordances (Jorba & López-Silva 2024)
+    affective_atmosphere: float = Field(
+        default=0.0,
+        ge=-1.0,
+        le=1.0,
+        description="Global affective balance of environment (promotes saliency)"
+    )
+    mental_opportunities: List['MentalAffordance'] = Field(
+        default_factory=list,
+        description="Complex mental affordances (e.g., attending, counting, moral fittingness)"
+    )
+    
+    # Feature 070: Affordance-Matching (Bach et al. 2014)
+    object_affordances: List['ObjectAffordance'] = Field(
+        default_factory=list,
+        description="Structured object affordances (Function + Manipulation)"
+    )
+    recipient_objects: List[str] = Field(
+        default_factory=list,
+        description="Other objects in scene that can act as action recipients"
+    )
+    expected_manipulations: List[str] = Field(
+        default_factory=list,
+        description="Predicted forthcoming actions based on affordance matching (Bach et al. 2014)"
+    )
+    
+    # Feature 072: Attentional Landscape (Attendabilia - McClelland 2024)
+    attendabilia: List['AttentionalAffordance'] = Field(
+        default_factory=list,
+        description="The Priority Map: All perceived opportunities for focal attention"
+    )
+    focal_attention_target: Optional[str] = Field(
+        default=None, 
+        description="ID of the attendabile currently held in focal attention"
+    )
 
 
 class GoalState(BaseModel):
@@ -249,6 +285,148 @@ class ExecutiveState(BaseModel):
     blame_assignment: Optional[str] = Field(
         default=None,
         description="Attribution of failure: 'prediction' or 'execution'"
+    )
+
+
+# =============================================================================
+# Mental Affordances & Cognitive Control (Feature 070)
+# =============================================================================
+
+class AffordanceType(str, Enum):
+    BODILY = "bodily"
+    MENTAL = "mental"
+    MORAL = "moral" # Jorba & López-Silva (2024)
+    ATTENTIONAL = "attentional" # McClelland (2024)
+
+class AffordanceKnowledge(BaseModel):
+    """
+    Coupled function and manipulation knowledge (Bach et al. 2014).
+    """
+    function: str = Field(description="Goal/Effect of the action (What it's for)")
+    manipulation: str = Field(description="Motor/Kinematic requirements (How it's used)")
+    mechanical_knowledge: Optional[str] = Field(default=None, description="Technical reasoning")
+
+class ObjectAffordance(BaseModel):
+    """
+    Action information provided by objects.
+    """
+    object_label: str = Field(description="ID/Label of the object")
+    knowledge: List[AffordanceKnowledge] = Field(default_factory=list)
+    recipient_requirements: List[str] = Field(
+        default_factory=list, 
+        description="Types of objects this tool can act upon (Recipient Objects)"
+    )
+
+class AttentionalAffordance(BaseModel):
+    """
+    Representation of an opportunity for focal attention (Attendabile).
+    McClelland (2024): 'Something affords attending just in case it is a possible target of focal attention.'
+    """
+    affordance_id: str = Field(description="Unique ID (e.g., 'attn_cup')")
+    target_object_id: Optional[str] = Field(default=None, description="Link to physical object if applicable")
+    region_of_interest: Optional[str] = Field(default=None, description="Spatial coordinates or label")
+    
+    # Salience Profile (McClelland's Potentiation Factors)
+    bottom_up_salience: float = Field(default=0.0, description="Contrast/Suddenness (The 'Call')")
+    top_down_relevance: float = Field(default=0.0, description="Task Relevance (The 'Search')")
+    
+    is_focally_attended: bool = False
+
+class MentalAffordance(BaseModel):
+    """
+    Representation of an opportunity for mental action.
+    """
+    label: str = Field(description="Action name (e.g., 'attend', 'calculate')")
+    type: AffordanceType = Field(default=AffordanceType.MENTAL)
+    
+    # McClelland Conditions
+    is_perceived: bool = True
+    potentiation_level: float = Field(default=0.0, ge=0.0, le=1.0)
+    
+    # Proust Metacognitive Experience
+    doability_feeling: float = Field(
+        default=0.5, 
+        description="Metacognitive feeling: doable (1.0), difficult (0.5), hopeless (0.0)"
+    )
+    
+    # Fabienne Moral Fittingness
+    fittingness: float = Field(
+        default=0.0, 
+        description="Moral/Social fittingness factor (-1.0 to 1.0)"
+    )
+
+class CompetitiveAffordance(BaseModel):
+    """
+    An affordance engaged in the competition for selection (Cisek 2007).
+    """
+    affordance_id: str = Field(description="Unique ID for the affordance")
+    action_type: AffordanceType = Field(default=AffordanceType.MENTAL)
+    
+    # Competition State
+    activation_level: float = Field(default=0.0, ge=0.0, le=1.0, description="Current neural activation")
+    is_suppressed: bool = Field(default=False, description="Inhibited by competitors")
+    
+    # Biasing Inputs (Cisek Figure 1)
+    bottom_up_salience: float = Field(default=0.0, description="Sensory evidence support")
+    top_down_utility: float = Field(default=0.0, description="Goal relevance (PFC)")
+    instrumental_value: float = Field(default=0.0, description="Expected reward (Basal Ganglia)")
+    
+    # Source
+    source_mental: Optional[MentalAffordance] = None
+    source_physical: Optional[ObjectAffordance] = None
+
+class AffordanceCompetitionState(BaseModel):
+    """
+    State of the parallel competition between potential actions.
+    
+    NOTE (Risk of Trivialization): To avoid trivializing the concept of affordance
+    (Segundo-Ortin & Heras-Escribano, 2023), strict informational specification is required.
+    Mental affordances in this model are 'virtual' representations that emerge only when
+    specific informational variables (e.g., surprisal, entropy) are detected.
+    """
+    competing_affordances: Dict[str, CompetitiveAffordance] = Field(default_factory=dict)
+    winning_affordance_id: Optional[str] = None
+    selection_threshold: float = Field(default=0.7, description="Activity level required for release")
+
+class SubcorticalState(BaseModel):
+    """
+    Dual subcortical control systems (Luu, Tucker, & Friston, 2024).
+    
+    Provides vertical integration of cognitive control via two arousal systems:
+    1. Dorsal / Lemnothalamic (Norepinephrine - NE): Phasic/epistemic triggers
+    2. Ventral / Collothalamic (Dopamine - DA): Tonic/instrumental triggers
+    """
+    # Norepinephrine (NE) - The Dorsal System
+    ne_phasic: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Surprisal-driven phasic arousal (promotes set-switching)"
+    )
+    ne_tonic: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Baseline alertness/readiness"
+    )
+    
+    # Dopamine (DA) - The Ventral System
+    da_phasic: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Value-driven phasic activation (facilitates action)"
+    )
+    da_tonic: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Standard instrumental drive (promotes persistence)"
+    )
+    
+    # Integrated Precision (Synaptic Gain)
+    synaptic_gain: float = Field(
+        default=1.0,
+        ge=0.0,
+        description="Precision-weighting of prediction errors (modulated by NE/DA)"
     )
 
 
@@ -470,6 +648,12 @@ class BiologicalAgentState(BaseModel):
     executive: ExecutiveState = Field(default_factory=ExecutiveState)
     metacognitive: MetacognitiveState = Field(default_factory=MetacognitiveState)
     
+    # Feature 070: Vertical Subcortical Integration
+    subcortical: SubcorticalState = Field(default_factory=SubcorticalState)
+
+    # Feature 071: Affordance Competition (Cisek 2007)
+    affordance_competition: AffordanceCompetitionState = Field(default_factory=AffordanceCompetitionState)
+    
     # Shared agency
     shared_agency_type: SharedAgencyType = Field(
         default=SharedAgencyType.INDIVIDUAL
@@ -568,6 +752,7 @@ class BiologicalAgentState(BaseModel):
             "goal_state": self.goals.model_dump_json(),
             "executive_state": self.executive.model_dump_json(),
             "metacognitive_state": self.metacognitive.model_dump_json() if self.metacognitive else None,
+            "subcortical_state": self.subcortical.model_dump_json(),
             "last_decision": self.last_decision.model_dump_json() if self.last_decision else None,
             "collective_agency": self.collective_agency.model_dump_json() if self.collective_agency else None,
             "reconciliation_ledger": json.dumps([e.model_dump(mode='json') for e in self.reconciliation_ledger]),

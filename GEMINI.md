@@ -70,6 +70,10 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
     - **Neo4j-Only:** Relational databases (PostgreSQL) have been removed.
     - **Cypher Access:** Services use a Graphiti-backed driver shim for Neo4j queries.
     - **n8n Webhooks:** Ingest/recall/traverse workflows remain webhook-orchestrated.
+- **Gateway Protocol (ONE SINGLE WAY ACROSS):**
+    - **API Only:** ALL external interaction (ingestion, queries, control) MUST go through the `dionysus-api` Gateway (Port 8000).
+    - **No Direct DB Access:** Scripts/Tools must NEVER connect directly to Neo4j/Postgres ports. They must use the REST API.
+    - **No Local Containers:** Never spin up local DB containers. Use the Gateway to talk to the VPS via the API.
 - **Security:** Webhook communication is secured via **HMAC-SHA256** signatures (`verify_memevolve_signature`).
 - **Memory Management:**
     - **Episodic:** Temporal sequences of events.

@@ -238,6 +238,11 @@ dionysus_mcp/
 
 ### APPROVED ACCESS METHODS (ONLY THESE)
 
+**Gateway Protocol (ONE SINGLE WAY ACROSS):**
+- **API Only:** ALL external interaction (ingestion, queries, control) MUST go through the `dionysus-api` Gateway (Port 8000).
+- **No Direct DB Access:** Scripts/Tools must NEVER connect directly to Neo4j/Postgres ports. They must use the REST API.
+- **No Local Containers:** Never spin up local DB containers. Use the Gateway to talk to the VPS via the API.
+
 **For IAS Curriculum and High-Value Business Assets:**
 - ✅ **n8n webhooks ONLY**: `POST https://72.61.78.89:5678/webhook/ias/*`
 - ✅ Use Python `requests` library to call webhooks
