@@ -47,3 +47,4 @@ aiosqlite>=0.20.0
 
 aiosqlite
 spacy
+text2story

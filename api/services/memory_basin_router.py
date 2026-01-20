@@ -14,6 +14,10 @@ from typing import Any, Dict, Optional
 from api.models.sync import MemoryType
 from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.memevolve_adapter import get_memevolve_adapter, MemEvolveAdapter
+from api.services.narrative_extraction_service import (
+    NarrativeExtractionService,
+    get_narrative_extraction_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,13 +65,23 @@ class MemoryBasinRouter:
     3. Context-aware ingestion through MemEvolve (Graphiti gateway) with basin context
     """
 
-    def __init__(self, memevolve_adapter: Optional[MemEvolveAdapter] = None):
+    def __init__(
+        self,
+        memevolve_adapter: Optional[MemEvolveAdapter] = None,
+        narrative_service: Optional[NarrativeExtractionService] = None,
+    ):
         self._memevolve_adapter = memevolve_adapter
+        self._narrative_service = narrative_service
 
     async def _get_memevolve_adapter(self) -> MemEvolveAdapter:
         if self._memevolve_adapter is None:
             self._memevolve_adapter = get_memevolve_adapter()
         return self._memevolve_adapter
+
+    def _get_narrative_service(self) -> NarrativeExtractionService:
+        if self._narrative_service is None:
+            self._narrative_service = get_narrative_extraction_service()
+        return self._narrative_service
 
     def _get_basin_seed(self, basin_name: str) -> Dict[str, Any]:
         """Return seed metadata for a basin name."""
@@ -361,6 +375,19 @@ When extracting entities and relationships, prioritize:
             confidence_threshold=0.6,
         )
         
+        narrative_relationships: list[dict] = []
+        try:
+            narrative_service = self._get_narrative_service()
+            narrative_relationships = await narrative_service.extract_relationships(content)
+        except Exception as exc:
+            logger.warning(f"Narrative enrichment skipped: {exc}")
+
+        if narrative_relationships:
+            extraction["relationships"] = self._merge_relationships(
+                extraction.get("relationships", []),
+                narrative_relationships,
+            )
+
         # Record basin-memory association
         await self._record_basin_memory(basin_name, memory_type, extraction)
         
@@ -381,6 +408,30 @@ When extracting entities and relationships, prioritize:
             ingestion_result["ingested"] = ingest_result
         
         return ingestion_result
+
+    @staticmethod
+    def _merge_relationships(
+        base_relationships: list[dict],
+        additions: list[dict],
+    ) -> list[dict]:
+        merged: list[dict] = []
+        seen: set[tuple[str, str, str]] = set()
+
+        for rel in base_relationships + additions:
+            if not isinstance(rel, dict):
+                continue
+            source = str(rel.get("source", "")).strip()
+            target = str(rel.get("target", "")).strip()
+            rel_type = rel.get("relation_type") or rel.get("relation") or ""
+            rel_key = (source, target, str(rel_type).strip().upper())
+            if not source or not target or not rel_key[2]:
+                continue
+            if rel_key in seen:
+                continue
+            seen.add(rel_key)
+            merged.append(rel)
+
+        return merged
 
     async def _record_basin_memory(
         self,
