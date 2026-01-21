@@ -17,6 +17,7 @@ from api.models.beautiful_loop import ResonanceSignal, ResonanceMode
 from api.agents.consolidated_memory_stores import get_consolidated_memory_store
 from api.services.llm_service import chat_completion, GPT5_NANO
 from api.services.memory_basin_router import get_memory_basin_router
+from api.services.graphiti_service import get_graphiti_service
 from api.services.context_packaging import (
     get_token_budget_manager,
     get_residue_tracker,
@@ -270,8 +271,13 @@ class NemoriRiverFlow:
                     logger.info(f"Classified episode as {mem_type} -> Basin: {linked_basin_id}")
 
                     # 4. Route each new fact through the basin for proper extraction and storage
+                    # MEMORY CLUSTER INTEGRATION:
+                    # Step 4a: route_memory() → extracts entities/relationships → stores in graph
+                    # Step 4b: persist_fact() → creates Fact nodes with bi-temporal tracking
+                    # Both steps are complementary: entities for graph traversal, facts for temporal queries
                     for fact in new_facts:
                         if fact and len(fact) > 10:  # Skip trivial facts
+                            # 4a. Basin Router: classify → activate → extract entities/relationships
                             try:
                                 await router.route_memory(
                                     content=fact,
@@ -280,6 +286,20 @@ class NemoriRiverFlow:
                                 )
                             except Exception as route_err:
                                 logger.warning(f"Failed to route fact through basin: {route_err}")
+
+                            # 4b. Graphiti: persist Fact node with bi-temporal tracking
+                            # Links to episode via DISTILLED_FROM, cross-refs basin classification
+                            try:
+                                graphiti = await get_graphiti_service()
+                                await graphiti.persist_fact(
+                                    fact_text=fact,
+                                    source_episode_id=episode.episode_id,
+                                    valid_at=datetime.now(timezone.utc),
+                                    basin_id=linked_basin_id,
+                                    confidence=0.8,
+                                )
+                            except Exception as persist_err:
+                                logger.warning(f"Failed to persist fact to Graphiti: {persist_err}")
 
                 except Exception as e:
                     logger.warning(f"Basin classification failed: {e}")

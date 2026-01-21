@@ -779,6 +779,87 @@ IMPORTANT:
             logger.error(f"Failed to ingest contextual triplet: {e}")
             return False
 
+    async def persist_fact(
+        self,
+        fact_text: str,
+        source_episode_id: str,
+        valid_at: datetime,
+        basin_id: Optional[str] = None,
+        confidence: float = 1.0,
+        group_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Persist a distilled fact to the temporal knowledge graph.
+
+        MEMORY CLUSTER SYNERGY:
+        - This method SUPPLEMENTS (not replaces) the route_memory() → extract_with_context() flow
+        - route_memory() extracts entities/relationships from facts
+        - persist_fact() creates queryable Fact nodes with bi-temporal tracking
+        - Both work together: entities for graph traversal, facts for temporal queries
+
+        Bi-temporal tracking:
+        - valid_at: When the fact became true in the world (from predict_and_calibrate)
+        - created_at: When we learned/recorded the fact (auto-set by Cypher)
+
+        Cross-references:
+        - source_episode_id: Links to DevelopmentEpisode via DISTILLED_FROM
+        - basin_id: Cross-references Memory Basin Router classification
+
+        Args:
+            fact_text: The distilled fact content
+            source_episode_id: ID of the episode this fact was distilled from
+            valid_at: Timestamp when the fact became true
+            basin_id: Optional basin ID for cross-referencing with basin router
+            confidence: Confidence score for this fact (0.0 to 1.0)
+            group_id: Optional group filter
+
+        Returns:
+            Fact node ID if successful, None otherwise
+        """
+        import hashlib
+
+        # Generate idempotent fact ID from content hash (prevents duplicates)
+        content_hash = hashlib.sha256(fact_text.encode()).hexdigest()[:16]
+        fact_id = f"fact_{content_hash}"
+
+        cypher = """
+        MERGE (f:Fact {id: $fact_id})
+        ON CREATE SET
+            f.text = $fact_text,
+            f.source_episode_id = $source_episode_id,
+            f.basin_id = $basin_id,
+            f.confidence = $confidence,
+            f.valid_at = datetime($valid_at),
+            f.created_at = datetime(),
+            f.group_id = $group_id
+        ON MATCH SET
+            f.confidence = CASE WHEN $confidence > f.confidence THEN $confidence ELSE f.confidence END
+
+        WITH f
+        OPTIONAL MATCH (ep:Episode {id: $source_episode_id})
+        FOREACH (_ IN CASE WHEN ep IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (f)-[:DISTILLED_FROM]->(ep)
+        )
+
+        RETURN f.id as fact_id
+        """
+
+        try:
+            await self.execute_cypher(cypher, {
+                "fact_id": fact_id,
+                "fact_text": fact_text,
+                "source_episode_id": source_episode_id,
+                "basin_id": basin_id,
+                "confidence": confidence,
+                "valid_at": valid_at.isoformat(),
+                "group_id": group_id or self.config.group_id,
+            })
+            logger.debug(f"Persisted fact {fact_id} from episode {source_episode_id}")
+            return fact_id
+        except Exception as e:
+            logger.error(f"Failed to persist fact to Graphiti: {e}")
+            return None
+
     async def search(
         self,
         query: str,
