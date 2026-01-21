@@ -61,6 +61,10 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
     - For ANY multi-step task, you **MUST** use the Conductor workflow.
     - Create a track in `conductor/tracks/`, define the `plan.md` following the template, and strictly adhere to the `workflow.md` lifecycle.
     - This process is automatic and non-negotiable. Do not ask for permission; just set it up.
+- **Feature Branch Workflow (MANDATORY):**
+    - Work on a dedicated branch per track/task (`feature/{NNN}-{name}`) and merge immediately after completion and verification.
+- **TDD Protocol (MANDATORY):**
+    - Red → Green → Refactor. Failing tests must be written before implementation.
 - **Protocol: Review Before Write (CRITICAL):**
     - **Context Awareness:** Before writing ANY new code or creating a new service, you **MUST** review existing relevant code (e.g., `memevolve_adapter.py`, `graphiti_service.py`, `nemori_river_flow.py`) to prevent redundancy.
     - **Anti-Duplication:** Do not reinvent wheel mechanisms (e.g., extraction, routing, ingestion) that already exist in the Memory Stack. Reuse or refactor; do not duplicate.
@@ -74,6 +78,9 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
     - **API Only:** ALL external interaction (ingestion, queries, control) MUST go through the `dionysus-api` Gateway (Port 8000).
     - **No Direct DB Access:** Scripts/Tools must NEVER connect directly to Neo4j/Postgres ports. They must use the REST API.
     - **No Local Containers:** Never spin up local DB containers. Use the Gateway to talk to the VPS via the API.
+- **MemEvolve Protocol (ANTI-POISON):**
+    - **No Pre-Digestion:** Do not send pre-extracted entities/edges. Send raw trajectories and let the system extract.
+    - **Lifecycle:** Encode → Store → Retrieve → Manage must remain decoupled.
 - **Security:** Webhook communication is secured via **HMAC-SHA256** signatures (`verify_memevolve_signature`).
 - **Memory Management:**
     - **Episodic:** Temporal sequences of events.
@@ -84,6 +91,8 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
     - Format: `YYYY-MM-DD-feature-name.md`.
     - Content: Brief summary of the "why", the "what", and the "how". Link to relevant code or artifacts.
     - Consistency: This ensures the "Quartz Journal" remains the definitive narrative log of the system's evolution.
+- **Commit Guidelines:**
+    - Use conventional commits (`feat`, `fix`, `docs`, `chore`, etc.).
 
 ## Roadmap & Pending Tasks
 
