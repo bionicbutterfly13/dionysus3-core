@@ -12,17 +12,17 @@ from datetime import datetime
 API_BASE_URL = "http://72.61.78.89:8000"
 INGEST_ENDPOINT = "/webhook/memevolve/v1/ingest"
 
-# Try to load secret from .env manually to avoid 'python-dotenv' dependency
+# Load secret from environment (required)
 def load_env_secret():
-    # Attempt 1: Check environment variable
     secret = os.environ.get("MEMEVOLVE_HMAC_SECRET")
-    if secret: return secret
-    
-    # Attempt 2: Hardcoded token from VPS (verified via SSH)
-    return "9fcec371b26e57751f9cc0bd69cf0a42a2312507a3e25498ec132f5a448ef541"
+    if not secret:
+        raise RuntimeError("MEMEVOLVE_HMAC_SECRET must be set for ingestion.")
+    return secret
 
-HMAC_SECRET = load_env_secret()
-print(f"Using Secret Config: {HMAC_SECRET[:4]}...{HMAC_SECRET[-4:]}")
+DEPRECATION_MESSAGE = (
+    "Deprecated: this script sends pre-extracted entities/edges and is blocked by the API. "
+    "Use scripts/ingest_vigilant_sentinel_experiential.py instead."
+)
 
 # --- Data Generators (Pure Python Dicts) ---
 
@@ -153,13 +153,15 @@ def generate_signature(payload_bytes: bytes, secret: str) -> str:
 # --- Execution ---
 
 def main():
+    raise SystemExit(DEPRECATION_MESSAGE)
+    # Deprecated path retained for historical reference only.
     print("Preparing ingestion payload...")
     data = create_payload()
     json_data = json.dumps(data)
     payload_bytes = json_data.encode("utf-8")
     
     print("Signing request...")
-    signature = generate_signature(payload_bytes, HMAC_SECRET)
+    signature = generate_signature(payload_bytes, load_env_secret())
     
     url = f"{API_BASE_URL}{INGEST_ENDPOINT}"
     

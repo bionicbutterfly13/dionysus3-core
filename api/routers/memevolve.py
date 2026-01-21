@@ -6,7 +6,7 @@ Feature: 009-memevolve-integration
 Phase: 1 - Foundation
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from api.models.memevolve import (
     HealthCheckResponse,
@@ -70,6 +70,16 @@ async def ingest_trajectory(
     
     Receives trajectory data and processes it for storage.
     """
+    if request.entities:
+        raise HTTPException(
+            status_code=400,
+            detail="Pre-extracted entities are not allowed. Send raw trajectories only.",
+        )
+    if request.edges:
+        raise HTTPException(
+            status_code=400,
+            detail="Pre-extracted edges are not allowed. Send raw trajectories only.",
+        )
     result = await adapter.ingest_trajectory(request)
     return IngestResponse(
         ingest_id=result["ingest_id"],
