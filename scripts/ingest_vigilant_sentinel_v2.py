@@ -21,6 +21,11 @@ def load_env_secret():
 HMAC_SECRET = load_env_secret()
 print(f"Using Secret Config: {HMAC_SECRET[:4]}...{HMAC_SECRET[-4:]}")
 
+DEPRECATION_MESSAGE = (
+    "Deprecated: this script sends pre-extracted entities/edges and is blocked by the API. "
+    "Use scripts/ingest_vigilant_sentinel_experiential.py instead."
+)
+
 # --- Data Generation ---
 
 def get_avatar_core():
@@ -293,6 +298,7 @@ def generate_signature(payload_bytes: bytes, secret: str) -> str:
     return f"sha256={digest}"
 
 def main():
+    raise SystemExit(DEPRECATION_MESSAGE)
     print("Preparing Deep Dossier payload (Avatar 2.0)...")
     data = create_payload()
     json_data = json.dumps(data)
