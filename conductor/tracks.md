@@ -13,8 +13,9 @@
 | 061-context-engineering-integration | Done | Context Engineering Integration | Nemori/archetype/basin alignment, context packaging, symbolic residue |
 | 062-document-ingestion-viz | Planned | Document Ingestion & Trajectory Visualizer | Marker PDF extraction, RLM-style recursive processing, OODA trajectory visualization |
 | 070-text2story-fallback | In Progress | Text2Story Narrative Fallback | English-only narrative extraction with LLM fallback in ingestion |
-| 072-memevolve-ingest-guardrails | In Progress | MemEvolve Ingest Guardrails | Reject pre-extracted entities/edges and harden ingestion scripts |
+| 072-memevolve-ingest-guardrails | Done | MemEvolve Ingest Guardrails | Reject pre-extracted entities/edges and harden ingestion scripts |
 | 071-urm-live-integration | In Progress | UnifiedRealityModel Live Integration | Wire ConsciousnessManager to populate URM with real OODA cycle data |
+| 095-coordination-pool-rename | Planned | Coordination Pool Rename | Rename Daedalus pool terminology and align delegation docs |
 
 <!--
 Status: Planned, In Progress, In Review, Done, Cancelled
