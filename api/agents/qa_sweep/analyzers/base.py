@@ -60,7 +60,6 @@ class BaseAnalyzer(ABC):
 
         for pattern in self.config.file_patterns:
             # Handle glob patterns properly
-            # rglob needs just the filename pattern, e.g., "*.py"
             if "**" in pattern:
                 glob_pattern = pattern.replace("**/", "")
             else:
@@ -70,13 +69,29 @@ class BaseAnalyzer(ABC):
                 if not file_path.is_file():
                     continue
 
-                # Check exclude patterns
+                # Check exclude patterns against path components
                 rel_path = str(file_path.relative_to(root))
-                excluded = any(
-                    fnmatch.fnmatch(rel_path, ex.replace("**/", "")) or
-                    fnmatch.fnmatch(file_path.name, ex.replace("**/", ""))
-                    for ex in self.config.exclude_patterns
-                )
+                path_parts = file_path.parts
+
+                excluded = False
+                for ex in self.config.exclude_patterns:
+                    clean_ex = ex.replace("**/", "").strip("/").rstrip("/**")
+
+                    # Check if any directory in path matches exclusion
+                    if clean_ex in path_parts:
+                        excluded = True
+                        break
+
+                    # Check filename pattern match
+                    if fnmatch.fnmatch(file_path.name, clean_ex):
+                        excluded = True
+                        break
+
+                    # Check full relative path
+                    if fnmatch.fnmatch(rel_path, f"*{clean_ex}*"):
+                        excluded = True
+                        break
+
                 if excluded:
                     continue
 

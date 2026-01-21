@@ -129,5 +129,22 @@ class AnalyzerConfig(BaseModel):
     enabled: bool = True
     severity_threshold: Severity = Severity.LOW  # Minimum severity to report
     file_patterns: List[str] = Field(default_factory=lambda: ["**/*.py"])
-    exclude_patterns: List[str] = Field(default_factory=lambda: ["**/test_*.py", "**/__pycache__/**"])
+    exclude_patterns: List[str] = Field(default_factory=lambda: [
+        "**/test_*.py",
+        "**/__pycache__/**",
+        "**/.venv/**",
+        "**/venv/**",
+        "**/marker-env/**",
+        "**/node_modules/**",
+        "**/site-packages/**",
+        "**/.git/**",
+        "**/dionysus-ralph-orchestrator/**",
+        "**/build/**",
+        "**/dist/**",
+        "**/*.egg-info/**",
+        "**/.checkpoints/**",
+        "**/notebooklm-mcp/**",
+        "**/dionysus-dashboard/**",
+        "**/research/**",
+    ])
     max_findings: int = Field(default=1000, description="Max findings per analyzer")
