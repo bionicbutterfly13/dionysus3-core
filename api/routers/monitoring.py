@@ -45,8 +45,6 @@ async def get_river_flow(project_id: str = "default", service = Depends(get_moni
 @router.get("/cognitive", response_model=Dict)
 async def get_cognitive_stats(service = Depends(get_monitoring_service_with_trace)):
     """T020: Get real-time EFE and stability metrics."""
-    from api.services.efe_engine import get_efe_engine
-    from api.services.metaplasticity_service import get_metaplasticity_controller
     
     # In a real run, these would be aggregated from recent OODA cycles
     return {

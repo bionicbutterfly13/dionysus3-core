@@ -7,10 +7,10 @@ Feature: 019-avatar-knowledge-graph
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from api.agents.knowledge import AvatarResearcher, create_avatar_researcher
+from api.agents.knowledge import create_avatar_researcher
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/avatar", tags=["avatar"])

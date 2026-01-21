@@ -11,7 +11,7 @@ Detects broken promises in code:
 import ast
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from .base import BaseAnalyzer, PatternMatcher
 from ..models import QAFinding, Severity, IssueClass

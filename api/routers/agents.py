@@ -11,7 +11,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Path, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 def validate_uuid(trace_id: str) -> str:
@@ -24,7 +24,6 @@ def validate_uuid(trace_id: str) -> str:
 
 from api.services.execution_trace_service import (
     ExecutionTraceData,
-    ExecutionStepData,
     get_execution_trace_service,
 )
 from api.agents.audit import get_all_token_summaries, get_aggregate_token_stats

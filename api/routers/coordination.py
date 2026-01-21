@@ -1,7 +1,7 @@
 """
 Coordination API router
 
-Feature: 020-daedalus-coordination-pool
+Feature: 020-coordination-pool (formerly Daedalus)
 """
 
 from typing import Any, Dict, List, Optional
@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 
 from api.services.coordination_service import (
     get_coordination_service,
-    AgentStatus,
     PoolFullError,
     QueueFullError,
     TaskType,
@@ -182,4 +181,3 @@ async def complete_task(task_id: str, success: bool = True, service = Depends(ge
 async def get_metrics(service = Depends(get_service_with_trace)) -> MetricsResponse:
     m = service.metrics()
     return MetricsResponse(**m)
-

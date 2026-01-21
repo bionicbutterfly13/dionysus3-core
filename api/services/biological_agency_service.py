@@ -21,6 +21,7 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 
 from api.models.biological_agency import (
+    AffordanceType,
     AgencyTier,
     SharedAgencyType,
     DecisionType,

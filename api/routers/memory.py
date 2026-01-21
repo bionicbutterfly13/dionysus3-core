@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field
 
 from api.services.remote_sync import RemoteSyncService
 from api.services.vector_search import (
-    VectorSearchService,
     SearchFilters,
     get_vector_search_service,
 )

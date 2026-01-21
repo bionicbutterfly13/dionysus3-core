@@ -1,6 +1,6 @@
 """
 Class-based tools for coordination pool interactions.
-Feature: 020-daedalus-coordination-pool
+Feature: 020-coordination-pool (formerly Daedalus)
 Tasks: T4.1, T4.2
 """
 

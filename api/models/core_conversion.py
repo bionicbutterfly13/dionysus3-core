@@ -6,7 +6,7 @@ Based on BE MEMBERSHIP CORE CONVERSION CONTENT WORKBOOK framework.
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from enum import Enum
 from datetime import datetime
 from uuid import uuid4

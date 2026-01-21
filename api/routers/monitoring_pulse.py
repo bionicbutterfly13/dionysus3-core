@@ -7,15 +7,14 @@ a "Daily Pulse" for project journals.
 """
 
 import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+from datetime import datetime
 import subprocess
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from api.services.remote_sync import RemoteSyncService
 from api.services.graphiti_service import get_graphiti_dependency, GraphitiService
 
 logger = logging.getLogger(__name__)

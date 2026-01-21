@@ -9,12 +9,11 @@ Expert agents for fixing specific classes of issues:
 
 import ast
 import re
-import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
-from ..models import QAFinding, IssueClass, RepairStatus
+from ..models import QAFinding, IssueClass
 
 
 class BaseRepairAgent(ABC):

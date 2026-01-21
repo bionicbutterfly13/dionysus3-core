@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict
 from pydantic import BaseModel, Field
 
 class FlowState(str, enum.Enum):

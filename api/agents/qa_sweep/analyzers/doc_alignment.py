@@ -11,7 +11,7 @@ Detects documentation/code misalignment:
 import ast
 import re
 from pathlib import Path
-from typing import List, Set, Optional, Tuple
+from typing import List, Set
 
 from .base import BaseAnalyzer
 from ..models import QAFinding, Severity, IssueClass

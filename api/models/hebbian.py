@@ -2,7 +2,6 @@
 Models for Hebbian Learning connection weights.
 """
 
-from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 from api.utils.math_utils import hebbian_update, weight_decay

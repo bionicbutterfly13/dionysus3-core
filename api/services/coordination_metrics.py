@@ -6,7 +6,7 @@ logger = logging.getLogger("dionysus.coordination.metrics")
 
 class CoordinationMetrics:
     """
-    Observability layer for the Daedalus Coordination Pool.
+    Observability layer for the Coordination Pool.
     Tracks agent lifecycle events, failures, and performance timing.
     """
     

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Callable, Union, Type
+from typing import Dict, List, Callable, Type
 import logging
 from smolagents.memory import ActionStep, PlanningStep
 

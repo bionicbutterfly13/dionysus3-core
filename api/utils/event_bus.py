@@ -7,7 +7,6 @@ can trigger the Consciousness Integration Pipeline.
 """
 
 import logging
-import asyncio
 from typing import Any, Dict, Optional
 from datetime import datetime
 

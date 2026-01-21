@@ -5,7 +5,7 @@ Feature: 024-mosaeic-protocol
 Mental Observation of Senses, Actions, Emotions, Impulses, Cognitions.
 """
 
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel, Field
 from datetime import datetime
 

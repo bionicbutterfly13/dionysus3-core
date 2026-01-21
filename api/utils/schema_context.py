@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Optional, Type
 from pydantic import BaseModel, ValidationError
 from api.services.llm_service import chat_completion
 

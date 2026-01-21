@@ -20,7 +20,6 @@ from pydantic import BaseModel, Field
 
 from api.models.journey import SessionEvent
 from api.services.reconstruction_service import (
-    ReconstructionService,
     ReconstructionContext,
     get_reconstruction_service,
 )

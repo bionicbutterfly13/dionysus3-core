@@ -20,7 +20,7 @@ from enum import Enum
 from typing import Optional, Set, List
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger("dionysus.markov_blanket")
 

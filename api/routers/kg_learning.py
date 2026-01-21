@@ -4,7 +4,7 @@ Feature: 022-agentic-kg-learning
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 

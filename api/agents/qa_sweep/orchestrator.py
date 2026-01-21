@@ -17,8 +17,6 @@ from typing import List, Optional, Dict
 from .models import (
     QAFinding,
     SweepResult,
-    RepairWorkOrder,
-    IssueClass,
     Severity,
     AnalyzerConfig,
 )

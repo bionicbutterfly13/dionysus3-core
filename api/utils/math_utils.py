@@ -7,7 +7,6 @@ Part of 034-network-self-modeling feature.
 from __future__ import annotations
 
 import math
-from typing import Union
 
 
 def sigmoid_squash(value: float, min_val: float = 0.01, max_val: float = 0.99) -> float:

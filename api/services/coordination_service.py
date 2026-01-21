@@ -1,5 +1,5 @@
 """
-DAEDALUS-style coordination pool (smolagents-backed placeholder).
+Coordination pool (smolagents-backed placeholder).
 
 Provides in-memory agent registry, task queue, assignments, and health stats.
 Designed to be smolagents-friendly (agent ids/context ids tracked) and

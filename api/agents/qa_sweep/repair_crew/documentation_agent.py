@@ -5,7 +5,6 @@ Paired agent that ensures all repairs have corresponding documentation updates.
 Updates docstrings, README sections, and creates migration notes.
 """
 
-import re
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict
 from datetime import datetime

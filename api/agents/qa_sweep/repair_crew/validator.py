@@ -10,7 +10,7 @@ Validates repairs before they are committed:
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 from dataclasses import dataclass
 
 

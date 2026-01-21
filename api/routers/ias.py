@@ -7,7 +7,7 @@ import uuid
 from typing import Optional
 from datetime import datetime
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -19,7 +19,7 @@ from api.services.llm_service import (
     generate_woop_plans,
 GPT5_NANO
 )
-from api.framework import IAS_FRAMEWORK, get_step, get_obstacle
+from api.framework import IAS_FRAMEWORK, get_step
 
 router = APIRouter(prefix="/ias", tags=["IAS"])
 

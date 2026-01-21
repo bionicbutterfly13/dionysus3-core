@@ -19,7 +19,6 @@ from pydantic import BaseModel
 
 from api.services.trajectory_viz import (
     get_trajectory_viz_service,
-    TrajectoryTrace,
 )
 
 logger = logging.getLogger("dionysus.routers.trajectory")

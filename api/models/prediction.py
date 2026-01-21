@@ -3,7 +3,7 @@ Models for Self-Modeling Predictions.
 Feature: 034-network-self-modeling
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Optional
 from datetime import datetime
 from uuid import uuid4
 from pydantic import BaseModel, Field

@@ -169,7 +169,7 @@ The agents will return structured results for synthesis.""",
     async def run_ooda_cycle(self, initial_context: Dict[str, Any], async_topology: bool = False) -> Dict[str, Any]:
         """
         Execute a full OODA loop.
-        If async_topology=True, it submits a task-graph to Daedalus instead of blocking.
+        If async_topology=True, it submits a task-graph to the Coordination Pool instead of blocking.
         """
         if not self._entered:
             with self:
@@ -398,11 +398,11 @@ The agents will return structured results for synthesis.""",
                 payload={"query": task_query, **initial_context},
                 task_type=TaskType.RESEARCH
             )
-            logger.info(f"OODA Cycle delegated to ASYNC TOPOLOGY in Daedalus Pool (Task: {task_id})")
+            logger.info(f"OODA Cycle delegated to ASYNC TOPOLOGY in Coordination Pool (Task: {task_id})")
             return {
                 "task_id": task_id,
                 "status": "ASYNCHRONOUS_ORCHESTRATION_TRIGGERED",
-                "reasoning": "Goal submitted to Daedalus Coordination Pool for multi-agent DAG expansion."
+                "reasoning": "Goal submitted to Coordination Pool for multi-agent DAG expansion."
             }
 
         # Run with timeout and gating (T0.3, Q4)

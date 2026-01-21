@@ -191,11 +191,38 @@ class DevelopmentEpisode(BaseModel):
     stabilizing_attractor: Optional[str] = Field(None, description="Core theme/goal anchoring this episode")
     source_trajectory_ids: List[str] = Field(default_factory=list, description="IDs of source Trajectories (Protocol 060)")
 
+    def to_trajectory(self) -> Any:
+        """
+        Convert this episode into a TrajectoryData object for MemEvolve ingestion.
+        Used for bridging episodic narratives into the operational extraction pipeline.
+        """
+        from api.models.memevolve import TrajectoryData, TrajectoryStep, TrajectoryMetadata, TrajectoryType
+        
+        # Map narrative to a single trajectory step or summarize
+        steps = [TrajectoryStep(observation=self.narrative)]
+        
+        metadata = TrajectoryMetadata(
+            session_id=None, # Will be resolved by adapter if possible
+            project_id=self.journey_id,
+            trajectory_type=TrajectoryType.EPISODIC,
+            timestamp=self.start_time,
+            agent_id="nemori_river", # Mark as nemori-level processing
+        )
+        
+        return TrajectoryData(
+            id=self.episode_id,
+            query=self.title,
+            steps=steps,
+            metadata=metadata,
+            summary=self.summary,
+            result=self.narrative
+        )
+
 
 class AutobiographicalJourney(BaseModel):
     """The Main River: The long-term narrative flow of the system."""
     journey_id: str
-    title: str = Field(..., description="Journey name (e.g., 'Daedalus Integration')")
+    title: str = Field(..., description="Journey name (e.g., 'Coordination Pool Integration')")
     description: str
 
     created_at: datetime = Field(default_factory=datetime.utcnow)

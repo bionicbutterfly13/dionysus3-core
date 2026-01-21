@@ -4,7 +4,6 @@ Feature: 024-mosaeic-protocol
 """
 
 import logging
-from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 

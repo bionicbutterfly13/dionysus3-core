@@ -20,7 +20,6 @@ from api.models.concept_extraction import (
 )
 from api.services.concept_extraction import (
     get_concept_extraction_service,
-    register_all_extractors,
 )
 
 
