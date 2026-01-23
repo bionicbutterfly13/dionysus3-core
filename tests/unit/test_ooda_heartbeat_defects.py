@@ -1,3 +1,4 @@
+import json
 import sys
 from types import SimpleNamespace
 from uuid import uuid4
@@ -73,6 +74,48 @@ def _build_summary(focus_goal_id=None):
 
 
 @pytest.mark.asyncio
+async def test_make_decision_handles_missing_normalized_reasoning(monkeypatch):
+    sys.modules["litellm"] = SimpleNamespace(
+        acompletion=AsyncMock(),
+        completion=AsyncMock(),
+    )
+
+    class DummyManager:
+        async def run_ooda_cycle(self, _context):
+            return {"final_plan": "fallback plan", "actions": []}
+
+    class DummySchemaContext:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        async def query(self, _prompt):
+            return {}
+
+    monkeypatch.setattr(
+        "api.agents.consciousness_manager.ConsciousnessManager",
+        DummyManager,
+    )
+    monkeypatch.setattr(
+        "api.utils.schema_context.SchemaContext",
+        DummySchemaContext,
+    )
+
+    from api.models.goal import GoalAssessment
+    from api.services.heartbeat_service import HeartbeatContext
+
+    service = HeartbeatService(driver=FakeDriver(FakeSession()))
+    context = HeartbeatContext(
+        environment=EnvironmentSnapshot(),
+        goals=GoalsSnapshot(),
+        goal_assessment=GoalAssessment(),
+    )
+
+    decision = await service._make_decision(context)
+
+    assert decision.reasoning == "fallback plan"
+
+
+@pytest.mark.asyncio
 async def test_record_heartbeat_focus_goal_runs_inside_session():
     session = FakeSession()
     service = HeartbeatService(driver=FakeDriver(session))
@@ -114,6 +157,27 @@ async def test_generate_narrative_fallback_uses_decision_reasoning():
     narrative = await service._generate_narrative_llm(summary)
 
     assert "fallback reasoning" in narrative
+
+
+@pytest.mark.asyncio
+async def test_generate_strategic_memory_coerces_tags_to_list():
+    async def fake_completion(*args, **kwargs):
+        content = json.dumps(
+            {"lesson": "keep going", "importance": 0.9, "tags": "strategy"}
+        )
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
+        )
+
+    sys.modules["litellm"] = SimpleNamespace(completion=fake_completion)
+
+    session = FakeSession()
+    service = HeartbeatService(driver=FakeDriver(session))
+
+    await service._generate_strategic_memory(["insight"])
+
+    tags = [call[1].get("tags") for call in session.run_calls if "tags" in call[1]]
+    assert tags and isinstance(tags[0], list)
 
 
 @pytest.mark.asyncio

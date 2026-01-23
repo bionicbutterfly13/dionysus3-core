@@ -189,6 +189,9 @@
 - [ ] Update tests to use mocks
 - [ ] Verify test behavior
 
+### T041-035: Expand OODA/Heartbeat coverage
+- [~] Add tests for heartbeat decision edge cases, strategic memory synthesis, and trajectory pattern parsing
+
 ---
 
 ## Phase 5: Dead Code & Type Hints (P2)

@@ -636,9 +636,23 @@ class HeartbeatService:
             """
             
             result = await sc.query(normalization_prompt)
-            
-            if "error" in result:
-                logger.error(f"Schema normalization failed: {result['error']}. Falling back to raw agent result.")
+            if not isinstance(result, dict) or not result:
+                logger.error("Schema normalization returned empty result; falling back.")
+                return HeartbeatDecision(
+                    action_plan=ActionPlan(
+                        actions=[],
+                        reasoning=agent_result.get("final_plan", str(agent_result))
+                    ),
+                    reasoning=agent_result.get("final_plan", str(agent_result)),
+                    focus_goal_id=None,
+                    confidence=agent_result.get("confidence", 0.5)
+                )
+
+            if "error" in result or "reasoning" not in result:
+                logger.error(
+                    "Schema normalization failed: %s. Falling back to raw agent result.",
+                    result.get("error", "missing reasoning"),
+                )
                 # Minimal mapping from agent result if normalization fails
                 structured_actions = []
                 for a in agent_result.get("actions", []):
@@ -963,6 +977,8 @@ class HeartbeatService:
             lesson = data.get("lesson", "Multiple trajectory patterns observed.")
             importance = float(data.get("importance", 0.7))
             tags = data.get("tags", ["strategic", "memevolve"])
+            if not isinstance(tags, list):
+                tags = [str(tags)]
             
             memory_id = str(uuid4())
             
