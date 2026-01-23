@@ -350,6 +350,50 @@ class MetacognitionAgent:
 
         return result
 
+    # =========================================================================
+    # SOFAI ARBITRATION (Track 101)
+    # =========================================================================
+
+    async def arbitrate_decision(
+        self,
+        proposal: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Decide whether to accept the S1 (Fast) proposal or trigger S2 (Slow) reasoning.
+        
+        Args:
+            proposal: The initial fast result from the perception/heartbeat pass.
+            context: Current cognitive and environmental state.
+        
+        Returns:
+            Dict containing arbitration decision and rationale.
+        """
+        from api.services.arbitration_service import get_arbitration_service
+        service = get_arbitration_service()
+        
+        # Extract metrics
+        confidence = proposal.get("confidence", 0.5)
+        success_rate = context.get("historical_success", 0.8) # Placeholder
+        energy = context.get("energy", 1.0)
+        complexity = context.get("complexity", 0.5)
+        
+        result = service.arbitrate(
+            s1_confidence=confidence,
+            success_rate=success_rate,
+            current_energy=energy,
+            complexity_estimate=complexity
+        )
+        
+        logger.info(f"SOFAI Arbitration for decision: use_s2={result.use_s2}, reason='{result.reason}'")
+        
+        return {
+            "use_s2": result.use_s2,
+            "reason": result.reason,
+            "trust_score": float(result.trust_score),
+            "risk_aversion": float(result.risk_aversion)
+        }
+
 
 def get_attentional_spotlight(agent_name: str) -> Dict[str, Any]:
     """Get current attentional spotlight for an agent."""
