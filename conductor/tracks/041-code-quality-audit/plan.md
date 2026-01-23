@@ -193,7 +193,7 @@
 - [x] Add tests for heartbeat decision edge cases, strategic memory synthesis, and trajectory pattern parsing (fd59c43)
 
 ### T041-036: Expand OODA/Heartbeat coverage II
-- [~] Add tests for decision fallback mapping and trajectory pattern error handling
+- [x] Add tests for decision fallback mapping and trajectory pattern error handling (2d4a971)
 
 ---
 
