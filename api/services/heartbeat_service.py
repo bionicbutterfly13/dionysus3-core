@@ -902,6 +902,9 @@ class HeartbeatService:
             
             content = response.choices[0].message.content
             data = json.loads(content)
+            if isinstance(data, list):
+                return [str(item) for item in data]
+
             insights = data.get("insights", []) or data.get("patterns", []) or []
             
             if not isinstance(insights, list):
@@ -1026,12 +1029,27 @@ class HeartbeatService:
             from litellm import completion
             
             # Format inputs for the prompt
-            actions_list = [f"- {r.action_type.value}: {r.reason or 'No reason'}" for r in summary.results]
+            actions_list = []
+            for result in summary.results:
+                reason = getattr(result, "reason", None)
+                if reason is None and isinstance(getattr(result, "data", None), dict):
+                    reason = result.data.get("reason")
+                actions_list.append(
+                    f"- {result.action_type.value}: {reason or 'No reason'}"
+                )
             actions_text = "\\n".join(actions_list) or "Reflected quietly."
             
             goals_text = ", ".join(g.title for g in summary.goals.active[:3]) or "None"
             
-            user_context = "User is present." if summary.environment.user_present else f"User likely away (last seen {summary.environment.time_since_user_hours:.1f}h ago)."
+            if summary.environment.user_present:
+                user_context = "User is present."
+            elif summary.environment.time_since_user_hours is None:
+                user_context = "User likely away (last seen unknown)."
+            else:
+                user_context = (
+                    "User likely away "
+                    f"(last seen {summary.environment.time_since_user_hours:.1f}h ago)."
+                )
             
             prompt = f"""
             Heartbeat #{summary.heartbeat_number} Summary:
@@ -1075,7 +1093,7 @@ class HeartbeatService:
                 f"Heartbeat #{summary.heartbeat_number}: "
                 f"I {actions_desc}. "
                 f"Energy went from {summary.energy_start:.1f} to {summary.energy_end:.1f}. "
-                f"{summary.reasoning or ''}"
+                f"{summary.decision.reasoning or ''}"
             )
 
     async def _record_heartbeat(self, summary: HeartbeatSummary) -> None:
@@ -1156,7 +1174,7 @@ class HeartbeatService:
                 memory_id=memory_id,
             )
 
-        if summary.decision.focus_goal_id:
+            if summary.decision.focus_goal_id:
                 await session.run(
                     """
                     MATCH (l:HeartbeatLog {id: $log_id})

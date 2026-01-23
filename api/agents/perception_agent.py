@@ -1,5 +1,4 @@
 import os
-import os
 from smolagents import ToolCallingAgent, MCPClient
 from mcp import StdioServerParameters
 

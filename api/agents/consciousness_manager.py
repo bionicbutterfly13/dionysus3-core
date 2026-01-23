@@ -5,6 +5,7 @@ import uuid
 from typing import Any, Dict
 
 from smolagents import CodeAgent
+from smolagents.memory import ActionStep
 
 logger = logging.getLogger("dionysus.consciousness")
 
@@ -110,8 +111,27 @@ class ConsciousnessManager:
             self_modeling_cb = create_self_modeling_callback(agent_id=agent_name)
             if self_modeling_cb:
                 # smolagents 1.23+: agent IS the ToolCallingAgent directly
-                current_callbacks = agent.step_callbacks or {}
-                # Note: step_callbacks is a dict in smolagents, we extend via audit registry
+                current_callbacks = dict(agent.step_callbacks or {})
+
+                def _wrap_action_callback(callback):
+                    def wrapped(step, agent=None, **kwargs):
+                        if callback:
+                            callback(step, agent=agent, **kwargs)
+                        try:
+                            self_modeling_cb.log_step(
+                                step, getattr(step, "step_number", 0)
+                            )
+                        except Exception as e:
+                            logger.debug(
+                                f"Self-modeling callback failed for {agent_name}: {e}"
+                            )
+
+                    return wrapped
+
+                current_callbacks[ActionStep] = _wrap_action_callback(
+                    current_callbacks.get(ActionStep)
+                )
+                agent.step_callbacks = current_callbacks
                 logger.debug(f"Self-modeling callback enabled for {agent_name}")
         
         # Add Explorer and Cognitive tools to Reasoning specifically
@@ -164,6 +184,7 @@ The agents will return structured results for synthesis.""",
         self.perception_wrapper.__exit__(exc_type, exc_val, exc_tb)
         self.reasoning_wrapper.__exit__(exc_type, exc_val, exc_tb)
         self.metacognition_wrapper.__exit__(exc_type, exc_val, exc_tb)
+        self.marketing_wrapper.__exit__(exc_type, exc_val, exc_tb)
         self._entered = False
 
     async def run_ooda_cycle(self, initial_context: Dict[str, Any], async_topology: bool = False) -> Dict[str, Any]:

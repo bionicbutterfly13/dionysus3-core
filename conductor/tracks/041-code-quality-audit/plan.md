@@ -137,6 +137,9 @@
 - **Metrics**: `metrics()`, `get_pool_stats()`, `agent_health_report()`
 - **Overall**: ✅ Production-ready coordination service
 
+### T041-034: Fix OODA/Heartbeat integration defects
+- [~] Address OODA/heartbeat runtime bugs (session scope, narrative fallback, metacognition run, self-modeling callbacks)
+
 ---
 
 ## Phase 4: Test Coverage (P0)
