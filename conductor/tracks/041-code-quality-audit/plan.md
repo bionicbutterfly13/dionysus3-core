@@ -192,6 +192,9 @@
 ### T041-035: Expand OODA/Heartbeat coverage
 - [x] Add tests for heartbeat decision edge cases, strategic memory synthesis, and trajectory pattern parsing (fd59c43)
 
+### T041-036: Expand OODA/Heartbeat coverage II
+- [~] Add tests for decision fallback mapping and trajectory pattern error handling
+
 ---
 
 ## Phase 5: Dead Code & Type Hints (P2)

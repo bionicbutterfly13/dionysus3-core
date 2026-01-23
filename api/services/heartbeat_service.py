@@ -672,8 +672,12 @@ class HeartbeatService:
                 )
 
             # Map structured actions from SchemaContext to HeartbeatDecision
+            actions = result.get("actions", [])
+            if not isinstance(actions, list):
+                actions = []
+
             structured_actions = []
-            for a in result.get("actions", []):
+            for a in actions:
                 try:
                     structured_actions.append(ActionRequest(
                         action_type=ActionType(a["action"]),

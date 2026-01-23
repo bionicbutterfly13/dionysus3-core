@@ -181,6 +181,140 @@ async def test_generate_strategic_memory_coerces_tags_to_list():
 
 
 @pytest.mark.asyncio
+async def test_detect_trajectory_patterns_accepts_list_response():
+    async def fake_completion(*args, **kwargs):
+        content = json.dumps(["pattern-a", "pattern-b"])
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
+        )
+
+    sys.modules["litellm"] = SimpleNamespace(completion=fake_completion)
+
+    service = HeartbeatService(driver=FakeDriver(FakeSession()))
+    insights = await service._detect_trajectory_patterns(
+        [{"id": "t1", "summary": "ok", "metadata": {}}]
+    )
+
+    assert insights == ["pattern-a", "pattern-b"]
+
+
+@pytest.mark.asyncio
+async def test_detect_trajectory_patterns_fallback_on_error():
+    async def failing_completion(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    sys.modules["litellm"] = SimpleNamespace(completion=failing_completion)
+
+    service = HeartbeatService(driver=FakeDriver(FakeSession()))
+    insights = await service._detect_trajectory_patterns(
+        [{"id": "t1", "summary": "error happened", "metadata": {}}]
+    )
+
+    assert insights and "t1" in insights[0]
+
+
+@pytest.mark.asyncio
+async def test_consume_trajectories_marks_processed():
+    session = FakeSession()
+    service = HeartbeatService(driver=FakeDriver(session))
+
+    await service._consume_trajectories([{"id": "t-1"}, {"id": "t-2"}])
+
+    assert any("UNWIND" in call[0] for call in session.run_calls)
+
+
+@pytest.mark.asyncio
+async def test_make_decision_ignores_non_list_actions(monkeypatch):
+    sys.modules["litellm"] = SimpleNamespace(
+        acompletion=AsyncMock(),
+        completion=AsyncMock(),
+    )
+
+    class DummyManager:
+        async def run_ooda_cycle(self, _context):
+            return {"final_plan": "fallback plan", "actions": []}
+
+    class DummySchemaContext:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        async def query(self, _prompt):
+            return {"reasoning": "ok", "actions": "not-a-list"}
+
+    monkeypatch.setattr(
+        "api.agents.consciousness_manager.ConsciousnessManager",
+        DummyManager,
+    )
+    monkeypatch.setattr(
+        "api.utils.schema_context.SchemaContext",
+        DummySchemaContext,
+    )
+
+    from api.models.goal import GoalAssessment
+    from api.services.heartbeat_service import HeartbeatContext
+
+    service = HeartbeatService(driver=FakeDriver(FakeSession()))
+    context = HeartbeatContext(
+        environment=EnvironmentSnapshot(),
+        goals=GoalsSnapshot(),
+        goal_assessment=GoalAssessment(),
+    )
+
+    decision = await service._make_decision(context)
+
+    assert decision.reasoning == "ok"
+    assert decision.action_plan.actions == []
+
+
+@pytest.mark.asyncio
+async def test_make_decision_falls_back_on_schema_error(monkeypatch):
+    sys.modules["litellm"] = SimpleNamespace(
+        acompletion=AsyncMock(),
+        completion=AsyncMock(),
+    )
+
+    class DummyManager:
+        async def run_ooda_cycle(self, _context):
+            return {
+                "final_plan": "raw reasoning",
+                "actions": [
+                    {"action": "rest", "params": {}, "reason": "safe"}
+                ],
+            }
+
+    class DummySchemaContext:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        async def query(self, _prompt):
+            return {"error": "bad schema"}
+
+    monkeypatch.setattr(
+        "api.agents.consciousness_manager.ConsciousnessManager",
+        DummyManager,
+    )
+    monkeypatch.setattr(
+        "api.utils.schema_context.SchemaContext",
+        DummySchemaContext,
+    )
+
+    from api.models.goal import GoalAssessment
+    from api.services.heartbeat_service import HeartbeatContext
+
+    service = HeartbeatService(driver=FakeDriver(FakeSession()))
+    context = HeartbeatContext(
+        environment=EnvironmentSnapshot(),
+        goals=GoalsSnapshot(),
+        goal_assessment=GoalAssessment(),
+    )
+
+    decision = await service._make_decision(context)
+
+    assert decision.reasoning == "raw reasoning"
+    assert decision.action_plan.actions
+
+
+@pytest.mark.asyncio
 async def test_metacognition_run_initializes_agent_when_missing(monkeypatch):
     sys.modules["litellm"] = SimpleNamespace(
         acompletion=AsyncMock(),
