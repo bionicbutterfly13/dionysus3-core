@@ -52,3 +52,21 @@ Audit of memory/graph/active-inference components with emphasis on attractor bas
 - Neural packet constructs exist but are not integrated into ThoughtSeed selection or basin routing.
 - Worldview model referenced in docs but absent in code.
 - CGR3 dependency appears external; migration planning needed.
+
+## External Repos + Papers (Integration Deltas)
+- **Nemori** (`/Volumes/Asylum/repos/nemori`, paper `2508.03341v3.pdf`)\
+  Two-step alignment (boundary + representation) + Predict/Calibrate loop. Integration delta: map boundary detection to basin/episode segmentation, and use Predict/Calibrate to drive dissonance-triggered updates and semantic distillation into Graphiti/Neo4j-backed memory.
+- **MemEvolve** (`/Volumes/Asylum/repos/MemEvolve`, paper `2512.18746v1.pdf`)\
+  Dual-loop memory evolution (content + architecture) with evaluation harness. Integration delta: wire MemEvolve’s memory-provider interface to Dionysus memory pipeline and use evaluation scripts to score basin/graph variants.
+- **AutoSchemaKG** (`/Volumes/Asylum/repos/AutoSchemaKG`)\
+  Schema induction + triple extraction + Neo4j export. Integration delta: use schema induction to auto-extend Graphiti/TrustGraph ontology and generate graph schemas for new domains.
+- **Graphiti** (`/Volumes/Asylum/repos/graphiti`)\
+  Temporal KG with hybrid retrieval and custom entity schemas. Integration delta: align Graphiti service usage with basin-aware ingestion and ensure schema definitions mirror ThoughtSeed/NeuronalPacket nodes.
+- **TrustGraph** (`/Volumes/Asylum/repos/trustgraph`)\
+  Context graph factory with ontology-driven construction, context cores, and workflow tooling. Integration delta: plan migration of CGR3 discovery to TrustGraph graph factory + context cores.
+- **Context Graph / CGR3 paper** (`/Volumes/Asylum/_Downloads/2406.11160v3.pdf`)\
+  Contextual KG with temporal/provenance metadata + CGR3 retrieve-rank-reason loop. Integration delta: preserve CGR3 logic but move storage/ontology to TrustGraph or Graphiti-backed context graph.
+- **TOBUGraph paper** (`/Volumes/Asylum/_Downloads/2412.05447v3.pdf`)\
+  Graph-based retrieval from unstructured data, avoiding chunking. Integration delta: apply TOBUGraph-style traversal to basin-aware retrieval and reduce chunk dependence.
+- **Decision Trace**\
+  Identified as TOBUGraph lineage (no separate PDF). Integration delta: treat as retrieval + trace layer in CGR3 migration plan.
