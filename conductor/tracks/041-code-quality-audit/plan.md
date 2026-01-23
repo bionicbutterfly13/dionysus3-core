@@ -138,7 +138,7 @@
 - **Overall**: ✅ Production-ready coordination service
 
 ### T041-034: Fix OODA/Heartbeat integration defects
-- [~] Address OODA/heartbeat runtime bugs (session scope, narrative fallback, metacognition run, self-modeling callbacks)
+- [x] Address OODA/heartbeat runtime bugs (session scope, narrative fallback, metacognition run, self-modeling callbacks) (bcf4f93)
 
 ---
 
