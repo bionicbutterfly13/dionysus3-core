@@ -190,7 +190,7 @@
 - [ ] Verify test behavior
 
 ### T041-035: Expand OODA/Heartbeat coverage
-- [~] Add tests for heartbeat decision edge cases, strategic memory synthesis, and trajectory pattern parsing
+- [x] Add tests for heartbeat decision edge cases, strategic memory synthesis, and trajectory pattern parsing (fd59c43)
 
 ---
 
