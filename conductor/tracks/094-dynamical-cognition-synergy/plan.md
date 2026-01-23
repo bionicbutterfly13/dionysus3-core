@@ -2,7 +2,7 @@
 
 ## Phase 0: Source Review + Architecture Audit
 - [x] (branch: 094-phase0-inventory) Inventory existing memory/graph/active-inference components (attractor basins, neural packets, worldview/identity, CGR3 usage) and record in `conductor/tracks/094-dynamical-cognition-synergy/inventory.md`. (d17df58)
-- [ ] (branch: 094-phase0-research) Review local papers/repos (Nemori, MemEvolve, AutoSchemaKG, Graphiti, TrustGraph, Context-Graph, TobuGraph, Decision Trace) and summarize integration deltas in inventory.
+- [x] (branch: 094-phase0-research) Review local papers/repos (Nemori, MemEvolve, AutoSchemaKG, Graphiti, TrustGraph, Context-Graph, TobuGraph, Decision Trace) and summarize integration deltas in inventory. (e8f3721)
 - [ ] (branch: 094-phase0-ingest-rules) Validate ingestion rules for Neo4j/Graphiti/Nemori protocols and document gaps in inventory + docs.
 
 ## Phase 1: Memory Manifesto + Pipeline Governance
