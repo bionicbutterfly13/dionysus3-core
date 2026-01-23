@@ -70,3 +70,6 @@ Audit of memory/graph/active-inference components with emphasis on attractor bas
   Graph-based retrieval from unstructured data, avoiding chunking. Integration delta: apply TOBUGraph-style traversal to basin-aware retrieval and reduce chunk dependence.
 - **Decision Trace**\
   Identified as TOBUGraph lineage (no separate PDF). Integration delta: treat as retrieval + trace layer in CGR3 migration plan.
+
+## Ingestion Rules + Gaps (Phase 0)
+- **Rules documented**: `docs/ingestion-rules.md` summarizes Graphiti, MemEvolve adapter, and Nemori river flow ingestion expectations.\n- **Gaps logged**: Nemori rewrite mismatch, schema enforcement absent, basin label drift, missing payload validation, and fragmented production webhook policies.
