@@ -77,34 +77,44 @@ def _initialize_julia():
 # ============================================================================
 
 @dataclass
+@dataclass
 class GenerativeModel:
     """
     POMDP Generative Model (Active Inference)
 
-    Maps to Thoughtseeds Eq 6 (KD Generative Model):
-    P(a_k, s_k, μ_k, C_k, v_k, r_k | θ_k, TS_parent)
-
-    Attributes:
-        A: Observation model (likelihood) - P(o|s)
-        B: Transition model (dynamics) - P(s'|s,a)
-        C: Preference model (goals) - P(o*)
-        D: Initial state prior - P(s_0)
-        E: Policy prior (optional) - P(π)
+    Supports both Atomic (single matrix) and Factorized (list of matrices) models.
+    Maps to Thoughtseeds Eq 6 (KD Generative Model).
     """
-    A: np.ndarray  # [num_obs, num_states]
-    B: np.ndarray  # [num_states, num_states, num_actions]
-    C: np.ndarray  # [num_obs, 1]
-    D: np.ndarray  # [num_states, 1]
-    E: Optional[np.ndarray] = None  # [num_policies, 1]
+    A: Any  # np.ndarray or List[np.ndarray] - Observation likelihood(s)
+    B: Any  # np.ndarray or List[np.ndarray] - Transition dynamics
+    C: Any  # np.ndarray or List[np.ndarray] - Preferences/Prior over outcomes
+    D: Any  # np.ndarray or List[np.ndarray] - Initial state prior(s)
+    E: Optional[np.ndarray] = None  # Policy prior
+    a: Optional[Any] = None  # Dirichlet parameters for A (likelihood learning)
+    b: Optional[Any] = None  # Dirichlet parameters for B (transition learning)
+    A_factor_list: Optional[List[List[int]]] = None # Multi-factor mapping for observations
+    B_factor_list: Optional[List[List[int]]] = None # Multi-factor mapping for transitions
+
+    def __post_init__(self):
+        """Ensure matrices are consistently formatted as lists for internal logic."""
+        if not isinstance(self.A, list): self.A = [self.A]
+        if not isinstance(self.B, list): self.B = [self.B]
+        if not isinstance(self.C, list): self.C = [self.C]
+        if not isinstance(self.D, list): self.D = [self.D]
 
     def to_julia(self) -> Dict[str, Any]:
-        """Convert to Julia-compatible format."""
+        """Convert to Julia-compatible list structures."""
+        def to_list(obj):
+            if isinstance(obj, np.ndarray): return obj.tolist()
+            if isinstance(obj, list): return [to_list(i) for i in obj]
+            return obj
+
         return {
-            'A': self.A.tolist(),
-            'B': self.B.tolist(),
-            'C': self.C.tolist(),
-            'D': self.D.tolist(),
-            'E': self.E.tolist() if self.E is not None else None
+            'A': to_list(self.A),
+            'B': to_list(self.B),
+            'C': to_list(self.C),
+            'D': to_list(self.D),
+            'E': to_list(self.E) if self.E is not None else None
         }
 
 
@@ -163,6 +173,27 @@ class ActiveInferenceService:
         return _julia_main
 
     # ========================================================================
+    # MATH UTILITIES (NumPy Native)
+    # ========================================================================
+
+    def _softmax(self, x: np.ndarray) -> np.ndarray:
+        """Stable Softmax implementation."""
+        e_x = np.exp(x - np.max(x))
+        return e_x / e_x.sum(axis=0)
+
+    def _spm_log(self, x: np.ndarray) -> np.ndarray:
+        """Natural log with small epsilon to avoid inf."""
+        return np.log(x + 1e-16)
+
+    def _entropy(self, p: np.ndarray) -> float:
+        """Calculate Shannon entropy H[p]."""
+        return -np.sum(p * self._spm_log(p))
+
+    def _kl_divergence(self, p: np.ndarray, q: np.ndarray) -> float:
+        """Calculate KL divergence D_KL[p || q]."""
+        return np.sum(p * (self._spm_log(p) - self._spm_log(q)))
+
+    # ========================================================================
     # CORE INFERENCE OPERATIONS
     # ========================================================================
 
@@ -196,20 +227,25 @@ class ActiveInferenceService:
             # Call Julia function
             qs = Main.infer_states(
                 observation.tolist(),
-                model.A.tolist(),
-                prior_belief.tolist(),
+                model.to_julia()['A'],
+                prior_belief.tolist() if prior_belief is not None else [],
                 num_iterations
             )
             
             # Convert back to numpy
-            qs_array = np.array(qs)
+            qs_array = [np.array(f) for f in qs] if isinstance(qs, list) else np.array(qs)
             
         except Exception as e:
-            logger.warning(f"Julia backend failed for infer_states, using Lizard Brain fallback: {e}")
-            qs_array = self._infer_states_fallback(observation, model, prior_belief)
+            logger.warning(f"Julia backend failed, using factorized NumPy fallback: {e}")
+            qs_array = self._infer_states_vfe(observation, model, prior_belief, num_iterations)
 
         # Convert to Canonical Pydantic Model
-        return self._numpy_to_belief_state(qs_array)
+        if isinstance(qs_array, list):
+             mean = np.concatenate([f.flatten() for f in qs_array]).tolist()
+        else:
+             mean = qs_array.flatten().tolist()
+             
+        return CanonicalBeliefState(mean=mean, precision=[[1.0]])
 
     async def infer_policies(
         self,
@@ -414,57 +450,65 @@ class ActiveInferenceService:
         belief: CanonicalBeliefState,
         model: GenerativeModel,
         policy: np.ndarray,
-        horizon: int = 3
+        horizon: int = 1
     ) -> float:
         """
-        Calculate Expected Free Energy for a policy.
+        Calculate Expected Free Energy for a policy (Factorized).
 
-        Implements Thoughtseeds Eq 17.3 (Agent-Level EFE):
-        EFE_agent = Sum_{TS_m in A_pool} (alpha_m * EFE_m)
-
-        Maps to ActiveInference.jl Eq 17-18 (Nehrer et al., 2025):
-        G(pi) = E_q[D_{KL}[q(o|pi) || p(o)]] - E_q[D_{KL}[q(s|pi) || q(s)]]
-              L_ Pragmatic value _J  L___ Epistemic value ___J
-
-        Args:
-            belief: Current belief state
-            model: Generative model
-            policy: Policy sequence [horizon, num_actions]
-            horizon: Planning horizon
-
-        Returns:
-            EFE scalar value
+        G(pi) = Pragmatic value - Epistemic value
         """
         efe = 0.0
+        
+        # Ensure policy is iterable
+        if not hasattr(policy, "__iter__"):
+            policy = [policy]
+            horizon = 1
 
-        # Simulate forward under policy
-        current_qs = np.array(belief.mean)
+        # Reshape mean back to factors if needed
+        # We start from current belief. 
+        # If model is factorized, mean represents concatenated factors.
+        qs = []
+        start_idx = 0
+        mean_arr = np.array(belief.mean)
+        for D_f in model.D:
+            f_size = len(D_f.flatten())
+            qs.append(mean_arr[start_idx:start_idx+f_size])
+            start_idx += f_size
+        
+        if not qs:
+            qs = [np.copy(D).flatten() for D in model.D]
 
-        for t in range(horizon):
-            action = policy[t]
-
-            # Predict next state: q(s') = B(s,a) @ q(s)
-            predicted_qs = model.B[:, :, action] @ current_qs
-
-            # Predict observation: q(o) = A @ q(s')
-            predicted_qo = model.A @ predicted_qs
-
-            # Pragmatic value: KL[q(o) || C] (preference satisfaction)
-            pragmatic = self._kl_divergence(predicted_qo, model.C)
-
-            # Epistemic value: H[q(o)] - E_qs[H[q(o|s)]]
-            # (information gain about states)
-            epistemic = self._entropy(predicted_qo)
-            # Subtract conditional entropy (simplified)
-            epistemic -= np.sum(
-                predicted_qs * np.array([self._entropy(model.A[:, s]) for s in range(len(predicted_qs))])
-            )
-
-            efe += pragmatic - epistemic
-            current_qs = predicted_qs
-
-        logger.debug(f"EFE = {efe:.4f} for policy")
-
+        for t in range(min(horizon, len(policy))):
+            action = int(policy[t])
+            
+            # 1. Predict next state: q(s') = B_f[action] @ q_f
+            qs_next = []
+            for f, B_f in enumerate(model.B):
+                qs_next.append(B_f[:, :, action] @ qs[f])
+            
+            # 2. Predict observations across all modalities
+            qo_next = []
+            mod_to_factor = []
+            for m, A_m in enumerate(model.A):
+                factor_list = model.A_factor_list[m] if model.A_factor_list else [m % len(qs_next)]
+                f_idx = factor_list[0]
+                mod_to_factor.append(f_idx)
+                qo_next.append(A_m @ qs_next[f_idx])
+            
+            # 3. Calculate components
+            for m, qo in enumerate(qo_next):
+                C_m = model.C[m] if m < len(model.C) else model.C[0]
+                A_m = model.A[m] if m < len(model.A) else model.A[0]
+                
+                efe += self._kl_divergence(qo, C_m.flatten())
+                
+                f_idx = mod_to_factor[m]
+                h_qo = self._entropy(qo)
+                h_cond = np.dot(qs_next[f_idx], [self._entropy(A_m[:, s]) for s in range(A_m.shape[1])])
+                efe -= (h_qo - h_cond)
+                
+            qs = qs_next # Proceed to next timestep
+            
         return float(efe)
 
     async def evaluate_efe(
@@ -500,22 +544,18 @@ class ActiveInferenceService:
 
     def _get_default_model(self, num_states: int) -> GenerativeModel:
         """Construct a default normative GenerativeModel for simulation."""
-        # Simplified Identity Model
-        # Action 0 (Obey): high probability of state transition, potentially high complexity cost
-        # Action 1 (Resist): maintains state, prevents coercion impact
         num_obs = num_states
         num_actions = 2
         
-        A = np.eye(num_obs) # Identity observation model
+        A = np.eye(num_obs)
         B = np.zeros((num_states, num_states, num_actions))
-        B[:, :, 0] = np.eye(num_states) # Transition for Action 0
-        B[:, :, 1] = np.eye(num_states) # Transition for Action 1
+        B[:, :, 0] = np.eye(num_states)
+        B[:, :, 1] = np.eye(num_states)
         
-        # C (Preferences): Uniform or slightly biased toward internal state
-        C = np.ones((num_obs, 1)) / num_obs
-        D = np.ones((num_states, 1)) / num_states
+        C = np.ones(num_obs) / num_obs
+        D = np.ones(num_states) / num_states
         
-        return GenerativeModel(A=A, B=B, C=C, D=D)
+        return GenerativeModel(A=[A], B=[B], C=[C], D=[D])
 
     # ========================================================================
     # THOUGHTSEEDS INTEGRATION
@@ -754,33 +794,62 @@ class ActiveInferenceService:
 
         return GenerativeModel(A=A, B=B, C=C, D=D)
 
-    # ========================================================================
-    # ADAPTERS (Phase 2: Unification)
-    # ========================================================================
+    def _infer_states_vfe(
+        self,
+        observation: Any,
+        model: GenerativeModel,
+        prior: Optional[np.ndarray] = None,
+        num_iterations: int = 16
+    ) -> List[np.ndarray]:
+        """
+        NumPy Native: Factorized Variational Free Energy Minimization.
+        """
+        qs = [np.copy(D).flatten() for D in model.D]
+        
+        for _ in range(num_iterations):
+            for f in range(len(qs)):
+                ln_likelihood = np.zeros_like(qs[f])
+                for m, A in enumerate(model.A):
+                    factor_list = model.A_factor_list[m] if model.A_factor_list else [m]
+                    if f not in factor_list: continue
+                    obs_m = observation[m] if isinstance(observation, (list, np.ndarray)) and len(observation) == len(model.A) else observation
+                    obs_idx = np.argmax(obs_m) if hasattr(obs_m, "ndim") and obs_m.ndim > 0 else int(obs_m)
+                    ln_likelihood += self._spm_log(A[obs_idx, :])
+                
+                v = self._spm_log(model.D[f].flatten()) + ln_likelihood
+                qs[f] = self._softmax(v)
+        return qs
 
-    def _numpy_to_belief_state(self, qs: np.ndarray) -> CanonicalBeliefState:
+    def update_dirichlet_params(
+        self,
+        model: GenerativeModel,
+        observation: Any,
+        qs: List[np.ndarray],
+        qs_prev: Optional[List[np.ndarray]] = None,
+        action: Optional[int] = None,
+        learning_rate: float = 1.0
+    ):
         """
-        Convert internal NumPy belief (qs) to Canonical Pydantic CanonicalBeliefState.
-        
-        Args:
-            qs: Probability distribution over states (Categorical).
-            
-        Returns:
-            CanonicalBeliefState with mean=qs and calculated precision.
+        Structural Learning: Update Dirichlet parameters (a, b) from experience.
         """
-        # 1. Mean is just the probability vector
-        mean = qs.tolist()
-        
-        # 2. Precision (Inverse Variance)
-        # For Categorical, variance of each element i is p_i * (1 - p_i).
-        # We'll approximate a diagonal precision matrix.
-        d = len(mean)
-        variance = [(p * (1 - p)) + 1e-6 for p in mean] # Add epsilon to avoid divide by zero
-        
-        return CanonicalBeliefState.from_mean_and_variance(
-            mean=mean,
-            variance=variance
-        )
+        if model.a is None:
+            model.a = [np.ones_like(A_m) for A_m in model.A]
+        if model.b is None and qs_prev is not None:
+             model.b = [np.ones_like(B_f) for B_f in model.B]
+
+        for m, a_m in enumerate(model.a):
+            f_list = model.A_factor_list[m] if model.A_factor_list else [0]
+            f_idx = f_list[0]
+            obs_m = observation[m] if isinstance(observation, (list, np.ndarray)) and len(observation) == len(model.A) else observation
+            if not hasattr(obs_m, "ndim"):
+                oh = np.zeros(a_m.shape[0]); oh[int(obs_m)] = 1.0; obs_m = oh
+            model.a[m] += learning_rate * np.outer(obs_m, qs[f_idx])
+            model.A[m] = model.a[m] / (np.sum(model.a[m], axis=0) + 1e-16)
+
+        if qs_prev and action is not None and model.b:
+            for f, b_f in enumerate(model.b):
+                model.b[f][:, :, action] += learning_rate * np.outer(qs[f], qs_prev[f])
+                model.B[f][:, :, action] = model.b[f][:, :, action] / (np.sum(model.b[f][:, :, action], axis=0) + 1e-16)
 
     def _infer_states_fallback(
         self,
@@ -811,48 +880,16 @@ class ActiveInferenceService:
 
     def _infer_policies_fallback(
         self,
-        qs: np.ndarray,
+        qs: List[np.ndarray],
         model: GenerativeModel,
         horizon: int
     ) -> np.ndarray:
-        """
-        Lizard Brain: Greedy Action Selection (No Deep Tree Search).
-        Evaluate immediate expected utility (alignment with C).
-        """
-        num_actions = model.B.shape[2]
+        """Greedy selection fallback."""
+        num_actions = model.B[0].shape[2]
         action_scores = np.zeros(num_actions)
-        
-        # Evaluate each action's immediate consequence
         for a in range(num_actions):
-            # Predicted next state
-            qs_next = model.B[:, :, a] @ qs
-            
-            # Predicted observation
-            qo_next = model.A @ qs_next
-            
-            # Utility (Preference matching) - Simplified negative Divergence or just dot product
-            # C is usually ln P(o_desired). 
-            # If C is probs: utility = dot(qo, C)
-            # If C is log-probs: utility = dot(qo, C)
-            # Assuming C is log-probs in some implementations, but here likely probs.
-            # Let's assume C is target distribution P(o). Minimizing KL[Q(o)||P(o)] maximize dot(Q, log P)
-            utility = np.dot(qo_next.flatten(), np.log(model.C.flatten() + 1e-16))
-            action_scores[a] = utility
-            
-        # Softmax over actions (Simple policy)
-        # Note: This returns action probabilities, but infer_policies usually returns POLICY probabilities.
-        # Fallback approximation: Each action is a "policy" of length 1 (or repeated).
-        
-        # Softmax
-        exps = np.exp(action_scores - np.max(action_scores))
-        policy_probs = exps / np.sum(exps)
-        
-        # Map back to whatever shape implied by 'num_policies'. 
-        # For simplicity, if E (policy prior) exists, match it. 
-        # If not, we just return logical distribution over actions as if they were policies.
-        # REAL FALLBACK: Just return uniform if too complex.
-        
-        return policy_probs
+            action_scores[a] = -self.calculate_efe(CanonicalBeliefState(mean=[], precision=[]), model, np.array([a]), horizon=1)
+        return self._softmax(action_scores)
 # ============================================================================
 # FACTORY
 # ============================================================================
