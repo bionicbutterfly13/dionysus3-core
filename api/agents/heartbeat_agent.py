@@ -4,6 +4,7 @@ from typing import Any, Dict
 
 from smolagents import ToolCallingAgent, MCPClient
 from mcp import StdioServerParameters
+from api.agents.tools.active_inference_tools import compute_policy_efe, update_belief_precision
 
 class HeartbeatAgent:
     """
@@ -35,13 +36,16 @@ class HeartbeatAgent:
         
         # T1.1: Migrate to ToolCallingAgent
         # T039-001: Enable planning_interval for periodic replanning
+        # T101-01: Inject formal Active Inference tools
+        all_tools = tools + [compute_policy_efe, update_belief_precision]
+        
         self.agent = ToolCallingAgent(
-            tools=tools,
+            tools=all_tools,
             model=self.model,
-            max_steps=10,  # Increased to accommodate planning phases
-            planning_interval=3,  # Re-plan every 3 action steps (FR-039-002)
+            max_steps=10,
+            planning_interval=3,
             name="heartbeat_agent",
-            description="Autonomous cognitive decision cycle agent.",
+            description="Autonomous cognitive decision cycle agent equipped with formal Active Inference G-selection.",
             verbosity_level=1,
             step_callbacks=audit.get_registry("heartbeat_agent")
         )
@@ -66,45 +70,71 @@ class HeartbeatAgent:
 
     async def _run_decide(self, context: Dict[str, Any]) -> str:
         from api.agents.resource_gate import run_agent_with_timeout
+        from api.agents.managed.metacognition import ManagedMetacognitionAgent
         
-        # Construct the prompt from the context
+        # Determine if we are using Ollama for gating
+        is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
+
+        # 1. System 1: Fast Heuristic Pass (OODA - Observe/Orient)
+        # Constrained pass to gather initial intent.
+        s1_prompt = f"OODA System 1 (Fast Pass): Briefly summarize recent state and suggest the most obvious next step. Heartbeat #{context.get('heartbeat_number', 'unknown')}."
+        
+        s1_result = await run_agent_with_timeout(
+            self.agent, 
+            s1_prompt,
+            timeout_seconds=15, 
+            use_ollama=is_ollama
+        )
+
+        # 2. Metacognitive Arbitration (SOFAI)
+        # Use ManagedMetacognitionAgent to decide if System 2 (Slow Thinking) is needed.
+        with ManagedMetacognitionAgent() as managed:
+             arbitration = await managed.arbitrate_decision(
+                 proposal={"output": str(s1_result), "confidence": 0.6}, # S1 confidence is heuristic
+                 context={
+                     "energy": context.get('current_energy', 0) / context.get('max_energy', 20),
+                     "complexity": 0.7 if context.get('active_goals') else 0.3,
+                     "historical_success": 0.85 
+                 }
+             )
+             
+        if not arbitration.get("use_s2"):
+            return f"SYSTEM 1 ACCEPTED\nReason: {arbitration.get('reason')}\nResult: {s1_result}"
+
+        # 3. System 2: Slow Reasoning Cascade (OODA - Decide/Act)
+        # Trigger full planning cycle with formal Active Inference tools.
         prompt = f"""
+        SOFAI System 2 (Slow Reasoning) ACTIVATED.
+        Reason for S2: {arbitration.get('reason')}
+        
         You are Dionysus, an autonomous cognitive system.
         This is Heartbeat #{context.get('heartbeat_number', 'unknown')}.
         
         ## Current State
         - Energy: {context.get('current_energy', 0)} / {context.get('max_energy', 20)}
         - User Present: {context.get('user_present', False)}
-        - Time Since User: {context.get('time_since_user', 'unknown')}
         
         ## Active Goals
         {json.dumps(context.get('active_goals', []), indent=2)}
-        
-        ## Recent Memories
-        {json.dumps(context.get('recent_memories', []), indent=2)}
         
         ## New Agent Trajectories
         {json.dumps(context.get('recent_trajectories', []), indent=2)}
         
         ## Task
-        You have a limited energy budget (max 5 steps).
-        Use your tools to:
-        1. Recall any specific information needed to advance your goals.
-        2. Reflect on your current progress or any obstacles.
-        3. Decide on the most impactful actions to take right now.
+        Perform a Deep Planning cycle using Formal Active Inference:
+        1. RECALL: Gather necessary information for goal advancement.
+        2. SIMULATE: For candidate action plans, use 'compute_policy_efe' to get their G-scores.
+        3. DECIDE: Select the policy with the minimum G-score and execute its first step.
+        4. REFLECT: If results are surprising, use 'update_belief_precision' to adjust focus.
         
-        Return a final summary of what you did and why, and what your plan is for the next cycle.
+        Return a final summary including the G-scores of plans you evaluated and your rationale for the selection.
         """
         
-        # Determine if we are using Ollama for gating
-        is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
-        
-        # Run with timeout and gating (T0.3, Q4)
         result = await run_agent_with_timeout(
             self.agent, 
             prompt, 
-            timeout_seconds=60, # Heartbeat can be complex
+            timeout_seconds=60, 
             use_ollama=is_ollama
         )
         
-        return str(result)
+        return f"SYSTEM 2 COMPLETED\nReason for S2: {arbitration.get('reason')}\nResult: {result}"
