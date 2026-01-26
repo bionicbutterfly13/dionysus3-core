@@ -173,10 +173,14 @@
 - [x] Create tests for `efe_engine.py` (51% → **78%** ✅)
 
 ### T041-020: Create contract tests for routers
-- [ ] List routers without contract tests
-- [ ] Create contract test suite
+- [x] List routers without contract tests
+- [~] Create contract test suite (in progress)
 - [ ] Validate API contracts
 - [ ] Test error responses
+
+**Router coverage inventory (contract tests):**
+- **Covered:** heartbeat, sync, monitoring, monitoring_pulse (new: `test_monitoring_pulse_api.py`), kg_learning, discovery, coordination, network_state, rollback, mosaeic, skills, memory (traverse), beautiful_loop (partial), session (new: `test_session_api.py`)
+- **Missing:** hexis, ias, voice, trajectory, concept_extraction, belief_journey, avatar, agents, documents, metacognition, meta_tot, memevolve, maintenance, domain_specialization, consciousness, graphiti, models
 
 ### T041-021: Verify test isolation ✅
 - [x] Check for shared state in tests → Tests pass in both orders
