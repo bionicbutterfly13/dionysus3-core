@@ -474,7 +474,8 @@ class TestMetacognitiveParticleAccumulation:
         service = UnifiedRealityModelService()
         particle = MetacognitiveParticle(
             id="p1",
-            name="Test particle",
+            content="Test particle",
+            source_agent="test-agent",
         )
 
         service.add_metacognitive_particle(particle)
@@ -488,9 +489,9 @@ class TestMetacognitiveParticleAccumulation:
         from api.models.metacognitive_particle import MetacognitiveParticle
 
         service = UnifiedRealityModelService()
-        p1 = MetacognitiveParticle(id="p1", name="First")
-        p2 = MetacognitiveParticle(id="p2", name="Second")
-        p3 = MetacognitiveParticle(id="p3", name="Third")
+        p1 = MetacognitiveParticle(id="p1", content="First", source_agent="test")
+        p2 = MetacognitiveParticle(id="p2", content="Second", source_agent="test")
+        p3 = MetacognitiveParticle(id="p3", content="Third", source_agent="test")
 
         service.add_metacognitive_particle(p1)
         service.add_metacognitive_particle(p2)
@@ -510,7 +511,8 @@ class TestMetacognitiveParticleAccumulation:
 
         particle = MetacognitiveParticle(
             id="px",
-            name="Timestamp test",
+            content="Timestamp test",
+            source_agent="test",
         )
         service.add_metacognitive_particle(particle)
 
@@ -526,7 +528,7 @@ class TestCycleStateManagement:
         from api.models.metacognitive_particle import MetacognitiveParticle
 
         service = UnifiedRealityModelService()
-        p1 = MetacognitiveParticle(id="p1", name="Test")
+        p1 = MetacognitiveParticle(id="p1", content="Test", source_agent="test")
         service.add_metacognitive_particle(p1)
 
         service.clear_cycle_state()

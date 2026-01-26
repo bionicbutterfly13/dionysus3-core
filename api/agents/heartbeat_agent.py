@@ -71,6 +71,20 @@ class HeartbeatAgent:
     async def _run_decide(self, context: Dict[str, Any]) -> str:
         from api.agents.resource_gate import run_agent_with_timeout
         from api.agents.managed.metacognition import ManagedMetacognitionAgent
+        from api.services.hexis_service import get_hexis_service
+        
+        # Hexis Consent Check (Gateway Mandate)
+        try:
+             hexis = get_hexis_service()
+             # We assume agent_id is stable. Using a default for now or extracting from context if available.
+             # Ideally context['agent_id'] is populated.
+             agent_id = context.get('agent_id', 'dionysus_core') 
+             has_consent = await hexis.check_consent(agent_id)
+             if not has_consent:
+                 return f"HEXIS_CONSENT_REQUIRED: Agent {agent_id} has not completed the Hexis Handshake."
+        except Exception as e:
+             # Fail open or closed? Closed for safety.
+             return f"HEXIS_CHECK_FAILED: {str(e)}"
         
         # Determine if we are using Ollama for gating
         is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()

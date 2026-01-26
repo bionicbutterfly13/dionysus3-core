@@ -64,7 +64,7 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 - **Feature Branch Workflow (MANDATORY):**
     - Work on a dedicated branch per track/task (`feature/{NNN}-{name}`). After completion and verification: **merge** to `main`, **document**, **commit**, and **write** in Quartz journal (`docs/journal/YYYY-MM-DD-{feature-name}.md`).
 - **Wake-Up (Context):**
-    - Use wake-up so each agent has context: read `AGENTS.md`, this file, Conductor workflow, and the track's `spec.md` / `plan.md`; load episodic context (e.g. session-reconstruct, Dionysus API) if available.
+    - Use wake-up so each agent has context: read `AGENTS.md`, **`.conductor/constraints.md`**, this file, Conductor workflow, and the track's `spec.md` / `plan.md`; load episodic context (e.g. session-reconstruct, Dionysus API) if available.
 - **Cross-Agent Coordination (Claude, Codex, Gemini, Cursor):**
     - Shared git repo = source of truth. Pull before claiming; pick only `[ ]` tasks; claim with `[~]` + `(CLAIMED: <agent-id>)` (e.g. `Gemini`—use a **distinct** ID per session when multiple Gemini/Codex/etc. agents run, e.g. `Gemini-1`, `Codex-workspace-a`). Push; release with `[x]` when done. See `conductor/workflow.md` § Cross-Agent Coordination.
 - **TDD Protocol (MANDATORY):**

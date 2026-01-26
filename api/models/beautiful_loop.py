@@ -207,6 +207,45 @@ class BindingEvaluationResponse(BaseModel):
     average_binding_strength: float
 
 
+# ---------------------------------------------------------------------------
+# Event types (FR-027)
+# ---------------------------------------------------------------------------
+
+
+class PrecisionForecastEvent(BaseModel):
+    """Event emitted when a precision profile is forecast for a cycle."""
+
+    event_type: Literal["precision_forecast"] = "precision_forecast"
+    precision_profile: PrecisionProfile
+    cycle_id: str
+
+
+class PrecisionErrorEvent(BaseModel):
+    """Event emitted when precision errors are recorded for a cycle."""
+
+    event_type: Literal["precision_error"] = "precision_error"
+    errors: List[PrecisionError]
+    cycle_id: str
+
+
+class PrecisionUpdateEvent(BaseModel):
+    """Event emitted when the hyper-model updates precision from learning."""
+
+    event_type: Literal["precision_update"] = "precision_update"
+    new_profile: PrecisionProfile
+    learning_delta: float
+
+
+class BindingCompletedEvent(BaseModel):
+    """Event emitted when binding competition completes for a cycle."""
+
+    event_type: Literal["binding_completed"] = "binding_completed"
+    bound_count: int
+    rejected_count: int
+    average_binding_strength: float
+    cycle_id: Optional[str] = None
+
+
 class CoherenceResponse(BaseModel):
     coherence_score: float
     bound_inference_count: int

@@ -60,17 +60,19 @@ See `docs/garden/content/silver-bullets/` for detailed explanations of declarati
    - Task breakdown with status markers: `[ ]` pending, `[~]` in progress, `[x]` complete
    - Identify critical files and architectural trade-offs
 
-3. **TDD Execution**: Follow Red-Green-Refactor cycle
+3. **Pre-Code Requirement**: Read `.conductor/constraints.md` before writing or changing any code.
+
+4. **TDD Execution**: Follow Red-Green-Refactor cycle
    - Write failing tests first (Red)
    - Implement minimum code to pass (Green)
    - Refactor with safety of passing tests
 
-4. **Task Management**: Work through plan.md systematically
+5. **Task Management**: Work through plan.md systematically
    - Mark tasks `[~]` before starting work
    - Verify against `.conductor/constraints.md`
    - Mark `[x]` and append commit SHA when complete
 
-5. **Phase Checkpoints**: At phase completion
+6. **Phase Checkpoints**: At phase completion
    - Run automated tests with coverage
    - Manual verification per `conductor/workflow.md` protocol
    - Create checkpoint commit with git notes
