@@ -16,6 +16,7 @@ Welcome to the Dionysus Core knowledge base.
 *   [[docs/concepts/index|Concepts]] - Core conceptual models.
 *   [[docs/journal/index|Journal]] - Project logs and thoughts.
 *   [[docs/garden/content/silver-bullets/index|Silver Bullets]] - Technical decisions and patterns (via Quartz).
+*   [[docs/frameworks/README|Frameworks]] - Higher-level integrating frameworks (e.g. persuasion architecture: packets × mental models × copywriting).
 
 ## 🤖 API & Integration
 *   [[docs/api-search|API Search]]
