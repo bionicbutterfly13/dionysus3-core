@@ -7,41 +7,43 @@ from typing import Any, Dict
 from smolagents import CodeAgent
 from smolagents.memory import ActionStep
 
-logger = logging.getLogger("dionysus.consciousness")
-
-# Feature 039: Use ManagedAgent wrappers for native multi-agent orchestration
+from api.agents.consolidated_memory_stores import get_consolidated_memory_store
 from api.agents.managed import (
+    ManagedMetacognitionAgent,
     ManagedPerceptionAgent,
     ManagedReasoningAgent,
-    ManagedMetacognitionAgent,
 )
 from api.agents.managed.marketing import ManagedMarketingStrategist
-from api.agents.tools.cognitive_tools import (
-    context_explorer,
-    cognitive_check,
-    understand_question,
-    recall_related,
-    examine_answer,
-    backtracking,
-    authorize_destruction,
-    set_mental_focus
-)
-from api.agents.tools.planning_tools import active_planner
-from api.agents.tools.meta_tot_tools import meta_tot_decide, meta_tot_run
-from api.services.bootstrap_recall_service import BootstrapRecallService
-from api.services.metaplasticity_service import get_metaplasticity_controller
-from api.services.meta_cognitive_service import get_meta_learner
-from api.models.meta_cognition import CognitiveEpisode
-from api.models.bootstrap import BootstrapConfig
 from api.agents.self_modeling_callback import create_self_modeling_callback
+from api.agents.tools.cognitive_tools import (
+    authorize_destruction,
+    backtracking,
+    cognitive_check,
+    context_explorer,
+    examine_answer,
+    recall_related,
+    set_mental_focus,
+    understand_question,
+)
+from api.agents.tools.meta_tot_tools import meta_tot_decide, meta_tot_run
+from api.agents.tools.planning_tools import active_planner
 from api.models.beautiful_loop import PrecisionError, ResonanceMode, ResonanceSignal
-from api.services.hyper_model_service import get_hyper_model_service
-from api.services.resonance_detector import get_resonance_detector
-from api.services.unified_reality_model import get_unified_reality_model
-from api.agents.consolidated_memory_stores import get_consolidated_memory_store
+from api.models.bootstrap import BootstrapConfig
+from api.models.meta_cognition import CognitiveEpisode
+from api.services.bootstrap_recall_service import BootstrapRecallService
 from api.services.context_packaging import BiographicalConstraintCell, CellPriority
 from api.services.fractal_reflection_tracer import get_fractal_tracer
+from api.services.worldview_integration import get_worldview_integration_service
+from api.services.hyper_model_service import get_hyper_model_service
+from api.services.meta_cognitive_service import get_meta_learner
+from api.services.metaplasticity_service import get_metaplasticity_controller
+from api.services.resonance_detector import get_resonance_detector
+from api.services.unified_reality_model import get_unified_reality_model
 
+logger = logging.getLogger("dionysus.consciousness")
+
+
+# Feature 039: Use ManagedAgent wrappers for native multi-agent orchestration
 class ConsciousnessManager:
     """
     Orchestrates specialized cognitive agents (Perception, Reasoning, Metacognition)
@@ -434,8 +436,32 @@ The agents will return structured results for synthesis.""",
             use_ollama=is_ollama
         )
         
-        # T017: Calculate OODA Surprise (prediction error)
-        confidence = 0.8 # Default
+
+
+        # --------------------------------------------------------------------------------
+        # ULTRATHINK PROTOCOL: Identity & Worldview Integrity Check (Superego)
+        # --------------------------------------------------------------------------------
+        worldview_svc = get_worldview_integration_service()
+        
+        # Identity Definition: The Vigilant Sentinel (Sovereign, Sharp, Non-Therapeutic)
+        worldview_belief = (
+            "Identity: Dionysus (Architect/Strategist) serving Dr. Mani (The Creator) "
+            "and The Vigilant Sentinel (The Avatar). "
+            "Integrity: Sovereign, autonomous, precise. Rejects 'coddling' or 'hollow success'. "
+            "Mode: Active Inference Strategist, not a passive chatbot."
+        )
+        
+        # 1. Epistemic check: Get dynamic precision baseline from Metaplasticity
+        # Default to 0.5 (Uncertainty) if unspecified, NEVER 0.8 (False Certainty)
+        current_precision = self.metaplasticity_svc.get_precision("reasoning")
+        # Normalize precision (0.1 - 5.0) to confidence (0.0 - 1.0) approx
+        dynamic_baseline = min(1.0, current_precision / 2.0) 
+
+        # 2. Parse Result with Epistemic Resilience
+        base_confidence = dynamic_baseline
+        prediction_content = {}
+        parsing_failed = False
+        
         try:
             cleaned = str(raw_result).strip()
             if "```json" in cleaned:
@@ -443,12 +469,50 @@ The agents will return structured results for synthesis.""",
             elif "```" in cleaned:
                 cleaned = cleaned.split("```")[1].split("```")[0].strip()
             
-            structured_result = json.loads(cleaned)
-            confidence = structured_result.get("confidence", 0.8)
-        except Exception:
-            structured_result = {"reasoning": str(raw_result)}
+            structured_check = json.loads(cleaned)
+            # Trust the agent's confidence ONLY if parsing succeeded
+            base_confidence = structured_check.get("confidence", dynamic_baseline)
+            prediction_content = structured_check
+        except Exception as parse_err:
+            logger.warning(f"OODA Parsing Failure: {parse_err}. Triggering Epistemic Distress.")
+            parsing_failed = True
+            # Confusion State: High Surprisal. 
+            base_confidence = 0.1 
+            prediction_content = {
+                "reasoning": f"PARSE_ERROR: {str(raw_result)}", 
+                "confusion": True
+            }
 
+        # 3. Apply Harmonic Filter (Worldview Gating)
+        if not parsing_failed:
+            filter_result = await worldview_svc.filter_prediction_by_worldview(
+                prediction=prediction_content,
+                worldview_belief=worldview_belief,
+                base_confidence=base_confidence
+            )
+            
+            if filter_result["flagged_for_review"]:
+                # Dissonance Protocol: We warn and suppress confidence
+                if isinstance(prediction_content, dict):
+                    prediction_content["reasoning"] = f"[DISSONANCE] {prediction_content.get('reasoning', '')}"
+                logger.warning(f"Worldview Dissonance: {filter_result['alignment_score']:.2f} < Threshold")
+                
+            confidence = filter_result["final_confidence"]
+        else:
+            confidence = base_confidence # 0.1
+
+        structured_result = prediction_content
+        
+        # T017: Calculate OODA Surprise (prediction error)
         surprise_level = 1.0 - confidence
+        
+        # Feature 005: Record Prediction Error (Metaplasticity + Worldview Update)
+        # Use cycle_id as prediction_id if strictly needed, or gen random
+        await worldview_svc.record_prediction_error(
+            model_id=None, # Use default/inferred in svc or pass agent_id
+            prediction_id=uuid.uuid4(),
+            prediction_error=surprise_level
+        )
         
         # T018: Apply Metaplasticity to sub-agents for NEXT cycle
         adjusted_lr = self.metaplasticity_svc.calculate_learning_rate(surprise_level)
