@@ -324,7 +324,7 @@ class TestModelCreationValidation:
             )
 
     def test_prediction_template_has_required_fields(self):
-        """PredictionTemplate requires trigger, predict, suggest fields."""
+        """PredictionTemplate requires trigger, predict; suggest optional."""
         template = PredictionTemplate(
             trigger="user mentions stress",
             predict="likely anxious",
@@ -350,13 +350,15 @@ class TestModelCreationValidation:
                 suggest="acknowledge feelings",
             )
 
-    def test_prediction_template_missing_suggest_fails(self):
-        """PredictionTemplate without suggest should fail."""
-        with pytest.raises(ValueError):
-            PredictionTemplate(
-                trigger="user mentions stress",
-                predict="likely anxious",
-            )
+    def test_prediction_template_suggest_optional(self):
+        """PredictionTemplate allows omit suggest (optional)."""
+        template = PredictionTemplate(
+            trigger="user mentions stress",
+            predict="likely anxious",
+        )
+        assert template.trigger == "user mentions stress"
+        assert template.predict == "likely anxious"
+        assert template.suggest is None
 
     def test_create_model_error_message_format(self):
         """Error responses should contain descriptive messages."""

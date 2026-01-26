@@ -5,14 +5,19 @@
 1. **beautiful_loop** - `test_beautiful_loop_api.py`
 2. **coordination** - `test_coordination_api.py`
 3. **discovery** - `test_discovery_api.py`
-4. **kg_learning** - `test_kg_learning_api.py`
-5. **monitoring** - `test_monitoring_api.py`
-6. **mosaeic** - `test_mosaeic_api.py`
-7. **network_state** - `test_network_state_api.py`
-8. **rollback** - `test_rollback_api.py`
-9. **skills** - `test_skills_api.py`
-10. **memory** (traverse) - `test_memory_traverse.py`
-11. **sync** (webhook) - `test_webhook_sync.py`
+4. **heartbeat** - `test_heartbeat_api.py`
+5. **hexis** - `test_hexis_api.py`
+6. **kg_learning** - `test_kg_learning_api.py`
+7. **monitoring** - `test_monitoring_api.py`
+8. **monitoring_pulse** - `test_monitoring_pulse_api.py`
+9. **mosaeic** - `test_mosaeic_api.py`
+10. **network_state** - `test_network_state_api.py` (minimal app + overrides)
+11. **rollback** - `test_rollback_api.py`
+12. **session** - `test_session_api.py`
+13. **skills** - `test_skills_api.py`
+14. **memory** (traverse) - `test_memory_traverse.py`
+15. **sync** (webhook) - `test_webhook_sync.py`
+16. **trajectory** - `test_trajectory_api.py`
 
 ## Routers WITHOUT Contract Tests ❌
 
@@ -24,17 +29,13 @@
 6. **documents** - Document upload/processing
 7. **domain_specialization** - Domain specialization
 8. **graphiti** - Graphiti KG operations
-9. **heartbeat** - Heartbeat/OODA loop endpoints
-10. **ias** - IAS coaching endpoints
-11. **maintenance** - System maintenance
-12. **memevolve** - MemEvolve webhook endpoints
-13. **meta_tot** - Meta-ToT decision endpoints
-14. **metacognition** - Metacognition endpoints
-15. **models** - Model management
-16. **monitoring_pulse** - Monitoring pulse endpoints
-17. **session** - Session management
-18. **trajectory** - Trajectory tracking
-19. **voice** - Voice/speech endpoints
+9. **ias** - IAS coaching endpoints
+10. **maintenance** - System maintenance
+11. **memevolve** - MemEvolve webhook endpoints
+12. **meta_tot** - Meta-ToT decision endpoints
+13. **metacognition** - Metacognition endpoints
+14. **models** - Model management
+15. **voice** - Voice/speech endpoints
 
 ## Priority for Contract Tests
 
