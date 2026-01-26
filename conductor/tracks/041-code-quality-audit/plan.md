@@ -168,7 +168,7 @@
 
 ### T041-019: Add tests for low coverage files ✅ (partial)
 - [x] Create tests for `graphiti_service.py` (27% → 80%+) - Complex async, deferred (512602d)
-- [ ] Create tests for `autobiographical_service.py` (33% → 80%+) - Complex async, deferred
+- [x] Create tests for `autobiographical_service.py` (33% → 80%+) - Complex async, deferred (a7d6b93)
 - [x] Create tests for `prior_constraint_service.py` (70% → **96%** ✅)
 - [x] Create tests for `efe_engine.py` (51% → **78%** ✅)
 
