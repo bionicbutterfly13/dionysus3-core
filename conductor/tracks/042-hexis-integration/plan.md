@@ -30,7 +30,7 @@ Hexis provides "Soul Architecture" (Identity, Consent, Boundaries). Dionysus3 Co
     - **Persistence**: Store as Graphiti `Fact`s (`category='hexis_consent'`, `'hexis_boundary'`).
 
 ### Phase 2: API Exposure
-- [ ] Create `api/routers/hexis.py`
+- [x] Create `api/routers/hexis.py`
     - `POST /hexis/consent`: Handshake endpoint.
     - `GET /hexis/consent/status`
     - `POST /hexis/boundaries`
@@ -38,7 +38,7 @@ Hexis provides "Soul Architecture" (Identity, Consent, Boundaries). Dionysus3 Co
     - `POST /hexis/terminate`: Self-destruction endpoint (requires confirmation token).
 
 ### Phase 3: Agent Integration
-- [ ] Modify `HeartbeatAgent` (`api/agents/heartbeat_agent.py`)
+- [x] Modify `HeartbeatAgent` (`api/agents/heartbeat_agent.py`)
     - Inject `HexisService` dependency.
     - Add "Consent Gating" check at start of `decide()`.
 
