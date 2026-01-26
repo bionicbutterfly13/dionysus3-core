@@ -179,7 +179,7 @@
 - [ ] Test error responses
 
 **Router coverage inventory (contract tests):**
-- **Covered:** heartbeat, sync, monitoring, monitoring_pulse (new: `test_monitoring_pulse_api.py`), kg_learning, discovery, coordination, network_state, rollback, mosaeic, skills, memory (traverse), beautiful_loop (partial), session (new: `test_session_api.py`)
+- **Covered:** heartbeat (new: `test_heartbeat_api.py` - 21 tests), sync, monitoring, monitoring_pulse, kg_learning, discovery, coordination, network_state, rollback, mosaeic, skills, memory (traverse), beautiful_loop (partial), session
 - **Missing:** hexis, ias, voice, trajectory, concept_extraction, belief_journey, avatar, agents, documents, metacognition, meta_tot, memevolve, maintenance, domain_specialization, consciousness, graphiti, models
 
 ### T041-021: Verify test isolation ✅
