@@ -48,6 +48,12 @@ Hexis provides "Soul Architecture" (Identity, Consent, Boundaries). Dionysus3 Co
     - Verify complete Handshake -> Boundary Check -> Termination lifecycle.
     - **Gateway Only**: Tests must run against API/Service layer, not direct DB.
 
+### Phase 5: Contract Tests + Documentation
+- [x] Write contract tests for `/hexis/consent` + `/hexis/consent/status`
+- [x] Write contract tests for `/hexis/boundaries`
+- [x] Write contract tests for `/hexis/terminate` + `/hexis/terminate/confirm`
+- [x] Add short documentation + journal entry for Hexis Phase 5
+
 ## Dependencies
 - `GraphitiService` (for Neo4j interaction)
 - `dionysus-api` (Host)
