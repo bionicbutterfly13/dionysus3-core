@@ -2,7 +2,24 @@
 
 ## Pre-Code Requirement (Mandatory)
 
-- **Before writing or changing any code**, agents must read this file and follow all constraints below. If unsure, stop and re-read.
+- **Before writing or changing any code**, agents must:
+  1. **Read this file** and follow all constraints below
+  2. **Review all relevant code** in the codebase before writing
+  3. **Check memory flow patterns** - When touching memory-related code, review:
+     - `api/services/memevolve_adapter.py` - MemEvolve integration patterns
+     - `api/services/nemori_river_flow.py` - Nemori predict-calibrate flow
+     - `api/services/graphiti_service.py` - Graphiti KG operations
+     - `api/services/memory_basin_router.py` - Basin routing patterns
+  4. **Validate alignment** - Ensure new memory operations align with:
+     - MemEvolve adapter patterns (trajectory ingestion, entity extraction)
+     - Nemori river flow (episode construction, fact distillation)
+     - AutoSchemaKG integration (5-level concept extraction)
+  5. **Document inlet/outlet** - When modifying memory code, document:
+     - **Inlets:** What memory data this code receives and from where
+     - **Outlets:** Where memory data flows (Graphiti, MemEvolve, Nemori, consolidated store)
+     - **Memory flow path:** Trace the complete path from agent → memory system → persistence
+
+If unsure, stop and re-read.
 
 ## Testing Strategy
 
@@ -39,6 +56,48 @@
   - **Figure out where it goes.** Trace callers and callees, routers, services, and data flow until you understand attachment points, inputs, and outputs.
   - **Document it.** Add or update module- or function-level comments (or the track's `plan.md` Integration / IO Map) with: **Inlets:** what this code receives and from where; **Outlets:** what it produces and where it sends.
   - **Ensure integrity.** Confirm the code actually fits the pipeline (is invoked, consumes real inputs, produces used outputs). If it does not—orphan, stub, or dead path—fix or remove it; do not leave it as undocumented, half-wired "plug and play."
+  
+- **Memory Stack Integration Pattern (Mandatory for Memory Code):**
+  When working with memory-related code, you MUST understand and follow the memory flow patterns:
+  
+  **Memory Flow Architecture:**
+  ```
+  Agent/Service → MemoryBasinRouter → MemEvolveAdapter → GraphitiService → Neo4j
+                    ↓
+              NemoriRiverFlow (episode construction, fact distillation)
+                    ↓
+              ConsolidatedMemoryStore (event/episode persistence)
+  ```
+  
+  **Key Memory Services & Their Roles:**
+  - **MemEvolveAdapter**: Gateway for trajectory ingestion, entity extraction, webhook sync
+    - **Inlets:** TrajectoryData from agents/routers, pre-extracted entities/edges
+    - **Outlets:** GraphitiService (extract_with_context, ingest_extracted_relationships), n8n webhooks
+  - **NemoriRiverFlow**: Episode construction, predict-calibrate, fact distillation
+    - **Inlets:** DevelopmentEvent lists, basin context
+    - **Outlets:** MemoryBasinRouter.route_memory(), GraphitiService.persist_fact(), ConsolidatedMemoryStore
+  - **MemoryBasinRouter**: Classifies memory type, activates basins, routes through MemEvolve
+    - **Inlets:** Raw content, optional memory_type
+    - **Outlets:** MemEvolveAdapter.ingest_message(), GraphitiService.extract_with_context()
+  - **GraphitiService**: Temporal KG operations (extract, ingest, persist facts)
+    - **Inlets:** Content, basin_context, strategy_context
+    - **Outlets:** Neo4j via Graphiti library, returns entities/relationships
+  
+  **When Adding Memory Operations:**
+  1. **Check if content should flow through MemoryBasinRouter** - Use `route_memory()` for agent-generated content
+  2. **Check if facts should be persisted** - Use `GraphitiService.persist_fact()` for distilled facts from Nemori
+  3. **Check if trajectory should be ingested** - Use `MemEvolveAdapter.ingest_trajectory()` for agent trajectories
+  4. **Validate alignment** - Ensure your code follows the established patterns in:
+     - `memevolve_adapter.py` (lines 67-280) - Trajectory ingestion flow
+     - `nemori_river_flow.py` (lines 235-370) - Predict-calibrate with basin routing
+     - `graphiti_service.py` (lines 519-608, 782-820) - Extract and persist operations
+     - `memory_basin_router.py` (lines 155-200) - Memory routing pattern
+  
+  **Memory Outlet Injection Points:**
+  - After agent reasoning: Route through `MemoryBasinRouter.route_memory()`
+  - After episode construction: Call `NemoriRiverFlow.predict_and_calibrate()` → routes facts
+  - After fact distillation: Use `GraphitiService.persist_fact()` for bi-temporal tracking
+  - After trajectory completion: Use `MemEvolveAdapter.ingest_trajectory()` for full persistence
 - **Evaluate commits for depth and integration.** When completing a task or reviewing a PR, check that the change:
   - Implements real behavior (not TODOs or stub implementations).
   - Is integrated: called from routers, agents, services, or tests that exercise the full path.

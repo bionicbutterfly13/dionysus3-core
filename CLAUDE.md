@@ -6,6 +6,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Dionysus is a VPS-native cognitive engine for autonomous reasoning, long-term session continuity, and structured memory management. It implements consciousness-inspired patterns using active inference, attractor basins, and OODA-style decision loops.
 
+## Active Technologies
+
+- **Python 3.11+**: Core language (async/await, Pydantic v2)
+- **FastAPI**: Web framework for the API
+- **Neo4j**: Primary persistence for episodic, semantic, and procedural memory
+- **Graphiti**: Temporal knowledge graph interface for extraction and search
+- **smolagents**: Multi-agent framework (ToolCallingAgent) providing cognitive orchestration
+- **n8n**: Workflow orchestration for memory synchronization and background processes
+- **Docker & Docker Compose**: Containerization and VPS-native orchestration
+- **LiteLLM**: Local and remote inference engine routing
+
+## Project Architecture & Tracking
+
+The project is consolidated into three unified pillars:
+
+1. **Dionysus 3 Core**: Unified VPS-native cognitive engine (Smolagents + Neo4j + MoSAEIC)
+2. **Inner Architect - Marketing Suite**: Unified nurture sequences and high-converting sales pages
+3. **Inner Architect - Knowledge Base**: Authoritative IAS conceptual content (Mini-book, Audiobook, Avatar data)
+
+### Project Structure (Filesystem)
+
+```text
+/Volumes/Asylum/dev/dionysus3-core/
+├── api/                  # FastAPI application source code
+│   ├── agents/           # autonomous smolagents (Perception, Reasoning, Heartbeat, etc.)
+│   ├── models/           # Pydantic models (Action, Goal, Journey, MemEvolve)
+│   ├── routers/          # API endpoints (Memory, Heartbeat, MemEvolve)
+│   └── services/         # Business logic (Neo4j drivers, Graphiti integration)
+├── conductor/            # Conductor workflow tracks and specs
+├── deploy/               # Deployment configurations
+├── dionysus_mcp/         # MCP Server implementation
+├── docs/                 # Documentation (Quartz garden, journal)
+├── n8n-workflows/        # Exported n8n workflow definitions
+├── scripts/              # Utility and testing scripts
+├── tests/                # Test suite
+├── docker-compose.yml    # Docker services configuration
+├── pyproject.toml        # Project configuration and dependencies
+└── requirements.txt      # Python dependencies
+```
+
 ## Metacognitive Architecture
 
 The system distinguishes between two complementary metacognitive layers:
@@ -217,6 +257,8 @@ dionysus_mcp/
   - **ReasoningAgent**: ORIENT phase - analysis, cognitive tools
   - **MetacognitionAgent**: DECIDE phase - planning, action selection
 
+**Status:** Integration is ~85% complete. The legacy `HeartbeatService` currently acts as a bridge, with the final "handoff" to full agentic control pending.
+
 ### Database Access Pattern
 
 ## ⛔ ABSOLUTE PROHIBITION: NEVER ACCESS NEO4J DIRECTLY ⛔
@@ -312,6 +354,163 @@ class MyTool(Tool):
         # Sync method - use async_tool_wrapper for async operations
         return async_tool_wrapper(self._async_impl)()
 ```
+
+## Development Conventions
+
+### Feature Branch Workflow (MANDATORY)
+
+Work on a dedicated branch per track/task (`feature/{NNN}-{name}`). After completion and verification:
+1. **Merge** to `main`
+2. **Document** changes
+3. **Commit** with conventional format
+4. **Write** journal entry in `docs/journal/YYYY-MM-DD-{feature-name}.md`
+
+### Wake-Up (Context)
+
+Use wake-up so each agent has context. Read these before starting work:
+- `AGENTS.md` (if exists)
+- `.conductor/constraints.md` - **CRITICAL: Read before any code changes**
+- This file (`CLAUDE.md` or `GEMINI.md`)
+- `conductor/workflow.md`
+- Track's `spec.md` and `plan.md`
+- Load episodic context (session-reconstruct, Dionysus API) if available
+
+### Cross-Agent Coordination (Claude, Codex, Gemini, Cursor)
+
+**⚠️ CRITICAL: Other agents may be working on this codebase simultaneously.**
+
+- Shared git repo = source of truth
+- **Pull before claiming** any task
+- Pick only `[ ]` (unclaimed) tasks
+- Claim with `[~]` + `(CLAIMED: <agent-id>)` (e.g., `Claude-1`, `Gemini-workspace-a`)
+- Use a **distinct** ID per session when multiple same-type agents run
+- Push immediately after claiming
+- Release with `[x]` when done
+- See `conductor/workflow.md` § Cross-Agent Coordination
+
+```markdown
+# Example task claiming:
+- [ ] Implement feature X                    # Available
+- [~] Implement feature Y (CLAIMED: Claude-1) # In progress by Claude-1
+- [x] Implement feature Z [abc1234]           # Complete with commit SHA
+```
+
+### Protocol: Review Before Write (CRITICAL)
+
+**Context Awareness:** Before writing ANY new code or creating a new service, you **MUST** review existing relevant code to prevent redundancy.
+
+**Anti-Duplication:** Do not reinvent mechanisms that already exist in the Memory Stack. Reuse or refactor; do not duplicate.
+
+**Conflict Check:** Verify changes do not conflict with the "Three Towers" alignment:
+- Graphiti Episode
+- MemEvolve Trajectory
+- Nemori Narrative
+
+### MemEvolve Protocol (ANTI-POISON)
+
+- **No Pre-Digestion:** Do not send pre-extracted entities/edges. Send raw trajectories and let the system extract.
+- **Lifecycle:** Encode → Store → Retrieve → Manage must remain decoupled.
+
+### Memory Stack Integration (MANDATORY)
+
+**CRITICAL**: Before writing or modifying ANY memory-related code, you MUST:
+
+1. **Review memory stack services** to understand flow patterns:
+   - `api/services/memevolve_adapter.py` (lines 67-280) - Trajectory ingestion, entity extraction
+   - `api/services/nemori_river_flow.py` (lines 235-370) - Predict-calibrate, fact distillation
+   - `api/services/graphiti_service.py` (lines 519-608, 782-820) - Extract with context, persist facts
+   - `api/services/memory_basin_router.py` (lines 155-200) - Memory routing, basin activation
+
+2. **Understand memory flow architecture**:
+   ```
+   Agent/Service → MemoryBasinRouter.route_memory() 
+                    ↓
+              MemEvolveAdapter.ingest_message() 
+                    ↓
+              GraphitiService.extract_with_context() 
+                    ↓
+              GraphitiService.ingest_extracted_relationships() 
+                    ↓
+              Neo4j (via Graphiti)
+   
+   Episode Construction:
+   NemoriRiverFlow.predict_and_calibrate() 
+     → MemoryBasinRouter.route_memory() (for each fact)
+     → GraphitiService.persist_fact() (bi-temporal tracking)
+   ```
+
+3. **Validate alignment** with established patterns:
+   - **MemEvolve**: Use `MemEvolveAdapter.ingest_trajectory()` for agent trajectories
+   - **Nemori**: Use `NemoriRiverFlow.predict_and_calibrate()` for episode distillation
+   - **AutoSchemaKG**: Use `MemoryBasinRouter.route_memory()` which triggers 5-level extraction
+   - **Graphiti**: Use `GraphitiService.extract_with_context()` with basin/strategy context
+
+4. **Document inlet/outlet** for memory operations:
+   - **Inlets:** What memory data this receives (trajectory, events, content, facts)
+   - **Outlets:** Where memory flows (Graphiti, MemEvolve, Nemori, consolidated store)
+   - **Memory path:** Complete trace from agent → memory system → persistence
+
+5. **Memory outlet injection points** (when to route memory):
+   - After agent reasoning: `MemoryBasinRouter.route_memory(content, source_id=...)`
+   - After episode construction: `NemoriRiverFlow.predict_and_calibrate()` → auto-routes facts
+   - After fact distillation: `GraphitiService.persist_fact()` for bi-temporal tracking
+   - After trajectory completion: `MemEvolveAdapter.ingest_trajectory()` for full persistence
+
+**Example Memory Flow Pattern:**
+```python
+# ✅ CORRECT - Agent memory outlet
+from api.services.memory_basin_router import get_memory_basin_router
+
+router = get_memory_basin_router()
+result = await router.route_memory(
+    content=agent_output,
+    source_id=f"agent:{agent_id}",
+    memory_type=MemoryType.SEMANTIC  # Optional, auto-classified if None
+)
+# Outlet: Routes through MemEvolve → Graphiti → Neo4j
+
+# ✅ CORRECT - Episode fact distillation
+from api.services.nemori_river_flow import get_nemori_river_flow
+
+river = get_nemori_river_flow()
+new_facts, symbolic_residue = await river.predict_and_calibrate(
+    episode=episode,
+    original_events=events,
+    basin_context=basin_context
+)
+# Outlet: Auto-routes facts through MemoryBasinRouter + GraphitiService.persist_fact()
+
+# ❌ FORBIDDEN - Bypassing memory stack
+# Never write directly to Neo4j or skip MemoryBasinRouter/MemEvolve
+```
+
+### Memory Management
+
+- **Episodic:** Temporal sequences of events
+- **Semantic:** Facts and entities via Graphiti (`valid_at`/`invalid_at`)
+- **Strategic:** Lessons learned from agent trajectories
+
+### Journal Protocol (MANDATORY)
+
+Upon completion of ANY feature or significant milestone:
+1. Create/update journal entry in `docs/journal/`
+2. Format: `YYYY-MM-DD-feature-name.md`
+3. Content: Brief summary of the "why", the "what", and the "how"
+4. Link to relevant code or artifacts
+5. Ensures Quartz Journal remains the definitive narrative log
+
+### Connectivity Mandate (ULTRATHINK)
+
+**No Disconnected Code.** Every feature must define its "IO Map":
+- **Input:** What information it receives
+- **Output:** What it produces
+- **Host:** WHERE it attaches to the existing system
+
+**Architecture Check:** Document exactly where new code attaches.
+**Data Flow:** Define what information passes through.
+**Persistence:** Ensure data passes through required basins (Memory, AutoSchema, Graphiti) where applicable.
+
+"Stubs" without integration are rejected.
 
 ## Code Style
 
@@ -428,9 +627,42 @@ AUTHOR Mani Saint-Victor, MD"
 **Complete Guide**: `docs/DOCUMENTATION-AGENT-GUIDE.md`
 **Backlog**: `docs/DOCUMENTATION_BACKLOG.md`
 
-## Active Technologies
-- Python 3.11+ + FastAPI, Pydantic v2, smolagents, NumPy (056-beautiful-loop-hyper)
-- Graphiti temporal knowledge graph (via GraphitiService) (056-beautiful-loop-hyper)
+## Roadmap & Completed Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| 010: Heartbeat Agent Handoff | ✅ | Full cognitive loop migrated to `smolagents.CodeAgent` |
+| 011: Core Services Neo4j Migration | ✅ | Graphiti-backed driver shim, precision-weighted beliefs |
+| 012: Historical Task Reconstruction | ✅ | Mirror local task history into VPS Neo4j graph |
+| 020: Daedalus Coordination Pool | ✅ | Background worker pool with task routing and retry |
+| 021: Rollback Safety Net | ✅ | Checkpointing and fast rollback with checksum verification |
+| 022: Agentic KG Learning | ✅ | Self-improving extraction with attractor basins |
+| 023: Migration & Coordination Observability | ✅ | Unified metrics and alerting |
+| 024: MoSAEIC Protocol | ✅ | Five-window experiential capture (SAEIC) |
+| 031: Wisdom Distillation | ✅ | Canonical distillation into mental models |
+| 032: Avatar Knowledge Graph | ✅ | Specialized researcher agents for persona mapping |
+| 034: Network Self-Modeling | ✅ | W/T/H observation, Hebbian learning, Role Matrix |
+| 035: Self-Healing Resilience | ✅ | Strategy-based recovery and observation hijacking |
+| 038: Thoughtseeds Framework | 🔄 | Active inference, Free Energy Engine |
+| 039: smolagents v2 Alignment | 🔄 | ManagedAgent pattern, execution traces |
+| 042: Hexis Integration | ✅ | Hexis tasks complete |
+| 056: Beautiful Loop Hyper | 🔄 | Python 3.11+, FastAPI, smolagents |
+| 064: Forgiveness | ✅ | Counterfactual Reconciliation Service |
+| 065: Ensoulment | ✅ | First live moral history in Neo4j |
+| 066: Grounded Forgiveness | ✅ | Dynamic Active Inference EFE calculations |
+| 067: Moral Decay | ✅ | Temporal healing via precision-widening |
+| 068: Wake-Up Protocol | ✅ | Automatic agent hydration from Neo4j |
+
+**Current Focus**: Feature track maintenance and documentation alignment.
 
 ## Recent Changes
-- 056-beautiful-loop-hyper: Added Python 3.11+ + FastAPI, Pydantic v2, smolagents, NumPy
+
+- 042-hexis-integration: Hexis tasks marked complete
+- 058-ias-dashboard: Voice Input/Output in `story-chat.tsx` (Phase 4 Active)
+- 020-daedalus-coordination: Full Coordination Pool with context isolation
+- 038-thoughtseeds-framework: smolagents, litellm, pydantic, numpy, scipy, neo4j (Graphiti)
+- 022-agentic-kg-learning: Dynamic relationship extraction with provenance
+- 024-mosaeic-protocol: Full capture and persistence for experiential windows
+- 065-ensoulment: First live moral history in Neo4j
+- 064-forgiveness: Counterfactual Reconciliation Service and Moral Ledger
+- 056-beautiful-loop-hyper: Python 3.11+ + FastAPI, Pydantic v2, smolagents, NumPy
