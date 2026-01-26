@@ -44,17 +44,76 @@ class MentalActionType(str, Enum):
 MAX_NESTING_DEPTH = 5
 
 
-def enforce_cognitive_core(particle_type: ParticleType) -> bool:
+# =============================================================================
+# Cognitive Core Enforcement (FR-015, FR-016, FR-017)
+# =============================================================================
+
+class CognitiveCoreViolation(Exception):
     """
-    Enforce cognitive core constraint.
-    
-    Returns True if particle type maintains cognitive core.
+    Raised when metacognitive nesting exceeds MAX_NESTING_DEPTH.
+
+    Prevents infinite metacognitive regress per Sandved-Smith & Da Costa (2024).
+    """
+    pass
+
+
+def enforce_cognitive_core(level: int) -> None:
+    """
+    Enforce cognitive core constraint on nesting depth.
+
+    Raises CognitiveCoreViolation if level exceeds MAX_NESTING_DEPTH.
+
+    Args:
+        level: The metacognitive nesting level to validate
+
+    Raises:
+        CognitiveCoreViolation: If level > MAX_NESTING_DEPTH
+    """
+    if level > MAX_NESTING_DEPTH:
+        raise CognitiveCoreViolation(
+            f"Cannot create metacognitive level {level}. "
+            f"Maximum allowed is level {MAX_NESTING_DEPTH}. Cognitive core reached."
+        )
+
+
+def maintains_cognitive_core(particle_type: ParticleType) -> bool:
+    """
+    Check if particle type maintains cognitive core constraint.
+
+    Returns True if particle type is within cognitive core bounds.
     """
     return particle_type in [
         ParticleType.COGNITIVE,
         ParticleType.PASSIVE_METACOGNITIVE,
         ParticleType.ACTIVE_METACOGNITIVE,
     ]
+
+
+class CognitiveCore(BaseModel):
+    """
+    Represents the cognitive core constraint for a particle.
+
+    The cognitive core prevents infinite metacognitive regress by limiting
+    the depth of nested Markov blankets.
+    """
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    particle_id: str = Field(..., description="ID of the particle this core constrains")
+    max_recursion_level: int = Field(
+        default=MAX_NESTING_DEPTH,
+        ge=1,
+        le=MAX_NESTING_DEPTH,
+        description="Maximum allowed nesting depth"
+    )
+    complexity_bound: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Normalized complexity bound for the cognitive core"
+    )
+    beliefs_encoded: Optional[str] = Field(
+        None,
+        description="Formal representation of beliefs encoded at this level (e.g., Q_{mu^n}(eta, mu^1, ...))"
+    )
 
 
 class ClassificationResult(BaseModel):
