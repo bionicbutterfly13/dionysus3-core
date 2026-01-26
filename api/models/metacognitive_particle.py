@@ -1,7 +1,70 @@
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
+
+
+# =============================================================================
+# Particle Type Classification
+# =============================================================================
+
+class ParticleType(str, Enum):
+    """
+    Types of metacognitive particles based on Markov blanket structure.
+    
+    From Sandved-Smith & Da Costa (2024):
+    - COGNITIVE: Basic beliefs about external (μ → Q_μ(η))
+    - PASSIVE_METACOGNITIVE: Beliefs about beliefs, no direct control
+    - ACTIVE_METACOGNITIVE: Has internal blanket with active paths
+    - STRANGE_METACOGNITIVE: Actions inferred via sensory (a¹ does NOT influence μ¹)
+    - NESTED_N_LEVEL: Multiple internal Markov blankets
+    """
+    COGNITIVE = "cognitive"
+    PASSIVE = "passive"
+    PASSIVE_METACOGNITIVE = "passive_metacognitive"
+    ACTIVE = "active"
+    ACTIVE_METACOGNITIVE = "active_metacognitive"
+    STRANGE = "strange"
+    STRANGE_METACOGNITIVE = "strange_metacognitive"
+    NESTED = "nested"
+    NESTED_N_LEVEL = "nested_n_level"
+    MULTIPLY_NESTED = "multiply_nested"
+
+
+class MentalActionType(str, Enum):
+    """Types of mental actions for procedural metacognition."""
+    PRECISION_DELTA = "precision_delta"
+    SET_PRECISION = "set_precision"
+    FOCUS_TARGET = "focus_target"
+    SPOTLIGHT_PRECISION = "spotlight_precision"
+
+
+# Constants
+MAX_NESTING_DEPTH = 5
+
+
+def enforce_cognitive_core(particle_type: ParticleType) -> bool:
+    """
+    Enforce cognitive core constraint.
+    
+    Returns True if particle type maintains cognitive core.
+    """
+    return particle_type in [
+        ParticleType.COGNITIVE,
+        ParticleType.PASSIVE_METACOGNITIVE,
+        ParticleType.ACTIVE_METACOGNITIVE,
+    ]
+
+
+class ClassificationResult(BaseModel):
+    """Result from particle classification."""
+    particle_id: str
+    particle_type: ParticleType
+    confidence: float = Field(ge=0.0, le=1.0)
+    level: int = Field(ge=0)
+    has_agency: bool
+
 
 class MetacognitiveParticle(BaseModel):
     """
