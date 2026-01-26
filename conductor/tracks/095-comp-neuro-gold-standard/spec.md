@@ -129,6 +129,19 @@ Each code module must link back to source material via `# Ref: Anderson (2014), 
 
 ## References
 
+### Primary
 - Anderson, B. (2014). *Computational Neuroscience and Cognitive Modelling*. SAGE Publications.
-- Hopfield, J.J. (1982). Neural networks and physical systems with emergent collective computational abilities.
 - Anderson, J.R. (2007). *How Can the Human Mind Occur in the Physical Universe?* (ACT-R)
+
+### Hopfield Networks & Attractor Basins
+- Hopfield, J.J. (1982). Neural networks and physical systems with emergent collective computational abilities.
+- Amit, D.J., Gutfreund, H., & Sompolinsky, H. (1985). Storing infinite numbers of patterns in a spin-glass model of neural networks. *Physical Review Letters*, 55(14), 1530.
+- Wang, T. (2024). Bias, Basins of Attraction, and Memory Structure in Hopfield Networks. *arXiv:2403.xxxxx*
+  - Key insight: Bias terms break spin-flip symmetry, enabling unique attractors
+  - Overlap function M(s) determines basin membership
+- Edalat, A., & Mancinelli, F. (2013). Strong Attractors of Hopfield Neural Networks to Model Attachment Types.
+  - Key insight: Degree > 1 creates stronger attractors with larger basins
+  - Models attachment patterns in cognitive systems
+- Lin, C., Yeap, T.H., & Kiringa, I. (2024). On the Basin of Attraction and Capacity of Restricted Hopfield Network as an Auto-Associative Memory.
+  - Key insight: Effective condition number (λmax/λmin) as capacity indicator
+  - RHN maintains condition number ≈ 1 for expanded capacity

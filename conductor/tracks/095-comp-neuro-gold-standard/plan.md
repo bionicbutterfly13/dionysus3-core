@@ -19,11 +19,14 @@
 ## Phase 2: High-Priority Chapter Integration
 
 ### P2.1: Chapter 13 - Hopfield Networks & Attractor Basins (FR-001)
-- [ ] Create `api/services/attractor_basin_service.py`
-- [ ] Implement Hopfield energy function: `E = -0.5 * Σ_ij w_ij * s_i * s_j`
-- [ ] Implement state update rule: `s_i(t+1) = sign(Σ_j w_ij * s_j(t))`
-- [ ] Add basin convergence detection
-- [ ] Create unit tests in `tests/unit/test_attractor_basin_service.py`
+- [x] Create `api/services/attractor_basin_service.py`
+- [x] Implement Hopfield energy function: `E = -0.5 * Σ_ij w_ij * s_i * s_j` (with bias support per Wang 2024)
+- [x] Implement state update rule: `s_i(t+1) = sign(Σ_j w_ij * s_j(t) + θ_i)`
+- [x] Add basin convergence detection
+- [x] Implement overlap function M(s) = Σ_i ξ_i * s_i (Wang 2024)
+- [x] Implement strong attractors (degree > 1) per Edalat & Mancinelli (2013)
+- [x] Implement effective condition number per Lin, Yeap, & Kiringa (2024)
+- [x] Create unit tests in `tests/unit/test_attractor_basin_service.py` (21 tests)
 - [x] Create atomic concept doc `docs/garden/content/concepts/hopfield-attractors.md`
 
 ### P2.2: Chapter 21 - ACT-R & OODA Loop Enhancement (FR-002)
@@ -72,20 +75,32 @@
 ## Integration (IO Map)
 
 ### Attachment Points
-- `api/services/attractor_basin_service.py` → NEW service
-- `api/agents/consciousness_manager.py` → Existing OODA orchestrator
+- `api/services/attractor_basin_service.py:332` → HopfieldNetwork.recall_pattern()
+- `api/services/attractor_basin_service.py:389` → AttractorBasinService (high-level API)
+- `api/agents/consciousness_manager.py` → Existing OODA orchestrator (ACT-R annotations pending)
 - `api/services/efe_engine.py` → Existing EFE calculations
-- `api/services/memory_basin_router.py` → Existing basin routing
+- `api/services/memory_basin_router.py:380` → Integration point for basin activation
 
-### Inputs
-- Thoughtseed state vectors from `thoughtseed_integration.py`
-- Memory patterns from `memory_basin_router.py`
-- EFE calculations from `efe_engine.py`
+### Inlets
+- **HopfieldNetwork**: Binary patterns (-1/+1 arrays), degree for strong attractors
+- **AttractorBasinService**: Content strings, seed patterns for basin creation
+- Memory patterns from `memory_basin_router.py` (future integration)
+- EFE calculations from `efe_engine.py` (future integration)
 
-### Outputs
-- Attractor basin convergence states
-- Memory recall patterns
-- ACT-R-annotated cognitive processing logs
+### Outlets
+- **BasinState**: name, pattern (np.ndarray), energy, activation, stability, metadata
+- **ConvergenceResult**: converged (bool), iterations, final_state, energy_trajectory
+- Effective condition number for capacity monitoring
+- Normalized overlap for basin membership detection
+
+### Key Methods
+- `HopfieldNetwork.store_pattern(pattern, degree)` - Hebbian learning with strong attractors
+- `HopfieldNetwork.compute_energy(state)` - Energy with optional bias
+- `HopfieldNetwork.compute_overlap(state, pattern)` - Basin membership indicator
+- `HopfieldNetwork.run_until_convergence(initial, max_iter)` - Pattern recall
+- `HopfieldNetwork.compute_effective_condition_number()` - Capacity metric
+- `AttractorBasinService.create_basin(name, content)` - Content-addressed basin
+- `AttractorBasinService.find_nearest_basin(query)` - Basin lookup
 
 ## Testing Strategy
 
