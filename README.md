@@ -64,6 +64,7 @@ docker exec dionysus-api python3 /app/scripts/test_heartbeat_agent.py
 All agents must follow the Conductor workflow for this repo.
 
 - Source of truth: `.conductor/workflow.md` and `conductor/workflow.md`
+- Pre‑code requirement: read `.conductor/constraints.md` before writing or changing any code
 - TDD is mandatory (red → green → refactor)
 - Use plan tracking in `conductor/tracks/*/plan.md`
 - Use feature branches per item and attach git notes per Conductor steps
