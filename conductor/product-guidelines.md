@@ -22,7 +22,7 @@
 11. Agents will use the VPS N8n and Graphiti.  
 12. Agents will document code as they write code and hve QA agents review the code and ensure it meets the highest standards of quality.
 13. Agents will not consider code they have written done until it has been reviewed by a QA agent. 
-14. Review agents will make sure that documentation i clear and in the silverBullet withbacklinks and example code and instructions as needed.
+14. Review agents will make sure that documentation is clear and in Quartz with backlinks and example code and instructions as needed.
 15. The system will implement the perceptual gateway and Daedalus as was done in Dionysus 2.0
 16. All features from Dionysus 2.0 will be implemented in this system after planning for the highest benefit synergy points for the most gain for dionysus that is non-breaking.
 17. Dionysus will become increasingly self-aware and use pattern evolution to develop memory structures and metamemory as well aas episodic, semantic, and procedural metalearning

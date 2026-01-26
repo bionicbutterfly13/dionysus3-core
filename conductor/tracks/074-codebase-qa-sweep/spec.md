@@ -199,4 +199,4 @@ Each repair crew consists of:
 2. `api/services/qa_sweep_service.py` - Orchestration service
 3. `scripts/run_qa_sweep.py` - CLI entry point
 4. `tests/unit/test_qa_sweep.py` - Unit tests
-5. Documentation in `docs/garden/content/silver-bullets/`
+5. Documentation in `docs/garden/content/concepts/`

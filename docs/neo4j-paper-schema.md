@@ -1220,7 +1220,7 @@ CREATE (eq)-[:IMPLEMENTS_AS {completeness: "partial"}]->(impl);
 2. **Verification Queries**: Develop test suite for schema integrity
 3. **Integration Tests**: Verify links to existing Thoughtseeds nodes
 4. **Extraction Pipeline**: Build automated equation/concept extraction tool
-5. **Documentation**: Add to silver-bullets documentation system
+5. **Documentation**: Add to Quartz documentation system
 
 ---
 

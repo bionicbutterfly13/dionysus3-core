@@ -1,4 +1,4 @@
-# Documentation Backlog - Silver Bullets Concepts
+# Documentation Backlog - Quartz Concepts
 
 **Purpose**: Track atomic concept pages that need to be written or updated
 **Process**: Agents claim tasks, create branches, write pages, create PRs

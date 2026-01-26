@@ -97,6 +97,13 @@ and updating internal models."""
         """Direct access to underlying agent for callback configuration."""
         return self._agent
 
+    async def arbitrate_decision(self, proposal: dict, context: dict) -> dict:
+        """
+        Proxy call to inner MetacognitionAgent for decision arbitration.
+        """
+        inner = self._ensure_initialized()
+        return await inner.arbitrate_decision(proposal, context)
+
     def __enter__(self):
         """Context manager entry."""
         return self

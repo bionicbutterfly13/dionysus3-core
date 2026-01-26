@@ -24,16 +24,125 @@ from api.services.context_packaging import (
     ContextCell,
     CellPriority,
 )
+from api.services.memevolve_adapter import get_memevolve_adapter
+from api.models.memevolve import MemoryIngestRequest, TrajectoryData, TrajectoryStep, TrajectoryMetadata
 
 logger = logging.getLogger("dionysus.nemori_river_flow")
+
 
 class NemoriRiverFlow:
     """
     Service for managing the episodic 'River' flow.
-    Implements Boundary Alignment and Predict-Calibrate principles.
+    Implements Boundary Alignment, Predict-Calibrate, and Neuronal Packet Quantization.
     """
     def __init__(self):
         self.store = get_consolidated_memory_store()
+        self.token_budget = get_token_budget_manager()
+
+    async def create_packet_train(
+        self, 
+        content: str, 
+        source_id: str = "user_input",
+        event_type: str = "cognitive_stream"
+    ) -> List[DevelopmentEvent]:
+        """
+        QUANTIZATION LAYER (The Axon):
+        Splits a continuous stream of content into discrete 'Neuronal Packets' (DevelopmentEvents).
+        
+        Mandate:
+        - Max duration ~200ms (simulated).
+        - Each packet has independent dynamics (spike density).
+        - Packets are chained via parent_episode_id or sequence metadata.
+        """
+        # 1. Tokenize (Approximate)
+        words = content.split()
+        total_tokens = len(words)
+        
+        # 2. Determine Quantum Size (Packet Window)
+        # 50 tokens ~ 200ms processing time (heuristic)
+        PACKET_SIZE = 50 
+        
+        packets = []
+        chunks = [words[i:i + PACKET_SIZE] for i in range(0, len(words), PACKET_SIZE)]
+        
+        parent_packet_id = None
+        basin_router = get_memory_basin_router()
+        
+        for i, chunk in enumerate(chunks):
+            chunk_text = " ".join(chunk)
+            
+            # Calculate Dynamics
+            dynamics = self._calculate_packet_dynamics(chunk_text)
+            
+            # Determine Basin Context (Manifold Constraint)
+            # Only do full classification for the first packet to set the trajectory
+            linked_basin_id = None
+            basin_score = 0.0
+            if i == 0: 
+                try:
+                    mem_type = await basin_router.classify_memory_type(chunk_text)
+                    basin_config = basin_router.get_basin_for_type(mem_type)
+                    linked_basin_id = basin_config.get("basin_name")
+                    basin_score = basin_config.get("default_strength", 0.5)
+                    # Update dynamics with manifold position if possible (placeholder)
+                    dynamics.manifold_position = [0.1, 0.5] # Symbolic
+                except Exception:
+                    pass
+
+            event_id = f"pkt_{uuid4().hex[:8]}"
+            
+            packet = DevelopmentEvent(
+                event_id=event_id,
+                timestamp=datetime.now(timezone.utc),
+                event_type=event_type,
+                summary=chunk_text[:100] + "..." if len(chunk_text) > 100 else chunk_text,
+                rationale=chunk_text, # The full content is the rationale
+                impact="neuronal_flow",
+                packet_dynamics=dynamics,
+                linked_basin_id=linked_basin_id,
+                basin_r_score=basin_score,
+                metadata={
+                    "sequence_index": i,
+                    "total_packets": len(chunks),
+                    "source_id": source_id,
+                    "parent_packet_id": parent_packet_id 
+                }
+            )
+            
+            # Store immediately (Fire the neuron)
+            await self.store.store_event(packet)
+            packets.append(packet)
+            parent_packet_id = event_id
+            
+        return packets
+
+    def _calculate_packet_dynamics(self, text: str) -> "PacketDynamics":
+        """
+        Calculate the simulated neuro-dynamics of a text chunk.
+        """
+        from api.models.autobiographical import PacketDynamics
+        
+        token_count = len(text.split())
+        
+        # Duration: ~10ms per token + 50ms base overhead
+        # Max cap at 500ms (slow wave) per physics constraints
+        estimated_duration = min(500, 50 + (token_count * 10))
+        
+        # Spike Density: Tokens / Duration
+        # Higher density = More information per ms
+        spike_density = token_count / estimated_duration if estimated_duration > 0 else 0
+        
+        # Phase Ratio: 
+        # Short packets are mostly structural (Early Phase)
+        # Long packets are mostly content (Late Phase)
+        phase_ratio = 0.5 if token_count < 10 else 0.25
+        
+        return PacketDynamics(
+            duration_ms=estimated_duration,
+            spike_density=spike_density,
+            phase_ratio=phase_ratio,
+            manifold_position=[] # populated by router if active
+        )
 
     async def check_boundary(self, events: List[DevelopmentEvent], resonance_signal: Optional[ResonanceSignal] = None) -> bool:
         """
@@ -179,6 +288,40 @@ class NemoriRiverFlow:
             episode.narrative = await self._sharpen_episode_narrative(episode, events)
             
             await self.store.create_episode(episode)
+            
+            # T041-029: Episode-to-Trajectory Bridge
+            # Promote Hierarchical Episode to MemEvolve Retrieval System
+            # This ensures the narrative is entity-extracted and vector-indexed via the standard pipeline.
+            try:
+                adapter = get_memevolve_adapter()
+                traj_data = TrajectoryData(
+                    query=f"Episode: {episode.title}",
+                    steps=[
+                        TrajectoryStep(
+                            observation=f"Summary: {episode.summary}", 
+                            thought=f"Narrative: {episode.narrative}",
+                            action=f"Archetype: {episode.dominant_archetype.value if episode.dominant_archetype else 'None'}, Strand: {episode.strand_id}"
+                        )
+                    ],
+                    metadata=TrajectoryMetadata(
+                        agent_id="nemori_architect",
+                        session_id=None, # System level
+                        project_id="dionysus_core",
+                        timestamp=episode.start_time,
+                        tags=["episode", episode.strand_id, "nemori"]
+                    )
+                )
+                
+                await adapter.ingest_trajectory(MemoryIngestRequest(
+                   trajectory=traj_data,
+                   session_id=None,
+                   project_id="dionysus_core",
+                   memory_type="episodic"  
+                ))
+                logger.info(f"Bridged episode {episode.episode_id} to MemEvolve trajectory.")
+            except Exception as bridge_err:
+                logger.warning(f"Episode-to-Trajectory bridge failed: {bridge_err}")
+
             return episode
         except Exception as e:
             logger.error(f"Error in episode construction: {e}")

@@ -5,10 +5,10 @@ Graphiti Router - REST API for knowledge graph operations.
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
-from api.services.graphiti_service import get_graphiti_service
+from api.services.graphiti_service import get_graphiti_dependency, GraphitiService
 
 router = APIRouter(prefix="/api/graphiti", tags=["graphiti"])
 
@@ -28,10 +28,12 @@ class SearchRequest(BaseModel):
 
 
 @router.post("/ingest")
-async def ingest_message(request: IngestRequest):
+async def ingest_message(
+    request: IngestRequest,
+    service: GraphitiService = Depends(get_graphiti_dependency)
+):
     """Ingest a message and extract entities/relationships."""
     try:
-        service = await get_graphiti_service()
         result = await service.ingest_message(
             content=request.content,
             source_description=request.source_description,
@@ -44,10 +46,12 @@ async def ingest_message(request: IngestRequest):
 
 
 @router.post("/search")
-async def search(request: SearchRequest):
+async def search(
+    request: SearchRequest,
+    service: GraphitiService = Depends(get_graphiti_dependency)
+):
     """Hybrid search across entities and relationships."""
     try:
-        service = await get_graphiti_service()
         result = await service.search(
             query=request.query,
             group_ids=request.group_ids,
@@ -60,20 +64,24 @@ async def search(request: SearchRequest):
 
 
 @router.get("/health")
-async def health_check():
+async def health_check(
+    service: GraphitiService = Depends(get_graphiti_dependency)
+):
     """Check Graphiti and Neo4j connectivity."""
     try:
-        service = await get_graphiti_service()
         return await service.health_check()
     except Exception as e:
         return {"healthy": False, "error": str(e)}
 
 
 @router.get("/entity/{name}")
-async def get_entity(name: str, group_id: Optional[str] = None):
+async def get_entity(
+    name: str, 
+    group_id: Optional[str] = None,
+    service: GraphitiService = Depends(get_graphiti_dependency)
+):
     """Get entity by name."""
     try:
-        service = await get_graphiti_service()
         result = await service.get_entity(name, group_id)
         if not result:
             raise HTTPException(status_code=404, detail=f"Entity '{name}' not found")

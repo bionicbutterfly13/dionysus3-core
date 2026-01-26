@@ -134,9 +134,9 @@
   - Agent descriptions
   - Configuration options
 
-- [ ] T074-062: Create silver bullet pages
-  - `docs/garden/content/silver-bullets/concepts/qa-sweep.md`
-  - `docs/garden/content/silver-bullets/concepts/repair-crews.md`
+- [ ] T074-062: Create concept pages
+  - `docs/garden/content/concepts/qa-sweep.md`
+  - `docs/garden/content/concepts/repair-crews.md`
 
 ## Implementation Notes
 

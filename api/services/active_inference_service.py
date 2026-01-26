@@ -360,12 +360,55 @@ class ActiveInferenceService:
     # FREE ENERGY CALCULATIONS
     # ========================================================================
 
+    def calculate_uncertainty(self, belief: CanonicalBeliefState) -> float:
+        """
+        Calculate Shannon Entropy (Uncertainty) of the belief state.
+        
+        H(p) = - sum(p * log(p))
+        
+        Args:
+            belief: CanonicalBeliefState
+            
+        Returns:
+            float: Uncertainty value (in nats)
+        """
+        return float(self._entropy(np.array(belief.mean)))
+
+    def calculate_surprisal(
+        self,
+        observation: np.ndarray,
+        belief: CanonicalBeliefState,
+        model: GenerativeModel
+    ) -> float:
+        """
+        Calculate Surprisal (Self-Information) of an observation given beliefs.
+        
+        I(o) = - log p(o)
+        Approximated as the Accuracy term of VFE: - E_q[log p(o|s)]
+        
+        Args:
+            observation: Observed outcome vector or index
+            belief: Current belief state
+            model: Generative model
+            
+        Returns:
+            float: Surprisal value (in nats)
+        """
+        qs = np.array(belief.mean)
+        # Handle index vs vector observation
+        obs_idx = np.argmax(observation) if observation.ndim > 0 else int(observation)
+        
+        likelihood = model.A[0][obs_idx, :] # Use first modality for now
+        accuracy = np.dot(qs, self._spm_log(likelihood))
+        
+        return float(-accuracy)
+
     def calculate_vfe(
         self,
         belief: CanonicalBeliefState,
         observation: np.ndarray,
         model: GenerativeModel
-    ) -> float:
+    ) -> VFEDetail:
         """
         Calculate Variational Free Energy.
 

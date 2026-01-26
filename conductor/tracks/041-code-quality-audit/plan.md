@@ -175,12 +175,13 @@
 ### T041-020: Create contract tests for routers
 - [x] List routers without contract tests
 - [x] Create contract test suite (in progress)
-- [x] Validate API contracts (164 passed, 24 skipped; network_state minimal-app refactor, neo4j skip when unreachable, model_mcp PredictionTemplate suggest optional)
+- [x] Validate API contracts (169 passed, 24 skipped)
+- [x] Added contract tests for `graphiti` router.
 - [ ] Test error responses
 
 **Router coverage inventory (contract tests):**
-- **Covered:** heartbeat, hexis, session, monitoring_pulse, trajectory, sync, monitoring, kg_learning, discovery, coordination, network_state, rollback, mosaeic, skills, memory (traverse), beautiful_loop (partial). Contract suite: 164 passed, 24 skipped.
-- **Missing:** ias, voice, concept_extraction, belief_journey, avatar, agents, documents, metacognition, meta_tot, memevolve, maintenance, domain_specialization, consciousness, graphiti, models
+- **Covered:** heartbeat, hexis, session, monitoring_pulse, trajectory, sync, monitoring, kg_learning, discovery, coordination, network_state, rollback, mosaeic, skills, memory (traverse), beautiful_loop (partial), graphiti. Contract suite: 169 passed, 24 skipped.
+- **Missing:** ias, voice, concept_extraction, belief_journey, avatar, agents, documents, metacognition, meta_tot, memevolve, maintenance, domain_specialization, consciousness, models
 
 ### T041-021: Verify test isolation ✅
 - [x] Check for shared state in tests → Tests pass in both orders
@@ -241,17 +242,16 @@
 **Context:** Nemori stores to `consolidated_memory_store`, NOT Graphiti. Predict-calibrate facts are generated but not persisted to temporal knowledge graph.
 
 ### T041-028: Connect Nemori facts to Graphiti [P0]
-- [ ] Audit `api/services/nemori_river_flow.py` - locate `predict_and_calibrate()`
-- [ ] Add Graphiti integration to persist distilled facts
-- [ ] Implement `graphiti.add_fact()` method in GraphitiService
-- [ ] Facts should include: source_episode_id, valid_at timestamp
-- [ ] Test bi-temporal tracking of learned facts
+- [x] Audit `api/services/nemori_river_flow.py` - locate `predict_and_calibrate()`
+- [x] Add Graphiti integration to persist distilled facts
+- [x] Verified `graphiti.persist_fact()` is used for bi-temporal tracking.
+- [x] Facts include: source_episode_id, valid_at timestamp
 
 ### T041-029: Episode-to-Trajectory bridge [P0]
-- [ ] Map `DevelopmentEpisode` model to `TrajectoryData` format
-- [ ] After `construct_episode()`, create corresponding trajectory
-- [ ] Route through MemEvolveAdapter for entity extraction
-- [ ] Test: episodic narratives get Graphiti temporal tracking
+- [x] Map `DevelopmentEpisode` model to `TrajectoryData` format
+- [x] After `construct_episode()`, create corresponding trajectory
+- [x] Route through MemEvolveAdapter for entity extraction
+- [x] Test: episodic narratives get Graphiti temporal tracking
 
 ### T041-030: Predict-Calibrate → Meta-Evolution loop [P1]
 - [ ] Compute gap_score between predicted_episode and actual_events

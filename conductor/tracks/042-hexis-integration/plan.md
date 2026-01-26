@@ -41,18 +41,15 @@ Hexis provides "Soul Architecture" (Identity, Consent, Boundaries). Dionysus3 Co
 - [x] Modify `HeartbeatAgent` (`api/agents/heartbeat_agent.py`)
     - Inject `HexisService` dependency.
     - Add "Consent Gating" check at start of `decide()`.
+- [x] Fixed `ManagedMetacognitionAgent` missing `arbitrate_decision` proxy.
 
 ### Phase 4: Verification
 - [x] Integration Tests (`tests/integration/test_hexis_flow.py`)
     - **TDD (Red-Green-Refactor)**: Write failing test first.
     - Verify complete Handshake -> Boundary Check -> Termination lifecycle.
     - **Gateway Only**: Tests must run against API/Service layer, not direct DB.
-
-### Phase 5: Contract Tests + Documentation
-- [x] Write contract tests for `/hexis/consent` + `/hexis/consent/status`
-- [x] Write contract tests for `/hexis/boundaries`
-- [x] Write contract tests for `/hexis/terminate` + `/hexis/terminate/confirm`
-- [x] Add short documentation + journal entry for Hexis Phase 5
+- [x] API Router Tests (`tests/integration/test_hexis_router.py`)
+- [x] Heartbeat Integration Tests (`tests/integration/test_heartbeat_hexis_gate.py`)
 
 ## Dependencies
 - `GraphitiService` (for Neo4j interaction)

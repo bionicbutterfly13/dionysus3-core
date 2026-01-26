@@ -56,7 +56,7 @@ The system distinguishes between two complementary metacognitive layers:
 
 - **Metacognitive Bridge**: Thoughtseed competition and attractor basin transitions connect declarative knowledge to procedural control, enabling metacognitive feelings (uncertainty, confidence) to guide action selection.
 
-See `docs/garden/content/silver-bullets/` for detailed explanations of declarative/procedural distinctions, basin geometry, and the cognitive implementation. Documentation is rendered via Quartz at `docs/garden/`.
+See `docs/garden/content/concepts/` for detailed explanations of declarative/procedural distinctions, basin geometry, and the cognitive implementation. Documentation is rendered via Quartz at `docs/garden/`.
 
 ## 🔴 MANDATORY: Conductor Workflow
 
@@ -551,9 +551,9 @@ Required in `.env`:
 - `OPENAI_API_KEY` - For Graphiti extraction and smolagents orchestration
 - `N8N_CYPHER_URL` - Webhook endpoint for Cypher queries
 
-## 📚 Documentation Maintenance - Silver Bullets Pattern
+## 📚 Documentation Maintenance
 
-**Critical**: Documentation follows the "silver bullets" pattern - atomic concept pages with bidirectional links that mirror the graph structure of the codebase.
+**Critical**: Documentation uses Quartz for all content. Atomic concept pages with bidirectional links mirror the graph structure of the codebase.
 
 ### When to Document
 
@@ -563,69 +563,33 @@ Required in `.env`:
 - Creating new services or architectural patterns
 - Adding to IAS curriculum content
 
-### Documentation Pattern
+### Documentation Structure
 
-**Quartz Documentation Structure** (`docs/garden/`):
-- `content/silver-bullets/` - Main documentation hub
-- `content/silver-bullets/00-INDEX.md` - Navigation index (always update)
-- `content/silver-bullets/concepts/` - Atomic concept pages (one per concept)
-- `content/` - All documentation content (specs, papers, journal, etc.)
+**Quartz Documentation** (`docs/garden/content/`):
+- `concepts/` - Atomic concept pages (one per concept)
+- `journal/` - Development journal entries
+- `papers/` - Paper extractions and analyses
+- `evolution/` - System evolution tracking
+
+**Other Documentation** (`docs/`):
 - `docs/IAS-INDEX.md` - IAS curriculum navigation hub
+- `docs/concepts/` - Legacy concept documentation
 
-**Atomic Concept Template**: See `docs/DOCUMENTATION-AGENT-GUIDE.md`
+### Workflow
 
-### Parallel Documentation Agents
-
-Agents can work in parallel on documentation:
-
-**Agent Roles**:
-1. **Concept Extractor**: Identify undocumented concepts from code
-2. **Atomic Writer**: Create individual concept pages
-3. **Link Weaver**: Ensure bidirectional links
-4. **Index Curator**: Maintain navigation indexes
-5. **Code Linker**: Add implementation references
-6. **Visualization Builder**: Create interactive diagrams
-
-**Workflow**:
 ```bash
-# 1. Check backlog
-cat docs/DOCUMENTATION_BACKLOG.md
-
-# 2. Claim task
-# Update backlog: (AVAILABLE) → (CLAIMED: AgentName, Branch: docs/concept-{name})
-
-# 3. Create branch
+# 1. Create branch
 git checkout -b docs/concept-{concept-name}
 
-# 4. Write concept page following template
-# See docs/DOCUMENTATION-AGENT-GUIDE.md for full template
+# 2. Write concept page in Quartz
+# Location: docs/garden/content/concepts/{concept-name}.md
 
-# 5. Create PR
-git add docs/garden/content/silver-bullets/concepts/{concept-name}.md
+# 3. Create PR
+git add docs/garden/content/concepts/{concept-name}.md
 git commit -m "docs: add {concept-name} atomic concept page
 
 AUTHOR Mani Saint-Victor, MD"
 ```
-
-**Branch Naming**:
-- Concept pages: `docs/concept-{concept-name}`
-- Link updates: `docs/links-{concept-name}`
-- Index updates: `docs/index-update`
-- Visualizations: `docs/viz-{topic}`
-
-**Conflict Avoidance**:
-- Only ONE agent per concept file at a time
-- Link Weaver waits for Atomic Writer to merge
-- Index Curator waits for batch completion
-
-**Integration with Ralph**:
-```bash
-# Spawn parallel documentation team
-/ralph spawn-docs-team --concepts "precision-weighting,basin-stability,selective-attention"
-```
-
-**Complete Guide**: `docs/DOCUMENTATION-AGENT-GUIDE.md`
-**Backlog**: `docs/DOCUMENTATION_BACKLOG.md`
 
 ## Roadmap & Completed Features
 

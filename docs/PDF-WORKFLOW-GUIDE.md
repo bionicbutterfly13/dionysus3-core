@@ -30,7 +30,7 @@ Claude will automatically:
 2. ✅ Create markdown documentation in `/docs/papers/extractions/`
 3. ✅ Build Neo4j knowledge graph nodes
 4. ✅ Generate cross-reference mappings
-5. ✅ Create Silver Bullet documentation
+5. ✅ Create Quartz documentation
 
 ### **Step 3: Query Knowledge**
 
@@ -139,13 +139,13 @@ Process this and map it to Thoughtseeds equations.
 1. Agent 1: Extract all 20 equations from paper
 2. Agent 2: Map to Thoughtseeds Eq 1-17
 3. Agent 3: Create Neo4j nodes
-4. Agent 4: Build Silver Bullet docs
+4. Agent 4: Build Quartz docs
 
 **Output** (auto-created):
 - `/docs/papers/extractions/nehrer-2025-technical.md`
 - `/docs/papers/cross-references/thoughtseeds-to-activeinference.md`
 - Neo4j nodes + relationships
-- `/docs/silver-bullets/papers/activeinference-jl.md`
+- `/docs/garden/content/papers/activeinference-jl.md`
 
 ### Example 2: Querying Across Papers
 
@@ -165,15 +165,15 @@ Returns side-by-side comparison with LaTeX equations.
 
 ---
 
-## 🎨 **Silver Bullet Integration**
+## 🎨 **Quartz Integration**
 
-Each paper automatically gets a Silver Bullet page:
+Each paper automatically gets a Quartz page:
 
-**Location**: `/docs/silver-bullets/papers/{citation-key}.md`
+**Location**: `/docs/garden/content/papers/{citation-key}.md`
 
 **Structure**:
 ```markdown
-# [Paper Title] - Silver Bullet
+# [Paper Title]
 
 ## Quick Reference
 - **Authors**: [list]
@@ -217,7 +217,7 @@ $$F \triangleq D_{KL}[q(s) \| p(o,s)]$$
 - Extracting + documenting
 - Building knowledge graph
 - Creating cross-references
-- Updating Silver Bullets
+- Updating Quartz docs
 
 **You get**:
 - Full traceability

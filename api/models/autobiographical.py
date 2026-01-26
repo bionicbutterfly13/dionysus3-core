@@ -29,6 +29,7 @@ class DevelopmentEventType(str, Enum):
     GENESIS = "genesis"
     EPISODE_BOUNDARY = "episode_boundary" # Nemori topic shift
     SEMANTIC_DISTILLATION = "semantic_distillation" # Free Energy distiller
+    COGNITIVE_STREAM = "cognitive_stream" # Neuronal packet stream
 
 
 class RiverStage(str, Enum):
@@ -115,6 +116,19 @@ class ActiveInferenceState(BaseModel):
     event_cache: List[Dict[str, Any]] = Field(default_factory=list, description="Independent storage for events (Cerebellar metaphor)")
 
 
+class PacketDynamics(BaseModel):
+    """
+    Simulated properties of the Neuronal Packet.
+    
+    Represents the 50-200ms discrete burst of population spiking activity.
+    """
+    duration_ms: int = Field(..., description="Simulated duration (50-200ms)")
+    phase_ratio: float = Field(0.25, description="Ratio of Early (Structural) vs Late (Content) phase")
+    spike_density: float = Field(..., description="Information density / Token count")
+    manifold_position: List[float] = Field(default_factory=list, description="Coordinates in the low-dim Attractor Basin")
+
+
+
 class DevelopmentEvent(BaseModel):
     event_id: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
@@ -135,6 +149,7 @@ class DevelopmentEvent(BaseModel):
     linked_basin_id: Optional[str] = Field(None, description="ID of the linked Attractor Basin")
     basin_r_score: float = Field(0.0, description="Resonance score with the linked basin")
     markov_blanket_id: Optional[str] = Field(None, description="Hash ID of the active Markov Blanket")
+    packet_dynamics: Optional[PacketDynamics] = None
     
     # Richmond/Zacks EST (Event Segmentation Theory)
     is_boundary: bool = Field(default=False, description="Whether this event represents a segment transition")

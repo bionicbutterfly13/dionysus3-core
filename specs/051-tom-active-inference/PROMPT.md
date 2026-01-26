@@ -145,8 +145,8 @@ mypy api/services/tom_active_inference.py
 ## Reference Documentation
 - Feature Spec: `specs/051-tom-active-inference/spec.md` (44 FRs, 10 success criteria)
 - Clarifications: See spec.md "Clarifications" section (5 key decisions)
-- Active Inference: `docs/silver-bullets/concepts/precision-weighting.md`
-- ThoughtSeeds: `docs/silver-bullets/05-thoughtseed-competition-explained.md`
+- Active Inference: `docs/garden/content/concepts/precision-weighting.md`
+- ThoughtSeeds: `docs/garden/content/concepts/thoughtseed-competition.md`
 - Graphiti: `api/services/graphiti_service.py` (existing patterns)
 - EFE Engine: `api/services/efe_engine.py` (winner selection logic)
 

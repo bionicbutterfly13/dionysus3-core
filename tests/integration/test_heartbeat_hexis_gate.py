@@ -1,11 +1,10 @@
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 from api.agents.heartbeat_agent import HeartbeatAgent
 
 @pytest.mark.asyncio
 async def test_heartbeat_requires_consent():
     """Verify HeartbeatAgent halts if check_consent fails."""
-    
     
     # Mock deps - Patch the SOURCE since it is imported inside the function
     with patch("api.services.hexis_service.get_hexis_service") as mock_get_hexis:
@@ -46,15 +45,15 @@ async def test_heartbeat_proceeds_with_consent():
              
              agent = HeartbeatAgent()
              agent.agent = AsyncMock()
+             
              # Also mock ManagedMetacognitionAgent context manager
-             mock_meta = AsyncMock()
-             mock_meta.__aenter__.return_value = mock_meta
-             mock_meta.__aexit__.return_value = None
+             # We need it to return an object that HAS arbitrate_decision and IS awaitable
+             mock_managed_instance = MagicMock()
+             mock_managed_instance.arbitrate_decision = AsyncMock(return_value={"use_s2": False, "reason": "Simple task"})
+             mock_managed_instance.__enter__.return_value = mock_managed_instance
+             mock_managed_instance.__exit__.return_value = None
              
-             # Mock arbitration result as an AsyncMock method or return an awaitable
-             mock_meta.arbitrate_decision = AsyncMock(return_value={"use_s2": False, "reason": "Simple task"})
-             
-             with patch("api.agents.managed.metacognition.ManagedMetacognitionAgent", return_value=mock_meta):
+             with patch("api.agents.managed.metacognition.ManagedMetacognitionAgent", return_value=mock_managed_instance):
                  result = await agent._run_decide({"agent_id": "test_agent"})
                  
                  assert "Action Planned" in result
