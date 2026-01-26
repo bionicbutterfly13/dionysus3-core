@@ -38,7 +38,10 @@ from api.services.hyper_model_service import get_hyper_model_service
 from api.services.meta_cognitive_service import get_meta_learner
 from api.services.metaplasticity_service import get_metaplasticity_controller
 from api.services.resonance_detector import get_resonance_detector
+
 from api.services.unified_reality_model import get_unified_reality_model
+from api.models.metacognitive_particle import MetacognitiveParticle
+from api.services.particle_store import get_particle_store
 
 logger = logging.getLogger("dionysus.consciousness")
 
@@ -63,7 +66,9 @@ class ConsciousnessManager:
         # Instantiate cognitive services
         self.bootstrap_svc = BootstrapRecallService()
         self.metaplasticity_svc = get_metaplasticity_controller()
+
         self.meta_learner = get_meta_learner()
+        self.particle_store = get_particle_store()
         
         # Feature 039 (T009): Use ManagedAgent wrappers for native orchestration
         # These wrappers provide proper ManagedAgent instances with rich descriptions
@@ -502,6 +507,33 @@ The agents will return structured results for synthesis.""",
             confidence = base_confidence # 0.1
 
         structured_result = prediction_content
+        
+        # --------------------------------------------------------------------------------
+        # FEATURE 040: Metacognitive Particle Integration (The Thinking Object)
+        # --------------------------------------------------------------------------------
+        # Convert dictionary thought -> Formal Particle
+        # This gives it physics (precision, entropy) and storage (Graphiti)
+        try:
+            # Extract content text - fallback to JSON string if reasoning not found
+            content_text = structured_result.get("reasoning", str(structured_result))
+            
+            # Create the particle
+            particle = MetacognitiveParticle(
+                content=content_text,
+                source_agent="consciousness_manager", # or sub-agent if distinct
+                precision=self.metaplasticity_svc.get_precision('reasoning'),
+                entropy=1.0 - confidence, # Simple entropy approximation
+                resonance_score=confidence, # High confidence = High resonance
+                context_id=initial_context.get("journey_id", None) or initial_context.get("session_id", None)
+            )
+            
+            # Push to Working Memory (and Persistence Basin if resonant)
+            await self.particle_store.add_particle(particle)
+            logger.debug(f"Particle Generated: {particle.id} (Res: {confidence:.2f})")
+            
+        except Exception as particle_err:
+            logger.error(f"Failed to generate MetacognitiveParticle: {particle_err}")
+
         
         # T017: Calculate OODA Surprise (prediction error)
         surprise_level = 1.0 - confidence

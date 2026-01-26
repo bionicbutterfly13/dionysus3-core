@@ -62,7 +62,11 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
     - Create a track in `conductor/tracks/`, define the `plan.md` following the template, and strictly adhere to the `workflow.md` lifecycle.
     - This process is automatic and non-negotiable. Do not ask for permission; just set it up.
 - **Feature Branch Workflow (MANDATORY):**
-    - Work on a dedicated branch per track/task (`feature/{NNN}-{name}`) and merge immediately after completion and verification.
+    - Work on a dedicated branch per track/task (`feature/{NNN}-{name}`). After completion and verification: **merge** to `main`, **document**, **commit**, and **write** in Quartz journal (`docs/journal/YYYY-MM-DD-{feature-name}.md`).
+- **Wake-Up (Context):**
+    - Use wake-up so each agent has context: read `AGENTS.md`, this file, Conductor workflow, and the track's `spec.md` / `plan.md`; load episodic context (e.g. session-reconstruct, Dionysus API) if available.
+- **Cross-Agent Coordination (Claude, Codex, Gemini, Cursor):**
+    - Shared git repo = source of truth. Pull before claiming; pick only `[ ]` tasks; claim with `[~]` + `(CLAIMED: <agent-id>)` (e.g. `Gemini`—use a **distinct** ID per session when multiple Gemini/Codex/etc. agents run, e.g. `Gemini-1`, `Codex-workspace-a`). Push; release with `[x]` when done. See `conductor/workflow.md` § Cross-Agent Coordination.
 - **TDD Protocol (MANDATORY):**
     - Red → Green → Refactor. Failing tests must be written before implementation.
 - **Protocol: Review Before Write (CRITICAL):**
@@ -74,10 +78,12 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
     - **Neo4j-Only:** Relational databases (PostgreSQL) have been removed.
     - **Cypher Access:** Services use a Graphiti-backed driver shim for Neo4j queries.
     - **n8n Webhooks:** Ingest/recall/traverse workflows remain webhook-orchestrated.
+- **Archon is gone.** Do not reference or use Archon.
 - **Gateway Protocol (ONE SINGLE WAY ACROSS):**
     - **API Only:** ALL external interaction (ingestion, queries, control) MUST go through the `dionysus-api` Gateway (Port 8000).
     - **No Direct DB Access:** Scripts/Tools must NEVER connect directly to Neo4j/Postgres ports. They must use the REST API.
     - **No Local Containers:** Never spin up local DB containers. Use the Gateway to talk to the VPS via the API.
+    - **No direct contact** with memory-cluster code (e.g. `MemoryCluster`, basin callbacks, execution traces) or Neo4j. Access **only** through the **specific gateway** (API, n8n webhooks, Graphiti service).
 - **MemEvolve Protocol (ANTI-POISON):**
     - **No Pre-Digestion:** Do not send pre-extracted entities/edges. Send raw trajectories and let the system extract.
     - **Lifecycle:** Encode → Store → Retrieve → Manage must remain decoupled.
@@ -93,6 +99,11 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
     - Consistency: This ensures the "Quartz Journal" remains the definitive narrative log of the system's evolution.
 - **Commit Guidelines:**
     - Use conventional commits (`feat`, `fix`, `docs`, `chore`, etc.).
+- **Connectivity Mandate (ULTRATHINK):**
+    - **No Disconnected Code.** Every feature must define its "IO Map" (Input/Output/Host).
+    - **Architecture Check:** Document exactly WHERE the new code attaches to the existing system.
+    - **Data Flow:** Define what information it receives and what it sends out.
+    - **Persistence:** Ensure data passes through the required basins (Memory, AutoSchema, Graphiti) where applicable. "Stubs" without integration are rejected.
 
 ## Roadmap & Pending Tasks
 

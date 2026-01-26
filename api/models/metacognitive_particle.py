@@ -13,6 +13,7 @@ class MetacognitiveParticle(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content: str = Field(..., description="The textual representation of the thought.")
     source_agent: str = Field(..., description="ID of the agent/process that generated this.")
+    context_id: Optional[str] = Field(None, description="UUID of the Session or Journey context.")
     timestamp: datetime = Field(default_factory=datetime.now)
     
     # Active Inference States
@@ -43,3 +44,17 @@ class MetacognitiveParticle(BaseModel):
         """Boost resonance (Attention)."""
         self.resonance_score = min(1.0, self.resonance_score + amount)
         self.is_active = True
+
+    def to_graphiti_node(self) -> Dict[str, Any]:
+        """Convert to Graphiti-compatible node dictionary."""
+        return {
+            "type": "MetacognitiveParticle",
+            "name": self.content[:50] + "..." if len(self.content) > 50 else self.content,
+            "summary": self.content,
+            "created_at": self.timestamp.isoformat(),
+            "valid_at": self.timestamp.isoformat(),
+            "res_score": self.resonance_score,
+            "precision": self.precision,
+            "source": self.source_agent,
+            "context_id": self.context_id
+        }

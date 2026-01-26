@@ -1,6 +1,8 @@
 import logging
+import asyncio
 from typing import List, Optional
 from api.models.metacognitive_particle import MetacognitiveParticle
+from api.services.graphiti_service import get_graphiti_service, GraphitiService
 
 logger = logging.getLogger("dionysus.particle_store")
 
@@ -10,20 +12,48 @@ class ParticleStore:
     
     Acts as a short-term buffer for active thoughts.
     Supports decay (forgetting) and retrieval by resonance.
+    
+    INTEGRATION:
+    - Host: ConsciousnessManager
+    - Persistence: Graphiti (Neo4j) for high-resonance particles/
     """
     
-    def __init__(self, capacity: int = 50):
+    def __init__(self, capacity: int = 50, graphiti: Optional[GraphitiService] = None):
         self._particles: List[MetacognitiveParticle] = []
         self._capacity = capacity
+        # Lazy load if not provided, to avoid circular import loops at module level
+        self._graphiti = graphiti 
 
-    def add_particle(self, particle: MetacognitiveParticle) -> None:
-        """Add a particle to working memory. Enforces capacity via resonance eviction."""
+    async def add_particle(self, particle: MetacognitiveParticle) -> None:
+        """
+        Add a particle to working memory. 
+        Enforces capacity via resonance eviction.
+        Triggers async persistence if resonance is high.
+        """
         if len(self._particles) >= self._capacity:
             self._evict_low_resonance()
         
         self._particles.append(particle)
         # Sort by resonance desc
         self._sort_particles()
+        
+        # PERSISTENCE CHECK (The Basin)
+        if particle.resonance_score >= 0.8:
+            await self._persist_to_graphiti(particle)
+
+    async def _persist_to_graphiti(self, particle: MetacognitiveParticle):
+        """Persist high-resonance particle to the Knowledge Graph."""
+        try:
+            if not self._graphiti:
+                self._graphiti = await get_graphiti_service()
+            
+            node_data = particle.to_graphiti_node()
+            # We use 'add_node' from Graphiti. 
+            # Note: GraphitiService usually expects 'name' and 'type'.
+            await self._graphiti.add_node(node_data)
+            logger.info(f"Persisted Resonant Particle: {particle.id} (Score: {particle.resonance_score:.2f})")
+        except Exception as e:
+            logger.error(f"Failed to persist particle {particle.id}: {e}")
 
     def get_active_particles(self, min_resonance: float = 0.1) -> List[MetacognitiveParticle]:
         """Get currently active particles above a resonance threshold."""
