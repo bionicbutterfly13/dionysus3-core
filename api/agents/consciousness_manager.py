@@ -524,7 +524,8 @@ The agents will return structured results for synthesis.""",
                 precision=self.metaplasticity_svc.get_precision('reasoning'),
                 entropy=1.0 - confidence, # Simple entropy approximation
                 resonance_score=confidence, # High confidence = High resonance
-                context_id=initial_context.get("journey_id", None) or initial_context.get("session_id", None)
+                context_id=initial_context.get("journey_id", None) or initial_context.get("session_id", None),
+                provenance_ids=structured_result.get("provenance_ids", [])
             )
             
             # Push to Working Memory (and Persistence Basin if resonant)

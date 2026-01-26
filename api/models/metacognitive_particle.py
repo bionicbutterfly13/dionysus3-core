@@ -14,6 +14,7 @@ class MetacognitiveParticle(BaseModel):
     content: str = Field(..., description="The textual representation of the thought.")
     source_agent: str = Field(..., description="ID of the agent/process that generated this.")
     context_id: Optional[str] = Field(None, description="UUID of the Session or Journey context.")
+    provenance_ids: List[str] = Field(default_factory=list, description="IDs of Neuronal Packets (Nodes) this thought is derived from.")
     timestamp: datetime = Field(default_factory=datetime.now)
     
     # Active Inference States
@@ -56,5 +57,18 @@ class MetacognitiveParticle(BaseModel):
             "res_score": self.resonance_score,
             "precision": self.precision,
             "source": self.source_agent,
-            "context_id": self.context_id
+            "context_id": self.context_id,
+            "provenance": self.provenance_ids
         }
+
+    def calculate_free_energy(self) -> float:
+        """
+        Calculate Variational Free Energy (VFE).
+        F = Complexity - Accuracy
+        Currently a placeholder using Entropy and Precision as proxies.
+        """
+        # Complexity ≈ Entropy (Divergence from prior)
+        # Accuracy ≈ Precision (Confidence in prediction)
+        # High Precision -> Low VFE (Good)
+        # High Entropy -> High VFE (Bad/Uncertain)
+        return self.entropy - (self.precision / 5.0)
