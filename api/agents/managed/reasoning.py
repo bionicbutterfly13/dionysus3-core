@@ -32,8 +32,10 @@ class ManagedReasoningAgent:
     Provides a ToolCallingAgent instance that the ConsciousnessManager
     can use for native smolagents multi-agent orchestration during the ORIENT phase.
     
-    Note: smolagents 1.23+ removed ManagedAgent class. Agents with name/description
-    are passed directly to managed_agents parameter.
+    ABM Alignment (Chapter 22, Anderson 2014):
+    - Heterogeneity: Specialized reasoning agent with distinct cognitive protocols.
+    - Local Rules: Employs 'Checklist-Driven Surgeon' rules for pattern identification.
+    - Interaction: Bridges observation data to stable mental models.
     """
 
     # Description used by the manager to decide when to delegate

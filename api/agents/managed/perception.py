@@ -32,8 +32,10 @@ class ManagedPerceptionAgent:
     Provides a ToolCallingAgent instance that the ConsciousnessManager
     can use for native smolagents multi-agent orchestration during the OBSERVE phase.
     
-    Note: smolagents 1.23+ removed ManagedAgent class. Agents with name/description
-    are passed directly to managed_agents parameter.
+    ABM Alignment (Chapter 22, Anderson 2014):
+    - Autonomy: PerceptionAgent operates independently within its defined scope.
+    - Environment Interaction: Uses tools to sense and modify environmental state (Neo4j/Graphiti).
+    - Local Rules: Guided by specific cognitive prompts for situational awareness.
     """
 
     # Description used by the manager to decide when to delegate

@@ -51,6 +51,12 @@ class ConsciousnessManager:
     """
     Orchestrates specialized cognitive agents (Perception, Reasoning, Metacognition)
     using smolagents hierarchical managed_agents architecture.
+
+    ACT-R Alignment (Anderson, 2014):
+    - Observe -> Perceptual-Motor Module (PerceptionAgent)
+    - Orient -> Declarative Memory (ReasoningAgent / Recall tools)
+    - Decide -> Procedural Memory / Production Rules (MetacognitionAgent)
+    - Act -> Motor Module (Final Plan / Action Execution)
     """
 
     def __init__(self, model_id: str = "dionysus-agents"):
@@ -94,8 +100,14 @@ class ConsciousnessManager:
         
         # Feature 039 (T009): Get ToolCallingAgent instances from wrappers
         # smolagents 1.23+: agents have name/description directly, no ManagedAgent wrapper
+        
+        # ACT-R Alignment: Perceptual-Motor Module (Observe)
         self._perception_managed = self.perception_wrapper.get_managed()
+        
+        # ACT-R Alignment: Declarative Memory (Orient)
         self._reasoning_managed = self.reasoning_wrapper.get_managed()
+        
+        # ACT-R Alignment: Procedural Memory / Production Rules (Decide)
         self._metacognition_managed = self.metacognition_wrapper.get_managed()
         
         # Apply audit callbacks to the agents directly (they ARE ToolCallingAgents now)
@@ -382,17 +394,17 @@ The agents will return structured results for synthesis.""",
         {json.dumps(initial_context, indent=2, default=str)}
         {ultrathink_instruction}
         
-        Your Goal:
-        1. Delegate to 'perception' to gather current state and relevant memories. 
+        Your Goal (ACT-R / OODA Loop):
+        1. Delegate to 'perception' (Perceptual-Motor Module) to gather current state and relevant memories (Observe). 
            NOTE: Check 'bootstrap_past_context' in initial_context for automatic grounding.
-        2. Delegate to 'reasoning' to analyze the perception results and initial context.
+        2. Delegate to 'reasoning' (Declarative Memory) to analyze the perception results and initial context (Orient).
            NOTE: Apply 'meta_cognitive_lessons' if present.
            COORDINATION: Follow the 'coordination_plan' mode: {initial_context['coordination_plan']['mode']}.
            AFFORDANCES: Prioritize using these tools if relevant: {', '.join(initial_context['coordination_plan']['afforded_tools'])}.
            PROTOCOL: If 'enforce_checklist' is true, instruct 'reasoning' to follow the 
            'Checklist-Driven Surgeon' protocol: Understand Question -> Recall Related -> Reason -> Examine Answer -> Backtrack (if needed).
-        3. Delegate to 'metacognition' to review goals and decide on strategic updates.
-        4. Synthesize everything into a final actionable plan.
+        3. Delegate to 'metacognition' (Procedural Memory) to review goals and decide on strategic updates (Decide).
+        4. Synthesize everything into a final actionable plan (Act - Motor Module).
         
         META-ToT GUIDANCE:
         If 'meta_tot_result' is present in initial_context, incorporate its best_path and 

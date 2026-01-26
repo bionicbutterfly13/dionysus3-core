@@ -51,7 +51,15 @@ class EFEEngine:
     """
 
     def calculate_entropy(self, probabilities: List[float]) -> float:
-        """Calculates Shannon entropy of a probability distribution."""
+        """
+        Calculates Shannon entropy of a probability distribution.
+        
+        Reference: Anderson (2014), Chapter 14.
+        H(p) = - Σ p_i * log2(p_i)
+        
+        In the context of random walks (Ch 15), entropy represents the 
+        uncertainty or spread of the probability distribution over possible states.
+        """
         if not probabilities:
             return 1.0
         # scipy.stats.entropy uses ln by default, we use base 2 for bits
@@ -77,6 +85,11 @@ class EFEEngine:
         
         FEATURE 048: Precision Weighting.
         EFE = (1/Precision) * Uncertainty + Precision * Divergence
+        
+        Random Walk alignment (Anderson 2014, Ch 15):
+        The EFE serves as a 'potential' guiding the cognitive random walk toward 
+        the goal. Minimizing EFE is equivalent to selecting paths that reduce 
+        diffusion (uncertainty) and maximize drift (goal directedness).
         """
         uncertainty = self.calculate_entropy(prediction_probs)
         divergence = self.calculate_goal_divergence(thought_vector, goal_vector)
@@ -144,6 +157,11 @@ class EFEEngine:
     def select_dominant_thought(self, candidates: List[Dict[str, Any]], goal_vector: List[float], precision: float = 1.0) -> EFEResponse:
         """
         Winner-take-all selection of the dominant ThoughtSeed based on minimal EFE.
+        
+        Production Rule alignment (Anderson 2014, Ch 19):
+        ThoughtSeeds compete for activation similarly to production rules in ACT-R.
+        The selection of the minimum EFE candidate is a form of conflict resolution,
+        where the 'utility' (negative EFE) determines which 'production' (thought) fires.
         """
         if not candidates:
             return EFEResponse(dominant_seed_id="none", scores={})

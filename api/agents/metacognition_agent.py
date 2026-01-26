@@ -17,6 +17,11 @@ class MetacognitionAgent:
     Specialized agent for the DECIDE phase of the OODA loop.
     Reviews goal states, assesses model accuracy, and revises mental models via MCP tools.
     Uses ToolCallingAgent for efficient, parallel self-reflection and goal management.
+    
+    ABM Alignment (Chapter 22, Anderson 2014):
+    - Autonomy: Exercises top-down control via 'mental actions'.
+    - Local Rules: Modulates lower-level agent parameters (precision, attention).
+    - Proactivity: Actively corrects prediction errors to maintain system integrity.
     """
 
     def __init__(self, model_id: str = "dionysus-agents"):

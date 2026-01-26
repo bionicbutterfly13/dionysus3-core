@@ -30,47 +30,47 @@
 - [x] Create atomic concept doc `docs/garden/content/concepts/hopfield-attractors.md`
 
 ### P2.2: Chapter 21 - ACT-R & OODA Loop Enhancement (FR-002)
-- [ ] Annotate `api/agents/consciousness_manager.py` with ACT-R module mappings
-- [ ] Document OODA-to-ACT-R correspondence:
+- [x] Annotate `api/agents/consciousness_manager.py` with ACT-R module mappings
+- [x] Document OODA-to-ACT-R correspondence:
   - Observe → Perceptual-Motor Module
   - Orient → Declarative Memory
   - Decide → Procedural Memory (production rules)
   - Act → Motor Module
-- [ ] Add chapter references to existing code comments
+- [x] Add chapter references to existing code comments
 - [x] Create atomic concept doc `docs/garden/content/concepts/act-r-ooda.md`
 
 ### P2.3: Chapter 22 - Agent-Based Modeling Alignment (FR-003)
-- [ ] Audit `api/agents/managed/` against ABM principles
-- [ ] Document agent autonomy patterns in managed agents
-- [ ] Validate environment interaction protocols
+- [x] Audit `api/agents/managed/` against ABM principles
+- [x] Document agent autonomy patterns in managed agents
+- [x] Validate environment interaction protocols
 - [x] Create atomic concept doc `docs/garden/content/concepts/abm-smolagents.md`
 
 ## Phase 3: Medium-Priority Chapter Integration
 
 ### P3.1: Chapters 2-5 - Differential Equations
-- [ ] Review `api/services/dynamics_service.py` for alignment
-- [ ] Add references to integrate-and-fire neuron concepts
-- [ ] Document precision-weighted belief update mathematics
+- [x] Review `api/services/dynamics_service.py` for alignment
+- [x] Add references to integrate-and-fire neuron concepts
+- [x] Document precision-weighted belief update mathematics (in code comments)
 
 ### P3.2: Chapters 14-15 - Probability & Random Walks
-- [ ] Review `api/services/efe_engine.py` probability calculations
-- [ ] Add mathematical references to entropy calculations
-- [ ] Document random walk connections to active inference
+- [x] Review `api/services/efe_engine.py` probability calculations
+- [x] Add mathematical references to entropy calculations
+- [x] Document random walk connections to active inference
 
 ### P3.3: Chapter 19 - Production Rules
-- [ ] Map thoughtseed competition to production rule firing
-- [ ] Document conflict resolution strategies
-- [ ] Add references to action selection mechanisms
+- [x] Map thoughtseed competition to production rule firing
+- [x] Document conflict resolution strategies
+- [x] Add references to action selection mechanisms
 
 ## Phase 4: Reference Documentation
 
 ### P4.1: Chapter 7 - Hodgkin-Huxley (Historical Context)
-- [ ] Create reference note in documentation
-- [ ] Link to biological grounding concepts
+- [x] Create reference note in documentation (`docs/garden/content/concepts/hodgkin-huxley.md`)
+- [x] Link to biological grounding concepts
 
 ### P4.2: Chapters 17-18 - Boolean Logic
-- [ ] Document foundational logic concepts
-- [ ] Link to decision-making patterns
+- [x] Document foundational logic concepts (`docs/garden/content/concepts/boolean-logic.md`)
+- [x] Link to decision-making patterns
 
 ## Integration (IO Map)
 

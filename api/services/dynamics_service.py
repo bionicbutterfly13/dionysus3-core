@@ -4,7 +4,10 @@ from typing import List
 class DynamicsService:
     """
     Implements the mathematical primitives for Jan Treur's Self-Modeling Networks (SMN).
-    Reference: Treur (2022) - Mental Models and Their Dynamics, Adaptation, and Control.
+    
+    References:
+    - Treur (2022): Mental Models and Their Dynamics, Adaptation, and Control.
+    - Anderson (2014): Chapters 2-5 (Differential Equations, Numerical Integration, Integrate-and-Fire Neurons).
     """
 
     @staticmethod
@@ -45,5 +48,9 @@ class DynamicsService:
     def state_update(current_val: float, impact: float, speed_factor: float, delta_t: float = 1.0) -> float:
         """
         General state update equation: Y(t+dt) = Y(t) + eta * [impact - Y(t)] * dt
+        
+        Computational Neuro alignment (Anderson 2014, Ch 2-3):
+        Numerical integration of a first-order linear differential equation using the Euler method.
+        Maps to the passive membrane equation or integrate-and-fire decay dynamics.
         """
         return current_val + speed_factor * (impact - current_val) * delta_t

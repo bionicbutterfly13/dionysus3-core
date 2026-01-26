@@ -32,8 +32,10 @@ class ManagedMetacognitionAgent:
     Provides a ToolCallingAgent instance that the ConsciousnessManager
     can use for native smolagents multi-agent orchestration during the DECIDE phase.
     
-    Note: smolagents 1.23+ removed ManagedAgent class. Agents with name/description
-    are passed directly to managed_agents parameter.
+    ABM Alignment (Chapter 22, Anderson 2014):
+    - Specialization: DECIDE phase expert for goal prioritizing and model evaluation.
+    - Local Rules: Implements arbitration rules to decide between System 1 and System 2 reasoning.
+    - Adaptation: Revises mental models based on evidence from the environment.
     """
 
     # Description used by the manager to decide when to delegate
