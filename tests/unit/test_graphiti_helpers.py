@@ -1,5 +1,6 @@
 
 import pytest
+from api.models.memevolve import TrajectoryData, TrajectoryMetadata, TrajectoryStep
 from api.services.graphiti_service import GraphitiService
 
 class TestGraphitiHelpers:
@@ -55,3 +56,87 @@ class TestGraphitiHelpers:
         assert rel["target"] == "E2"
         assert rel["relation"] == "R1"
         assert "relation_type" not in rel # Ensure no schema drift for MemEvolve
+
+    def test_format_trajectory_text_includes_metadata_and_steps(self):
+        trajectory = TrajectoryData(
+            query="Find memory",
+            result={"status": "ok"},
+            metadata=TrajectoryMetadata(
+                agent_id="agent-1",
+                session_id="session-1",
+                project_id="project-1",
+            ),
+            steps=[
+                TrajectoryStep(
+                    observation="Observed signal",
+                    thought="Reasoned about it",
+                    action="Stored memory",
+                )
+            ],
+        )
+
+        text = GraphitiService._format_trajectory_text(trajectory)
+
+        assert "Agent: agent-1" in text
+        assert "Session: session-1" in text
+        assert "Project: project-1" in text
+        assert "Query: Find memory" in text
+        assert "Result: {'status': 'ok'}" in text
+        assert "Step 1 Observation: Observed signal" in text
+        assert "Step 1 Thought: Reasoned about it" in text
+        assert "Step 1 Action: Stored memory" in text
+
+    def test_format_trajectory_text_builds_steps_from_trajectory(self):
+        trajectory = TrajectoryData(
+            trajectory=[
+                {"observation": "Obs A", "thought": "Think A", "action": "Act A"},
+                {"observation": "Obs B"},
+            ]
+        )
+
+        text = GraphitiService._format_trajectory_text(trajectory)
+
+        assert "Step 1 Observation: Obs A" in text
+        assert "Step 1 Thought: Think A" in text
+        assert "Step 1 Action: Act A" in text
+        assert "Step 2 Observation: Obs B" in text
+
+    def test_format_trajectory_text_truncates_long_output(self):
+        trajectory = TrajectoryData(
+            steps=[TrajectoryStep(observation="X" * 200)]
+        )
+
+        text = GraphitiService._format_trajectory_text(trajectory, max_chars=80)
+
+        assert text.endswith("[truncated]")
+        assert len(text) <= 80 + len("\n[truncated]")
+
+    def test_normalize_relationships_with_confidence(self):
+        raw_relationships = [
+            {
+                "source": "A",
+                "target": "B",
+                "type": "EXTENDS",
+                "confidence": 0.9,
+                "evidence": "High confidence",
+            },
+            {
+                "source": "C",
+                "target": "D",
+                "relation": "RELATES_TO",
+                "confidence": 0.4,
+                "evidence": "Low confidence",
+            },
+        ]
+
+        normalized, approved_count, pending_count = (
+            GraphitiService._normalize_relationships_with_confidence(
+                raw_relationships,
+                confidence_threshold=0.6,
+            )
+        )
+
+        assert approved_count == 1
+        assert pending_count == 1
+        assert normalized[0]["status"] == "approved"
+        assert normalized[1]["status"] == "pending_review"
