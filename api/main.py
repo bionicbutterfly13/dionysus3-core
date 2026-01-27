@@ -48,9 +48,11 @@ async def lifespan(app: FastAPI):
         await get_meta_tot_decision_service().warmup()
         logger.info("Meta-ToT thresholds warmup complete.")
         
-        # Feature 068: The Wake-Up Protocol
+        # Feature 068: The Wake-Up Protocol (System Broadcast)
+        # Note: At global startup, we don't have a device_id context.
+        # This will hydrate the most recently active agents for system readiness.
         await get_biological_agency_service().initialize_presence()
-        logger.info("Wake-Up Protocol: Agent presence initialized.")
+        logger.info("Wake-Up Protocol: System broadcast presence initialized.")
     except Exception as exc:
         logger.warning(f"Startup initialization skipped/failed: {exc}")
     

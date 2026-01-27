@@ -257,6 +257,19 @@ The agents will return structured results for synthesis.""",
         # T012: Bootstrap Recall Integration
         project_id = initial_context.get("project_id", "default")
         task_query = initial_context.get("task", "")
+        
+        # FEATURE 068: Fetch biographical context (Identity-Anchored)
+        biographical_cells = await self._fetch_biographical_context(agent_id, initial_context)
+        if biographical_cells:
+            # Inject biographical constraints into the cycle
+            if "biographical_constraints" not in initial_context:
+                initial_context["biographical_constraints"] = []
+            
+            # If it's a list, append; if it's a single cell, wrap it
+            if isinstance(biographical_cells, list):
+                initial_context["biographical_constraints"].extend([c.model_dump() for c in biographical_cells])
+            else:
+                initial_context["biographical_constraints"].append(biographical_cells.model_dump())
 
         # Track 038 Phase 2: Evolutionary Priors Check
         # Check task against prior hierarchy BEFORE any action selection
@@ -776,29 +789,15 @@ The agents will return structured results for synthesis.""",
                 "error": str(e)
             }
 
-    async def _fetch_biographical_context(self, agent_id: str = "dionysus-1") -> Any:
+    async def _fetch_biographical_context(self, agent_id: str, context: Dict[str, Any]) -> Any:
         """
         Fetch the active Autobiographical Journey and package it as a constraint cell.
-
-        Track 038 Phase 4: Fractal Metacognition Integration
-
-        This method bridges biography to action selection by:
-        1. Retrieving the active AutobiographicalJourney
-        2. Creating a BiographicalConstraintCell (for context injection)
-        3. Merging biographical priors into the agent's PriorHierarchy
-
-        The merged priors create soft biases that influence action selection,
-        ensuring the agent's behavior aligns with its narrative identity.
-
-        Args:
-            agent_id: The agent's identifier for prior hierarchy lookup
-
-        Returns:
-            BiographicalConstraintCell if journey exists, else None
+        Uses context['device_id'] for targeted recognition.
         """
         try:
             store = get_consolidated_memory_store()
-            journey = await store.get_active_journey()
+            device_id = context.get("device_id")
+            journey = await store.get_active_journey(device_id=device_id)
 
             if journey:
                 # Create the cell

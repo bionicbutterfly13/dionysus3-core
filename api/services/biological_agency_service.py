@@ -94,30 +94,55 @@ class BiologicalAgencyService:
              self._graphiti = await GraphitiService.get_instance()
         return self._graphiti
 
-    async def initialize_presence(self) -> List[str]:
+    async def initialize_presence(self, device_id: Optional[str] = None) -> List[str]:
         """
         Feature 068: The Wake-Up Protocol (Auto-Hydration).
         
-        Finds the most recently active agents in Neo4j and hydrates them
-        into memory. This ensures session continuity across service restarts.
+        Hydrates agents into memory to ensure session continuity.
+        If device_id is provided, it prioritizes the agent associated with that device's journey.
+        Otherwise, it falls back to the most recently active agents.
         """
-        query = """
-        MATCH (a:Agent)-[:HAS_STATE]->(s:BiologicalState)
-        WITH a, s ORDER BY s.timestamp DESC
-        WITH a, head(collect(s)) as latest_state
-        RETURN a.id as agent_id
-        LIMIT 5
-        """
-        
         hydrated_ids = []
         try:
             graph = await self._get_graph_service()
-            results = await graph.execute_cypher(query)
-            for row in results:
-                agent_id = row['agent_id']
-                agent = await self._hydrate_agent(agent_id)
-                if agent:
-                    hydrated_ids.append(agent_id)
+            
+            if device_id:
+                # Targeted Recognition: Find agent linked to this device's journey
+                recognition_query = """
+                MATCH (j:Journey {device_id: $device_id})-[:BELONGS_TO|HAS_PARTICIPANT]->(p)
+                MATCH (a:Agent {id: p.id})-[:HAS_STATE]->(s:BiologicalState)
+                RETURN a.id as agent_id
+                ORDER BY s.timestamp DESC
+                LIMIT 1
+                """
+                results = await graph.execute_cypher(recognition_query, {"device_id": device_id})
+                if results:
+                    agent_id = results[0]['agent_id']
+                    agent = await self._hydrate_agent(agent_id)
+                    if agent:
+                        hydrated_ids.append(agent_id)
+                        logger.info(f"Wake-Up Recognition: Hydrated agent {agent_id} for device {device_id}")
+
+            # Fallback/Broadcast hydration for system readiness (top active agents)
+            broadcast_query = """
+            MATCH (a:Agent)-[:HAS_STATE]->(s:BiologicalState)
+            WHERE NOT a.id IN $already_hydrated
+            WITH a, s ORDER BY s.timestamp DESC
+            WITH a, head(collect(s)) as latest_state
+            RETURN a.id as agent_id
+            LIMIT $limit
+            """
+            limit = 5 - len(hydrated_ids)
+            if limit > 0:
+                results = await graph.execute_cypher(broadcast_query, {
+                    "already_hydrated": hydrated_ids,
+                    "limit": limit
+                })
+                for row in results:
+                    agent_id = row['agent_id']
+                    agent = await self._hydrate_agent(agent_id)
+                    if agent:
+                        hydrated_ids.append(agent_id)
             
             if hydrated_ids:
                 logger.info(f"Wake-Up Protocol complete. Hydrated: {hydrated_ids}")

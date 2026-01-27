@@ -23,6 +23,8 @@ from api.framework import IAS_FRAMEWORK, get_step
 
 router = APIRouter(prefix="/ias", tags=["IAS"])
 
+# In-memory fallback for chat sessions (T041 audit fix)
+sessions = {}
 
 # =============================================================================
 # SESSION MANAGER INSTANCE
@@ -269,6 +271,11 @@ async def create_session(
             journey_id = str(journey.id)
             is_new_journey = journey.is_new
 
+            # Feature 068: The Wake-Up Protocol (Targeted Recognition)
+            # This hydrates the agent associated with this device's journey
+            from api.services.biological_agency_service import get_biological_agency_service
+            await get_biological_agency_service().initialize_presence(device_id=x_device_id)
+
             # Create persistent session linked to journey
             db_session = await manager.create_session(journey.id)
             session_id = str(db_session.id)
@@ -285,6 +292,7 @@ async def create_session(
     sessions[session_id] = {
         "id": session_id,
         "journey_id": journey_id,
+        "device_id": x_device_id,  # Store device_id for subsequent OODA hydration
         "created_at": created_at,
         "messages": [],
         "confidence_score": 0,
@@ -313,16 +321,27 @@ async def get_session_state(session_id: str):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(
+    request: ChatRequest,
+    x_device_id: Optional[str] = Header(None, alias="X-Device-Id")
+):
     """Send a message and get a response.
 
     Supports two modes:
     1. Session mode: pass session_id + message
     2. Stateless mode: pass messages array directly (used by frontend)
     """
+    # Use header device_id or retrieved session device_id
+    device_id = x_device_id
+    
     # Stateless mode - messages passed directly
     if request.messages:
         messages = [{"role": m.role, "content": m.content} for m in request.messages]
+
+        # Trigger Wake-Up for stateless mode if device_id is present
+        if device_id:
+            from api.services.biological_agency_service import get_biological_agency_service
+            await get_biological_agency_service().initialize_presence(device_id=device_id)
 
         # Get response from Claude with diagnosis-aware prompt
         response_text = await chat_completion(
@@ -583,7 +602,7 @@ async def create_woop_plan(
 @router.get("/framework")
 async def get_framework():
     """Get the full IAS framework."""
-    return {"framework": IAS_FRAMEWORK}
+    return {"framework": {"steps": IAS_FRAMEWORK}}
 
 
 @router.get("/recall")
