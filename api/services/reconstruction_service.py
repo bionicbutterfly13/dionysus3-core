@@ -401,6 +401,7 @@ class ReconstructionService:
                 "operation": "query",
                 "filters": {
                     "project_id": context.project_id,
+                    "device_id": context.device_id,
                     "from_date": cutoff.isoformat(),
                 },
                 "limit": self.config.MAX_SESSIONS,

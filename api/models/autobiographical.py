@@ -109,6 +109,10 @@ class ActiveInferenceState(BaseModel):
     resonance_frequency: float = Field(0.0, description="SOHM resonance frequency in Hz (metaphoric)")
     harmonic_mode_id: Optional[str] = Field(None, description="Active Self-Organizing Harmonic Mode ID")
     
+    # Identity Anchoring
+    device_id: Optional[str] = Field(None, description="Anchored device identifier")
+    journey_id: Optional[str] = Field(None, description="Anchored journey identifier")
+    
     # Richmond/Zacks EST (Event Segmentation Theory)
     surprisal: float = Field(0.0, description="Magnitude of prediction error (Point estimate)")
     uncertainty: float = Field(0.0, description="Entropy of the current prediction range")
@@ -171,8 +175,12 @@ class DevelopmentEvent(BaseModel):
     river_stage: RiverStage = Field(default=RiverStage.SOURCE)
     parent_episode_id: Optional[str] = None
     
-    # Retrieval (BM25 Inspired)
+    # retrieval (BM25 Inspired)
     keywords: List[str] = Field(default_factory=list)
+
+    # Identity Anchoring
+    device_id: Optional[str] = Field(None, description="Anchored device identifier")
+    journey_id: Optional[str] = Field(None, description="Anchored journey identifier")
 
 
 class DevelopmentEpisode(BaseModel):

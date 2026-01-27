@@ -1,29 +1,25 @@
-# Specification: Coordination Pool Rename & Refactor
+# Track 095: Coordination Pool Rename
 
 **Track ID**: 095-coordination-pool-rename
 **Date**: 2026-01-27
-**Author**: Mani Saint-Victor, MD
+**Status**: Done
 
 ## Overview
 
-The "Coordination Pool" (Feature 020) provides a background worker system for multi-agent tasks. To align with established cognitive architecture metaphors (The River, The Boardroom), the terminology should be refactored.
+Renamed all references to "Daedalus" terminology to "Coordination Pool" across the codebase for consistency and clarity.
 
-## Requirements
+## Completed Work
 
-- **FR-001**: Rename "Coordination Pool" to "Agent Fleet" or "Boardroom Pool" (to be decided). Let's go with **"Agent Fleet"** for the HOT worker tier.
-- **FR-002**: Refactor `api/services/coordination_service.py` and related models.
-- **FR-003**: Update all delegation documentation.
-- **FR-004**: Ensure backward compatibility via aliases if necessary (transition phase).
-- **FR-005**: Align task types with OODA phases (Research, Design, Execute, Audit).
+1. **Spec Directory Rename**: `specs/020-daedalus-coordination-pool/` → `specs/020-coordination-pool/`
+2. **Test File Rename**: `test_daedalus_guardrails.py` → `test_coordination_pool_guardrails.py`
+3. **Content Updates**: Replaced "Daedalus" with "Coordination Pool" across ~35 files
+4. **Preserved**: Historical notes "(formerly Daedalus)" in code comments, D2.0 path references
 
-## Constraints
+## Out of Scope
 
-- **SC-001**: Zero downtime for API endpoints (keep old names as aliases).
-- **SC-002**: Standardize on `fleet_` prefix instead of `coordination_`.
-- **SC-003**: Maintain isolation guarantees.
+The following were proposed but not implemented (no explicit request):
+- Agent Fleet service refactor
+- API endpoint versioning
+- New fleet.py models
 
-## Success Criteria
-
-1. Codebase uses `AgentFleet` terminology for background workers.
-2. API endpoints are versioned or aliased (`/api/v1/fleet` instead of `/api/v1/coordination`).
-3. Documentation (Quartz) reflects the new naming convention.
+These can be addressed in a future track if needed.

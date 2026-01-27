@@ -29,6 +29,17 @@ class ConsolidatedMemoryStore:
         SET e += $props,
             e.river_stage = 'source'
         WITH e
+        // Identity Anchoring (Feature 100)
+        FOREACH (_ IN CASE WHEN $journey_id IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (j:Journey {id: $journey_id})
+            MERGE (e)-[:BELONGS_TO]->(j)
+        )
+        // Alternative Device-ID Anchoring
+        FOREACH (_ IN CASE WHEN $journey_id IS NULL AND $device_id IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (j2:Journey {device_id: $device_id})
+            MERGE (e)-[:BELONGS_TO]->(j2)
+        )
+        
         // Link to Attractor Basin if present
         FOREACH (_ IN CASE WHEN $basin_id IS NOT NULL THEN [1] ELSE [] END |
             MERGE (b:AttractorBasin {id: $basin_id})
@@ -41,7 +52,7 @@ class ConsolidatedMemoryStore:
         )
         RETURN e.id
         """
-        props = event.model_dump(exclude={"event_id", "timestamp"})
+        props = event.model_dump(exclude={"event_id", "timestamp", "journey_id", "device_id"})
         props["timestamp"] = event.timestamp.isoformat()
         
         # Serialize nested objects
@@ -54,7 +65,9 @@ class ConsolidatedMemoryStore:
                 "props": props,
                 "basin_id": event.linked_basin_id,
                 "basin_score": event.basin_r_score,
-                "blanket_id": event.markov_blanket_id
+                "blanket_id": event.markov_blanket_id,
+                "journey_id": event.journey_id,
+                "device_id": event.device_id
             })
             return True
         except Exception as e:

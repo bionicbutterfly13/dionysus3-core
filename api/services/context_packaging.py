@@ -713,9 +713,9 @@ async def fetch_biographical_context(
     """
     try:
         # Lazy import to avoid circular dependency
-        from api.agents.consolidated_memory_stores import ConsolidatedMemoryStores
+        from api.agents.consolidated_memory_stores import get_consolidated_memory_store
 
-        memory_stores = ConsolidatedMemoryStores()
+        memory_stores = get_consolidated_memory_store()
         journey = await memory_stores.get_active_journey()
 
         if not journey:

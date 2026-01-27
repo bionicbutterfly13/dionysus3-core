@@ -17,9 +17,10 @@
 | 070-text2story-fallback | Done | Text2Story Narrative Fallback | English-only narrative extraction with LLM fallback in ingestion |
 | 072-memevolve-ingest-guardrails | Done | MemEvolve Ingest Guardrails | Reject pre-extracted entities/edges and harden ingestion scripts |
 | 071-urm-live-integration | Done | UnifiedRealityModel Live Integration | Wire ConsciousnessManager to populate URM with real OODA cycle data |
-| 095-coordination-pool-rename | Active | Agent Fleet Refactor | Rename legacy terminology to Agent Fleet and align with OODA phases |
+| 095-coordination-pool-rename | Done | Coordination Pool Rename | Renamed Daedalus terminology to Coordination Pool across docs/specs/code |
 | 095-comp-neuro-gold-standard | Done | Computational Neuroscience Gold Standard | Anderson (2014) chapter mapping: Hopfield attractors, ACT-R OODA, ABM smolagents |
 | 099-memory-amnesia-fix | Done | Memory Amnesia Fix | Bootstrap recall task wiring, ingest after heartbeat, pre-prune memory flush |
+| 101-hexis-core-migration | Planned | Hexis Core Migration | Fold Hexis core cognition into Dionysus with phased Neo4j migration and no sprawl |
 
 <!--
 Status: Planned, In Progress, In Review, Done, Cancelled
