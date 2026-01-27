@@ -6,7 +6,7 @@ from api.services.coordination_service import CoordinationService, Agent, Task, 
 from api.core.sovereign_identity import ANTI_BOASTING_CONSTRAINT
 from api.agents.consciousness_manager import ConsciousnessManager
 
-class TestDaedalusGuardrails(unittest.TestCase):
+class TestCoordinationPoolGuardrails(unittest.TestCase):
     def setUp(self):
         self.service = CoordinationService()
         # Initialize small pool

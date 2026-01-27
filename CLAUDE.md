@@ -598,7 +598,7 @@ AUTHOR Mani Saint-Victor, MD"
 | 010: Heartbeat Agent Handoff | ✅ | Full cognitive loop migrated to `smolagents.CodeAgent` |
 | 011: Core Services Neo4j Migration | ✅ | Graphiti-backed driver shim, precision-weighted beliefs |
 | 012: Historical Task Reconstruction | ✅ | Mirror local task history into VPS Neo4j graph |
-| 020: Daedalus Coordination Pool | ✅ | Background worker pool with task routing and retry |
+| 020: Coordination Pool | ✅ | Background worker pool with task routing and retry |
 | 021: Rollback Safety Net | ✅ | Checkpointing and fast rollback with checksum verification |
 | 022: Agentic KG Learning | ✅ | Self-improving extraction with attractor basins |
 | 023: Migration & Coordination Observability | ✅ | Unified metrics and alerting |

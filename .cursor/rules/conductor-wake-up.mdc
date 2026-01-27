@@ -1,0 +1,24 @@
+---
+description: META-MANDATORY wake-up — only permitted action until constraints+workflow read and acknowledged
+alwaysApply: true
+---
+
+# Conductor Wake-Up — META-MANDATORY
+
+**Wake-up is complete** only when you have (1) read `.conductor/constraints.md`, (2) read `conductor/workflow.md`, and (3) output the exact phrase `Constraints and workflow loaded.` in this session.
+
+**Until wake-up is complete:**
+- The ONLY permitted actions are: Read `.conductor/constraints.md`, then Read `conductor/workflow.md`, then output `Constraints and workflow loaded.`
+- FORBIDDEN: answering the user, writing/editing code, creating/editing plans, running commands, using any tool other than Read on those two files, or producing any other output.
+
+**First actions in every session must be exactly:** Read constraints → Read workflow → Output `Constraints and workflow loaded.` If the user asked you to do something, do the wake-up sequence first, then respond.
+
+**After wake-up is complete (second part):** Respond to and execute the **user's initial message**—the command or request the user entered when they started the session (e.g. when they ran `codex` and typed their first prompt). Do not stop at the acknowledgment; fulfill that initial request.
+
+**Agent roster:** 149 specialized agents at `~/.claude/agents/` (subdirs: development/, infrastructure/, quality-testing/, data-ai/, business/, security/, specialization/). After wake-up, be aware of this roster; when delegating or matching a task to a specialist, consider that directory (and its README.md).
+
+**Before writing or changing any code:** Check relevant existing code to avoid repetition, redundancy, and code conflict. Review related services/modules; do not duplicate existing mechanisms; verify alignment with the Three Towers (Graphiti Episode / MemEvolve Trajectory / Nemori Narrative) where applicable.
+
+**Required Memory Setup:** This project uses SuperMemory MCP + cognee for persistent memory. Run `./setup.sh` (see README.md § Required Memory Setup); do not duplicate that functionality.
+
+After wake-up: follow Conductor (plan.md, TDD, [ ]/[~]/[x], commit SHA).

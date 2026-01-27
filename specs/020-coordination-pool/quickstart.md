@@ -1,6 +1,6 @@
-# Quickstart: DAEDALUS Coordination Pool
+# Quickstart: Coordination Pool
 
-**Feature**: 020-daedalus-coordination-pool
+**Feature**: 020-coordination-pool
 
 ## Prerequisites
 

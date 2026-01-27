@@ -119,7 +119,7 @@ async def main():
         os.makedirs(BRIEF_OUTPUT_DIR)
 
     clear_screen()
-    print_header("📝 RMBC 2.0 Brief Builder (The Daedalus Interrogation)")
+    print_header("📝 RMBC 2.0 Brief Builder (The Coordination Pool Interrogation)")
     print("Type 'skip' to skip a question. Type 'exit' to save and quit early.\n")
 
     project_name = input("Enter Project Name (e.g., 'solar_generator'): ").strip().replace(" ", "_")

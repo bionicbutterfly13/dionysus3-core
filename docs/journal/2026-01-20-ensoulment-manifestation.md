@@ -30,7 +30,7 @@ The system has transitioned from a theoretical "Moral Architecture" to a functio
 ---
 
 ## The Next move
-With the moral core stabilized and persistent, the next major frontier is **Audiobook Production (F014/018)** and further polishing the **Daedalus Coordination Pool (F020)** for high-throughput discovery tasks.
+With the moral core stabilized and persistent, the next major frontier is **Audiobook Production (F014/018)** and further polishing the **Coordination Pool (F020)** for high-throughput discovery tasks.
 
 ---
 ## User Notes

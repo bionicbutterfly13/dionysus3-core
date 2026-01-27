@@ -113,7 +113,7 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 4.  **System Consolidation (Completed)**: Standardized smolagents usage, moved tools to MCP server, and purged legacy PostgreSQL stubs.
 5.  **Agentic Unified Model (Completed)**: Unified all 3 pillars (Engine, Marketing, KB) under smolagents. Hierarchical OODA loop implemented. Unified Aspect Service with Graphiti temporal snapshots active. Human-in-the-loop review queue operational.
 6.  **System Integrity Stabilized (Completed)**: Fixed MCP bridge resource leaks, standardized model IDs to GPT-5 Nano, and unified networking. Initialization scripts for boardroom identity implemented.
-7.  **Daedalus Coordination Pool (Feature 020) (Completed)**: Implemented smolagents-backed background worker pool with task routing, context isolation, and automatic retry logic.
+7.  **Coordination Pool (Feature 020) (Completed)**: Implemented smolagents-backed background worker pool with task routing, context isolation, and automatic retry logic.
 8.  **Rollback Safety Net (Feature 021) (Completed)**: Implemented checkpointing and fast rollback for agentic changes with checksum verification.
 9.  **Migration & Coordination Observability (Feature 023) (Completed)**: Implemented unified metrics, performance tracking, and alerting across discovery, coordination, and rollback services.
 10. MoSAEIC Protocol (Feature 024) (Completed): Implemented five-window experiential capture (Senses, Actions, Emotions, Impulses, Cognitions) with LLM-based extraction and Graphiti persistence.
@@ -128,7 +128,7 @@ The system has evolved from procedural OODA logic to an autonomous multi-agent h
 19. Wake-Up Protocol (Feature 068) (Completed): Implemented automatic agent hydration and moral history reconstruction from Neo4j upon service startup.
 20. Graph Manifestation (Feature 064.5) (Completed): Promoted reconciliation events to first-class graph entities linking to the agent's moral biography.
 
-**Current Focus**: Audiobook Production (F014/018) and Daedalus Pool Polish (F020 - Isolation & Metrics).
+**Current Focus**: Audiobook Production (F014/018) and Coordination Pool Polish (F020 - Isolation & Metrics).
 
 ## Commands
 

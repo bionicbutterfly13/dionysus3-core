@@ -60,4 +60,4 @@ The **Context Graph (CGR3)** integration serves as the "repair mechanism" for th
 3. **Reification**: Add new $(h, r, t, rc)$ quadruples to the graph, effectively forming a new Neuronal Packet to update the Mental Model.
 
 ---
-*Reference: Feature 005 (Mental Models), Feature 038 (ThoughtSeeds), Feature 020 (Daedalus Pool)*
+*Reference: Feature 005 (Mental Models), Feature 038 (ThoughtSeeds), Feature 020 (Coordination Pool)*

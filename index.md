@@ -9,7 +9,7 @@
 ## 🛰️ Project Pillars
 | Pillar | Status | Focus |
 | :--- | :--- | :--- |
-| **Engine** | 🛠️ Active | Daedalus Coordination Pool (F020) |
+| **Engine** | 🛠️ Active | Coordination Pool (F020) |
 | **Marketing** | 📈 Nurture | IAS Email Sequences & Sales Pages |
 | **Knowledge Base** | 📚 Distilling | Audiobook Production (F014/018) |
 
@@ -33,7 +33,7 @@
 ---
 
 ## 📅 Upcoming Milestones
-- [ ] Complete Phase 4: Metrics & Logging for Daedalus.
+- [ ] Complete Phase 4: Metrics & Logging for Coordination Pool.
 - [ ] Audit Audiobook Manuscript (Target: 13,500 words).
 - [ ] Standardize model IDs to GPT-5 Nano.
 

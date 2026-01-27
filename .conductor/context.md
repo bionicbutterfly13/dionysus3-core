@@ -19,7 +19,7 @@
     - **Episodic**: Time-series events (Neo4j).
     - **Semantic**: Knowledge graph (Graphiti).
     - **Procedural**: Action history and skills.
-4.  **Daedalus Coordination Pool**: Background worker pool for async tasks.
+4.  **Coordination Pool**: Background worker pool for async tasks.
 5.  **Serena MCP**: Metacognitive interface for creating/searching memories.
 
 ### Critical Dependencies

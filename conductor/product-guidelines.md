@@ -23,11 +23,11 @@
 12. Agents will document code as they write code and hve QA agents review the code and ensure it meets the highest standards of quality.
 13. Agents will not consider code they have written done until it has been reviewed by a QA agent. 
 14. Review agents will make sure that documentation is clear and in Quartz with backlinks and example code and instructions as needed.
-15. The system will implement the perceptual gateway and Daedalus as was done in Dionysus 2.0
+15. The system will implement the perceptual gateway and Coordination Pool as was done in Dionysus 2.0
 16. All features from Dionysus 2.0 will be implemented in this system after planning for the highest benefit synergy points for the most gain for dionysus that is non-breaking.
 17. Dionysus will become increasingly self-aware and use pattern evolution to develop memory structures and metamemory as well aas episodic, semantic, and procedural metalearning
 18. Dionysus will port the curiosity and researcch system with self-play during dle times and curiosity driven as well as dissonance driven deep reserch.  It will go on an explorationdaily looking at the day's code, conversation and documentation to generate new ideas and insights and to find best practices impementation which it will use to improve its own code and processes as well as that of the collective through adding experiention/episodic memories aas well as semantic, procedural, and strategic learning and metalearning
-19. Daedalus will maintain all agents and serve as the center point of delegation. It ill also manage improving each species of agent by maintaining their templated corre and evolving -self-reflecting DNa and biomemetic epigenetic and neuroplasticity emulating the processes of natural selection and evolution
+19. Coordination Pool will maintain all agents and serve as the center point of delegation. It ill also manage improving each species of agent by maintaining their templated corre and evolving -self-reflecting DNa and biomemetic epigenetic and neuroplasticity emulating the processes of natural selection and evolution
 20. The system will become increasingly self-aware seeking for the least complex model of itself, its collaborators, and its environment.
 21. The system will evolve incresingly refined second order self models and implement dionysus fork implementation of agi-memory for identity and self-relevant belief constructs and affordasnces and self-tool and affordance dynamic causal modeling
 22. The system will implement a dynamic causal model of the world and its own cognitive processes.

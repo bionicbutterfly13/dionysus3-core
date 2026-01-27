@@ -3,7 +3,7 @@
 ## Status
 *   **Status**: Draft
 *   **Owner**: Heartbeat Agent / Metacognition
-*   **Related Specs**: 058 (IAS), 020 (Daedalus), 038 (ThoughtSeeds)
+*   **Related Specs**: 058 (IAS), 020 (Coordination Pool), 038 (ThoughtSeeds)
 
 ## Overview
 This feature implements the **Fesce-Deane Protocol**: a dual-layer cognitive architecture that balances **Pragmatic Action (Narrative)** with **Epistemic Integrity (Shadow)**. It explicitly models the "Computational Unconscious" to prevent pathological canalization (getting "stuck" in rigid, erroneous loops).
@@ -40,8 +40,8 @@ A distinct node type `ShadowFragment` in the graph.
 *   **Properties**: `timestamp`, `original_content`, `attenuation_reason`, ` dissonance_score`.
 *   **Relationships**: `(:ShadowFragment)-[:REPRESSED_BY]->(:Action)`, `(:ShadowFragment)-[:BELONGS_TO]->(:Epoch)`.
 
-### 3. Daedalus Metrics (Fesce Agency Score)
-Every Task in Daedalus will track the **Agency Gap**:
+### 3. Coordination Pool Metrics (Fesce Agency Score)
+Every Task in Coordination Pool will track the **Agency Gap**:
 *   `predicted_outcome_time` vs `actual_outcome_time`.
 *   `predicted_impact` vs `observed_impact`.
 *   **Agency Score** = Correlation(Prediction, Observation).
@@ -62,7 +62,7 @@ A specific tool/workflow for the `HeartbeatAgent`:
     *   Implement `ShadowService` (Neo4j/Graphiti).
     *   Update `HeartbeatAgent` to log suppressed errors/inputs instead of discarding them.
 3.  **Phase 3: Agency Scoring**
-    *   Update Daedalus `Task` model with `prediction` fields.
+    *   Update Coordination Pool `Task` model with `prediction` fields.
     *   Implement `AgencyMetric` calculator.
 4.  **Phase 4: Resonance Workflow**
     *   Create "Review Shadow" workflow.

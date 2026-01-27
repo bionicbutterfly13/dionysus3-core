@@ -1,7 +1,7 @@
-# Implementation Plan: DAEDALUS Coordination Pool
+# Implementation Plan: Coordination Pool
 
-**Branch**: `020-daedalus-coordination-pool` | **Date**: 2025-12-27 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/020-daedalus-coordination-pool/spec.md`
+**Branch**: `020-coordination-pool` | **Date**: 2025-12-27 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/020-coordination-pool/spec.md`
 
 ## Summary
 
@@ -36,7 +36,7 @@ Per `.specify/memory/constitution.md`:
 ### Documentation (this feature)
 
 ```text
-specs/020-daedalus-coordination-pool/
+specs/020-coordination-pool/
 ├── plan.md              # This file
 ├── research.md          # Phase 0 output
 ├── data-model.md        # Phase 1 output

@@ -8,7 +8,7 @@ sys.path.append(os.getcwd())
 from api.services.coordination_service import get_coordination_service, AgentStatus, TaskStatus
 
 def run_tests():
-    print("=== Verifying Daedalus Phase 3: Retry Logic & DLQ ===")
+    print("=== Verifying Coordination Pool Phase 3: Retry Logic & DLQ ===")
     
     svc = get_coordination_service()
     svc.shutdown_pool() # Clean start

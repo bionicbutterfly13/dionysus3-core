@@ -1,6 +1,6 @@
-# Data Model: DAEDALUS Coordination Pool
+# Data Model: Coordination Pool
 
-**Feature**: 020-daedalus-coordination-pool
+**Feature**: 020-coordination-pool
 **Date**: 2025-12-27
 
 ## Entities

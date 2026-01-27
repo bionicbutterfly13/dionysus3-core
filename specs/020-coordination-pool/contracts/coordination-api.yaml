@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  title: DAEDALUS Coordination Pool API
+  title: Coordination Pool Coordination Pool API
   version: 1.0.0
   description: |
-    API for managing the DAEDALUS distributed agent coordination pool.
+    API for managing the Coordination Pool distributed agent coordination pool.
     Feature: 020-daedalus-coordination-pool
 
 servers:

@@ -44,7 +44,7 @@ We will treat the course materials not as "documents" but as "programming code" 
 
 ## 3. Implementation Strategy (The "Active System")
 
-### Phase 3: The "Copy-Daedalus" Workflow
+### Phase 3: The "Copy-Coordination" Workflow
 Create a dedicated Conductor Track (`060-marketing-skills-system`) that orchestrates the following loop:
 
 1.  **The Interrogation (Brief Builder)**:

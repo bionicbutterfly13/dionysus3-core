@@ -7,7 +7,7 @@ sys.path.append(os.getcwd())
 from api.services.coordination_service import get_coordination_service, AgentStatus
 
 def run_tests():
-    print("=== Verifying Daedalus Phase 2: Context Isolation ===")
+    print("=== Verifying Coordination Pool Phase 2: Context Isolation ===")
     
     svc = get_coordination_service()
     

@@ -9,7 +9,7 @@ Welcome to the Dionysus Core knowledge base.
 *   [[GEMINI]] - Project Roadmap & Active Technologies.
 *   [[README]] - High-level project overview.
 *   [[architecture]] - Detailed system architecture.
-*   [[coordination]] - Daedalus Coordination Pool specs.
+*   [[coordination]] - Coordination Pool specs.
 *   [[discovery]] - Discovery Service specs.
 
 ## 📚 Concepts & Philosophy

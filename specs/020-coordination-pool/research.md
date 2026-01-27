@@ -1,6 +1,6 @@
-# Research: DAEDALUS Coordination Pool
+# Research: Coordination Pool
 
-**Feature**: 020-daedalus-coordination-pool
+**Feature**: 020-coordination-pool
 **Date**: 2025-12-27
 
 ## 1. smolagents Pool Patterns

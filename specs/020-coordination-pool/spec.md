@@ -1,6 +1,6 @@
-# Feature Specification: DAEDALUS Coordination Pool (smolagents-backed)
+# Feature Specification: Coordination Pool (smolagents-backed)
 
-**Feature Branch**: `020-daedalus-coordination-pool`  \
+**Feature Branch**: `020-coordination-pool`  \
 **Created**: 2025-12-27  \
 **Status**: Draft  \
 **Input**: Port the Dionysus 2.0 DAEDALUS distributed agent coordination (background pool, task queue, context isolation, metrics) and make it smolagents-native for Dionysus 3.

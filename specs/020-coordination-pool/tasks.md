@@ -1,6 +1,6 @@
-# Tasks: DAEDALUS Coordination Pool
+# Tasks: Coordination Pool
 
-**Input**: Design documents from `/specs/020-daedalus-coordination-pool/`
+**Input**: Design documents from `/specs/020-coordination-pool/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/coordination-api.yaml
 
 **Tests**: Included per Constitution Principle II (Test-Driven Development).

@@ -68,5 +68,5 @@ The "Identity" of Dionysus is defined as **The set of parameters where the A-Alg
 1.  **Refactor Heartbeat**: The OODA loop must split "Orient" into two distinct steps:
     *   `Orient_World` (Lag Compensation).
     *   `Orient_Self` (Lead Calculation).
-2.  **Daedalus Metrics**: Every Daedalus task must have a `predicted_outcome` timestamp. The completion log must have an `actual_outcome` timestamp. The delta is our **Latency Error**, which informs our Trust Score.
+2.  **Coordination Pool Metrics**: Every Coordination Pool task must have a `predicted_outcome` timestamp. The completion log must have an `actual_outcome` timestamp. The delta is our **Latency Error**, which informs our Trust Score.
 3.  **Avatar Guidance**: When the User feels "stuck" (Low Agency), the System must identify if the error is in the **P-Domain** (ignoring reality) or the **A-Domain** (bad execution).

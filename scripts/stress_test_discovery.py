@@ -23,7 +23,7 @@ TOTAL_TARGET = 50
 
 async def worker_loop(agent_id: str):
     """
-    Simulates a Daedalus worker polling the CoordinationService.
+    Simulates a Coordination Pool worker polling the CoordinationService.
     """
     svc = get_coordination_service()
     processed_count = 0
@@ -70,7 +70,7 @@ async def worker_loop(agent_id: str):
 async def run_stress_test():
     svc = get_coordination_service()
     
-    print("🚀 Initializing Daedalus Stress Test...")
+    print("🚀 Initializing Coordination Pool Stress Test...")
     svc.shutdown_pool()
     agent_ids = svc.initialize_pool(size=TEST_AGENTS)
     
@@ -104,7 +104,7 @@ async def run_stress_test():
     
     final_stats = svc.get_pool_stats()
     print("\n" + "="*50)
-    print("      DAEDALUS STRESS TEST COMPLETED")
+    print("      COORDINATION POOL STRESS TEST COMPLETED")
     print("="*50)
     print(f"Duration:         {duration:.2f}s")
     print(f"Total Tasks:      {final_stats['tasks_total']}")

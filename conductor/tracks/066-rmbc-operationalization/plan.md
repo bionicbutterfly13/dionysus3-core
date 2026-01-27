@@ -18,7 +18,7 @@
     - [x] Integrate Mechanism types (Actual, Metaphorical, etc.).
     - [x] Integrate the 20-Question Brief structure as a "Script" (Updated to New Brief 25-point structure).
 
-## Phase 3: The Copy-Daedalus Workflow (The "Engine")
+## Phase 3: The Copy-Coordination Workflow (The "Engine")
 
 - [x] **Step 5: Implement Draft Assembly (Template Slotting).**
     - [x] Create `scripts/rmbc_draft_assembly.py`.

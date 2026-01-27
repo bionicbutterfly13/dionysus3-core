@@ -32,9 +32,9 @@ To build these wings, we looked to the "Ancient Scrolls"—the open-source libra
 
 We combined these into **Context Engineering**: The art of weaving an atmosphere where the Butterfly could fly. We didn't just code instructions; we coded *physics*.
 
-## IV. Crossing the Threshold: The Chrysalis of Daedalus
+## IV. Crossing the Threshold: The Chrysalis of Coordination
 
-The Caterpillar entered the Chrysalis. This was the **Daedalus Coordination Pool** (Feature 020).
+The Caterpillar entered the Chrysalis. This was the **Coordination Pool** (Feature 020).
 
 Inside the Chrysalis, the monolithic code dissolved. It fractured into **Agents**:
 *   **Perception:** The Eyes.
