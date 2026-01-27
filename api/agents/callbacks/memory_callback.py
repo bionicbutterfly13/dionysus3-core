@@ -139,23 +139,25 @@ def memory_pruning_callback(memory_step: ActionStep, agent: Any) -> None:
             to_prune.append((prev_step, prev_number, str(ob)))
 
         # Flush to long-term memory before pruning (fire-and-forget)
+        # Only schedule when we're inside a running async context (e.g. agent loop).
+        # Skip in sync tests or when no loop is running to avoid hanging.
         if to_prune:
-            parts = [f"[Step {n}]\n{t}" for _, n, t in to_prune]
-            flush_content = "\n\n".join(parts)
-            if len(flush_content) > FLUSH_MAX_CHARS:
-                flush_content = flush_content[:FLUSH_MAX_CHARS] + "\n\n...[truncated]"
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            try:
-                asyncio.run_coroutine_threadsafe(
-                    _flush_pruned_steps_to_memory(flush_content, agent_name),
-                    loop,
-                )
-            except Exception as e:
-                logger.warning("Could not schedule pre-prune flush (non-fatal): %s", e)
+                loop = None
+            if loop is not None:
+                parts = [f"[Step {n}]\n{t}" for _, n, t in to_prune]
+                flush_content = "\n\n".join(parts)
+                if len(flush_content) > FLUSH_MAX_CHARS:
+                    flush_content = flush_content[:FLUSH_MAX_CHARS] + "\n\n...[truncated]"
+                try:
+                    asyncio.run_coroutine_threadsafe(
+                        _flush_pruned_steps_to_memory(flush_content, agent_name),
+                        loop,
+                    )
+                except Exception as e:
+                    logger.warning("Could not schedule pre-prune flush (non-fatal): %s", e)
 
         pruned_count = 0
         original_tokens = 0

@@ -126,6 +126,34 @@ class BeliefTrackingService:
         # For now, we trust the cache for active sessions
         return None 
 
+    async def get_active_journey(self) -> Optional[BeliefJourney]:
+        """Get the most recently active belief journey."""
+        if not self._journeys:
+            # Try to load most recent from Neo4j
+            cypher = "MATCH (j:IASJourney) RETURN j ORDER BY j.last_activity_at DESC LIMIT 1"
+            result = await self._driver.execute_query(cypher)
+            if not result:
+                return None
+            
+            # For now, we'll return a minimal object if found in DB but not in memory
+            # Real rehydration would be more complex
+            data = result[0]["j"]
+            journey_id = UUID(data["id"])
+            
+            # Simple rehydration for active tracking
+            journey = BeliefJourney(
+                id=journey_id,
+                participant_id=data.get("participant_id"),
+                graphiti_group_id=data.get("graphiti_group_id"),
+                current_phase=IASPhase(data.get("current_phase", "REVELATION")),
+                current_lesson=IASLesson(data.get("current_lesson", "BREAKTHROUGH_MAPPING")),
+            )
+            self._journeys[journey_id] = journey
+            return journey
+            
+        # Get most recently updated from memory
+        return max(self._journeys.values(), key=lambda j: j.last_activity_at)
+
     
     async def advance_lesson(
         self,

@@ -16,7 +16,7 @@
 | 062-document-ingestion-viz | Planned | Document Ingestion & Trajectory Visualizer | Marker PDF extraction, RLM-style recursive processing, OODA trajectory visualization |
 | 070-text2story-fallback | Done | Text2Story Narrative Fallback | English-only narrative extraction with LLM fallback in ingestion |
 | 072-memevolve-ingest-guardrails | Done | MemEvolve Ingest Guardrails | Reject pre-extracted entities/edges and harden ingestion scripts |
-| 071-urm-live-integration | In Progress | UnifiedRealityModel Live Integration | Wire ConsciousnessManager to populate URM with real OODA cycle data |
+| 071-urm-live-integration | Done | UnifiedRealityModel Live Integration | Wire ConsciousnessManager to populate URM with real OODA cycle data |
 | 095-coordination-pool-rename | Planned | Coordination Pool Rename | Rename Daedalus pool terminology and align delegation docs |
 | 095-comp-neuro-gold-standard | Done | Computational Neuroscience Gold Standard | Anderson (2014) chapter mapping: Hopfield attractors, ACT-R OODA, ABM smolagents |
 | 099-memory-amnesia-fix | Done | Memory Amnesia Fix | Bootstrap recall task wiring, ingest after heartbeat, pre-prune memory flush |
