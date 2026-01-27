@@ -29,6 +29,16 @@
 - [x] Create unit tests in `tests/unit/test_attractor_basin_service.py` (21 tests)
 - [x] Create atomic concept doc `docs/garden/content/concepts/hopfield-attractors.md`
 
+### P2.1.1: Layer 2 - Basin Integration (Hopfield → MemoryBasinRouter)
+- [x] Add AttractorBasinService dependency to MemoryBasinRouter
+- [x] Implement `_ensure_hopfield_pattern()` for pattern sync on activation
+- [x] Implement `_calculate_hopfield_resonance()` using overlap function M(s)
+- [x] Implement `calculate_resonance_hybrid()` with LLM fallback for ambiguous scores
+- [x] Implement `_sync_hopfield_from_resonance()` for Hebbian learning
+- [x] Wire hybrid resonance into `route_memory_with_resonance()` (line 732)
+- [x] Wire hybrid resonance into `explore_basin_transitions()` (line 678)
+- [x] Create unit tests in `tests/unit/test_memory_basin_hopfield.py` (14 tests)
+
 ### P2.2: Chapter 21 - ACT-R & OODA Loop Enhancement (FR-002)
 - [x] Annotate `api/agents/consciousness_manager.py` with ACT-R module mappings
 - [x] Document OODA-to-ACT-R correspondence:

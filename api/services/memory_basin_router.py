@@ -18,6 +18,11 @@ from api.services.narrative_extraction_service import (
     NarrativeExtractionService,
     get_narrative_extraction_service,
 )
+from api.services.attractor_basin_service import (
+    AttractorBasinService,
+    BasinState,
+    get_attractor_basin_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +74,13 @@ class MemoryBasinRouter:
         self,
         memevolve_adapter: Optional[MemEvolveAdapter] = None,
         narrative_service: Optional[NarrativeExtractionService] = None,
+        attractor_service: Optional[AttractorBasinService] = None,
+        enable_llm_fallback: bool = True,
     ):
         self._memevolve_adapter = memevolve_adapter
         self._narrative_service = narrative_service
+        self._attractor_service = attractor_service
+        self._enable_llm_fallback = enable_llm_fallback
 
     async def _get_memevolve_adapter(self) -> MemEvolveAdapter:
         if self._memevolve_adapter is None:
@@ -82,6 +91,20 @@ class MemoryBasinRouter:
         if self._narrative_service is None:
             self._narrative_service = get_narrative_extraction_service()
         return self._narrative_service
+
+    def _get_attractor_service(self) -> AttractorBasinService:
+        """
+        Get or initialize AttractorBasinService for Hopfield network operations.
+
+        Ref: Anderson (2014), Ch 13 - Hopfield Networks
+
+        Integration (IO Map):
+        - Inlet: None (lazy initialization)
+        - Outlet: AttractorBasinService singleton for basin pattern operations
+        """
+        if self._attractor_service is None:
+            self._attractor_service = get_attractor_basin_service()
+        return self._attractor_service
 
     def _get_basin_seed(self, basin_name: str) -> Dict[str, Any]:
         """Return seed metadata for a basin name."""
@@ -644,12 +667,15 @@ Respond with ONLY a decimal number between 0.0 and 1.0:
         best_alternative = None
         best_resonance = current_resonance
         
-        # Evaluate all other basins
+        # Evaluate all other basins (using Hopfield for fast comparison)
         for memory_type, basin_config in BASIN_MAPPING.items():
             if basin_config["basin_name"] == current_name:
                 continue
-            
-            alternative_resonance = await self.calculate_resonance(content, basin_config)
+
+            # Ensure Hopfield pattern exists for this basin
+            await self._ensure_hopfield_pattern(basin_config["basin_name"], basin_config)
+
+            alternative_resonance = await self.calculate_resonance_hybrid(content, basin_config)
             
             # Check if this basin is significantly better (improvement > 0.15)
             improvement = alternative_resonance - best_resonance
@@ -701,9 +727,12 @@ Respond with ONLY a decimal number between 0.0 and 1.0:
         basin_name = basin_config["basin_name"]
         
         logger.info(f"Routing {memory_type.value} memory to {basin_name} with resonance coupling")
-        
-        # Calculate resonance with primary basin
-        resonance_score = await self.calculate_resonance(content, basin_config)
+
+        # Ensure Hopfield pattern exists for the basin
+        await self._ensure_hopfield_pattern(basin_name, basin_config)
+
+        # Calculate resonance with primary basin (Hopfield-first with LLM fallback)
+        resonance_score = await self.calculate_resonance_hybrid(content, basin_config)
         
         # Check for basin transition if resonance is low
         transition_result = None
@@ -938,6 +967,185 @@ Respond with ONLY a decimal number between 0.0 and 1.0:
         except Exception as e:
             logger.error(f"Failed to get basin stats: {e}")
             return {"basins": [], "error": str(e)}
+
+    # =========================================================================
+    # Hopfield Network Integration (Layer 2: 095-comp-neuro-gold-standard)
+    # Ref: Anderson (2014), Chapter 13 - Hopfield Networks
+    # =========================================================================
+
+    async def _ensure_hopfield_pattern(
+        self,
+        basin_name: str,
+        basin_config: Dict[str, Any],
+    ) -> None:
+        """
+        Ensure Hopfield pattern exists for basin, creating if missing.
+
+        Ref: Anderson (2014), Ch 13.2 - Pattern Storage
+
+        Integration (IO Map):
+        - Inlet: basin_name, basin_config with description/concepts
+        - Outlet: Pattern stored in AttractorBasinService.basins
+
+        Args:
+            basin_name: Basin identifier
+            basin_config: Basin configuration with description and concepts
+        """
+        attractor_service = self._get_attractor_service()
+
+        # Check if pattern already exists
+        if attractor_service.get_basin_by_name(basin_name) is not None:
+            return
+
+        # Create seed content from basin metadata
+        concepts = basin_config.get("concepts", [])
+        description = basin_config.get("description", "")
+        seed_content = f"{description} {' '.join(concepts)}"
+
+        # Create basin with pattern
+        await attractor_service.create_basin(
+            name=basin_name,
+            seed_content=seed_content,
+            metadata={"source": "memory_basin_router", "concepts": concepts},
+        )
+
+        logger.info(f"Created Hopfield pattern for basin {basin_name}")
+
+    def _calculate_hopfield_resonance(
+        self,
+        content: str,
+        basin_config: Dict[str, Any],
+    ) -> float:
+        """
+        Calculate resonance using Hopfield network overlap.
+
+        Ref: Anderson (2014), Ch 13 - Overlap function M(s)
+        Ref: Wang (2024) - Basin membership via overlap sign
+
+        Performance: ~1-5ms vs ~400ms for LLM
+
+        Integration (IO Map):
+        - Inlet: content string, basin_config with basin_name
+        - Outlet: resonance score [0.0, 1.0]
+
+        The overlap function M(s) = Σ_i ξ_i * s_i determines basin membership.
+        Normalized overlap in [-1, 1] is rescaled to resonance in [0, 1].
+
+        Args:
+            content: Text content to evaluate
+            basin_config: Basin configuration with name
+
+        Returns:
+            Resonance score from 0.0 to 1.0
+        """
+        attractor_service = self._get_attractor_service()
+        basin_name = basin_config.get("basin_name")
+
+        # Get basin pattern
+        basin_state = attractor_service.get_basin_by_name(basin_name)
+        if basin_state is None or basin_state.pattern is None:
+            logger.warning(f"No pattern for basin {basin_name}, returning neutral 0.5")
+            return 0.5
+
+        # Convert content to pattern
+        content_pattern = attractor_service._content_to_pattern(content)
+
+        # Compute normalized overlap [-1, 1]
+        overlap = attractor_service.network.compute_normalized_overlap(
+            content_pattern, basin_state.pattern
+        )
+
+        # Rescale to [0, 1]: resonance = (overlap + 1) / 2
+        resonance = (overlap + 1.0) / 2.0
+
+        logger.debug(
+            f"Hopfield resonance for {basin_name}: {resonance:.3f} (overlap={overlap:.3f})"
+        )
+        return resonance
+
+    async def calculate_resonance_hybrid(
+        self,
+        content: str,
+        basin_config: Dict[str, Any],
+    ) -> float:
+        """
+        Calculate resonance with Hopfield fast path and optional LLM fallback.
+
+        Ref: Anderson (2014), Ch 13 - Hopfield Networks
+        Ref: Integration Strategy from 095-comp-neuro-gold-standard
+
+        Uses Hopfield overlap for fast resonance (~5ms). Falls back to LLM
+        for ambiguous scores (0.35-0.65) if enabled.
+
+        Integration (IO Map):
+        - Inlet: content string, basin_config
+        - Outlet: resonance score [0.0, 1.0]
+
+        Args:
+            content: Text content to evaluate
+            basin_config: Basin configuration with concepts and description
+
+        Returns:
+            Resonance score from 0.0 (no alignment) to 1.0 (perfect alignment)
+        """
+        # Fast path: Hopfield overlap
+        hopfield_score = self._calculate_hopfield_resonance(content, basin_config)
+
+        # Check if score is ambiguous and LLM fallback is enabled
+        if self._enable_llm_fallback and 0.35 < hopfield_score < 0.65:
+            logger.debug(
+                f"Ambiguous Hopfield score {hopfield_score:.3f}, using LLM fallback"
+            )
+            llm_score = await self.calculate_resonance(content, basin_config)
+
+            # Blend Hopfield and LLM scores (60% Hopfield, 40% LLM)
+            blended = 0.6 * hopfield_score + 0.4 * llm_score
+            logger.debug(
+                f"Blended resonance: {blended:.3f} "
+                f"(hopfield={hopfield_score:.3f}, llm={llm_score:.3f})"
+            )
+            return blended
+
+        return hopfield_score
+
+    async def _sync_hopfield_from_resonance(
+        self,
+        basin_name: str,
+        resonance_score: float,
+    ) -> None:
+        """
+        Synchronize Hopfield pattern strength based on resonance (Hebbian learning).
+
+        Ref: Edalat & Mancinelli (2013) - Strong attractors with degree > 1
+        Ref: Anderson (2014), Ch 13.2 - Hebbian Learning
+
+        High resonance strengthens the pattern (increases degree).
+        This implements Hebbian learning: "neurons that fire together wire together."
+
+        Integration (IO Map):
+        - Inlet: basin_name, resonance_score [0, 1]
+        - Outlet: Updated pattern weights in HopfieldNetwork
+
+        Args:
+            basin_name: Name of the basin to update
+            resonance_score: Resonance score from coupling
+        """
+        attractor_service = self._get_attractor_service()
+        basin_state = attractor_service.get_basin_by_name(basin_name)
+
+        if basin_state is None or basin_state.pattern is None:
+            logger.warning(f"Cannot sync Hopfield - no pattern for {basin_name}")
+            return
+
+        # Only strengthen on high resonance (> 0.7)
+        if resonance_score > 0.7:
+            # Re-store pattern with degree=1 to strengthen weights
+            # This adds to existing weights via Hebbian rule
+            attractor_service.network.store_pattern(basin_state.pattern, degree=1)
+            logger.debug(
+                f"Strengthened Hopfield pattern for {basin_name} "
+                f"(resonance={resonance_score:.3f})"
+            )
 
 
 # Module-level singleton
