@@ -4,41 +4,28 @@ IAS (Inner Architect System) API Router
 
 import json
 import uuid
-from typing import Optional
+import logging
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from api.services.session_manager import SessionManager
+from api.services.session_manager import SessionManager, get_session_manager
 from api.services.llm_service import (
     chat_completion,
     chat_stream,
     analyze_for_diagnosis,
     generate_woop_plans,
-GPT5_NANO
+    GPT5_NANO
 )
 from api.framework import IAS_FRAMEWORK, get_step
 
 router = APIRouter(prefix="/ias", tags=["IAS"])
 
 # In-memory fallback for chat sessions (T041 audit fix)
-sessions = {}
-
-# =============================================================================
-# SESSION MANAGER INSTANCE
-# =============================================================================
-
-_session_manager: Optional[SessionManager] = None
-
-
-def get_session_manager() -> SessionManager:
-    """Get or create session manager instance."""
-    global _session_manager
-    if _session_manager is None:
-        _session_manager = SessionManager()
-    return _session_manager
+sessions: Dict[str, Any] = {}
 
 
 # =============================================================================
@@ -60,7 +47,7 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     message: Optional[str] = None
-    messages: Optional[list[Message]] = None  # Stateless mode
+    messages: Optional[List[Message]] = None  # Stateless mode
 
 
 class Diagnosis(BaseModel):
@@ -102,7 +89,7 @@ class WoopRequest(BaseModel):
 
 
 class WoopResponse(BaseModel):
-    plans: list[str]
+    plans: List[str]
 
 
 class RecallRequest(BaseModel):
@@ -118,7 +105,7 @@ class MemoryResult(BaseModel):
 
 
 class RecallResponse(BaseModel):
-    memories: list[MemoryResult]
+    memories: List[MemoryResult]
 
 
 # =============================================================================
@@ -271,11 +258,6 @@ async def create_session(
             journey_id = str(journey.id)
             is_new_journey = journey.is_new
 
-            # Feature 068: The Wake-Up Protocol (Targeted Recognition)
-            # This hydrates the agent associated with this device's journey
-            from api.services.biological_agency_service import get_biological_agency_service
-            await get_biological_agency_service().initialize_presence(device_id=x_device_id)
-
             # Create persistent session linked to journey
             db_session = await manager.create_session(journey.id)
             session_id = str(db_session.id)
@@ -285,14 +267,13 @@ async def create_session(
             pass
         except Exception as e:
             # Database error, fall back to in-memory session
-            import logging
-            logging.getLogger(__name__).warning(f"Failed to create journey session: {e}")
+            logger = logging.getLogger("dionysus.ias")
+            logger.warning(f"Failed to create journey session: {e}")
 
     # Store in-memory session state (still needed for chat context)
     sessions[session_id] = {
         "id": session_id,
         "journey_id": journey_id,
-        "device_id": x_device_id,  # Store device_id for subsequent OODA hydration
         "created_at": created_at,
         "messages": [],
         "confidence_score": 0,
@@ -321,27 +302,16 @@ async def get_session_state(session_id: str):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(
-    request: ChatRequest,
-    x_device_id: Optional[str] = Header(None, alias="X-Device-Id")
-):
+async def chat(request: ChatRequest):
     """Send a message and get a response.
 
     Supports two modes:
     1. Session mode: pass session_id + message
     2. Stateless mode: pass messages array directly (used by frontend)
     """
-    # Use header device_id or retrieved session device_id
-    device_id = x_device_id
-    
     # Stateless mode - messages passed directly
     if request.messages:
         messages = [{"role": m.role, "content": m.content} for m in request.messages]
-
-        # Trigger Wake-Up for stateless mode if device_id is present
-        if device_id:
-            from api.services.biological_agency_service import get_biological_agency_service
-            await get_biological_agency_service().initialize_presence(device_id=device_id)
 
         # Get response from Claude with diagnosis-aware prompt
         response_text = await chat_completion(
@@ -434,7 +404,7 @@ async def chat(
 @router.post("/chat/stream")
 async def chat_stream_endpoint(request: ChatRequest):
     """Send a message and stream the response."""
-    session = get_session(request.session_id)
+    session = await get_persistent_session(request.session_id)
 
     # Add user message
     session["messages"].append({
@@ -450,7 +420,7 @@ async def chat_stream_endpoint(request: ChatRequest):
             model=GPT5_NANO
         ):
             full_response += chunk
-            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            yield f"data: {json.dumps({'chunk': chunk})}\\n\n"
 
         # Store full response
         session["messages"].append({
@@ -462,7 +432,7 @@ async def chat_stream_endpoint(request: ChatRequest):
         session["confidence_score"] = min(len(session["messages"]) * 8 + 20, 95)
 
         # Send final event with metadata
-        yield f"data: {json.dumps({'done': True, 'confidence_score': session['confidence_score']})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'confidence_score': session['confidence_score']})}\\n\n"
 
     return StreamingResponse(
         generate(),
@@ -547,6 +517,7 @@ async def create_woop_plan(
             if session.get("diagnosis"):
                 diagnosis_context = session["diagnosis"].get("explanation", "")
         except HTTPException as e:
+            logger = logging.getLogger("dionysus.ias")
             logger.warning(f"Session {request.session_id} lookup failed for commitment: {e.detail}")
             # Continue without session context rather than failing
 
@@ -636,6 +607,7 @@ async def recall_memories(
             journey = await manager.get_or_create_journey(uuid.UUID(x_device_id))
             resolved_journey_id = str(journey.id)
         except (ValueError, Exception) as e:
+            logger = logging.getLogger("dionysus.ias")
             logger.warning(f"Journey lookup failed for device {x_device_id}: {e}")
             pass
 

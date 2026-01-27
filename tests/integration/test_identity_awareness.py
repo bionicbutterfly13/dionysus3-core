@@ -12,8 +12,8 @@ async def test_identity_aware_recall_isolation():
     store = get_consolidated_memory_store()
     session_mgr = get_session_manager()
     
-    device_a = "device_alpha"
-    device_b = "device_beta"
+    device_a = "00000000-0000-0000-0000-00000000000a"
+    device_b = "00000000-0000-0000-0000-00000000000b"
     
     # 1. Create a journey for Device A
     journey_a = await session_mgr.get_or_create_journey(
@@ -50,11 +50,11 @@ async def test_recall_tool_device_filtering():
         
         await semantic_recall_tool(
             query="Who am I?",
-            device_id="test_device"
+            device_id="00000000-0000-0000-0000-00000000000c"
         )
         
         # Verify device_id reached the service
         args, kwargs = mock_search.call_args
         filters = kwargs.get("filters")
         assert filters is not None
-        assert filters.device_id == "test_device"
+        assert filters.device_id == "00000000-0000-0000-0000-00000000000c"

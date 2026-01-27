@@ -173,22 +173,40 @@ class ConsolidatedMemoryStore:
             where_clause = "WHERE j.device_id = $device_id"
             params["device_id"] = device_id
 
+        # LABEL BRIDGE: Match both AutobiographicalJourney and Journey
+        # This ensures that technical sessions are anchored to cognitive identity correctly.
         cypher = f"""
-        MATCH (j:AutobiographicalJourney)
-        {where_clause}
-        RETURN j
+        MATCH (j)
+        WHERE (j:AutobiographicalJourney OR j:Journey)
+        {where_clause.replace('WHERE ', 'AND ')}
+        RETURN labels(j) as labels, j {{.*}} as data
         ORDER BY j.updated_at DESC
         LIMIT 1
         """
         try:
             result = await self._driver.execute_query(cypher, params)
             if result and result[0]:
-                data = result[0]["j"]
+                data = result[0]["data"]
+                labels = result[0]["labels"]
+                
                 # Rehydrate dates
                 if isinstance(data.get("created_at"), str):
-                    data["created_at"] = datetime.fromisoformat(data["created_at"])
+                    data["created_at"] = datetime.fromisoformat(data["created_at"].replace('Z', '+00:00'))
                 if isinstance(data.get("updated_at"), str):
-                    data["updated_at"] = datetime.fromisoformat(data["updated_at"])
+                    data["updated_at"] = datetime.fromisoformat(data["updated_at"].replace('Z', '+00:00'))
+                
+                # Technical Journey Fallback Mapping
+                if "Journey" in labels and "AutobiographicalJourney" not in labels:
+                    return AutobiographicalJourney(
+                        journey_id=data.get("id", "technical_seed"),
+                        title=f"Technical Journey ({data.get('device_id', 'unknown')})",
+                        description="Auto-generated from session tracking",
+                        created_at=data.get("created_at", datetime.utcnow()),
+                        updated_at=data.get("updated_at", datetime.utcnow()),
+                        episodes=[],
+                        themes=set()
+                    )
+                
                 return AutobiographicalJourney(**data)
             return None
         except Exception as e:

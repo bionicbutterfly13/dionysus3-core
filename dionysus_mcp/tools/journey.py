@@ -14,21 +14,9 @@ from api.models.journey import (
     JourneyHistoryQuery,
     JourneyDocumentCreate,
 )
-from api.services.session_manager import SessionManager
+from api.services.session_manager import SessionManager, get_session_manager
 
 logger = logging.getLogger(__name__)
-
-
-# Global session manager instance
-_session_manager: Optional[SessionManager] = None
-
-
-def get_session_manager() -> SessionManager:
-    """Get or create session manager instance."""
-    global _session_manager
-    if _session_manager is None:
-        _session_manager = SessionManager()
-    return _session_manager
 
 
 # =============================================================================

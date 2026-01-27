@@ -123,8 +123,11 @@
 
 ## Commit Checkpoints
 
-- [x] `feat(095): complete computational neuroscience gold standard integration` (b5e36a22) - Layer 1, docs, concepts
-- [x] `feat(095): integrate HopfieldNetwork into MemoryBasinRouter (Layer 2)` (55123231) - Basin integration
+- [ ] `feat(095): create conductor track and spec`
+- [ ] `docs(095): add chapter mapping document`
+- [ ] `feat(095): implement attractor basin service`
+- [ ] `docs(095): annotate consciousness_manager with ACT-R`
+- [ ] `docs(095): create atomic concept pages`
 
 ## Notes
 

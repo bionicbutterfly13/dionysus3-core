@@ -317,7 +317,7 @@ The agents will return structured results for synthesis.""",
         # Injection of 'Biography-as-Constraint' from the current Journey
         biographical_cell = None
         try:
-            biographical_cell = await self._fetch_biographical_context()
+            biographical_cell = await self._fetch_biographical_context(initial_context, agent_id)
             if biographical_cell:
                 # Inject directly into initial_context which becomes context for reasoning
                 # Note: We rely on context_packaging service to format this if used there,
@@ -813,7 +813,7 @@ The agents will return structured results for synthesis.""",
                 "error": str(e)
             }
 
-    async def _fetch_biographical_context(self, agent_id: str = "dionysus-1") -> Any:
+    async def _fetch_biographical_context(self, context: Dict[str, Any], agent_id: str = "dionysus-1") -> Any:
         """
         Fetch the active Autobiographical Journey and package it as a constraint cell.
 
@@ -834,8 +834,9 @@ The agents will return structured results for synthesis.""",
             BiographicalConstraintCell if journey exists, else None
         """
         try:
+            device_id = context.get("device_id")
             store = get_consolidated_memory_store()
-            journey = await store.get_active_journey()
+            journey = await store.get_active_journey(device_id=device_id)
 
             if journey:
                 # Create the cell

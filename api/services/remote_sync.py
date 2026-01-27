@@ -36,8 +36,12 @@ def get_neo4j_driver():
 
     Returns a Graphiti-backed driver for Neo4j access.
     """
-    from api.services.webhook_neo4j_driver import get_neo4j_driver as get_driver
-    return get_driver()
+    global _neo4j_driver
+    if _neo4j_driver is None:
+        from api.services.webhook_neo4j_driver import WebhookNeo4jDriver
+
+        _neo4j_driver = WebhookNeo4jDriver()
+    return _neo4j_driver
 
 
 

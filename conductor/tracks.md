@@ -6,7 +6,7 @@
 | 002-jungian-archetypes | Planned | Jungian Cognitive Archetypes | Shift to standard Jungian Archetypes and active inference integration |
 | 038-thoughtseeds-framework | Done | Thoughtseeds Framework Enhancement | EFE decision engine, Markov blankets, prior hierarchy, inner screen |
 | 039-smolagents-v2-alignment | Done | Smolagents V2 Alignment | ManagedAgent pattern, planning intervals, execution traces |
-| 041-code-quality-audit | In Progress | Code Quality & Verification Audit | Neo4j architecture verification, Graphiti-based patterns, Nemori/MemEvolve integration |
+| 041-code-quality-audit | Done | Code Quality & Verification Audit | Neo4j architecture verification, Graphiti-based patterns, Nemori/MemEvolve integration |
 | 042-hexis-integration | Done | Hexis Integration | Consent, Boundaries, Termination protocols; Heartbeat gating; contract + integration tests |
 | 043-neuronal-packets | Done | Neuronal Packets Integration | 50-200ms discrete quantization, spike density dynamics, chained packet trains |
 | 056-beautiful-loop-hyper | Done | Beautiful Loop Hyper-Model | Active inference consciousness with Bayesian binding, precision forecasting (203 tests) |

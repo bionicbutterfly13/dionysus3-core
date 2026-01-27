@@ -60,6 +60,17 @@ def reset_belief_tracking_singleton():
     bt_module._belief_tracking_service = None
 
 
+@pytest.fixture(autouse=True)
+def reset_session_manager_singleton():
+    """
+    Reset the SessionManager singleton between tests.
+    """
+    import api.services.session_manager as sm_module
+    sm_module._session_manager = None
+    yield
+    sm_module._session_manager = None
+
+
 # =============================================================================
 # API Fixtures
 # =============================================================================

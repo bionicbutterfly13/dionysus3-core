@@ -385,8 +385,6 @@ class MemEvolveAdapter:
                 filters["project_id"] = request.project_id
             if request.session_id:
                 filters["session_id"] = request.session_id
-            if request.device_id:
-                filters["device_id"] = request.device_id
             if request.include_temporal_metadata:
                 filters["include_temporal"] = True
             if request.context:
@@ -482,7 +480,6 @@ class MemEvolveAdapter:
         results = await graphiti.search(
             query=search_query,
             group_ids=group_ids,
-            device_id=request.device_id,
             limit=limit,
         )
         edges = results.get("edges", [])

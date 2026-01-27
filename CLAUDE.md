@@ -240,25 +240,14 @@ api/
 ├── services/            # Business logic
 │   ├── remote_sync.py          # Graphiti-backed driver shim + n8n sync utilities
 │   ├── graphiti_service.py     # Temporal knowledge graph (Graphiti)
-│   ├── unified_reality_model.py # Live cognitive state container (Beautiful Loop)
 │   └── llm_service.py          # LiteLLM router configuration
 ├── routers/             # FastAPI endpoints
-├── models/              # Pydantic v2 models
-└── utils/
-    └── event_bus.py     # Centralized pub-sub for cognitive events
-```
-
-### Event-Driven Consciousness (EventBus)
-
-The system uses a centralized `EventBus` (`api/utils/event_bus.py`) to decouple cognitive events from their consumers. 
-
-- **Publishers**: `ConsciousnessManager`, background workers, or API endpoints emit `cognitive_event`.
-- **Subscribers**: `UnifiedRealityModelService` subscribes to these events to auto-update its `active_inference_states`, ensuring the "Beautiful Loop" always has the latest data without manual wiring in every agent.
-- **Pipeline**: The `ConsciousnessIntegrationPipeline` is triggered synchronously by the bus before notifications are sent to subscribers.
+└── models/              # Pydantic v2 models
 
 dionysus_mcp/
 ├── server.py            # MCP server exposing tools to Claude
 └── tools/               # MCP tool wrappers (async bridges)
+```
 
 ### Agent Hierarchy
 
