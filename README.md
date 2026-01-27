@@ -50,6 +50,17 @@ Copy `.env.example` to `.env` and configure the following:
 docker compose up -d --build
 ```
 
+## Required Memory Setup
+
+This project requires persistent memory systems to avoid redundant code:
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+**How this fits with MemEvolve / Graphiti / Nemori:** SuperMemory + cognee are **client-side** (IDE/session memory via MCP). MemEvolve, Graphiti, and Nemori are **server-side** (Dionysus API’s cognitive memory: trajectories, episodes, temporal facts, basin routing). They are complementary: use the server stack for engine state (e.g. `session-reconstruct`, MemoryBasinRouter, MemEvolveAdapter); use SuperMemory + cognee for editor/session context. Do not duplicate the server stack with client tools or bypass the server stack when adding memory features.
+
 ## Testing
 
 Run the VPS-validated test suite:
