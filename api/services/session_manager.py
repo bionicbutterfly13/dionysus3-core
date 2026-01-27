@@ -140,34 +140,40 @@ class SessionManager:
         """
         start_time = time.perf_counter()
         
-        # Cypher to merge Journey node and count sessions
-        cypher = """
-        MERGE (j:Journey {device_id: $device_id})
-        ON CREATE SET 
-            j.id = $new_id,
-            j.participant_id = $participant_id,
-            j.created_at = datetime(),
-            j.updated_at = datetime(),
-            j.metadata = '{}',
-            j._is_new = true
-        ON MATCH SET 
-            j.updated_at = datetime(),
-            j.participant_id = coalesce(j.participant_id, $participant_id),
-            j._is_new = false
-        
+        # Try to MATCH existing journey first
+        query_match = """
+        MATCH (j:Journey {device_id: $device_id})
         WITH j
         OPTIONAL MATCH (j)-[:HAS_SESSION]->(s:Session)
         RETURN j {.*} as journey_data, count(s) as session_count
         """
         
         try:
-            result = await self._driver.execute_query(cypher, {
-                "device_id": str(device_id),
-                "participant_id": participant_id,
-                "new_id": str(uuid4())
-            })
+            result = await self._driver.execute_query(query_match, {"device_id": str(device_id)})
+            
+            if not result or not result[0].get("journey_data"):
+                # Journey doesn't exist, CREATE it
+                new_id = str(uuid4())
+                query_create = """
+                CREATE (j:Journey {
+                    device_id: $device_id,
+                    id: $id,
+                    participant_id: $participant_id,
+                    created_at: datetime(),
+                    updated_at: datetime(),
+                    metadata: '{}',
+                    _is_new: true
+                })
+                RETURN j {.*} as journey_data, 0 as session_count
+                """
+                result = await self._driver.execute_query(query_create, {
+                    "device_id": str(device_id),
+                    "id": new_id,
+                    "participant_id": participant_id
+                })
+            
             if not result:
-                raise DatabaseUnavailableError("Failed to get or create journey - no result from Neo4j")
+                raise DatabaseUnavailableError("Failed to create journey node in Neo4j")
             
             row = result[0]
             j_data = row["journey_data"]
