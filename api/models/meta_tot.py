@@ -19,6 +19,7 @@ class ActiveInferenceState(BaseModel):
     prediction_error: float = 0.0
     free_energy: float = 0.0
     surprise: float = 0.0
+    entropy: float = Field(0.0, description="Shannon Entropy (Uncertainty) of the belief state")
     precision: float = 1.0
     beliefs: Dict[str, float] = Field(default_factory=dict)
     prediction_updates: Dict[str, float] = Field(default_factory=dict)

@@ -38,26 +38,6 @@ class ManagedMetacognitionAgent:
     - Adaptation: Revises mental models based on evidence from the environment.
     """
 
-    # Description used by the manager to decide when to delegate
-    DESCRIPTION = """DECIDE phase specialist for the OODA cognitive loop.
-
-Capabilities:
-- list_goals: Review current goals and their priority/status
-- update_goal: Modify goal priority, status, or details
-- revise_mental_model: Update beliefs based on new evidence
-- assess_model_accuracy: Evaluate how well mental models predict reality
-- select_action: Choose the best action given current understanding
-
-Use this agent when you need to:
-1. Review what goals are active and their priorities
-2. Decide what action to take next
-3. Update mental models based on prediction errors
-4. Reconcile conflicting information or goals
-
-This agent should be called AFTER reasoning to translate understanding
-into decisions. It closes the cognitive loop by selecting actions
-and updating internal models."""
-
     def __init__(self, model_id: str = "dionysus-agents"):
         """
         Initialize the managed metacognition agent.

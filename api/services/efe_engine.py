@@ -50,7 +50,7 @@ class EFEEngine:
     Simplified for embeddings: EFE = H(p) + (1 - cos_sim(thought, goal))
     """
 
-    def calculate_entropy(self, probabilities: List[float]) -> float:
+    def calculate_entropy(self, probabilities: List[float] | np.ndarray) -> float:
         """
         Calculates Shannon entropy of a probability distribution.
         
@@ -60,17 +60,20 @@ class EFEEngine:
         In the context of random walks (Ch 15), entropy represents the 
         uncertainty or spread of the probability distribution over possible states.
         """
-        if not probabilities:
+        if probabilities is None or len(probabilities) == 0:
             return 1.0
         # scipy.stats.entropy uses ln by default, we use base 2 for bits
         return float(entropy(probabilities, base=2))
 
-    def calculate_goal_divergence(self, thought_vector: np.ndarray, goal_vector: np.ndarray) -> float:
+    def calculate_goal_divergence(self, thought_vector: np.ndarray | List[float], goal_vector: np.ndarray | List[float]) -> float:
         """Calculates divergence from goal using cosine distance."""
         # cosine distance = 1 - cosine similarity
-        if np.linalg.norm(thought_vector) == 0 or np.linalg.norm(goal_vector) == 0:
+        t_vec = np.array(thought_vector) if isinstance(thought_vector, list) else thought_vector
+        g_vec = np.array(goal_vector) if isinstance(goal_vector, list) else goal_vector
+        
+        if np.linalg.norm(t_vec) == 0 or np.linalg.norm(g_vec) == 0:
             return 1.0
-        return float(cosine(thought_vector, goal_vector))
+        return float(cosine(t_vec, g_vec))
 
     def calculate_efe(
         self,

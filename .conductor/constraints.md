@@ -110,6 +110,32 @@ If unsure, stop and re-read.
 
 Create or update this section when the track is created; revise it if attachment points or data flow change during implementation.
 
+## Memory Gateway (Markov Blanket) – Deterministic No-Bypass
+
+**Mandatory.** The memory architecture must never be breached. All Neo4j access goes through a single boundary (the "Markov blanket"). No bypass.
+
+- **Singleton gateway:** The only components that may touch Neo4j are:
+  1. **GraphitiService** (singleton `_global_graphiti`) – temporal KG operations via the Graphiti library.
+  2. **WebhookNeo4jDriver** (singleton) – compatibility shim that proxies to MemEvolveAdapter → GraphitiService.
+
+  No other code may create or hold a Neo4j driver. All memory reads/writes cross this boundary only.
+
+- **No direct driver use.** Forbidden everywhere:
+  - `from neo4j import GraphDatabase`
+  - `GraphDatabase.driver(...)`
+  - Any new module that opens a bolt connection to Neo4j.
+
+- **Deterministic enforcement:** Run `python scripts/verification/check_memory_gateway.py` before CI or as part of the test suite. It scans for the above violations and **exits 1** if any are found outside the allowlist. Fix violations; do not add new ones.
+
+- **Allowlist (dev-only):** The following scripts may use direct Neo4j **only** for local verification (e.g. bolt connectivity, auth, memory-audit). They must be clearly marked DEV-ONLY and must not be used in production flows:
+  - `scripts/verification/test_bolt_connection.py`
+  - `scripts/verification/test_auth.py`
+  - `scripts/verification/audit_memory_architecture.py`
+
+  Any other script (e.g. ingestion, maintenance) must use the gateway (n8n webhooks, GraphitiService, or MemEvolveAdapter). Migrate or remove violators.
+
+- **Adding new memory access:** Use `get_graphiti_service()` or `get_neo4j_driver()` (which returns the WebhookNeo4jDriver shim). Never introduce a new Neo4j driver or connection path.
+
 ## "Ultrathink" Protocols
 
 - **Depth**: Code must reflect the "System Soul" (Analytical Empath).

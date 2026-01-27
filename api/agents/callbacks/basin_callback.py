@@ -21,7 +21,7 @@ reinforcing pathways that are frequently used together.
 import asyncio
 import logging
 import os
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Optional
 
 from smolagents.memory import ActionStep
 
@@ -170,6 +170,21 @@ def basin_activation_callback(memory_step: ActionStep, agent: Any) -> None:
                 f"(step {getattr(memory_step, 'step_number', '?')}): "
                 f"{', '.join(basin_names[:3])}"
             )
+            
+            # Feature 039, T013: Record activation in execution trace collector
+            try:
+                from api.agents.callbacks.execution_trace_callback import get_active_collector
+                agent_name = getattr(agent, "name", "unknown")
+                collector = get_active_collector(agent_name)
+                if collector:
+                    for b in all_activated:
+                        collector.record_basin_activation(
+                            basin_id=b["id"],
+                            strength=b["activation"],
+                            at_step=getattr(memory_step, "step_number", None)
+                        )
+            except Exception as e:
+                logger.debug(f"Failed to record basin activation in trace: {e}")
         
     except Exception as e:
         # Callback failure should not break agent

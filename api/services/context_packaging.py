@@ -301,31 +301,66 @@ class TokenBudgetManager:
         """
         Add a cell to the budget. Returns False if insufficient space.
         May evict lower-priority cells to make room.
+        
+        T041-033: If priority is CRITICAL or HIGH, trigger async persistence.
         """
         if cell.cell_id in self._cells:
             # Update existing cell
-            old_cell = self._cells[cell.cell_id]
             self._cells[cell.cell_id] = cell
             return True
         
         # Check if fits directly
+        success = False
         if cell.token_count <= self.available_tokens:
             self._cells[cell.cell_id] = cell
             self._cell_order.append(cell.cell_id)
-            return True
+            success = True
+        else:
+            # Try to evict lower-priority cells
+            tokens_needed = cell.token_count - self.available_tokens
+            evictable = self._get_evictable_cells(cell.effective_priority, tokens_needed)
+            
+            if evictable:
+                for evict_id in evictable:
+                    self.remove_cell(evict_id)
+                self._cells[cell.cell_id] = cell
+                self._cell_order.append(cell.cell_id)
+                success = True
         
-        # Try to evict lower-priority cells
-        tokens_needed = cell.token_count - self.available_tokens
-        evictable = self._get_evictable_cells(cell.effective_priority, tokens_needed)
-        
-        if evictable:
-            for evict_id in evictable:
-                self.remove_cell(evict_id)
-            self._cells[cell.cell_id] = cell
-            self._cell_order.append(cell.cell_id)
-            return True
-        
-        return False
+        if success and cell.priority in {CellPriority.CRITICAL, CellPriority.HIGH}:
+            import asyncio
+            from api.services.graphiti_service import get_graphiti_service
+            
+            async def _persist_cell():
+                try:
+                    graphiti = await get_graphiti_service()
+                    # Persist as a ContextCell node
+                    await graphiti.execute_cypher(
+                        """
+                        MERGE (c:ContextCell {id: $id})
+                        SET c.content = $content,
+                            c.priority = $priority,
+                            c.resonance_score = $resonance,
+                            c.basin_id = $basin_id,
+                            c.last_persisted = datetime(),
+                            c.metadata = $metadata
+                        """,
+                        {
+                            "id": cell.cell_id,
+                            "content": cell.content,
+                            "priority": cell.priority.value,
+                            "resonance": cell.resonance_score,
+                            "basin_id": cell.basin_id,
+                            "metadata": json.dumps(cell.metadata)
+                        }
+                    )
+                except Exception as e:
+                    logger.debug(f"Failed to persist context cell {cell.cell_id}: {e}")
+            
+            # Fire and forget
+            asyncio.create_task(_persist_cell())
+            
+        return success
     
     def remove_cell(self, cell_id: str) -> Optional[ContextCell]:
         """Remove and return a cell."""

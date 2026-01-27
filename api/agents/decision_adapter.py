@@ -27,8 +27,6 @@ class AgentDecisionConfig:
 
     use_multi_agent: bool = False
     model_id: str = ""
-    max_steps: int = 5
-    fallback_on_failure: bool = True
     timeout_seconds: float = 30.0
 
 

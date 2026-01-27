@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 from smolagents import Tool
 from pydantic import BaseModel, Field
 
-from api.services.active_inference_service import get_active_inference_service, GenerativeModel
+from api.services.active_inference_service import get_active_inference_service
 from api.models.belief_state import BeliefState as CanonicalBeliefState
 
 logger = logging.getLogger("dionysus.agents.tools.active_inference")

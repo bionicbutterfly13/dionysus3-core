@@ -5,9 +5,12 @@ from typing import List, Optional
 from api.models.autobiographical import (
     DevelopmentEvent,
     DevelopmentEpisode,
-    AutobiographicalJourney
+    AutobiographicalJourney,
+    RiverStage,
+    DevelopmentArchetype
 )
 from api.services.webhook_neo4j_driver import get_neo4j_driver
+from api.services.graphiti_service import get_graphiti_service
 
 logger = logging.getLogger("dionysus.memory.consolidated")
 
@@ -170,8 +173,86 @@ class ConsolidatedMemoryStore:
                     data["updated_at"] = datetime.fromisoformat(data["updated_at"])
                 return AutobiographicalJourney(**data)
         except Exception as e:
-            logger.error(f"Failed to retrieve active journey: {e}")
+            logger.error(f"Failed to fetch active journey: {e}")
+            return None
+
+    async def search_episodes(
+        self,
+        query: str,
+        limit: int = 10,
+        group_ids: Optional[List[str]] = None
+    ) -> List[DevelopmentEpisode]:
+        """
+        Hybrid search for episodes using Graphiti.
+        
+        T041-031: Refactor episode retrieval to use Graphiti hybrid search.
+        """
+        graphiti = await get_graphiti_service()
+        
+        # 1. Search for relevant facts in episodes
+        # Filter for episodic group if provided
+        results = await graphiti.search(
+            query=query,
+            group_ids=group_ids,
+            limit=limit
+        )
+        
+        episode_ids = set()
+        for edge in results.get("edges", []):
+            # Extract episode ID from fact if stored there, or search for linked episodes
+            # In Dionysus, Fact nodes are DISTILLED_FROM Episode nodes.
+            fact_id = edge.get("uuid")
+            if fact_id:
+                # Find episodes linked to these facts
+                ep_records = await self._driver.execute_query(
+                    """
+                    MATCH (f:Fact {id: $fact_id})-[:DISTILLED_FROM]->(ep:DevelopmentEpisode)
+                    RETURN ep.id as ep_id
+                    """,
+                    {"fact_id": fact_id}
+                )
+                for rec in ep_records:
+                    episode_ids.add(rec["ep_id"])
+        
+        # 2. Also search episodes directly by title/summary if they were indexed as nodes
+        # (Graphiti usually extracts entities, but we can query the nodes directly)
+        direct_records = await self._driver.execute_query(
+            """
+            MATCH (ep:DevelopmentEpisode)
+            WHERE toLower(ep.title) CONTAINS toLower($query) 
+               OR toLower(ep.summary) CONTAINS toLower($query)
+            RETURN ep.id as ep_id
+            LIMIT $limit
+            """,
+            {"query": query, "limit": limit}
+        )
+        for rec in direct_records:
+            episode_ids.add(rec["ep_id"])
+            
+        # 3. Rehydrate and return
+        episodes = []
+        for ep_id in list(episode_ids)[:limit]:
+            episode = await self.get_episode(ep_id)
+            if episode:
+                episodes.append(episode)
+                
+        return episodes
+
+    async def get_episode(self, episode_id: str) -> Optional[DevelopmentEpisode]:
+        """Retrieve a single episode by ID."""
+        cypher = "MATCH (ep:DevelopmentEpisode {id: $id}) RETURN ep"
+        result = await self._driver.execute_query(cypher, {"id": episode_id})
+        if result and result[0]:
+            data = result[0]["ep"]
+            # Rehydrate dates
+            if isinstance(data.get("start_time"), str):
+                data["start_time"] = datetime.fromisoformat(data["start_time"])
+            if isinstance(data.get("end_time"), str):
+                data["end_time"] = datetime.fromisoformat(data["end_time"])
+            # Rehydrate lists/enums if needed
+            return DevelopmentEpisode(**data)
         return None
+
 
 _instance: Optional[ConsolidatedMemoryStore] = None
 

@@ -171,21 +171,6 @@ class DionysusCognitiveCallbackRegistry:
         self._callbacks[step_type].append(callback)
         logger.debug(f"Registered callback {callback.__name__} for {step_type.__name__}")
     
-    def unregister(self, step_type: type, callback: Callable) -> bool:
-        """Remove a callback from the registry."""
-        if step_type in self._callbacks and callback in self._callbacks[step_type]:
-            self._callbacks[step_type].remove(callback)
-            return True
-        return False
-    
-    def enable(self) -> None:
-        """Enable all callbacks."""
-        self._enabled = True
-    
-    def disable(self) -> None:
-        """Disable all callbacks (useful for testing)."""
-        self._enabled = False
-    
     def _create_dispatcher(self, step_type: type, agent_name: str) -> Callable:
         """
         Create a dispatcher function that runs all callbacks for a step type.
@@ -208,25 +193,6 @@ class DionysusCognitiveCallbackRegistry:
                     )
         
         return dispatcher
-    
-    def get_step_callbacks(self, agent_name: str) -> Dict[type, Callable]:
-        """
-        Get the step_callbacks dict for agent initialization.
-        
-        Returns a dict mapping step types to dispatcher functions
-        that execute all registered callbacks for that type.
-        
-        Args:
-            agent_name: Name for logging purposes
-            
-        Returns:
-            Dict suitable for smolagents step_callbacks parameter
-        """
-        return {
-            step_type: self._create_dispatcher(step_type, agent_name)
-            for step_type, callbacks in self._callbacks.items()
-            if callbacks  # Only include types with registered callbacks
-        }
 
 
 # Global cognitive callback registry

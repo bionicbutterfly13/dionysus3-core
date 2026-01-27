@@ -367,10 +367,12 @@ class NemoriRiverFlow:
             "You are a knowledge distiller. Identify the 'Prediction Gap' and 'Symbolic Residue'.\n"
             "Prediction Gap: What new standalone semantic facts were learned?\n"
             "Symbolic Residue: What specific situational features (actors, goals, location) remain ACTIVE and should carry over to the next episode?\n"
+            "Surprisal: A score from 0.0 to 1.0 representing how unexpected the actual experience was compared to the prediction.\n"
             "Respond ONLY with a JSON object:\n"
             "{\n"
             "  \"new_facts\": [\"fact1\", \"fact2\"],\n"
-            "  \"symbolic_residue\": {\"active_goals\": [], \"active_entities\": [], \"stable_context\": \"\"}\n"
+            "  \"symbolic_residue\": {\"active_goals\": [], \"active_entities\": [], \"stable_context\": \"\"},\n"
+            "  \"surprisal\": 0.5\n"
             "}"
         )
         
@@ -386,7 +388,18 @@ class NemoriRiverFlow:
             data = json.loads(response.strip().strip("`").replace("json", "").strip())
             new_facts = data.get("new_facts", [])
             residue = data.get("symbolic_residue", {})
+            surprisal = float(data.get("surprisal", 0.0))
             
+            # T041-030: Predict-Calibrate -> Meta-Evolution loop
+            # If surprisal exceeds threshold, trigger meta-evolution
+            if surprisal > 0.6:
+                try:
+                    adapter = get_memevolve_adapter()
+                    await adapter.trigger_evolution()
+                    logger.info(f"High surprisal ({surprisal:.2f}) triggered Meta-Evolution.")
+                except Exception as evo_err:
+                    logger.warning(f"Failed to trigger meta-evolution: {evo_err}")
+
             # Record semantic distillation event with Basin Linkage
             distill_id = f"distill_{uuid4().hex[:6]}"
             metadata = {"new_facts": new_facts, "residue": residue}

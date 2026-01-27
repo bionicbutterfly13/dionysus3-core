@@ -146,7 +146,7 @@ class ActiveInferenceService:
     - Active Pool (Eq 12) → belief-based thresholding
     """
 
-    def __init__(self, lazy_load: bool = True):
+    def __init__(self, lazy_load: bool = True) -> None:
         """
         Initialize Active Inference Service.
 
@@ -158,15 +158,15 @@ class ActiveInferenceService:
         
         # Feature 062: Blackglass Threshold (Ambiguity Tolerance)
         # If policy entropy > 1.5 nats, refuse to act.
-        self.blackglass_threshold = 1.5 
+        self.blackglass_threshold: float = 1.5 
         
         # Initialize Adapter Registry (Simple functional mapping for now)
-        self._pydantic_to_numpy_map = {} 
+        self._pydantic_to_numpy_map: Dict = {} 
 
         if not lazy_load:
             _initialize_julia()
 
-    def _ensure_julia(self):
+    def _ensure_julia(self) -> Any:
         """Ensure Julia is loaded before operation."""
         if not _julia_initialized:
             _initialize_julia()
@@ -871,7 +871,7 @@ class ActiveInferenceService:
         qs_prev: Optional[List[np.ndarray]] = None,
         action: Optional[int] = None,
         learning_rate: float = 1.0
-    ):
+    ) -> None:
         """
         Structural Learning: Update Dirichlet parameters (a, b) from experience.
         """

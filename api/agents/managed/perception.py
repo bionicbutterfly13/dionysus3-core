@@ -38,24 +38,6 @@ class ManagedPerceptionAgent:
     - Local Rules: Guided by specific cognitive prompts for situational awareness.
     """
 
-    # Description used by the manager to decide when to delegate
-    DESCRIPTION = """OBSERVE phase specialist for the OODA cognitive loop.
-
-Capabilities:
-- observe_environment: Gather current environmental context and state
-- semantic_recall: Retrieve memories relevant to the current situation
-- mosaeic_capture: Capture experiential state (Senses, Actions, Emotions, Impulses, Cognitions)
-- query_wisdom: Access strategic principles from the wisdom graph
-
-Use this agent when you need to:
-1. Understand the current situation before reasoning
-2. Recall past experiences or knowledge relevant to the task
-3. Capture the user's current mental/emotional state
-4. Ground decisions in stored wisdom and principles
-
-This agent should be called FIRST in most cognitive cycles to establish
-situational awareness before reasoning or decision-making."""
-
     def __init__(self, model_id: str = "dionysus-agents"):
         """
         Initialize the managed perception agent.
