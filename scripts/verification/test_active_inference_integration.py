@@ -4,8 +4,12 @@ Test ActiveInference.jl Integration
 
 Verifies Julia-Python integration works correctly.
 
+NOTE: This is a standalone verification script, NOT a pytest test module.
+Run directly: python scripts/verification/test_active_inference_integration.py
+Pytest collection is skipped via the module-level pytestmark.
+
 Usage:
-    python scripts/test_active_inference_integration.py
+    python scripts/verification/test_active_inference_integration.py
 
 Author: Mani Saint-Victor, MD
 Date: 2026-01-03
@@ -15,14 +19,18 @@ import sys
 import numpy as np
 from pathlib import Path
 
+# Skip pytest collection - this is a Julia-dependent verification script
+import pytest
+pytestmark = pytest.mark.skip(reason="Julia-dependent verification script - run directly")
+
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from api.services.active_inference_service import (
     get_active_inference_service,
     GenerativeModel,
-    BeliefState
 )
+from api.models.belief_state import BeliefState
 
 def test_julia_loading():
     """Test 1: Verify Julia loads successfully."""
@@ -78,8 +86,8 @@ def test_vfe_calculation():
             num_actions=2
         )
 
-        # Create belief state (uniform)
-        belief = BeliefState(qs=np.array([0.5, 0.5]))
+        # Create belief state (uniform): mean = state probs, precision = identity
+        belief = BeliefState(mean=[0.5, 0.5], precision=[[1.0, 0.0], [0.0, 1.0]])
 
         # Observe outcome 0
         observation = 0
@@ -116,7 +124,7 @@ def test_efe_calculation():
         model.C = np.array([[0.9], [0.1]])
 
         # Create belief state
-        belief = BeliefState(qs=np.array([0.6, 0.4]))
+        belief = BeliefState(mean=[0.6, 0.4], precision=[[1.0, 0.0], [0.0, 1.0]])
 
         # Policy: [action 0, action 1, action 0]
         policy = np.array([0, 1, 0])

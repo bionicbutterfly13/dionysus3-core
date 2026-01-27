@@ -21,6 +21,9 @@ import numpy as np
 
 from api.models.belief_state import BeliefState as CanonicalBeliefState
 
+# Re-export for backward compatibility
+BeliefState = CanonicalBeliefState
+
 logger = logging.getLogger("dionysus.services.active_inference")
 
 
