@@ -18,9 +18,11 @@ async def diag():
             res2 = await driver.execute_query("MATCH (j:Journey) RETURN j as node LIMIT 5")
             for r in res2:
                 node = r["node"]
-                print(f"Labels: {await driver.execute_query('MATCH (n) WHERE id(n) = $id RETURN labels(n) as l', {'id': node.id})}")
-                print(f"Properties: {node.keys()}")
+                print(f"Node Type: {type(node)}")
+                print(f"Properties: {list(node.keys())}")
                 print(f"Values: {node}")
+                # Check for specific fields
+                print(f"device_id: {node.get('device_id')} ({type(node.get('device_id'))})")
         except Exception as e:
             print(f"Error matching journeys: {e}")
             
