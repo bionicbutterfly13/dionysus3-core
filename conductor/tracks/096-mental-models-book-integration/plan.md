@@ -11,7 +11,7 @@ Tasks are the **source of truth**. Use `[ ]` / `[~]` / `[x]` and append 7-char c
 ## Phase 1: Stabilize and unify interfaces
 
 ### P1.1: Test suite and shared types
-- [ ] **T096-001** Fix pytest collection: resolve `BeliefState` import in `scripts/verification/test_active_inference_integration.py`; gate or move Julia-dependent verification so pytest runs without Julia.
+- [x] **T096-001** Fix pytest collection: resolve `BeliefState` import in `scripts/verification/test_active_inference_integration.py`; gate or move Julia-dependent verification so pytest runs without Julia. [0ea6937]
 - [ ] **T096-002** Define shared cognitive types in Dionysus: NarrativeState, MentalAction, MetacognitiveDecision, ArchitectureStep-shaped result (e.g. in `api/models/cognitive.py` or extend existing). Mirror neuroadaptive contracts.
 - [ ] **T096-003** Single active-inference facade: choose (a) pymdp-only narrative/ANC adapter or (b) extend ActiveInferenceService with narrative mode (tags + precision → NarrativeInferenceResult). Implement and add minimal tests.
 
