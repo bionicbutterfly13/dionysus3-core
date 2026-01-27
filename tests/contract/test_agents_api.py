@@ -61,13 +61,50 @@ def test_list_traces_contract(client):
 def test_get_token_usage_contract(client):
     """GET /api/agents/token-usage returns statistics."""
     import api.routers.agents as router
-    
+
     with patch("api.routers.agents.get_all_token_summaries", return_value=[{"agent": "test"}]), \
          patch("api.routers.agents.get_aggregate_token_stats", return_value={"total": 100}):
         response = client.get("/api/agents/token-usage")
-        
+
     assert response.status_code == 200
     data = response.json()
     assert "agents" in data
     assert "aggregate" in data
+
+
+# --- Error Response Tests ---
+
+
+def test_get_trace_invalid_uuid_returns_400(client):
+    """GET /api/agents/traces/{trace_id} with invalid UUID returns 400."""
+    response = client.get("/api/agents/traces/not-a-valid-uuid")
+    assert response.status_code == 400
+    data = response.json()
+    assert "detail" in data
+
+
+def test_get_trace_not_found_returns_404(client):
+    """GET /api/agents/traces/{trace_id} returns 404 for non-existent trace."""
+    class _FakeServiceNotFound:
+        async def get_trace(self, trace_id):
+            return None
+
+    with patch("api.routers.agents.get_execution_trace_service", return_value=_FakeServiceNotFound()):
+        response = client.get(f"/api/agents/traces/{uuid4()}")
+
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+
+
+def test_get_trace_mermaid_not_found_returns_404(client):
+    """GET /api/agents/traces/{trace_id}/mermaid returns 404 for non-existent trace."""
+    class _FakeServiceNotFound:
+        async def get_trace(self, trace_id):
+            return None
+
+    with patch("api.routers.agents.get_execution_trace_service", return_value=_FakeServiceNotFound()):
+        response = client.get(f"/api/agents/traces/{uuid4()}/mermaid")
+
+    assert response.status_code == 404
 

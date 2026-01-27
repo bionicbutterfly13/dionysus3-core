@@ -177,7 +177,7 @@
 - [x] Create contract test suite (in progress)
 - [x] Validate API contracts (169 passed, 24 skipped)
 - [x] Added contract tests for `graphiti` router.
-- [ ] Test error responses
+- [x] Test error responses (hexis 403/422, trajectory 404, coordination 404/422, agents 400/404)
 
 **Router coverage inventory (contract tests):**
 - **Covered:** heartbeat, hexis, session, monitoring_pulse, trajectory, sync, monitoring, kg_learning, discovery, coordination, network_state, rollback, mosaeic, skills, memory (traverse), beautiful_loop (partial), graphiti. Contract suite: 169 passed, 24 skipped.

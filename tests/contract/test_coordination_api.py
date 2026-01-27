@@ -84,3 +84,37 @@ def test_isolation_report_contract():
     assert "breaches_detected" in data
     assert "details" in data
     assert len(data["details"]) >= 1
+
+
+# --- Error Response Tests ---
+
+
+def test_fail_nonexistent_agent_returns_404():
+    """POST /agents/{agent_id}/fail returns 404 for non-existent agent."""
+    response = client.post("/api/coordination/agents/nonexistent-agent-id/fail")
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+
+
+def test_get_task_nonexistent_returns_404():
+    """GET /tasks/{task_id} returns 404 for non-existent task."""
+    response = client.get("/api/coordination/tasks/nonexistent-task-id")
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+
+
+def test_initialize_pool_invalid_size_returns_422():
+    """POST /pool/initialize with invalid size returns 422."""
+    response = client.post("/api/coordination/pool/initialize", json={"size": -1})
+    assert response.status_code == 422
+
+
+def test_submit_task_with_invalid_task_type_returns_422():
+    """POST /tasks with invalid task_type enum returns 422."""
+    response = client.post(
+        "/api/coordination/tasks",
+        json={"payload": {}, "task_type": "invalid_type"}
+    )
+    assert response.status_code == 422
