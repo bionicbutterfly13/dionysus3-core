@@ -4,7 +4,8 @@ Beautiful Loop API router.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends
 
 from api.models.beautiful_loop import (
     BindingEvaluationRequest,
@@ -23,7 +24,7 @@ from api.models.beautiful_loop import (
 from api.services.bayesian_binder import get_bayesian_binder
 from api.services.epistemic_field_service import get_epistemic_field_service
 from api.services.hyper_model_service import get_hyper_model_service
-from api.services.unified_reality_model import get_unified_reality_model
+from api.services.unified_reality_model import get_unified_reality_model, UnifiedRealityModelService
 
 router = APIRouter(prefix="/api/v1/beautiful-loop", tags=["beautiful-loop"])
 
@@ -62,13 +63,17 @@ async def evaluate_binding(request: BindingEvaluationRequest) -> BindingEvaluati
 
 
 @router.get("/reality-model", response_model=UnifiedRealityModel)
-async def get_reality_model() -> UnifiedRealityModel:
-    return get_unified_reality_model().get_model()
+async def get_reality_model(
+    service: UnifiedRealityModelService = Depends(get_unified_reality_model)
+) -> UnifiedRealityModel:
+    return service.get_model()
 
 
 @router.get("/reality-model/coherence", response_model=CoherenceResponse)
-async def get_reality_model_coherence() -> CoherenceResponse:
-    model = get_unified_reality_model().get_model()
+async def get_reality_model_coherence(
+    service: UnifiedRealityModelService = Depends(get_unified_reality_model)
+) -> CoherenceResponse:
+    model = service.get_model()
     return CoherenceResponse(
         coherence_score=model.coherence_score,
         bound_inference_count=len(model.bound_inferences),

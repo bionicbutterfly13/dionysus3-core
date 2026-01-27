@@ -21,9 +21,11 @@ def mock_neo4j_driver():
     """
     mock_driver = AsyncMock()
     mock_driver.execute_query = AsyncMock(return_value=[])
-
-    with patch('api.services.remote_sync.get_neo4j_driver', return_value=mock_driver):
-        yield mock_driver
+    
+    # Track 041 (T041-022): Unified mocking of Neo4j driver
+    with patch('api.services.webhook_neo4j_driver.get_neo4j_driver', return_value=mock_driver):
+        with patch('api.services.remote_sync.get_neo4j_driver', return_value=mock_driver):
+            yield mock_driver
 
 
 @pytest.fixture(autouse=True)

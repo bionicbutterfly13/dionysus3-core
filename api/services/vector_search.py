@@ -24,9 +24,11 @@ DEFAULT_THRESHOLD = 0.7
 
 
 @dataclass
+@dataclass
 class SearchFilters:
     project_id: Optional[str] = None
     session_id: Optional[str] = None
+    device_id: Optional[str] = None
     from_date: Optional[datetime] = None
     to_date: Optional[datetime] = None
     memory_types: Optional[list[str]] = None
@@ -128,6 +130,7 @@ class VectorSearchService:
                     limit=top_k,
                     project_id=filters.project_id if filters else None,
                     session_id=filters.session_id if filters else None,
+                    device_id=filters.device_id if filters else None,
                     memory_types=filters.memory_types if filters else None,
                     include_temporal_metadata=False,
                 )

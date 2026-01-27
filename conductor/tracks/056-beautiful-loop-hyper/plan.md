@@ -49,20 +49,20 @@
 **Goal**: Single container unifying all active inference states
 
 ### Tests (TDD)
-- [ ] **Task 3.1**: Write unit tests for UnifiedRealityModel container
-- [ ] **Task 3.2**: Write tests for coherence computation
-- [ ] **Task 3.3**: Write tests for bound vs transparent tracking
-- [ ] **Task 3.4**: Write tests for epistemic affordances
-- [ ] **Task 3.5**: Write contract tests for `/beautiful-loop/reality-model`
+- [x] **Task 3.1**: Write unit tests for UnifiedRealityModel container
+- [x] **Task 3.2**: Write tests for coherence computation
+- [x] **Task 3.3**: Write tests for bound vs transparent tracking
+- [x] **Task 3.4**: Write tests for epistemic affordances
+- [x] **Task 3.5**: Write contract tests for `/beautiful-loop/reality-model`
 
 ### Implementation
-- [ ] **Task 3.6**: Create UnifiedRealityModel service in `api/services/unified_reality_model.py`
-- [ ] **Task 3.7**: Implement state container with BeliefState, ActiveInferenceState refs
-- [ ] **Task 3.8**: Implement coherence computation (cosine similarity)
-- [ ] **Task 3.9**: Implement bound vs transparent tracking
-- [ ] **Task 3.10**: Implement epistemic affordances derivation
-- [ ] **Task 3.11**: Add EventBus integration
-- [ ] **Task 3.12**: Run tests: `pytest tests/unit/test_unified_reality_model.py -v`
+- [x] **Task 3.6**: Create UnifiedRealityModel service in `api/services/unified_reality_model.py`
+- [x] **Task 3.7**: Implement state container with BeliefState, ActiveInferenceState refs
+- [x] **Task 3.8**: Implement coherence computation (cosine similarity)
+- [x] **Task 3.9**: Implement bound vs transparent tracking
+- [x] **Task 3.10**: Implement epistemic affordances derivation
+- [x] **Task 3.11**: Add EventBus integration (See Track 071)
+- [x] **Task 3.12**: Run tests: `pytest tests/unit/test_unified_reality_model.py -v`
 
 ---
 

@@ -26,6 +26,7 @@ class MetaEvolutionService:
 
     async def run_evolution_cycle(self) -> Optional[EvolutionUpdate]:
         """
+        Main evolution cycle:
         1. Identify low-performance/high-surprise episodes.
         2. Propose structural or strategic updates.
         3. Apply the update to the Knowledge Graph.

@@ -127,12 +127,13 @@ class SessionManager:
     # Journey Operations (T015)
     # =========================================================================
     
-    async def get_or_create_journey(self, device_id: UUID) -> JourneyWithStats:
+    async def get_or_create_journey(self, device_id: UUID, participant_id: Optional[str] = None) -> JourneyWithStats:
         """
         Get existing journey for device or create new one.
 
         Args:
             device_id: Device identifier from ~/.dionysus/device_id
+            participant_id: Optional human identity identifier
 
         Returns:
             JourneyWithStats with is_new=True if created, False if existing
@@ -144,12 +145,14 @@ class SessionManager:
         MERGE (j:Journey {device_id: $device_id})
         ON CREATE SET 
             j.id = randomUUID(),
+            j.participant_id = $participant_id,
             j.created_at = datetime(),
             j.updated_at = datetime(),
             j.metadata = '{}',
             j._is_new = true
         ON MATCH SET 
             j.updated_at = datetime(),
+            j.participant_id = coalesce(j.participant_id, $participant_id),
             j._is_new = false
         
         WITH j
@@ -158,7 +161,10 @@ class SessionManager:
         """
         
         try:
-            result = await self._driver.execute_query(cypher, {"device_id": str(device_id)})
+            result = await self._driver.execute_query(cypher, {
+                "device_id": str(device_id),
+                "participant_id": participant_id
+            })
             if not result or not result[0]:
                 raise DatabaseUnavailableError("Failed to get or create journey")
             
@@ -463,4 +469,16 @@ class SessionManager:
             "started_at": started_at.isoformat(),
             "ended_at": ended_at.isoformat()
         })
-        return {"session_id": session_id, "started_at": started_at.isoformat(), "ended_at": ended_at.isoformat()}
+
+# =============================================================================
+# Singleton Getter
+# =============================================================================
+
+_session_manager: Optional[SessionManager] = None
+
+def get_session_manager() -> SessionManager:
+    """Get or create singleton SessionManager instance."""
+    global _session_manager
+    if _session_manager is None:
+        _session_manager = SessionManager()
+    return _session_manager

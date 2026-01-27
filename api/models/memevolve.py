@@ -135,6 +135,9 @@ class MemoryRecallItem(BaseModel):
     invalid_at: Optional[datetime] = Field(None, description="Temporal validity end (Graphiti)")
     session_id: Optional[str] = Field(None, description="Source session ID")
     project_id: Optional[str] = Field(None, description="Source project ID")
+    device_id: Optional[str] = Field(None, description="Source device ID")
+    from_date: Optional[datetime] = Field(None, description="Memory valid from date")
+    to_date: Optional[datetime] = Field(None, description="Memory valid to date")
     tags: Optional[List[str]] = Field(default_factory=list, description="Memory tags")
 
 
@@ -164,6 +167,10 @@ class MemoryRecallRequest(BaseModel):
     session_id: Optional[str] = Field(
         None,
         description="Filter by session ID"
+    )
+    device_id: Optional[str] = Field(
+        None,
+        description="Filter by device ID (Identity Anchoring)"
     )
     include_temporal_metadata: bool = Field(
         default=False,

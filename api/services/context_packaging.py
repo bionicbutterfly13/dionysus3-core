@@ -10,6 +10,7 @@ from enum import Enum
 from datetime import datetime
 import logging
 import math
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -329,10 +330,12 @@ class TokenBudgetManager:
         
         if success and cell.priority in {CellPriority.CRITICAL, CellPriority.HIGH}:
             import asyncio
+            import json
             from api.services.graphiti_service import get_graphiti_service
             
             async def _persist_cell():
                 try:
+                    logger.debug(f"T041-033: Persisting cell {cell.cell_id}...")
                     graphiti = await get_graphiti_service()
                     # Persist as a ContextCell node
                     await graphiti.execute_cypher(
@@ -354,10 +357,12 @@ class TokenBudgetManager:
                             "metadata": json.dumps(cell.metadata)
                         }
                     )
+                    logger.debug(f"T041-033: Cell {cell.cell_id} persisted successfully.")
                 except Exception as e:
-                    logger.debug(f"Failed to persist context cell {cell.cell_id}: {e}")
+                    logger.warning(f"Failed to persist context cell {cell.cell_id}: {e}")
             
             # Fire and forget
+            logger.debug(f"T041-033: Triggering persistence task for {cell.cell_id}")
             asyncio.create_task(_persist_cell())
             
         return success

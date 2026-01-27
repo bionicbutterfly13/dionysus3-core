@@ -38,6 +38,7 @@ async def semantic_recall_tool(
     threshold: float = DEFAULT_THRESHOLD,
     project_id: Optional[str] = None,
     session_id: Optional[str] = None,
+    device_id: Optional[str] = None,
     memory_types: Optional[list[str]] = None,
     weight_by_importance: bool = DEFAULT_WEIGHT_BY_IMPORTANCE,
 ) -> str:
@@ -54,6 +55,7 @@ async def semantic_recall_tool(
         threshold: Minimum similarity score 0.0-1.0 (default: 0.7)
         project_id: Optional filter by project
         session_id: Optional filter by session
+        device_id: Optional filter by device (Identity Anchoring)
         memory_types: Optional filter by types (episodic, semantic, procedural, strategic)
         weight_by_importance: Whether to boost results by importance score (default: True)
 
@@ -67,6 +69,7 @@ async def semantic_recall_tool(
         filters = SearchFilters(
             project_id=project_id,
             session_id=session_id,
+            device_id=device_id,
             memory_types=memory_types,
         )
 
@@ -201,6 +204,11 @@ Example queries:
         "session_id": {
             "type": "string",
             "description": "Filter by session ID",
+            "required": False,
+        },
+        "device_id": {
+            "type": "string",
+            "description": "Filter by device ID (Identity Anchoring)",
             "required": False,
         },
         "memory_types": {

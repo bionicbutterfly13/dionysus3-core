@@ -2,7 +2,7 @@ import hashlib
 import json
 import logging
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from smolagents import CodeAgent
 from smolagents.memory import ActionStep
@@ -42,9 +42,6 @@ from api.services.resonance_detector import get_resonance_detector
 from api.services.unified_reality_model import get_unified_reality_model
 from api.models.metacognitive_particle import MetacognitiveParticle
 from api.services.particle_store import get_particle_store
-from api.services.active_inference_service import get_active_inference_service
-from api.models.belief_state import BeliefState as CanonicalBeliefState
-from api.agents.resource_gate import run_agent_with_timeout
 
 logger = logging.getLogger("dionysus.consciousness")
 
@@ -223,6 +220,7 @@ The agents will return structured results for synthesis.""",
         """
         Internal implementation of OODA loop execution with timeout and gating.
         """
+        from api.agents.resource_gate import run_agent_with_timeout
         
         logger.info("CONSCIOUSNESS OODA CYCLE START (MANAGED AGENTS)")
 
@@ -592,44 +590,9 @@ The agents will return structured results for synthesis.""",
             # Fallback: REPAIRED HONEST ESTIMATION
             # If no Meta-ToT, we use confidence to derive a grounded physics state
             if ai_state is None:
-                # Feature 044: Criticality Trigger Integration
-                # We need to calculate proper entropy if possible, or fall back to approximation
-                
-                ai_svc = get_active_inference_service()
-                
-                # Construct a proxy belief state from confidence/context
-                # High confidence = Low variance (sharp distribution)
-                # Low confidence = High variance (flat distribution)
-                # We simulate a belief state as a simple [confidence, 1-confidence] distribution for now
-                proxy_mean = [confidence, 1.0 - confidence]
-                # Precision matrix is inverse variance. 
-                # If confidence is high (0.9), variance is low, precision is high.
-                # If confidence is low (0.1), variance is high, precision is low.
-                precision_val = max(0.1, confidence * 10.0) 
-                proxy_precision = [[precision_val, 0.0], [0.0, precision_val]]
-                
-                belief_state = CanonicalBeliefState(
-                    mean=proxy_mean,
-                    precision=proxy_precision
-                )
-                
-                # Calculate True Entropy
-                entropy_val = ai_svc.calculate_uncertainty(belief_state)
-                
-                # CRITICALITY CHECK
-                CRITICALITY_THRESHOLD = 5.0 # Threshold for triggering phase transition
-                if entropy_val > CRITICALITY_THRESHOLD:
-                    logger.warning(
-                        f"CRITICALITY BREACH DETECTED (Entropy: {entropy_val:.2f} > {CRITICALITY_THRESHOLD}). "
-                        "System is in Critical State. Exploration prioritized."
-                    )
-                    # TODO: Emit CRITICALITY_BREACH event via EventBus (Feature 067)
-                    initial_context["system_state"] = "CRITICAL"
-                
                 surprise = 1.0 - confidence
                 ai_state = ActiveInferenceState(
                     surprise=surprise,
-                    entropy=entropy_val,
                     prediction_error=surprise * 0.8, # Scaled error
                     precision=confidence,
                     beliefs={"context_certainty": confidence}

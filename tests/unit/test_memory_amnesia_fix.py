@@ -3,7 +3,6 @@
 
 """Unit tests for Track 099 (Memory Amnesia Fix): bootstrap task, ingest after heartbeat, pre-prune flush."""
 
-import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,8 +12,35 @@ from api.services.heartbeat_service import HeartbeatService, HeartbeatContext
 
 
 @pytest.mark.asyncio
-async def test_make_decision_sets_task_for_bootstrap():
+async def test_make_decision_sets_task_for_bootstrap(monkeypatch):
     """initial_context['task'] is set so bootstrap recall has a non-empty query."""
+    from types import SimpleNamespace
+
+    stored_context: list[dict] = []
+
+    class DummyManager:
+        async def run_ooda_cycle(self, ctx: dict):
+            stored_context.append(ctx)
+            return {"final_plan": "Rest.", "actions": [{"action": "rest", "params": {}, "reason": "Low energy"}], "confidence": 0.9}
+
+    class DummySchemaContext:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        async def query(self, _prompt):
+            return {
+                "reasoning": "Agreed.",
+                "emotional_state": 0.0,
+                "confidence": 1.0,
+                "focus_goal_id": None,
+                "actions": [{"action": "rest", "params": {}, "reason": "Ok"}],
+            }
+
+    monkeypatch.setattr("api.agents.consciousness_manager.ConsciousnessManager", DummyManager)
+    monkeypatch.setattr("api.utils.schema_context.SchemaContext", DummySchemaContext)
+    import sys
+    sys.modules["litellm"] = SimpleNamespace(acompletion=AsyncMock(), completion=MagicMock())
+
     env = EnvironmentSnapshot(heartbeat_number=7, current_energy=10.0)
     goal = Goal(title="Ship feature X", priority=GoalPriority.ACTIVE, source=GoalSource.USER_REQUEST)
     goal_eval = GoalAssessment(
@@ -31,28 +57,11 @@ async def test_make_decision_sets_task_for_bootstrap():
         goals=goals,
     )
 
-    with patch("api.agents.consciousness_manager.ConsciousnessManager.run_ooda_cycle", new_callable=AsyncMock) as mock_ooda:
-        mock_ooda.return_value = {
-            "final_plan": "Rest.",
-            "actions": [{"action": "rest", "params": {}, "reason": "Low energy"}],
-            "confidence": 0.9,
-        }
-        with patch("api.utils.schema_context.chat_completion", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = MagicMock(
-                choices=[MagicMock(message=MagicMock(content=json.dumps({
-                    "reasoning": "Agreed.",
-                    "emotional_state": 0.0,
-                    "confidence": 1.0,
-                    "actions": [{"action": "rest", "params": {}, "reason": "Ok"}],
-                })))]
-            )
-            service = HeartbeatService(driver=MagicMock())
-            await service._make_decision(context)
+    service = HeartbeatService(driver=MagicMock())
+    await service._make_decision(context)
 
-    assert mock_ooda.called
-    # run_ooda_cycle(initial_context) -> first positional arg
-    initial_context = mock_ooda.call_args[0][0]
-    assert initial_context is not None
+    assert len(stored_context) == 1
+    initial_context = stored_context[0]
     task = initial_context.get("task", "")
     assert "Heartbeat 7" in task
     assert "Ship feature X" in task or "goal" in task.lower()

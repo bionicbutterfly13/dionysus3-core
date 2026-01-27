@@ -40,6 +40,7 @@ class Diagnosis(BaseModel):
 class JourneyBase(BaseModel):
     """Base fields for Journey."""
     device_id: UUID = Field(..., description="Device identifier from ~/.dionysus/device_id")
+    participant_id: Optional[str] = Field(None, description="Optional human identity identifier")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Extensible metadata")
 
 

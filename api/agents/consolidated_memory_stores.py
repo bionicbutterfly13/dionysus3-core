@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from api.models.autobiographical import (
     DevelopmentEvent,
@@ -154,16 +154,34 @@ class ConsolidatedMemoryStore:
             logger.error(f"Error fetching recent events: {e}")
             return []
 
-    async def get_active_journey(self) -> Optional[AutobiographicalJourney]:
-        """Retrieve the currently active Autobiographical Journey (most recently updated)."""
-        cypher = """
+    async def get_active_journey(self, 
+                                 participant_id: Optional[str] = None, 
+                                 device_id: Optional[str] = None) -> Optional[AutobiographicalJourney]:
+        """
+        Retrieve the currently active Autobiographical Journey for a specific identity.
+        
+        If participant_id or device_id is provided, it filters for the most recent
+        journey linked to that identity.
+        """
+        where_clause = ""
+        params = {}
+        
+        if participant_id:
+            where_clause = "WHERE j.participant_id = $participant_id"
+            params["participant_id"] = participant_id
+        elif device_id:
+            where_clause = "WHERE j.device_id = $device_id"
+            params["device_id"] = device_id
+
+        cypher = f"""
         MATCH (j:AutobiographicalJourney)
+        {where_clause}
         RETURN j
         ORDER BY j.updated_at DESC
         LIMIT 1
         """
         try:
-            result = await self._driver.execute_query(cypher)
+            result = await self._driver.execute_query(cypher, params)
             if result and result[0]:
                 data = result[0]["j"]
                 # Rehydrate dates
@@ -181,12 +199,14 @@ class ConsolidatedMemoryStore:
         self,
         query: str,
         limit: int = 10,
-        group_ids: Optional[List[str]] = None
+        group_ids: Optional[List[str]] = None,
+        anchor_node_ids: Optional[List[str]] = None
     ) -> List[DevelopmentEpisode]:
         """
-        Hybrid search for episodes using Graphiti.
+        Hybrid search for episodes using Graphiti with graph-distance re-ranking.
         
         T041-031: Refactor episode retrieval to use Graphiti hybrid search.
+        Includes graph distance re-ranking based on anchor nodes (e.g. goals).
         """
         graphiti = await get_graphiti_service()
         
@@ -194,12 +214,17 @@ class ConsolidatedMemoryStore:
         results = await graphiti.search(
             query=query,
             group_ids=group_ids,
-            limit=limit
+            limit=limit * 2 # Get more candidates for re-ranking
         )
         
-        episode_ids = set()
+        # episode_id -> max_similarity
+        candidate_scores: Dict[str, float] = {}
+        
         for edge in results.get("edges", []):
             fact_id = edge.get("uuid")
+            # Graphiti results usually have some similarity score
+            score = edge.get("score", 0.5)
+            
             if fact_id:
                 ep_records = await self._driver.execute_query(
                     """
@@ -209,9 +234,10 @@ class ConsolidatedMemoryStore:
                     {"fact_id": fact_id}
                 )
                 for rec in ep_records:
-                    episode_ids.add(rec["ep_id"])
+                    eid = rec["ep_id"]
+                    candidate_scores[eid] = max(candidate_scores.get(eid, 0.0), score)
         
-        # 2. Direct title/summary search
+        # 2. Direct title/summary search (keyword fallback)
         direct_records = await self._driver.execute_query(
             """
             MATCH (ep:DevelopmentEpisode)
@@ -223,11 +249,39 @@ class ConsolidatedMemoryStore:
             {"query": query, "limit": limit}
         )
         for rec in direct_records:
-            episode_ids.add(rec["ep_id"])
+            eid = rec["ep_id"]
+            candidate_scores[eid] = max(candidate_scores.get(eid, 0.0), 0.4) # Base score for keyword match
             
-        # 3. Rehydrate and return
+        if not candidate_scores:
+            return []
+
+        # 3. Graph Distance Re-ranking
+        if anchor_node_ids:
+            for eid in list(candidate_scores.keys()):
+                # Find shortest path distance to ANY anchor
+                dist_records = await self._driver.execute_query(
+                    """
+                    MATCH (ep:DevelopmentEpisode {id: $eid}), (anchor)
+                    WHERE anchor.id IN $anchors
+                    MATCH p = shortestPath((ep)-[*..3]-(anchor))
+                    RETURN length(p) as distance
+                    ORDER BY distance ASC
+                    LIMIT 1
+                    """,
+                    {"eid": eid, "anchors": anchor_node_ids}
+                )
+                if dist_records:
+                    distance = dist_records[0]["distance"]
+                    # Boost: 1.0 for dist 0, 0.8 for dist 1, etc.
+                    boost = 1.0 - (distance * 0.2)
+                    candidate_scores[eid] *= (1.0 + boost)
+                    logger.debug(f"Episode {eid} distance boost: {boost:.2f} (dist {distance})")
+
+        # 4. Sort and rehydrate
+        sorted_ids = sorted(candidate_scores.keys(), key=lambda k: candidate_scores[k], reverse=True)
+        
         episodes = []
-        for ep_id in list(episode_ids)[:limit]:
+        for ep_id in sorted_ids[:limit]:
             episode = await self.get_episode(ep_id)
             if episode:
                 episodes.append(episode)
