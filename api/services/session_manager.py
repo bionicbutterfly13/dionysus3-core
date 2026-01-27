@@ -142,7 +142,8 @@ class SessionManager:
         
         # Try to MATCH existing journey first
         query_match = """
-        MATCH (j:Journey {device_id: $device_id})
+        MATCH (j:Journey)
+        WHERE j.device_id = $device_id OR j.id = $device_id
         WITH j
         OPTIONAL MATCH (j)-[:HAS_SESSION]->(s:Session)
         RETURN j {.*} as journey_data, count(s) as session_count
