@@ -8,9 +8,17 @@ Feature: Metacognition Semantic Storage
 AUTHOR: Mani Saint-Victor, MD
 """
 
+import os
 import pytest
 from datetime import datetime
 from api.services.graphiti_service import GraphitiService, GraphitiConfig
+
+
+# Skip all tests if Neo4j is not configured
+pytestmark = pytest.mark.skipif(
+    not os.getenv("NEO4J_PASSWORD"),
+    reason="NEO4J_PASSWORD not configured - skipping integration tests",
+)
 
 
 @pytest.mark.asyncio

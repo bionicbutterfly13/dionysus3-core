@@ -10,10 +10,18 @@ TDD Test - Write FIRST, verify FAILS before implementation.
 Tests querying memories across different projects.
 """
 
+import os
 import uuid
 from datetime import datetime
 
 import pytest
+
+
+# Skip all tests if Neo4j is not configured
+pytestmark = pytest.mark.skipif(
+    not os.getenv("NEO4J_PASSWORD"),
+    reason="NEO4J_PASSWORD not configured - skipping integration tests",
+)
 
 
 # =============================================================================
