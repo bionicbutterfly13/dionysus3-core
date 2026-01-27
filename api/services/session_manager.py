@@ -144,7 +144,7 @@ class SessionManager:
         cypher = """
         MERGE (j:Journey {device_id: $device_id})
         ON CREATE SET 
-            j.id = randomUUID(),
+            j.id = $new_id,
             j.participant_id = $participant_id,
             j.created_at = datetime(),
             j.updated_at = datetime(),
@@ -157,35 +157,43 @@ class SessionManager:
         
         WITH j
         OPTIONAL MATCH (j)-[:HAS_SESSION]->(s:Session)
-        RETURN j, count(s) as session_count
+        RETURN j {.*} as journey_data, count(s) as session_count
         """
         
         try:
             result = await self._driver.execute_query(cypher, {
                 "device_id": str(device_id),
-                "participant_id": participant_id
+                "participant_id": participant_id,
+                "new_id": str(uuid4())
             })
-            if not result or not result[0]:
-                raise DatabaseUnavailableError("Failed to get or create journey")
+            if not result:
+                raise DatabaseUnavailableError("Failed to get or create journey - no result from Neo4j")
             
             row = result[0]
-            j_node = row["j"]
+            j_data = row["journey_data"]
             session_count = int(row["session_count"])
-            is_new = j_node.get("_is_new", False)
+            is_new = j_data.get("_is_new", False)
             
             operation = "created" if is_new else "retrieved"
             log_journey_operation(
-                operation, j_node["id"],
+                operation, j_data["id"],
                 duration_ms=measure_duration(start_time),
                 device_id=str(device_id)
             )
             
+            # Helper to handle datetime conversion
+            def _to_dt(val):
+                if not val: return datetime.utcnow()
+                if hasattr(val, 'to_native'): return val.to_native() # Neo4j DateTime
+                if isinstance(val, str): return datetime.fromisoformat(val.replace('Z', '+00:00'))
+                return val
+
             return JourneyWithStats(
-                id=UUID(j_node["id"]),
-                device_id=UUID(j_node["device_id"]),
-                created_at=datetime.fromisoformat(j_node["created_at"].replace('Z', '+00:00')) if isinstance(j_node["created_at"], str) else j_node["created_at"],
-                updated_at=datetime.fromisoformat(j_node["updated_at"].replace('Z', '+00:00')) if isinstance(j_node["updated_at"], str) else j_node["updated_at"],
-                metadata=json.loads(j_node.get("metadata", "{}")),
+                id=UUID(j_data["id"]),
+                device_id=UUID(j_data["device_id"]),
+                created_at=_to_dt(j_data.get("created_at")),
+                updated_at=_to_dt(j_data.get("updated_at")),
+                metadata=json.loads(j_data.get("metadata", "{}")),
                 session_count=session_count,
                 is_new=is_new
             )
