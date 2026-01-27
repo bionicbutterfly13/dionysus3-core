@@ -205,7 +205,9 @@ class SessionManager:
                 is_new=is_new
             )
         except Exception as e:
-            logger.error(f"Error in get_or_create_journey: {e}")
+            import traceback
+            error_trace = traceback.format_exc()
+            logger.error(f"Error in get_or_create_journey: {e}\n{error_trace}")
             raise DatabaseUnavailableError(f"Database error: {e}")
 
     async def get_journey(self, journey_id: UUID) -> Optional[Journey]:
