@@ -576,6 +576,9 @@ class HeartbeatService:
         # Store as episodic memory and heartbeat log
         await self._record_heartbeat(summary)
 
+        # Track 099: Ingest heartbeat narrative + reasoning through memory gateway
+        await self._route_heartbeat_memory(summary)
+
         # FEATURE 044: Multi-Tier Memory Lifecycle Management
         # Perform background consolidation and compression
         try:
@@ -603,15 +606,21 @@ class HeartbeatService:
             from api.models.action import HeartbeatDecisionSchema
             
             # Convert HeartbeatContext to initial_context dict for the manager
+            goal_titles = [g.title for g in context.goal_assessment.active_goals]
+            task = (
+                f"Heartbeat {context.environment.heartbeat_number} decision. "
+                f"Active goals: {', '.join(goal_titles) if goal_titles else 'none'}."
+            )
             initial_context = {
                 "heartbeat_number": context.environment.heartbeat_number,
                 "energy": context.environment.current_energy,
                 "user_present": context.environment.user_present,
-                "active_goals": [g.title for g in context.goal_assessment.active_goals],
+                "active_goals": goal_titles,
                 "recent_memories": [m.get("content") for m in context.recent_memories[:3]],
                 "identity": context.identity_context,
-                "project_id": "dionysus-core", # Default project for heartbeat
-                "bootstrap_recall": True
+                "project_id": "dionysus-core",
+                "bootstrap_recall": True,
+                "task": task,
             }
             
             if feedback:
@@ -1237,6 +1246,34 @@ class HeartbeatService:
                 
         except Exception as e:
             logger.error(f"Failed to update working memory cache: {e}")
+
+    async def _route_heartbeat_memory(self, summary: HeartbeatSummary) -> None:
+        """
+        Route heartbeat narrative + reasoning through MemoryBasinRouter (Track 099).
+        Ensures long-term memory ingest via MemEvolve/Graphiti. Failures are logged
+        and never break the heartbeat.
+        """
+        try:
+            from api.services.memory_basin_router import get_memory_basin_router
+
+            parts = [
+                f"Heartbeat #{summary.heartbeat_number}.",
+                summary.narrative or "",
+            ]
+            if summary.decision.reasoning:
+                parts.append(f"Reasoning: {summary.decision.reasoning}")
+            content = "\n\n".join(p for p in parts if p.strip())
+            if not content.strip():
+                return
+
+            router = get_memory_basin_router()
+            await router.route_memory(
+                content=content,
+                source_id=f"heartbeat:{summary.heartbeat_number}",
+            )
+            logger.info(f"Routed heartbeat #{summary.heartbeat_number} to memory stack")
+        except Exception as e:
+            logger.warning("Heartbeat memory route failed (non-fatal): %s", e)
 
     async def get_recent_heartbeats(self, limit: int = 10) -> list[dict[str, Any]]:
         """

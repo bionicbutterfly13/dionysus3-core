@@ -172,6 +172,7 @@ class ConsolidatedMemoryStore:
                 if isinstance(data.get("updated_at"), str):
                     data["updated_at"] = datetime.fromisoformat(data["updated_at"])
                 return AutobiographicalJourney(**data)
+            return None
         except Exception as e:
             logger.error(f"Failed to fetch active journey: {e}")
             return None
@@ -190,7 +191,6 @@ class ConsolidatedMemoryStore:
         graphiti = await get_graphiti_service()
         
         # 1. Search for relevant facts in episodes
-        # Filter for episodic group if provided
         results = await graphiti.search(
             query=query,
             group_ids=group_ids,
@@ -199,11 +199,8 @@ class ConsolidatedMemoryStore:
         
         episode_ids = set()
         for edge in results.get("edges", []):
-            # Extract episode ID from fact if stored there, or search for linked episodes
-            # In Dionysus, Fact nodes are DISTILLED_FROM Episode nodes.
             fact_id = edge.get("uuid")
             if fact_id:
-                # Find episodes linked to these facts
                 ep_records = await self._driver.execute_query(
                     """
                     MATCH (f:Fact {id: $fact_id})-[:DISTILLED_FROM]->(ep:DevelopmentEpisode)
@@ -214,8 +211,7 @@ class ConsolidatedMemoryStore:
                 for rec in ep_records:
                     episode_ids.add(rec["ep_id"])
         
-        # 2. Also search episodes directly by title/summary if they were indexed as nodes
-        # (Graphiti usually extracts entities, but we can query the nodes directly)
+        # 2. Direct title/summary search
         direct_records = await self._driver.execute_query(
             """
             MATCH (ep:DevelopmentEpisode)
@@ -249,7 +245,6 @@ class ConsolidatedMemoryStore:
                 data["start_time"] = datetime.fromisoformat(data["start_time"])
             if isinstance(data.get("end_time"), str):
                 data["end_time"] = datetime.fromisoformat(data["end_time"])
-            # Rehydrate lists/enums if needed
             return DevelopmentEpisode(**data)
         return None
 

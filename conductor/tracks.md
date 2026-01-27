@@ -19,6 +19,7 @@
 | 071-urm-live-integration | In Progress | UnifiedRealityModel Live Integration | Wire ConsciousnessManager to populate URM with real OODA cycle data |
 | 095-coordination-pool-rename | Planned | Coordination Pool Rename | Rename Daedalus pool terminology and align delegation docs |
 | 095-comp-neuro-gold-standard | Done | Computational Neuroscience Gold Standard | Anderson (2014) chapter mapping: Hopfield attractors, ACT-R OODA, ABM smolagents |
+| 099-memory-amnesia-fix | Done | Memory Amnesia Fix | Bootstrap recall task wiring, ingest after heartbeat, pre-prune memory flush |
 
 <!--
 Status: Planned, In Progress, In Review, Done, Cancelled
