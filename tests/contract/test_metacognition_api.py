@@ -46,7 +46,7 @@ def test_classify_contract(client):
         
     assert response.status_code == 200
     data = response.json()
-    assert data["particle_type"] == "COGNITIVE"
+    assert data["particle_type"] == "cognitive"
     assert data["confidence"] == 0.9
 
 def test_get_agency_contract(client):
