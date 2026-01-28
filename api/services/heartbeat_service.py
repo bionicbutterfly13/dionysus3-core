@@ -157,9 +157,9 @@ class ContextBuilder:
         """Get Neo4j driver."""
         if self._driver:
             return self._driver
-        from api.services.remote_sync import get_graphiti_driver
+        from api.services.remote_sync import get_neo4j_driver
 
-        return get_graphiti_driver()
+        return get_neo4j_driver()
 
     async def build_context(
         self,
@@ -387,9 +387,9 @@ class HeartbeatService:
         """Get Neo4j driver."""
         if self._driver:
             return self._driver
-        from api.services.remote_sync import get_graphiti_driver
+        from api.services.remote_sync import get_neo4j_driver
 
-        return get_graphiti_driver()
+        return get_neo4j_driver()
 
     async def heartbeat(self) -> HeartbeatSummary:
         """
