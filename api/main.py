@@ -20,7 +20,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from api.routers import ias, heartbeat, models, memory, skills, sync, session, memevolve, maintenance, avatar, discovery, coordination, rollback, kg_learning, monitoring, mosaeic, graphiti, monitoring_pulse, network_state, belief_journey, agents, meta_tot, metacognition, consciousness, beautiful_loop, concept_extraction, domain_specialization, voice, documents, trajectory, hexis
+from api.routers import ias, heartbeat, models, memory, skills, sync, session, memevolve, maintenance, avatar, discovery, coordination, rollback, kg_learning, monitoring, mosaeic, graphiti, monitoring_pulse, network_state, belief_journey, agents, meta_tot, metacognition, consciousness, beautiful_loop, concept_extraction, domain_specialization, voice, documents, trajectory, hexis, subconscious
 from api.models.network_state import get_network_state_config
 from api.services.journal_service import start_journal_scheduler
 from api.services.relatio_narrative_service import RelatioNarrativeService
@@ -140,6 +140,7 @@ app.include_router(voice.router)
 app.include_router(documents.router)
 app.include_router(trajectory.router)
 app.include_router(hexis.router)
+app.include_router(subconscious.router)
 
 # Network state router (conditional on feature flag) - T007
 if get_network_state_config().network_state_enabled:
