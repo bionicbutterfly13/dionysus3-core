@@ -110,6 +110,201 @@ def get_shadow(archetype: JungianArchetype) -> Optional[JungianArchetype]:
 DevelopmentArchetype = JungianArchetype
 
 
+# =============================================================================
+# Track 002: Archetype Motif Patterns for Narrative Evidence
+# =============================================================================
+
+class ArchetypeEvidence(BaseModel):
+    """Evidence for archetype activation from narrative analysis."""
+    archetype: str
+    weight: float = Field(ge=0.0, le=1.0, description="Evidence weight (0-1)")
+    source: str = Field(description="Source of evidence (motif, svo, event)")
+    pattern: str = Field(description="Matched pattern")
+    context: str = Field(default="", description="Surrounding context")
+
+    class Config:
+        frozen = True
+
+
+# Narrative motif patterns mapped to archetypes with evidence weights
+# Each pattern is a tuple of (regex_pattern, evidence_weight)
+ARCHETYPE_MOTIF_PATTERNS: Dict[str, List[tuple]] = {
+    "sage": [
+        (r"seek.*wisdom", 0.4),
+        (r"understand.*truth", 0.35),
+        (r"analyze.*deep", 0.3),
+        (r"knowledge.*power", 0.3),
+        (r"learn.*from.*mistake", 0.25),
+        (r"study.*careful", 0.25),
+        (r"wise.*counsel", 0.35),
+        (r"insight.*reveal", 0.3),
+    ],
+    "warrior": [
+        (r"hero.*slay", 0.4),
+        (r"battle.*against", 0.35),
+        (r"fight.*for", 0.3),
+        (r"overcome.*obstacle", 0.35),
+        (r"victory.*achieve", 0.3),
+        (r"defend.*protect", 0.3),
+        (r"conquer.*fear", 0.35),
+        (r"challenge.*face", 0.25),
+    ],
+    "creator": [
+        (r"create.*new", 0.4),
+        (r"build.*from.*scratch", 0.35),
+        (r"invent.*innovate", 0.35),
+        (r"imagine.*possible", 0.3),
+        (r"design.*vision", 0.3),
+        (r"craft.*careful", 0.25),
+        (r"manifest.*dream", 0.35),
+        (r"bring.*life", 0.3),
+    ],
+    "ruler": [
+        (r"lead.*guide", 0.35),
+        (r"control.*order", 0.3),
+        (r"organize.*structure", 0.3),
+        (r"command.*direct", 0.35),
+        (r"govern.*manage", 0.3),
+        (r"establish.*rule", 0.35),
+        (r"maintain.*stability", 0.3),
+        (r"delegate.*authority", 0.25),
+    ],
+    "explorer": [
+        (r"discover.*unknown", 0.4),
+        (r"journey.*into", 0.35),
+        (r"seek.*adventure", 0.35),
+        (r"explore.*new", 0.3),
+        (r"venture.*beyond", 0.3),
+        (r"quest.*for", 0.35),
+        (r"wander.*find", 0.25),
+        (r"chart.*territory", 0.3),
+    ],
+    "magician": [
+        (r"transform.*change", 0.4),
+        (r"connect.*bridge", 0.35),
+        (r"integrate.*whole", 0.35),
+        (r"catalyze.*shift", 0.3),
+        (r"manifest.*reality", 0.35),
+        (r"alchemize.*convert", 0.35),
+        (r"transcend.*limit", 0.3),
+        (r"synthesize.*unite", 0.3),
+    ],
+    "caregiver": [
+        (r"nurture.*support", 0.4),
+        (r"heal.*wounds", 0.35),
+        (r"protect.*vulnerable", 0.35),
+        (r"serve.*others", 0.3),
+        (r"comfort.*pain", 0.3),
+        (r"care.*for", 0.3),
+        (r"sacrifice.*self", 0.35),
+        (r"tend.*needs", 0.25),
+    ],
+    "rebel": [
+        (r"break.*free", 0.4),
+        (r"challenge.*status", 0.35),
+        (r"revolt.*against", 0.35),
+        (r"disrupt.*change", 0.3),
+        (r"defy.*convention", 0.35),
+        (r"overthrow.*old", 0.35),
+        (r"radical.*transform", 0.3),
+        (r"refuse.*accept", 0.25),
+    ],
+    "innocent": [
+        (r"trust.*good", 0.35),
+        (r"hope.*future", 0.3),
+        (r"simple.*pure", 0.3),
+        (r"believe.*possible", 0.3),
+        (r"faith.*restore", 0.35),
+        (r"optimis.*bright", 0.3),
+        (r"naiv.*innocen", 0.25),
+        (r"fresh.*start", 0.3),
+    ],
+    "orphan": [
+        (r"belong.*find", 0.35),
+        (r"struggle.*survive", 0.35),
+        (r"lost.*alone", 0.3),
+        (r"resilient.*despite", 0.35),
+        (r"connect.*community", 0.3),
+        (r"overcome.*abandon", 0.35),
+        (r"pragmatic.*realistic", 0.25),
+        (r"empathy.*share", 0.3),
+    ],
+    "lover": [
+        (r"love.*deep", 0.4),
+        (r"passion.*drive", 0.35),
+        (r"connect.*intimate", 0.35),
+        (r"beauty.*appreciate", 0.3),
+        (r"commit.*devote", 0.35),
+        (r"harmonize.*align", 0.3),
+        (r"aesthetic.*perfect", 0.25),
+        (r"embrace.*accept", 0.3),
+    ],
+    "jester": [
+        (r"play.*joy", 0.35),
+        (r"humor.*laugh", 0.35),
+        (r"trick.*clever", 0.3),
+        (r"light.*heart", 0.3),
+        (r"fun.*enjoy", 0.3),
+        (r"spontan.*free", 0.3),
+        (r"subvert.*expect", 0.35),
+        (r"creative.*chaos", 0.3),
+    ],
+}
+
+
+# SVO (Subject-Verb-Object) patterns for archetype evidence
+ARCHETYPE_SVO_PATTERNS: Dict[str, List[tuple]] = {
+    "sage": [
+        (r"(someone|agent|system)\s+(analyze|understand|study|research)", 0.3),
+        (r"(wisdom|knowledge|truth)\s+is\s+(seek|find|reveal)", 0.35),
+    ],
+    "warrior": [
+        (r"(someone|agent|hero)\s+(fight|battle|defend|attack)", 0.35),
+        (r"(obstacle|enemy|challenge)\s+is\s+(overcome|defeat|conquer)", 0.35),
+    ],
+    "creator": [
+        (r"(someone|agent|system)\s+(create|build|design|invent)", 0.35),
+        (r"(new|novel|original)\s+(emerge|appear|manifest)", 0.3),
+    ],
+    "ruler": [
+        (r"(someone|agent|leader)\s+(command|organize|delegate|manage)", 0.35),
+        (r"(order|structure|control)\s+is\s+(establish|maintain)", 0.3),
+    ],
+    "explorer": [
+        (r"(someone|agent|seeker)\s+(discover|explore|venture|journey)", 0.35),
+        (r"(unknown|mystery|frontier)\s+is\s+(reveal|explore)", 0.3),
+    ],
+    "magician": [
+        (r"(someone|agent|catalyst)\s+(transform|integrate|synthesize)", 0.35),
+        (r"(change|shift|transition)\s+is\s+(catalyze|manifest)", 0.35),
+    ],
+    "caregiver": [
+        (r"(someone|agent|healer)\s+(nurture|heal|protect|support)", 0.35),
+        (r"(others|community|patient)\s+is\s+(care|tend|serve)", 0.3),
+    ],
+    "rebel": [
+        (r"(someone|agent|rebel)\s+(challenge|defy|revolt|disrupt)", 0.35),
+        (r"(status.*quo|convention|rule)\s+is\s+(break|overthrow)", 0.35),
+    ],
+    "innocent": [
+        (r"(someone|agent|child)\s+(trust|hope|believe)", 0.3),
+        (r"(good|pure|simple)\s+is\s+(find|restore|preserve)", 0.3),
+    ],
+    "orphan": [
+        (r"(someone|agent|survivor)\s+(struggle|persevere|endure)", 0.35),
+        (r"(belonging|connection)\s+is\s+(seek|find)", 0.3),
+    ],
+    "lover": [
+        (r"(someone|agent|lover)\s+(love|embrace|appreciate|commit)", 0.35),
+        (r"(beauty|passion|harmony)\s+is\s+(express|create)", 0.3),
+    ],
+    "jester": [
+        (r"(someone|agent|trickster)\s+(play|joke|subvert|amuse)", 0.35),
+        (r"(joy|humor|fun)\s+is\s+(spread|create|bring)", 0.3),
+    ],
+}
+
+
 class AttractorType(str, Enum):
     """Types of attractor dynamics in the cognitive landscape"""
     STRANGE = "strange"     # Chaotic, fractal, creative (Complex thought seeds)

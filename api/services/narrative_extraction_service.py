@@ -3,15 +3,23 @@ Narrative Extraction Service.
 
 Primary: Text2Story (English-only)
 Fallback: LLM NarrativeStructureExtractor
+
+Track 002: Jungian Archetypes - Archetype evidence extraction from narratives
 """
 
 from __future__ import annotations
 
 import importlib
 import logging
-from typing import Any, Optional
+import re
+from typing import Any, Optional, List, Dict
 
 from api.models.concept_extraction import ConceptExtractionLevel, ExtractedConcept
+from api.models.autobiographical import (
+    ArchetypeEvidence,
+    ARCHETYPE_MOTIF_PATTERNS,
+    ARCHETYPE_SVO_PATTERNS,
+)
 from api.services.concept_extraction import NarrativeStructureExtractor
 
 logger = logging.getLogger(__name__)
@@ -84,6 +92,117 @@ class NarrativeExtractionService:
             lower_level_concepts=None,
         )
         return _relationships_from_narratives(result.concepts, min_confidence=self._min_confidence)
+
+    # =========================================================================
+    # Track 002: Archetype Evidence Extraction
+    # =========================================================================
+
+    def extract_archetype_evidence(self, content: str) -> List[ArchetypeEvidence]:
+        """
+        Extract archetype evidence from narrative content.
+
+        Track 002: Jungian Cognitive Archetypes
+
+        Integration (IO Map):
+        - Inlets: Raw narrative content from route_memory() or extract_relationships()
+        - Outlets: ArchetypeEvidence list → EFEEngine.update_archetype_precision_bayesian()
+
+        Args:
+            content: Narrative text to analyze
+
+        Returns:
+            List of ArchetypeEvidence instances
+        """
+        if not content or not content.strip():
+            return []
+
+        evidence_list: List[ArchetypeEvidence] = []
+        content_lower = content.lower()
+
+        # Extract from motif patterns
+        for archetype, patterns in ARCHETYPE_MOTIF_PATTERNS.items():
+            for pattern, weight in patterns:
+                try:
+                    if re.search(pattern, content_lower, re.IGNORECASE):
+                        evidence_list.append(
+                            ArchetypeEvidence(
+                                archetype=archetype,
+                                weight=weight,
+                                source="motif",
+                                pattern=pattern,
+                                context=content[:100],
+                            )
+                        )
+                except re.error:
+                    logger.warning(f"Invalid regex pattern for {archetype}: {pattern}")
+
+        # Extract from SVO patterns
+        for archetype, patterns in ARCHETYPE_SVO_PATTERNS.items():
+            for pattern, weight in patterns:
+                try:
+                    if re.search(pattern, content_lower, re.IGNORECASE):
+                        evidence_list.append(
+                            ArchetypeEvidence(
+                                archetype=archetype,
+                                weight=weight,
+                                source="svo",
+                                pattern=pattern,
+                                context=content[:100],
+                            )
+                        )
+                except re.error:
+                    logger.warning(f"Invalid SVO pattern for {archetype}: {pattern}")
+
+        if evidence_list:
+            logger.debug(
+                f"Archetype evidence extracted: {len(evidence_list)} items, "
+                f"archetypes={set(e.archetype for e in evidence_list)}"
+            )
+
+        return evidence_list
+
+    def aggregate_archetype_evidence(
+        self,
+        evidence_list: List[ArchetypeEvidence]
+    ) -> Dict[str, float]:
+        """
+        Aggregate evidence weights by archetype.
+
+        Args:
+            evidence_list: List of ArchetypeEvidence
+
+        Returns:
+            Dict of archetype_name -> cumulative_weight
+        """
+        aggregated: Dict[str, float] = {}
+
+        for evidence in evidence_list:
+            current = aggregated.get(evidence.archetype, 0.0)
+            # Use max(current, new) instead of sum to avoid inflation
+            # Or use sum with cap: min(1.0, current + evidence.weight)
+            aggregated[evidence.archetype] = min(1.0, current + evidence.weight)
+
+        return aggregated
+
+    async def extract_relationships_with_archetypes(
+        self,
+        content: str
+    ) -> tuple[list[dict], List[ArchetypeEvidence]]:
+        """
+        Extract relationships and archetype evidence together.
+
+        Track 002: Combined narrative + archetype extraction
+
+        Args:
+            content: Narrative text
+
+        Returns:
+            Tuple of (relationships, archetype_evidence)
+        """
+        relationships = await self.extract_relationships(content)
+        archetype_evidence = self.extract_archetype_evidence(content)
+
+        return relationships, archetype_evidence
 
 
 def _relationships_from_narratives(

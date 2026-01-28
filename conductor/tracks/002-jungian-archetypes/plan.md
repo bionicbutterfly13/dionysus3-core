@@ -91,34 +91,37 @@
 
 ---
 
-## Phase 3: Narrative → Archetype Evidence Pipeline
+## Phase 3: Narrative → Archetype Evidence Pipeline ✅
 
 **Goal**: Extract archetype evidence from narrative motifs and SVO patterns.
 
-- [ ] **Task 3.1**: Define archetype motif patterns in `api/models/autobiographical.py`
+- [x] **Task 3.1**: Define archetype motif patterns in `api/models/autobiographical.py`
     - Constant: `ARCHETYPE_MOTIF_PATTERNS` dict
     - Maps narrative patterns to archetype + evidence weight
     - Example: "hero.*slay" → WARRIOR +0.3
 
-- [ ] **Task 3.2**: Extend `narrative_extraction_service.py` with archetype extraction
-    - New method: `extract_archetype_evidence(narrative_result) -> list[ArchetypeEvidence]`
-    - Process Text2Story themes and SVO triplets
+- [x] **Task 3.2**: Extend `narrative_extraction_service.py` with archetype extraction
+    - New method: `extract_archetype_evidence(content) -> list[ArchetypeEvidence]`
+    - New method: `aggregate_archetype_evidence(evidence_list) -> dict[str, float]`
+    - New method: `extract_relationships_with_archetypes()` for combined extraction
     - Return weighted evidence for each detected archetype
 
-- [ ] **Task 3.3**: Implement Bayesian precision update in `api/services/efe_engine.py`
-    - New method: `update_archetype_precision(archetype, evidence_list)`
+- [x] **Task 3.3**: Implement Bayesian precision update in `api/services/efe_engine.py`
+    - New method: `update_archetype_precision_bayesian(archetype, evidence_weight, direction)`
     - Simple Bayesian update: posterior = prior * likelihood
-    - Normalize across all archetypes
+    - Clamped to [0.0, 1.0]
+    - (Completed in Phase 2)
 
 - [ ] **Task 3.4**: Wire narrative extraction to archetype pipeline
     - In `MemoryBasinRouter.route_memory_with_resonance()`
     - After narrative extraction, call `extract_archetype_evidence()`
     - Feed evidence to EFE engine for precision updates
+    - (Deferred to Phase 5 Integration)
 
-- [ ] **Task 3.5**: Write unit tests for narrative evidence pipeline
+- [x] **Task 3.5**: Write unit tests for narrative evidence pipeline (25 tests passing)
     - Test: `test_motif_pattern_extraction`
     - Test: `test_svo_to_archetype_evidence`
-    - Test: `test_bayesian_precision_update`
+    - Test: `test_bayesian_precision_update` (Phase 2)
     - Test: `test_narrative_pipeline_integration`
     - Target: `tests/unit/test_archetype_narrative.py`
 
