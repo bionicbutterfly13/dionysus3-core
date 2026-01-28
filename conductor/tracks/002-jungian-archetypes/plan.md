@@ -62,27 +62,27 @@
 
 ---
 
-## Phase 2: EFE-Based Archetype Competition
+## Phase 2: EFE-Based Archetype Competition ✅
 
 **Goal**: Implement archetype competition via Expected Free Energy minimization.
 
-- [ ] **Task 2.1**: Add archetype EFE calculation to `api/services/efe_engine.py`
+- [x] **Task 2.1**: Add archetype EFE calculation to `api/services/efe_engine.py`
     - New method: `calculate_archetype_efe(content, archetype_prior) -> float`
     - Use precision weighting from archetype prior
     - Factor in preferred/avoided action affordances
 
-- [ ] **Task 2.2**: Extend `select_dominant_thought()` with archetype selection
-    - Input: thoughtseed + list of active archetypes
-    - Calculate cumulative EFE for each archetype
+- [x] **Task 2.2**: Extend with `select_dominant_archetype()` method
+    - Input: content + list of active archetypes
+    - Calculate EFE for each archetype
     - Return dominant archetype (argmin EFE)
     - Return list of suppressed archetypes for shadow logging
 
-- [ ] **Task 2.3**: Create `ShadowLog` service in `api/services/shadow_log_service.py`
+- [x] **Task 2.3**: Create `ArchetypeShadowLog` class in `api/services/shadow_log_service.py`
     - Model: `ShadowEntry(archetype, efe_score, timestamp, context)`
-    - Methods: `log_suppression()`, `get_recent(window)`, `clear_old()`
+    - Methods: `log_suppression()`, `get_recent(window)`, `check_resonance()`
     - In-memory storage with configurable window size
 
-- [ ] **Task 2.4**: Write unit tests for EFE competition
+- [x] **Task 2.4**: Write unit tests for EFE competition (30 tests passing)
     - Test: `test_archetype_efe_calculation`
     - Test: `test_dominant_archetype_selection`
     - Test: `test_suppressed_archetypes_logged`

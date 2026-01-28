@@ -419,6 +419,161 @@ class EFEEngine:
         )
 
 
+    # =========================================================================
+    # Track 002: Archetype EFE Competition
+    # =========================================================================
+
+    def calculate_archetype_efe(
+        self,
+        content: str,
+        archetype_prior: Any,
+        base_precision: float = 1.0
+    ) -> float:
+        """
+        Calculate EFE for a specific archetype given content.
+
+        Track 002: Jungian Cognitive Archetypes
+
+        The archetype EFE factors in:
+        - Archetype precision (current confidence weight)
+        - Trigger pattern matching (lowers EFE if content matches triggers)
+        - Action affordance alignment (preferred/avoided actions)
+
+        Args:
+            content: The content/action to evaluate
+            archetype_prior: ArchetypePrior instance
+            base_precision: Base precision modifier
+
+        Returns:
+            EFE score (lower = better match for this archetype)
+        """
+        # Base EFE from archetype precision (inverted: higher precision = lower EFE)
+        precision_component = 1.0 - archetype_prior.precision
+
+        # Trigger pattern matching
+        trigger_bonus = 0.0
+        content_lower = content.lower()
+        for pattern in archetype_prior.trigger_patterns:
+            if pattern.lower() in content_lower:
+                trigger_bonus += 0.1  # Each matching trigger reduces EFE
+
+        # Action affordance alignment
+        action_bonus = 0.0
+        for preferred in archetype_prior.preferred_actions:
+            if preferred.lower() in content_lower:
+                action_bonus += 0.05  # Preferred action reduces EFE
+
+        action_penalty = 0.0
+        for avoided in archetype_prior.avoided_actions:
+            if avoided.lower() in content_lower:
+                action_penalty += 0.1  # Avoided action increases EFE
+
+        # Combine components
+        # EFE = precision_component - trigger_bonus - action_bonus + action_penalty
+        efe = precision_component - min(trigger_bonus, 0.5) - min(action_bonus, 0.3) + action_penalty
+
+        # Apply base precision modifier
+        efe = efe / max(0.1, base_precision)
+
+        # Clamp to reasonable range
+        efe = max(0.0, min(2.0, efe))
+
+        logger.debug(
+            f"Archetype EFE [{archetype_prior.archetype}]: "
+            f"precision={precision_component:.3f}, triggers={trigger_bonus:.3f}, "
+            f"actions={action_bonus:.3f}, penalties={action_penalty:.3f}, "
+            f"total={efe:.4f}"
+        )
+
+        return efe
+
+    def select_dominant_archetype(
+        self,
+        content: str,
+        archetypes: List[Any],
+        base_precision: float = 1.0
+    ) -> tuple[Optional[Any], List[Any], Dict[str, float]]:
+        """
+        Winner-take-all selection of dominant archetype via EFE minimization.
+
+        Track 002: Jungian Cognitive Archetypes
+        Reference: Kavi et al. (2025) Thoughtseeds - EFE competition for Inner Screen
+
+        Args:
+            content: Content/context for evaluation
+            archetypes: List of ArchetypePrior instances to compete
+            base_precision: Base precision modifier
+
+        Returns:
+            Tuple of:
+            - Dominant archetype (argmin EFE)
+            - List of suppressed archetypes (for Shadow Log)
+            - Dict of archetype_name -> efe_score
+        """
+        if not archetypes:
+            return None, [], {}
+
+        efe_scores: Dict[str, float] = {}
+
+        for archetype in archetypes:
+            efe = self.calculate_archetype_efe(content, archetype, base_precision)
+            efe_scores[archetype.archetype] = efe
+
+        # Find dominant (minimum EFE)
+        dominant_name = min(efe_scores, key=lambda k: efe_scores[k])
+        dominant = next((a for a in archetypes if a.archetype == dominant_name), None)
+
+        # Suppressed = all others
+        suppressed = [a for a in archetypes if a.archetype != dominant_name]
+
+        logger.info(
+            f"Archetype competition: dominant={dominant_name} (EFE={efe_scores[dominant_name]:.4f}), "
+            f"suppressed={[a.archetype for a in suppressed]}"
+        )
+
+        return dominant, suppressed, efe_scores
+
+    def update_archetype_precision_bayesian(
+        self,
+        archetype_prior: Any,
+        evidence_weight: float,
+        direction: str = "increase"
+    ) -> float:
+        """
+        Bayesian update of archetype precision based on evidence.
+
+        Track 002: Jungian Cognitive Archetypes
+
+        Simple Bayesian update:
+        - If evidence supports archetype: precision increases
+        - If evidence contradicts: precision decreases
+
+        Args:
+            archetype_prior: ArchetypePrior to update
+            evidence_weight: Strength of evidence (0-1)
+            direction: "increase" or "decrease"
+
+        Returns:
+            New precision value
+        """
+        current = archetype_prior.precision
+        delta = evidence_weight * 0.1  # Scale evidence to small delta
+
+        if direction == "increase":
+            new_precision = min(1.0, current + delta)
+        else:
+            new_precision = max(0.0, current - delta)
+
+        archetype_prior.precision = new_precision
+
+        logger.debug(
+            f"Bayesian update [{archetype_prior.archetype}]: "
+            f"{current:.3f} -> {new_precision:.3f} ({direction}, evidence={evidence_weight:.3f})"
+        )
+
+        return new_precision
+
+
 _efe_engine: Optional[EFEEngine] = None
 
 def get_efe_engine() -> EFEEngine:
