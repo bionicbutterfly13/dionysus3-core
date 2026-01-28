@@ -3,7 +3,7 @@
 | ID | Status | Name | Description |
 | :--- | :--- | :--- | :--- |
 | 001-autobiographical-memory-migration | Done | Autobiographical Memory Migration | Port D2 active inference memory to D3 Neo4j system |
-| 002-jungian-archetypes | Planned | Jungian Cognitive Archetypes | Shift to standard Jungian Archetypes and active inference integration |
+| 002-jungian-archetypes | In Progress | Jungian Cognitive Archetypes | Archetypes as Dispositional Priors with EFE competition, Shadow Log, Resonance Protocol |
 | 038-thoughtseeds-framework | Done | Thoughtseeds Framework Enhancement | EFE decision engine, Markov blankets, prior hierarchy, inner screen |
 | 039-smolagents-v2-alignment | Done | Smolagents V2 Alignment | ManagedAgent pattern, planning intervals, execution traces |
 | 041-code-quality-audit | Done | Code Quality & Verification Audit | Neo4j architecture verification, Graphiti-based patterns, Nemori/MemEvolve integration |
