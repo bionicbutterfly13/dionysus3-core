@@ -10,28 +10,28 @@
 
 ## Phases
 
-### Phase 1: Models and SubconsciousService (Hexis-style)
+### Phase 1: Models and SubconsciousService (Hexis-style) [925e313]
 
-- [x] Add Pydantic models for subconscious observations (`SubconsciousObservations`, narrative/relationship/contradiction/emotional/consolidation item types).
+- [x] Add Pydantic models for subconscious observations (`SubconsciousObservations`, narrative/relationship/contradiction/emotional/consolidation item types). [925e313]
 - [x] Add `api/services/subconscious_service.py`:
-  - `get_subconscious_context(agent_id?: str)` – build context dict from Graphiti search + recent trajectory summaries (from MemEvolveAdapter or Graphiti); return structure compatible with Hexis-style prompt (recent_memories, goals, etc. as we have them).
-  - `run_subconscious_decider(context: dict)` – call LLM with subconscious prompt (from prompt file or inline), return parsed observation dict.
-  - `apply_subconscious_observations(observations: SubconsciousObservations)` – map each observation kind to MemoryBasinRouter.route_memory() or GraphitiService.persist_fact(); no Postgres.
-- [x] Add subconscious prompt asset (inline in service as `SUBCONSCIOUS_PROMPT`) – adapt Hexis prompt to our JSON schema and memory model.
-- [x] Unit tests for SubconsciousService (mocked Graphiti/MemEvolve/MemoryBasinRouter) – `tests/unit/test_subconscious_service.py` (13 tests, all passing).
+  - `get_subconscious_context(agent_id?: str)` – build context dict from Graphiti search + recent trajectory summaries (from MemEvolveAdapter or Graphiti); return structure compatible with Hexis-style prompt (recent_memories, goals, etc. as we have them). [925e313]
+  - `run_subconscious_decider(context: dict)` – call LLM with subconscious prompt (from prompt file or inline), return parsed observation dict. [925e313]
+  - `apply_subconscious_observations(observations: SubconsciousObservations)` – map each observation kind to MemoryBasinRouter.route_memory() or GraphitiService.persist_fact(); no Postgres. [925e313]
+- [x] Add subconscious prompt asset (inline in service as `SUBCONSCIOUS_PROMPT`) – adapt Hexis prompt to our JSON schema and memory model. [925e313]
+- [x] Unit tests for SubconsciousService (mocked Graphiti/MemEvolve/MemoryBasinRouter) – `tests/unit/test_subconscious_service.py` (13 tests, all passing). [925e313]
 
-### Phase 2: Session Subconscious API (Letta-style)
+### Phase 2: Session Subconscious API (Letta-style) [925e313]
 
-- [x] Add `POST /subconscious/session-start` – body: `session_id`, optional `project_id`, optional `cwd`; store session in memory or lightweight in-memory/store; return 200.
-- [x] Add `GET /subconscious/sync` (or POST with session_id) – query param `session_id`; build guidance + memory_blocks from Graphiti recall + optional short LLM pass; return `{ "guidance": "...", "memory_blocks": { ... } }`.
-- [x] Add `POST /subconscious/ingest` – body: `session_id`, `transcript` or `summary`; call MemEvolveAdapter.ingest_message(); return 200.
-- [x] Register router in `api/main.py`.
+- [x] Add `POST /subconscious/session-start` – body: `session_id`, optional `project_id`, optional `cwd`; store session in memory or lightweight in-memory/store; return 200. [925e313]
+- [x] Add `GET /subconscious/sync` (or POST with session_id) – query param `session_id`; build guidance + memory_blocks from Graphiti recall + optional short LLM pass; return `{ "guidance": "...", "memory_blocks": { ... } }`. [925e313]
+- [x] Add `POST /subconscious/ingest` – body: `session_id`, `transcript` or `summary`; call MemEvolveAdapter.ingest_message(); return 200. [925e313]
+- [x] Register router in `api/main.py`. [925e313]
 
-### Phase 3: Router and Contract Tests
+### Phase 3: Router and Contract Tests [925e313]
 
-- [x] Create `api/routers/subconscious.py` – mount session-start, sync, ingest; `POST /subconscious/run-decider` for maintenance trigger.
-- [x] Contract tests: `tests/contract/test_subconscious_api.py` – session-start, sync, ingest, run-decider return expected shapes and status codes.
-- [x] Update plan.md with completion checkmarks.
+- [x] Create `api/routers/subconscious.py` – mount session-start, sync, ingest; `POST /subconscious/run-decider` for maintenance trigger. [925e313]
+- [x] Contract tests: `tests/contract/test_subconscious_api.py` – session-start, sync, ingest, run-decider return expected shapes and status codes. [925e313]
+- [x] Update plan.md with completion checkmarks. [925e313]
 
 ## Dependencies
 
