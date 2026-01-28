@@ -127,35 +127,39 @@
 
 ---
 
-## Phase 4: Shadow Log & Resonance Protocol
+## Phase 4: Shadow Log & Resonance Protocol ✅
 
 **Goal**: Implement shadow logging and resonance rebalancing under high allostatic load.
 
-- [ ] **Task 4.1**: Define resonance thresholds in `api/models/priors.py`
-    - Constant: `RESONANCE_THRESHOLD = 0.75` (allostatic load)
+- [x] **Task 4.1**: Define resonance thresholds in `api/models/priors.py`
+    - Constant: `RESONANCE_THRESHOLD = 0.75` (allostatic load threshold)
     - Constant: `RESONANCE_ACTIVATION_EFE = 0.4` (shadow candidate threshold)
     - Constant: `SHADOW_WINDOW_SIZE = 10` (recent suppressions to consider)
+    - (Completed in Phase 2)
 
-- [ ] **Task 4.2**: Extend `ArousalSystemService` with allostatic load calculation
-    - New method: `get_allostatic_load() -> float`
-    - Based on sustained high arousal, uncertainty, prediction errors
+- [x] **Task 4.2**: Extend `ArousalSystemService` with allostatic load calculation
+    - New method: `get_allostatic_load(state: SubcorticalState) -> float`
+    - Components: NE tonic (uncertainty), DA tonic (goal deficit), NE phasic (errors), gain deficit
     - Return normalized load (0-1)
 
-- [ ] **Task 4.3**: Implement resonance protocol in `api/services/shadow_log_service.py`
-    - New method: `check_resonance(allostatic_load) -> Optional[ArchetypePrior]`
-    - If load > RESONANCE_THRESHOLD, check shadow candidates
-    - Return best candidate for reactivation
+- [x] **Task 4.3**: Implement resonance protocol in `api/services/shadow_log_service.py`
+    - Method: `check_resonance(allostatic_load) -> Optional[ShadowEntry]`
+    - Method: `get_resonance_candidates(max_candidates) -> List[ShadowEntry]`
+    - If load >= RESONANCE_THRESHOLD, return lowest-EFE candidate
+    - (Completed in Phase 2)
 
 - [ ] **Task 4.4**: Wire resonance to `ConsciousnessManager`
     - In DECIDE phase, check for resonance before action selection
     - If resonance triggered, temporarily boost suppressed archetype
     - Log resonance event for episodic memory
+    - (Deferred to Phase 5 Integration)
 
-- [ ] **Task 4.5**: Write unit tests for resonance protocol
-    - Test: `test_allostatic_load_calculation`
-    - Test: `test_resonance_threshold_trigger`
-    - Test: `test_shadow_candidate_selection`
-    - Test: `test_resonance_archetype_boost`
+- [x] **Task 4.5**: Write unit tests for resonance protocol (23 tests passing)
+    - Test: `test_allostatic_load_calculation` (6 tests)
+    - Test: `test_resonance_threshold_trigger` (5 tests)
+    - Test: `test_shadow_candidate_selection` (4 tests)
+    - Test: `test_resonance_archetype_boost` (3 tests)
+    - Test: `test_integration_with_arousal_service` (2 tests)
     - Target: `tests/unit/test_archetype_resonance.py`
 
 ---

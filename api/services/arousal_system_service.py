@@ -332,8 +332,56 @@ class ArousalSystemService:
     def get_instrumental_weight(self, state: SubcorticalState) -> float:
         """
         Calculate the weight for instrumental affordances vs epistemic affordances.
-        
+
         Driven by the Ventral/Collothalamic system (DA).
         """
         # High DA shifts weight towards exploitation (Instrumental)
         return max(0.1, min(0.9, state.da_tonic))
+
+    def get_allostatic_load(self, state: SubcorticalState) -> float:
+        """
+        Calculate allostatic load for archetype resonance protocol.
+
+        Track 002: Jungian Cognitive Archetypes
+
+        Allostatic load represents the cumulative burden of adaptation and
+        prediction errors. High load triggers resonance protocol to resurface
+        suppressed archetypes (IFS-style "parts" rebalancing).
+
+        Integration (IO Map):
+        - Inlets: SubcorticalState from update_subcortical_state()
+        - Outlets: float → ShadowLog.check_resonance()
+
+        Components:
+        1. High NE tonic (sustained uncertainty/surprisal)
+        2. Low DA tonic (lack of goal progress/reward)
+        3. High NE phasic (recent startle/prediction errors)
+        4. Low synaptic gain (impaired precision weighting)
+
+        Returns:
+            Normalized allostatic load (0-1), where >0.75 triggers resonance
+        """
+        # NE tonic: sustained uncertainty contributes to load
+        uncertainty_component = state.ne_tonic * 0.35
+
+        # DA tonic: low goal progress contributes to load (inverted)
+        # Low DA = high load, High DA = low load
+        goal_deficit_component = (1.0 - state.da_tonic) * 0.25
+
+        # NE phasic: recent prediction errors contribute
+        prediction_error_component = state.ne_phasic * 0.25
+
+        # Synaptic gain: low gain (impaired integration) contributes
+        # Normalize gain from [0.1, 5.0] to [0, 1] then invert
+        normalized_gain = (state.synaptic_gain - 0.1) / 4.9
+        gain_deficit_component = (1.0 - normalized_gain) * 0.15
+
+        # Combine components
+        allostatic_load = (
+            uncertainty_component +
+            goal_deficit_component +
+            prediction_error_component +
+            gain_deficit_component
+        )
+
+        return max(0.0, min(1.0, allostatic_load))
