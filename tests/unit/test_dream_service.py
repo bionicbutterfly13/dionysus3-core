@@ -77,9 +77,46 @@ async def test_guidance_generation(dream_service):
     
     guidance = await dream_service.generate_guidance(context_summary="Testing context")
     
-    assert "# Core Memory (Dionysus)" in guidance
-    assert "REST: 0.10 [Need Action]" in guidance
-    assert "Testing context" in guidance
-    assert "Subconscious needs maintenance" in guidance # Since last_maintenance is None
+    # Check Header
+    assert "# Subconscious Context (Dionysus)" in guidance
+    
+    # Check Drives
+    assert "**REST**: 0.10 [Need Action]" in guidance
+    
+    # Check Block Hydration
+    assert "## PROJECT CONTEXT" in guidance
+    assert "Context: Testing context" in guidance
+    assert "## GUIDANCE" in guidance
+    assert "**REST** is low" in guidance # The block value
+    assert "Subconscious needs maintenance" in guidance # The tip inside guidance block
+    
+    # Check Spontaneous Recall (Stub Logic)
+    # The default sentiment is 0.0, so no spontaneous recall by default
+    assert "Spontaneous Recall" not in guidance
+
+@pytest.mark.asyncio
+async def test_rich_ontology(dream_service):
+    """Verify Goals and Worldview interaction"""
+    from api.models.hexis_ontology import Goal, GoalPriority, Worldview
+    
+    # Add an active goal
+    goal = Goal(title="Conquer the Labyrinth", priority=GoalPriority.ACTIVE)
+    dream_service._state.active_goals.append(goal)
+    
+    # Add a worldview
+    belief = Worldview(statement="The graph is truth.")
+    dream_service._state.worldview_snapshot.append(belief)
+    
+    # Generate guidance
+    guidance = await dream_service.generate_guidance(context_summary="Testing rich ontology")
+    
+    # Assert Items appeared in Pending Items (mapped from active goals)
+    assert "## PENDING ITEMS" in guidance
+    assert "- [ACTIVE] Conquer the Labyrinth" in guidance
+    
+    # Assert ID generation worked
+    assert goal.id is not None
+    assert belief.id is not None
+    assert "goal:conquer_" in goal.id or len(goal.id) > 10
 
 

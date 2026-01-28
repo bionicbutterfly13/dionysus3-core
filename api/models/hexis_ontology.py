@@ -10,6 +10,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 from enum import Enum
+from api.utils.identity_utils import generate_deterministic_id
 
 class DriveType(str, Enum):
     """
@@ -64,12 +65,90 @@ class Neighborhood(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+class MemoryBlock(BaseModel):
+    """
+    A structured block of semantic memory, ported from Letta.
+    """
+    label: str = Field(..., description="Key identifier (e.g. 'guidance', 'project_context')")
+    value: str = Field(..., description="The content of the block")
+    description: str = Field(None, description="Metadata description")
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+
+class MemoryType(str, Enum):
+    EPISODIC = "episodic"
+    SEMANTIC = "semantic"
+    PROCEDURAL = "procedural"
+    STRATEGIC = "strategic"
+    WORLDVIEW = "worldview"
+    GOAL = "goal"
+
+class GoalPriority(str, Enum):
+    ACTIVE = "active"
+    QUEUED = "queued"
+    BACKBURNER = "backburner"
+    COMPLETED = "completed"
+    ABANDONED = "abandoned"
+
+class Goal(BaseModel):
+    """
+    Explicit, active intentions of the agent.
+    Internalizes the 'Task' concept into the Subconscious.
+    """
+    id: str = Field(default_factory=lambda: "")
+    title: str
+    priority: GoalPriority = GoalPriority.QUEUED
+    source_drive: Optional[DriveType] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.id and self.title:
+            self.id = generate_deterministic_id(f"goal:{self.title}")
+
+class Worldview(BaseModel):
+    """
+    Core beliefs, values, and boundaries.
+    """
+    id: str = Field(default_factory=lambda: "")
+    statement: str
+    confidence: float = 1.0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.id and self.statement:
+            self.id = generate_deterministic_id(f"worldview:{self.statement}")
+
 class SubconsciousState(BaseModel):
     """
     Aggregate state of the subconscious system.
     """
     drives: Dict[DriveType, DriveState] = Field(default_factory=dict)
+    blocks: Dict[str, MemoryBlock] = Field(default_factory=dict, description="Letta-style persistent memory blocks")
     active_neighborhoods: List[str] = Field(default_factory=list, description="Currently active/resonant neighborhoods")
+    active_goals: List[Goal] = Field(default_factory=list, description="Current active goals")
+    worldview_snapshot: List[Worldview] = Field(default_factory=list, description="Cached beliefs")
     global_sentiment: float = Field(0.0, ge=-1.0, le=1.0, description="Overall affective valence")
     arousal: float = Field(0.0, ge=0.0, le=1.0, description="Overall system activation/alertness")
     last_maintenance: Optional[datetime] = None
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Initialize Standard Letta Blocks if missing
+        standard_blocks = [
+            ("core_directives", "Primary role and behavioral guidelines."),
+            ("project_context", "Active project knowledge and architecture."),
+            ("pending_items", "Unfinished work and TODOs."),
+            ("user_preferences", "Learned style and communication preferences."),
+            ("guidance", "Active advice for the next session."),
+            ("session_patterns", "Recurring behaviors and struggles.")
+        ]
+        
+        for label, desc in standard_blocks:
+            if label not in self.blocks:
+                self.blocks[label] = MemoryBlock(
+                    label=label,
+                    value="(Empty)",
+                    description=desc
+                )
+

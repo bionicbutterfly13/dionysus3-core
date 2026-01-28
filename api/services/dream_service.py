@@ -88,32 +88,57 @@ class DreamService:
     
     async def generate_guidance(self, context_summary: str = "") -> str:
         """
-        Generates a 'Subconscious Guidance' block for the user/agent.
-        Mimics Letta's 'Core Memory' block but powered by Graphiti.
+        Generates the full 'Subconscious Context' by hydrating all Memory Blocks.
         """
         lines = []
         
-        # 1. Identity & Core Drives (The "Persona" Block)
-        lines.append("# Core Memory (Dionysus)")
-        lines.append("## Identity & Drives")
+        # 1. Update the 'Guidance' Block dynamically
+        guidance_lines = []
+        urgent_drives = [d for d in self._state.drives.values() if d.level < 0.3]
+        
+        if urgent_drives:
+            guidance_lines.append("## Drive Alerts")
+            for d in urgent_drives:
+                 guidance_lines.append(f"- **{d.drive_type.value.upper()}** is low ({d.level:.2f}). consider actions to restore.")
+        
+        if not self._state.last_maintenance or (datetime.utcnow() - self._state.last_maintenance).total_seconds() > 3600:
+             guidance_lines.append("\n> [!TIP]\n> Subconscious needs maintenance cycle (Dream).")
+             
+        self._state.blocks["guidance"].value = "\n".join(guidance_lines) if guidance_lines else "(No active guidance)"
+
+        if self._state.active_goals:
+            self._state.blocks["pending_items"].value = "\n".join([f"- [{g.priority.value.upper()}] {g.title}" for g in self._state.active_goals])
+
+        # 2. Update 'Project Context' (Stub for Graphiti Query)
+        if context_summary:
+            self._state.blocks["project_context"].value = f"Context: {context_summary}"
+            
+        # 3. Spontaneous Recall (Serendipity)
+        # Using Graphiti, we would find nodes with high 'surprise' or 'resonance' but low current activation
+        # Stub logic:
+        spontaneous = "No spontaneous memories surfaced."
+        if self._state.global_sentiment > 0.5:
+             spontaneous = "Surfaced Memory: 'The initial breakthrough on the Daedalus project.'"
+        
+        # We can append this to guidance or a new block? Let's assume Letta doesn't have a 'spontaneous' block standard, 
+        # so we append to Guidance or Project Context. Let's create a dynamic section in Guidance.
+        if spontaneous != "No spontaneous memories surfaced.":
+            self._state.blocks["guidance"].value += f"\n\n> [!NOTE]\n> **Spontaneous Recall**: {spontaneous}"
+
+        # 3. Render All Blocks (Letta Style)
+        lines.append("# Subconscious Context (Dionysus)")
+        
+        # Identity / Drives First
+        lines.append("## System Drives")
         for d in self._state.drives.values():
             status = "Satisfied" if d.level > 0.7 else ("Need Action" if d.level < 0.3 else "Neutral")
             lines.append(f"- **{d.drive_type.value.upper()}**: {d.level:.2f} [{status}]")
-            
-        # 2. Context Reflection (The "Human" Block)
-        if context_summary:
-            lines.append(f"\n## Current Context\n{context_summary}")
-        
-        # 3. Active Neighborhoods (The "Working Memory" Block)
-        # TODO: Hydrate these from Graphiti
-        if self._state.active_neighborhoods:
-            lines.append("\n## Active Neighborhoods")
-            for n_uuid in self._state.active_neighborhoods:
-                 lines.append(f"- Cluster: {n_uuid}")
 
-        # 4. Maintenance Tip
-        if not self._state.last_maintenance or (datetime.utcnow() - self._state.last_maintenance).total_seconds() > 3600:
-            lines.append("\n> [!TIP]\n> Subconscious needs maintenance cycle (Dream).")
+        # Render Blocks
+        for label, block in self._state.blocks.items():
+            lines.append(f"\n## {label.upper().replace('_', ' ')}")
+            lines.append(f"_{block.description}_")
+            lines.append(f"\n{block.value}")
             
         return "\n".join(lines)
 
