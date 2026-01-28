@@ -45,6 +45,13 @@ from api.services.particle_store import get_particle_store
 from api.services.active_inference_service import get_active_inference_service
 from api.models.belief_state import BeliefState as CanonicalBeliefState
 from api.agents.resource_gate import run_agent_with_timeout
+from api.services.biological_agency_service import get_biological_agency_service
+
+# Track 002: Jungian Archetypes
+from api.models.autobiographical import JungianArchetype
+from api.models.priors import ArchetypePrior, get_default_archetype_priors
+from api.services.efe_engine import get_efe_engine
+from api.services.shadow_log_service import get_archetype_shadow_log
 
 logger = logging.getLogger("dionysus.consciousness")
 
@@ -91,9 +98,19 @@ class ConsciousnessManager:
         self._perception_managed = None
         self._reasoning_managed = None
         self._metacognition_managed = None
-        
+
         self.orchestrator = None
         self._entered = False
+
+        # Track 002: Jungian Archetype State Tracking
+        # Current dominant archetype (determined by EFE competition each cycle)
+        self.current_archetype: ArchetypePrior | None = None
+        # History of archetype activations: (archetype_name, timestamp, context_hash)
+        self.archetype_history: list[tuple[str, str, str]] = []
+        # Service references for archetype processing
+        self._efe_engine = get_efe_engine()
+        self._shadow_log = get_archetype_shadow_log()
+        self._archetype_priors = get_default_archetype_priors()
 
     def __enter__(self):
         from api.agents.audit import get_audit_callback
@@ -263,6 +280,14 @@ The agents will return structured results for synthesis.""",
         # Track 038 Phase 2: Evolutionary Priors Check
         # Check task against prior hierarchy BEFORE any action selection
         prior_check_result = await self._check_prior_constraints(agent_id, task_query, initial_context)
+        
+        # Feature 063: Sovereignty Resistance Protocol
+        # Check for hierarchical resistance against potentially coercive or misaligned commands
+        sovereignty_result = await self._check_sovereignty_resistance(agent_id, task_query, initial_context)
+        if sovereignty_result.get("resisting", False):
+            logger.warning(f"SOVEREIGNTY RESISTANCE ACTIVE: {sovereignty_result.get('reason')}")
+            # If resisting, we inject this into the orchestrator's prompt or block if critical
+            initial_context["sovereignty_resistance"] = sovereignty_result
 
         # Track 038 Phase 4: Trace prior check through fractal tracer
         fractal_tracer.trace_prior_check(fractal_trace, prior_check_result, task_query)
@@ -739,12 +764,22 @@ The agents will return structured results for synthesis.""",
         fractal_tracer.end_trace(fractal_trace)
         logger.debug(f"Fractal trace complete: {fractal_trace.summary()}")
 
+        # Track 002: Update archetype state based on cycle content
+        # Run EFE competition to determine dominant archetype for this cycle
+        archetype_result = self.update_archetype_state(
+            content=task_query,
+            context=initial_context,
+            allostatic_load=None,  # Will be wired to ArousalSystemService in future
+        )
+
         return {
             "final_plan": structured_result.get("reasoning", str(raw_result)),
             "actions": structured_result.get("actions", []),
             "confidence": structured_result.get("confidence", 0.5),
             "orchestrator_log": self.orchestrator.memory.steps,
             "fractal_trace": fractal_trace.to_dict(),
+            # Track 002: Include archetype state in result
+            "archetype": archetype_result,
         }
 
     def close(self):
@@ -753,6 +788,125 @@ The agents will return structured results for synthesis.""",
         for wrapper in [self.perception_wrapper, self.reasoning_wrapper, self.metacognition_wrapper]:
             if hasattr(wrapper, 'close'):
                 wrapper.close()
+
+    # =========================================================================
+    # Track 002: Jungian Archetype Integration
+    # =========================================================================
+
+    def update_archetype_state(
+        self,
+        content: str,
+        context: dict[str, any] | None = None,
+        allostatic_load: float | None = None,
+    ) -> dict[str, any]:
+        """
+        Update archetype state via EFE competition.
+
+        Track 002: Jungian Cognitive Archetypes
+
+        Integration (IO Map):
+        - Inlets: Content from OODA cycle, optional context, allostatic load
+        - Outlets: Updated current_archetype, archetype_history, shadow_log entries
+
+        Process:
+        1. Run EFE competition across all 12 archetypes
+        2. Update current_archetype to winner (argmin EFE)
+        3. Log suppressed archetypes to shadow log
+        4. Check for resonance if allostatic_load provided
+        5. Record to archetype_history
+
+        Args:
+            content: The cycle's task/content string for pattern matching
+            context: Optional context dict for hash generation
+            allostatic_load: Optional load for resonance checking
+
+        Returns:
+            Dict with dominant, suppressed, resonance_candidate info
+        """
+        from datetime import datetime
+
+        # 1. Run EFE competition
+        dominant, suppressed, efe_scores = self._efe_engine.select_dominant_archetype(
+            content=content,
+            archetypes=self._archetype_priors,
+        )
+
+        result = {
+            "dominant": dominant.archetype if dominant else None,
+            "dominant_efe": efe_scores.get(dominant.archetype, 0.0) if dominant else None,
+            "suppressed_count": len(suppressed),
+            "efe_scores": efe_scores,
+            "resonance_candidate": None,
+        }
+
+        if not dominant:
+            return result
+
+        # 2. Update current archetype
+        self.current_archetype = dominant
+
+        # 3. Log suppressed archetypes to shadow log
+        current_basin = context.get("current_basin") if context else None
+        self._shadow_log.log_suppressions_batch(
+            suppressed_archetypes=suppressed,
+            efe_scores=efe_scores,
+            context=content[:100] if content else "",
+            basin=current_basin,
+            dominant_archetype=dominant.archetype,
+        )
+
+        # 4. Check for resonance if load provided
+        if allostatic_load is not None:
+            resonance_candidate = self._shadow_log.check_resonance(allostatic_load)
+            if resonance_candidate:
+                result["resonance_candidate"] = resonance_candidate.archetype
+                logger.info(
+                    f"RESONANCE TRIGGERED: {resonance_candidate.archetype} "
+                    f"(load={allostatic_load:.3f}, efe={resonance_candidate.efe_score:.3f})"
+                )
+
+        # 5. Record to history
+        context_hash = ""
+        if context:
+            import hashlib
+            ctx_str = str(sorted(context.items()))
+            context_hash = hashlib.md5(ctx_str.encode()).hexdigest()[:8]
+
+        timestamp = datetime.utcnow().isoformat()
+        self.archetype_history.append((dominant.archetype, timestamp, context_hash))
+
+        # Trim history to last 100 entries
+        if len(self.archetype_history) > 100:
+            self.archetype_history = self.archetype_history[-100:]
+
+        logger.debug(
+            f"Archetype updated: {dominant.archetype} "
+            f"(EFE={result['dominant_efe']:.3f}, suppressed={len(suppressed)})"
+        )
+
+        return result
+
+    def get_archetype_context(self) -> dict[str, any]:
+        """
+        Get current archetype state for injection into OODA context.
+
+        Returns:
+            Dict with current archetype info, recent history, shadow candidates
+        """
+        return {
+            "current_archetype": self.current_archetype.archetype if self.current_archetype else None,
+            "archetype_basin_affinity": (
+                self.current_archetype.dominant_attractor
+                if self.current_archetype else None
+            ),
+            "recent_archetypes": [
+                arch for arch, _, _ in self.archetype_history[-5:]
+            ],
+            "resonance_active": self._shadow_log.is_resonance_active,
+            "shadow_candidates": [
+                e.archetype for e in self._shadow_log.get_resonance_candidates(max_candidates=3)
+            ],
+        }
 
     async def _check_prior_constraints(
         self,
@@ -881,3 +1035,41 @@ The agents will return structured results for synthesis.""",
         except Exception as e:
             logger.warning(f"Error fetching biographical context: {e}")
         return None
+
+    async def _check_sovereignty_resistance(
+        self, 
+        agent_id: str, 
+        task_query: str, 
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Feature 063: Hierarchical Resistance.
+        
+        Evaluates task against biological agency filters to detect coercion or identity friction.
+        """
+        try:
+            agency_svc = get_biological_agency_service()
+            agent = await agency_svc.get_agent(agent_id)
+            if not agent:
+                return {"resisting": False}
+            
+            # Simple heuristic for 'coercion' or 'misalignment'
+            # 1. High-priority override in context (simulating absolute command)
+            # 2. Low competence in requested domain (Friction)
+            domain = context.get("domain", "general")
+            # Ensure we don't crash if competence_assessment is empty
+            competence = agent.metacognitive.competence_assessment.get(domain, 0.5)
+            
+            # If the user is forcing a task the agent feels incompetent for, it resists
+            if context.get("force_override") and competence < 0.3:
+                return {
+                    "resisting": True,
+                    "reason": f"COERCION_DETECTED: Insufficient competence for forced command in domain '{domain}'.",
+                    "refusal_code": "HIERARCHICAL_FRICTION",
+                    "impact": 0.8 # Scale of resistance
+                }
+                
+            return {"resisting": False}
+        except Exception as e:
+            logger.error(f"Sovereignty check failed: {e}")
+            return {"resisting": False}
