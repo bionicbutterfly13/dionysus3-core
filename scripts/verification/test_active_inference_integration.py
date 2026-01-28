@@ -92,8 +92,9 @@ def test_vfe_calculation():
         # Observe outcome 0
         observation = 0
 
-        # Calculate VFE
-        vfe = service.calculate_vfe(belief, observation, model)
+        # Calculate VFE (returns VFEDetail with .total, .complexity, .accuracy)
+        vfe_detail = service.calculate_vfe(belief, np.asarray(observation), model)
+        vfe = vfe_detail.total
 
         print(f"✅ VFE calculated: {vfe:.4f}")
         print(f"  - Belief entropy: {belief.entropy:.4f}")
