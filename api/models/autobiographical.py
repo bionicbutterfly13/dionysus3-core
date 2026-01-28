@@ -40,11 +40,17 @@ class RiverStage(str, Enum):
     DELTA = "delta"             # Distilled semantic knowledge/Basins
 
 
-class DevelopmentArchetype(str, Enum):
+class JungianArchetype(str, Enum):
     """
-    12 Jungian Archetypes as cognitive patterns/strange attractors.
-    Refined for D3 Cognitive Architecture.
+    12 Jungian Archetypes as Dispositional Priors (D-level).
+
+    These are sub-personal priors that bias thoughtseed formation and
+    compete for Inner Screen access via EFE minimization.
+
+    Track 002: Jungian Cognitive Archetypes
+    Reference: Kavi et al. (2025) Thoughtseeds framework
     """
+    # Primary Archetypes
     INNOCENT = "innocent"   # Optimism, safety, simplicity
     ORPHAN = "orphan"       # Realism, belonging, connection
     WARRIOR = "warrior"     # Focus, discipline, achievement
@@ -57,6 +63,51 @@ class DevelopmentArchetype(str, Enum):
     SAGE = "sage"           # Wisdom, truth, understanding
     MAGICIAN = "magician"   # Transformation, vision, mastery
     RULER = "ruler"         # Control, order, stability
+
+    # Shadow Archetypes (attenuated complements)
+    NAIVE = "naive"         # Shadow of INNOCENT
+    CYNIC = "cynic"         # Shadow of ORPHAN
+    VICTIM = "victim"       # Shadow of WARRIOR
+    MARTYR = "martyr"       # Shadow of CAREGIVER
+    WANDERER = "wanderer"   # Shadow of EXPLORER
+    OUTLAW = "outlaw"       # Shadow of REBEL
+    OBSESSIVE = "obsessive" # Shadow of LOVER
+    DESTROYER = "destroyer" # Shadow of CREATOR
+    TRICKSTER = "trickster" # Shadow of JESTER
+    FOOL = "fool"           # Shadow of SAGE
+    MANIPULATOR = "manipulator"  # Shadow of MAGICIAN
+    TYRANT = "tyrant"       # Shadow of RULER
+
+
+# Shadow mapping: primary -> shadow
+ARCHETYPE_SHADOW_MAP: Dict[JungianArchetype, JungianArchetype] = {
+    JungianArchetype.INNOCENT: JungianArchetype.NAIVE,
+    JungianArchetype.ORPHAN: JungianArchetype.CYNIC,
+    JungianArchetype.WARRIOR: JungianArchetype.VICTIM,
+    JungianArchetype.CAREGIVER: JungianArchetype.MARTYR,
+    JungianArchetype.EXPLORER: JungianArchetype.WANDERER,
+    JungianArchetype.REBEL: JungianArchetype.OUTLAW,
+    JungianArchetype.LOVER: JungianArchetype.OBSESSIVE,
+    JungianArchetype.CREATOR: JungianArchetype.DESTROYER,
+    JungianArchetype.JESTER: JungianArchetype.TRICKSTER,
+    JungianArchetype.SAGE: JungianArchetype.FOOL,
+    JungianArchetype.MAGICIAN: JungianArchetype.MANIPULATOR,
+    JungianArchetype.RULER: JungianArchetype.TYRANT,
+}
+
+
+def is_primary_archetype(archetype: JungianArchetype) -> bool:
+    """Check if archetype is a primary (not shadow) archetype."""
+    return archetype in ARCHETYPE_SHADOW_MAP
+
+
+def get_shadow(archetype: JungianArchetype) -> Optional[JungianArchetype]:
+    """Get the shadow complement of a primary archetype."""
+    return ARCHETYPE_SHADOW_MAP.get(archetype)
+
+
+# Backward compatibility alias
+DevelopmentArchetype = JungianArchetype
 
 
 class AttractorType(str, Enum):

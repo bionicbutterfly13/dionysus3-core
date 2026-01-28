@@ -34,27 +34,27 @@
 
 ---
 
-## Phase 1: Archetype Prior Structure
+## Phase 1: Archetype Prior Structure ✅
 
 **Goal**: Extend the prior hierarchy with the 12 Jungian archetypes as Dispositional Priors.
 
-- [ ] **Task 1.1**: Create `JungianArchetype` enum in `api/models/autobiographical.py`
+- [x] **Task 1.1**: Create `JungianArchetype` enum in `api/models/autobiographical.py`
     - 12 primary archetypes (SAGE, WARRIOR, CREATOR, etc.)
     - 12 shadow archetypes (FOOL, VICTIM, DESTROYER, etc.)
     - Deprecate old `DevelopmentArchetype` with alias
 
-- [ ] **Task 1.2**: Create `ArchetypePrior` model in `api/models/priors.py`
+- [x] **Task 1.2**: Create `ArchetypePrior` model in `api/models/priors.py`
     - Fields: archetype, dominant_attractor, subordinate_attractors
     - Fields: preferred_actions, avoided_actions, shadow
     - Fields: precision, activation_threshold
     - Include `ARCHETYPE_DEFINITIONS` constant with all 12 configured
 
-- [ ] **Task 1.3**: Extend `PriorHierarchy` in `api/models/priors.py`
+- [x] **Task 1.3**: Extend `PriorHierarchy` in `api/models/priors.py`
     - Add `dispositional_archetypes: list[ArchetypePrior]`
     - Factory method to initialize from `ARCHETYPE_DEFINITIONS`
     - Integrate with existing BASAL/LEARNED hierarchy
 
-- [ ] **Task 1.4**: Write unit tests for archetype models
+- [x] **Task 1.4**: Write unit tests for archetype models (25 tests passing)
     - Test: `test_archetype_prior_creation`
     - Test: `test_prior_hierarchy_includes_archetypes`
     - Test: `test_archetype_shadow_mapping`
