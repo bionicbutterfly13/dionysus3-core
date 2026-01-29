@@ -12,9 +12,12 @@ Database: Neo4j via Graphiti-backed driver
 import json
 import logging
 import time
+import asyncio
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, List, Dict
 from uuid import UUID, uuid4
+
+from api.services.biological_agency_service import get_biological_agency_service
 
 from api.models.journey import (
     Journey,
@@ -173,26 +176,8 @@ class SessionManager:
                 })
                 print(f"DEBUG: CREATE returned {len(result) if result else 0} rows")
                 
-                if not result:
-                    # SHIM PROTECTION: If result is empty, try to MATCH one last time
-                    result = await self._driver.execute_query(query_match, {"device_id": str(device_id)})
-                    
-                if not result:
-                    # OPTIMISTIC PERSISTENCE: If still empty, return constructed object
-                    # This handles VPS Neo4j/Shim issues where CREATE works but returns nothing
-                    logger.warning(f"Optimistic Persistence triggered for {device_id}")
-                    return JourneyWithStats(
-                        id=UUID(new_id),
-                        device_id=device_id,
-                        created_at=datetime.utcnow(),
-                        updated_at=datetime.utcnow(),
-                        metadata={},
-                        session_count=0,
-                        is_new=True
-                    )
-            
-            if not result or not result[0].get("journey_data"):
-                raise DatabaseUnavailableError("Unexpected state: journey data missing after creation")
+                if not result or not result[0].get("journey_data"):
+                    raise DatabaseUnavailableError("Unexpected state: journey data missing after creation")
             
             row = result[0]
             j_data = row["journey_data"]

@@ -56,13 +56,20 @@ class DreamService:
 
     def _decay_drives(self):
         """
-        Apply temporal decay to all drives.
+        Apply temporal decay to all drives, modulated by system arousal.
+        Prevents 'debt spirals' when the system is offline by scaling decay by arousal.
         """
         now = datetime.utcnow()
+        # Arousal acts as a metabolic scaler. 
+        # If arousal is 0, decay is minimal (hibernation).
+        # Default to 0.5 (normal operation) if not specified.
+        metabolic_rate = max(0.1, self._state.arousal) 
+        
         for drive in self._state.drives.values():
             hours_passed = (now - drive.last_updated).total_seconds() / 3600.0
             if hours_passed > 0:
-                decay = drive.decay_rate * hours_passed
+                # Actual decay = (Rate * Time) * MetabolicScaler
+                decay = (drive.decay_rate * hours_passed) * metabolic_rate
                 drive.level = max(0.0, drive.level - decay)
                 drive.last_updated = now
 
@@ -114,18 +121,31 @@ class DreamService:
             self._state.blocks["project_context"].value = f"Context: {context_summary}"
             
         # 3. Spontaneous Recall (Serendipity)
-        # Using Graphiti, we would find nodes with high 'surprise' or 'resonance' but low current activation
-        # Stub logic:
+        # Find a resonant but currently inactive node to surface (Serendipity)
         spontaneous = "No spontaneous memories surfaced."
-        if self._state.global_sentiment > 0.5:
-             spontaneous = "Surfaced Memory: 'The initial breakthrough on the Daedalus project.'"
+        try:
+             # Find highly connected entities that haven't been mentioned in the last 5 episodes
+             # or nodes with a high 'resonance' score (if we had one, for now we use degree)
+             cypher = """
+             MATCH (e:Entity)
+             WHERE NOT (e)-[:MENTIONED_IN]->(:Episode) # Simplified: ignored recently mentioned
+             WITH e, COUNT { (e)--() } as degree
+             ORDER BY degree DESC, e.created_at DESC
+             LIMIT 1
+             RETURN e.name as name, e.summary as summary
+             """
+             results = await self.graphiti.execute_cypher(cypher)
+             if results and results[0].get("name"):
+                  name = results[0]["name"]
+                  summary = results[0].get("summary", "No details available.")
+                  spontaneous = f"'{name}' - {summary}"
+        except Exception as e:
+             logger.warning(f"Spontaneous recall query failed: {e}")
         
-        # We can append this to guidance or a new block? Let's assume Letta doesn't have a 'spontaneous' block standard, 
-        # so we append to Guidance or Project Context. Let's create a dynamic section in Guidance.
         if spontaneous != "No spontaneous memories surfaced.":
             self._state.blocks["guidance"].value += f"\n\n> [!NOTE]\n> **Spontaneous Recall**: {spontaneous}"
 
-        # 3. Render All Blocks (Letta Style)
+        # 4. Render All Blocks (Letta Style)
         lines.append("# Subconscious Context (Dionysus)")
         
         # Identity / Drives First
@@ -142,8 +162,93 @@ class DreamService:
             
         return "\n".join(lines)
 
-    async def get_subconscious_state(self) -> SubconsciousState:
+    async def save_state(self):
+        """
+        Persist the subconscious state to Neo4j.
+        """
+        logger.info("Persisting Subconscious State to Neo4j...")
+        
+        # 1. Prepare properties for the :Subconscious node
+        props = {
+            "last_maintenance": self._state.last_maintenance.isoformat() if self._state.last_maintenance else None,
+            "global_sentiment": self._state.global_sentiment,
+            "arousal": self._state.arousal,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        # Flatten drives into properties: drive_curiosity_level, etc.
+        for drive_type, state in self._state.drives.items():
+            props[f"drive_{drive_type.value}_level"] = state.level
+            props[f"drive_{drive_type.value}_last_updated"] = state.last_updated.isoformat()
+            
+        # 2. Persist to Neo4j
+        cypher = """
+        MERGE (s:Subconscious {singleton_id: 'main'})
+        SET s += $props
+        """
+        try:
+            await self.graphiti.execute_cypher(cypher, {"props": props})
+            
+            # 3. Persist Blocks as connected nodes
+            for label, block in self._state.blocks.items():
+                block_cypher = """
+                MATCH (s:Subconscious {singleton_id: 'main'})
+                MERGE (b:MemoryBlock {label: $label})
+                SET b.value = $value,
+                    b.description = $description,
+                    b.last_updated = datetime($last_updated)
+                MERGE (s)-[:HAS_BLOCK]->(b)
+                """
+                await self.graphiti.execute_cypher(block_cypher, {
+                    "label": label,
+                    "value": block.value,
+                    "description": block.description,
+                    "last_updated": block.last_updated.isoformat()
+                })
+        except Exception as e:
+            logger.error(f"Failed to persist subconscious state: {e}")
 
+    async def load_state(self):
+        """
+        Load the subconscious state from Neo4j.
+        """
+        logger.info("Loading Subconscious State from Neo4j...")
+        cypher = "MATCH (s:Subconscious {singleton_id: 'main'}) RETURN s"
+        try:
+            results = await self.graphiti.execute_cypher(cypher)
+            if results:
+                s_props = results[0]
+                self._state.global_sentiment = s_props.get("global_sentiment", 0.0)
+                self._state.arousal = s_props.get("arousal", 0.5)
+                if s_props.get("last_maintenance"):
+                    self._state.last_maintenance = datetime.fromisoformat(s_props["last_maintenance"])
+                
+                # Load drives
+                for drive_type in DriveType:
+                    level_key = f"drive_{drive_type.value}_level"
+                    updated_key = f"drive_{drive_type.value}_last_updated"
+                    if level_key in s_props:
+                        self._state.drives[drive_type].level = s_props[level_key]
+                    if updated_key in s_props:
+                        self._state.drives[drive_type].last_updated = datetime.fromisoformat(s_props[updated_key])
+                        
+            # Load blocks
+            block_cypher = "MATCH (:Subconscious {singleton_id: 'main'})-[:HAS_BLOCK]->(b:MemoryBlock) RETURN b"
+            block_results = await self.graphiti.execute_cypher(block_cypher)
+            for row in block_results:
+                label = row.get("label")
+                if label in self._state.blocks:
+                    self._state.blocks[label].value = row.get("value", "")
+                    self._state.blocks[label].description = row.get("description")
+                    if row.get("last_updated"):
+                         # Neo4j DateTime normalize to string via _normalize_neo4j_value
+                         val = row["last_updated"]
+                         self._state.blocks[label].last_updated = datetime.fromisoformat(val) if isinstance(val, str) else val
+
+        except Exception as e:
+            logger.error(f"Failed to load subconscious state: {e}")
+
+    async def get_subconscious_state(self) -> SubconsciousState:
         return self._state
 
 # Singleton Management

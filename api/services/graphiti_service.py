@@ -136,27 +136,6 @@ class GraphitiConfig:
 import asyncio
 import threading
 
-# Dedicated thread and loop for Graphiti operations to ensure thread-safety
-_graphiti_loop: Optional[asyncio.AbstractEventLoop] = None
-_graphiti_thread: Optional[threading.Thread] = None
-
-def _start_graphiti_loop():
-    global _graphiti_loop
-    _graphiti_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(_graphiti_loop)
-    _graphiti_loop.run_forever()
-
-def get_graphiti_loop() -> asyncio.AbstractEventLoop:
-    global _graphiti_thread, _graphiti_loop
-    if _graphiti_thread is None:
-        _graphiti_thread = threading.Thread(target=_start_graphiti_loop, daemon=True)
-        _graphiti_thread.start()
-        # Wait for loop to be initialized
-        import time
-        while _graphiti_loop is None:
-            time.sleep(0.1)
-    return _graphiti_loop
-
 # Global Graphiti instance
 _global_graphiti: Optional["Graphiti"] = None
 _global_graphiti_lock = threading.Lock() # Use threading lock for initialization

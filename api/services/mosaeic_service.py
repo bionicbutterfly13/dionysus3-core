@@ -33,17 +33,24 @@ class MOSAEICService:
         4. IMPULSES: The 'urge' to do something before the action occurs.
         5. COGNITIONS: Thoughts, beliefs, or inner dialogue.
         
+        SIGNAL LOSS IDENTIFICATION:
+        Identify which window is causing the 'drift' or loss of traction (e.g., an Impulse to check out, or an Emotion of anxiety blocking Action). Label this in the narrative_theme of the affected window and score its 'self_betrayal_score' highly.
+        
         NARRATIVE:
         "{text}"
         
         Respond ONLY with a JSON object:
         {{
-            "senses": {{"content": "...", "intensity": 0.0, "tags": []}},
-            "actions": {{"content": "...", "intensity": 0.0, "tags": []}},
-            "emotions": {{"content": "...", "intensity": 0.0, "tags": []}},
-            "impulses": {{"content": "...", "intensity": 0.0, "tags": []}},
-            "cognitions": {{"content": "...", "intensity": 0.0, "tags": []}},
-            "summary": "Synthesized meaning"
+            "senses": {{"content": "...", "intensity": 0.0, "precision": 1.0, "surprisal": 0.0, "narrative_theme": "...", "tags": []}},
+            "actions": {{"content": "...", "intensity": 0.0, "precision": 1.0, "surprisal": 0.0, "narrative_theme": "...", "tags": []}},
+            "emotions": {{"content": "...", "intensity": 0.0, "precision": 1.0, "surprisal": 0.0, "narrative_theme": "...", "tags": []}},
+            "impulses": {{"content": "...", "intensity": 0.0, "precision": 1.0, "surprisal": 0.0, "narrative_theme": "...", "tags": []}},
+            "cognitions": {{"content": "...", "intensity": 0.0, "precision": 1.0, "surprisal": 0.0, "narrative_theme": "...", "tags": []}},
+            "summary": "Synthesized meaning",
+            "identity_congruence": 0.0,
+            "self_betrayal_score": 0.0,
+            "narrative_theme": "Overarching theme",
+            "coherence": 0.0
         }}
         """
         

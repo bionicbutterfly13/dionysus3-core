@@ -91,6 +91,15 @@ class ConsolidationObservation(BaseModel):
     suggested_cluster_id: Optional[str] = None
 
 
+class PathologicalPattern(BaseModel):
+    """Detection of self-defeating cycles: replay_cycle, fresh_start, willpower_atrophy."""
+
+    type: str = Field(..., description="replay_cycle, fresh_start, willpower_atrophy")
+    summary: str
+    evidence_ids: list[str] = Field(default_factory=list)
+    confidence: float
+
+
 class SubconsciousObservations(BaseModel):
     """Full observation payload from subconscious decider (Hexis-style)."""
 
@@ -99,6 +108,7 @@ class SubconsciousObservations(BaseModel):
     contradiction_observations: list[ContradictionObservation] = Field(default_factory=list)
     emotional_observations: list[EmotionalObservation] = Field(default_factory=list)
     consolidation_observations: list[ConsolidationObservation] = Field(default_factory=list)
+    pathological_patterns: list[PathologicalPattern] = Field(default_factory=list)
 
     class Config:
         extra = "allow"

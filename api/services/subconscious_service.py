@@ -20,6 +20,7 @@ from api.models.subconscious import (
     EmotionalObservation,
     IngestRequest,
     NarrativeObservation,
+    PathologicalPattern,
     RelationshipObservation,
     SubconsciousObservations,
     SyncResponse,
@@ -46,8 +47,14 @@ You surface strictly as JSON with these keys (use empty arrays when nothing sign
 - contradiction_observations: list of { "memory_a", "memory_b", "tension", "confidence"? }
 - emotional_observations: list of { "pattern", "confidence", "frequency"? }
 - consolidation_observations: list of { "memory_ids", "concept", "rationale", "confidence"? }
+- pathological_patterns: list of { "type": "replay_cycle"|"fresh_start"|"willpower_atrophy", "summary", "confidence", "evidence_ids" }
 
-Confidence threshold: only report observations with confidence > 0.6. Output valid JSON only, no commentary."""
+Confidence threshold: only report observations with confidence > 0.6. Output valid JSON only, no commentary.
+### Patterns definitions:
+- replay_cycle: shame loops, constant self-criticism, "24h replay" episodes.
+- fresh_start: sudden context switching meant to dodge emotional pain of current context.
+- willpower_atrophy: repeated intention-execution failure leads to learned helplessness.
+"""
 
 
 def _normalize_observations(doc: dict[str, Any]) -> SubconsciousObservations:
@@ -67,6 +74,7 @@ def _normalize_observations(doc: dict[str, Any]) -> SubconsciousObservations:
         contradiction_observations=[ContradictionObservation(**o) for o in as_list(doc.get("contradiction_observations"))],
         emotional_observations=[EmotionalObservation(**o) for o in as_list(emotional)],
         consolidation_observations=[ConsolidationObservation(**o) for o in as_list(consolidation)],
+        pathological_patterns=[PathologicalPattern(**o) for o in as_list(doc.get("pathological_patterns"))],
     )
 
 
@@ -173,7 +181,7 @@ class SubconsciousService:
         No Postgres; each observation becomes a short content string routed to the basin.
         """
         router = await self._get_router()
-        counts = {"narrative": 0, "relationships": 0, "contradictions": 0, "emotional": 0, "consolidation": 0}
+        counts = {"narrative": 0, "relationships": 0, "contradictions": 0, "emotional": 0, "consolidation": 0, "pathology": 0}
         min_conf = 0.6
 
         for obs in observations.narrative_observations:
@@ -214,6 +222,25 @@ class SubconsciousService:
             rationale = obs.rationale or obs.summary or (obs.concept and f"Consolidation: {obs.concept}") or "Consolidation opportunity"
             await router.route_memory(content=rationale, memory_type=MemoryType.STRATEGIC, source_id="subconscious:consolidation")
             counts["consolidation"] += 1
+
+        for obs in observations.pathological_patterns:
+            if obs.confidence < min_conf:
+                continue
+            summary = f"DETECTED {obs.type.upper()}: {obs.summary}"
+            await router.route_memory(content=summary, memory_type=MemoryType.STRATEGIC, source_id="subconscious:pathology")
+            
+            # ULTRATHINK: Trigger Exoskeleton Recovery if serious
+            if obs.type in {"willpower_atrophy", "replay_cycle"} and obs.confidence > 0.8:
+                from api.services.hexis_service import get_hexis_service
+                from api.models.hexis_ontology import ExoskeletonMode
+                hexis = get_hexis_service()
+                # We update the global agent state to RECOVERY mode
+                subconscious = await hexis.get_subconscious_state("dionysus_core")
+                subconscious.exoskeleton_mode = ExoskeletonMode.RECOVERY
+                await hexis.update_subconscious_state("dionysus_core", subconscious)
+                logger.warning(f"Exoskeleton shifted to RECOVERY due to {obs.type}")
+
+            counts["pathology"] += 1
 
         return counts
 

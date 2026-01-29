@@ -37,6 +37,7 @@ class TaskType(str, enum.Enum):
     HEARTBEAT = "heartbeat"
     INGEST = "ingest"
     RESEARCH = "research"
+    MAINTENANCE = "maintenance"
     GENERAL = "general"
 
 

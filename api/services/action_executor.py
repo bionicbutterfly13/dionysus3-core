@@ -1358,6 +1358,128 @@ class ArchiveSemanticHandler(ActionHandler):
         )
 
 
+class ExoskeletonRecoveryHandler(ActionHandler):
+    """
+    ExoskeletonRecovery: Provide externalized grounding path.
+    Cost: 2
+    Output: Recovery steps
+    """
+    action_type = ActionType.EXOSKELETON_RECOVERY
+
+    async def execute(self, request: ActionRequest) -> ActionResult:
+        started_at = datetime.utcnow()
+        cost = self.energy_service.get_action_cost(self.action_type)
+        try:
+            from api.services.exoskeleton_service import get_exoskeleton_service
+            exoskeleton = get_exoskeleton_service()
+            
+            intention = request.params.get("intention", "unknown goal")
+            gap = request.params.get("gap_magnitude", 0.5)
+            
+            path = await exoskeleton.get_recovery_path(intention, gap)
+            
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.COMPLETED,
+                energy_cost=cost,
+                data={"recovery_path": path},
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+        except Exception as e:
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.FAILED,
+                energy_cost=0.0,
+                error=str(e),
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+
+
+class SurfaceContextHandler(ActionHandler):
+    """
+    SurfaceContext: Proactive architecture grounding (Architecture Hunger).
+    Cost: 1
+    Output: Scaffolding fragments
+    """
+    action_type = ActionType.SURFACE_CONTEXT
+
+    async def execute(self, request: ActionRequest) -> ActionResult:
+        started_at = datetime.utcnow()
+        cost = self.energy_service.get_action_cost(self.action_type)
+        try:
+            # ULTRATHINK: Retrieve architecture-level fragments from Neo4j/Graphiti
+            from api.services.graphiti_service import get_graphiti_service
+            graphiti = await get_graphiti_service()
+            
+            # Query for foundational patterns or system architecture nodes
+            search = await graphiti.search(query="system architecture foundational patterns core principles", limit=10)
+            edges = search.get("edges") or []
+            scaffolding = [e.get("fact") for e in edges]
+            
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.COMPLETED,
+                energy_cost=cost,
+                data={"scaffolding": scaffolding},
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+        except Exception as e:
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.FAILED,
+                energy_cost=0.0,
+                error=str(e),
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+
+
+class VitalPauseHandler(ActionHandler):
+    """
+    VitalPause: Structured observation practice (Breath -> Identification -> Pause).
+    Cost: 0
+    Output: Five-window calibration results
+    """
+    action_type = ActionType.VITAL_PAUSE
+
+    async def execute(self, request: ActionRequest) -> ActionResult:
+        started_at = datetime.utcnow()
+        try:
+            # ULTRATHINK: This action forces a moment of 'Presence' calibration
+            from api.services.mosaeic_service import get_mosaeic_service
+            mosaeic = get_mosaeic_service()
+            
+            # Simulated observation of the present moment
+            observation_text = request.params.get("observation", "User is performing a vital pause.")
+            capture = await mosaeic.extract_capture(observation_text)
+            await mosaeic.persist_capture(capture)
+            
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.COMPLETED,
+                energy_cost=0.0,
+                data={
+                    "vital_pause": True,
+                    "mosaeic_summary": capture.summary,
+                    "identity_congruence": capture.identity_congruence
+                },
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+        except Exception as e:
+            return ActionResult(
+                action_type=self.action_type,
+                status=ActionStatus.FAILED,
+                energy_cost=0.0,
+                error=str(e),
+                started_at=started_at,
+                ended_at=datetime.utcnow(),
+            )
+
+
 # =============================================================================
 # Action Executor Registry
 # =============================================================================
@@ -1408,6 +1530,10 @@ class ActionExecutor:
             ActionType.REVISE_BELIEF: ReviseBeliefHandler(energy_service),
             ActionType.PRUNE_EPISODIC: PruneEpisodicHandler(energy_service),
             ActionType.ARCHIVE_SEMANTIC: ArchiveSemanticHandler(energy_service),
+            # ULTRATHINK: Psychological
+            ActionType.EXOSKELETON_RECOVERY: ExoskeletonRecoveryHandler(energy_service),
+            ActionType.SURFACE_CONTEXT: SurfaceContextHandler(energy_service),
+            ActionType.VITAL_PAUSE: VitalPauseHandler(energy_service),
         }
 
     async def execute(self, request: ActionRequest) -> ActionResult:

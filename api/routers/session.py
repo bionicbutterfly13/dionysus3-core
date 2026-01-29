@@ -116,6 +116,7 @@ class QuickContextResponse(BaseModel):
     active_task_count: int
     recent_session_count: int
     compact_context: str
+    modality: str = "neurotypical"
     reconstruction_time_ms: float
 
 
@@ -189,11 +190,19 @@ async def reconstruct_session(request: ReconstructRequest) -> ReconstructRespons
     # Get reconstruction service
     service = get_reconstruction_service()
 
+    # ULTRATHINK: Get modality from Hexis
+    from api.services.hexis_service import get_hexis_service
+    hexis = get_hexis_service()
+    agent_id = request.device_id or "dionysus_core"
+    subconscious = await hexis.get_subconscious_state(agent_id)
+    modality = subconscious.modality
+
     try:
         # Run reconstruction pipeline
         result = await service.reconstruct(
             context,
             prefetched_tasks=request.prefetched_tasks,
+            modality=modality
         )
         
         return ReconstructResponse(
@@ -266,8 +275,14 @@ async def get_quick_context(
     # Get service and reconstruct
     service = get_reconstruction_service()
     
+    # Get modality from Hexis
+    from api.services.hexis_service import get_hexis_service
+    hexis = get_hexis_service()
+    subconscious = await hexis.get_subconscious_state("dionysus_core")
+    modality = subconscious.modality
+    
     try:
-        result = await service.reconstruct(context)
+        result = await service.reconstruct(context, modality=modality)
         
         return QuickContextResponse(
             success=True,
@@ -275,6 +290,7 @@ async def get_quick_context(
             active_task_count=len(result.active_tasks),
             recent_session_count=len(result.recent_sessions),
             compact_context=result.to_compact_context(),
+            modality=modality,
             reconstruction_time_ms=result.reconstruction_time_ms,
         )
         

@@ -12,7 +12,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
 from api.models.action import (
@@ -23,6 +23,7 @@ from api.models.action import (
     HeartbeatDecision,
     HeartbeatSummary,
 )
+from api.models.exoskeleton import RecoveryPathway, SurrogateFilter
 from api.models.goal import GoalAssessment
 from api.services.action_executor import ActionExecutor, get_action_executor
 from api.services.energy_service import ActionType, EnergyService, get_energy_service
@@ -144,6 +145,15 @@ class HeartbeatContext:
     boardroom_aspects: list[dict[str, Any]] = field(default_factory=list) # Unified Source of Truth
     last_heartbeat_summary: str = ""
     activated_clusters: list[str] = field(default_factory=list)
+    
+    # ULTRATHINK: Psychological Frameworks
+    modality: str = "neurotypical"
+    active_loops: list[dict[str, Any]] = field(default_factory=list)
+    is_finality_predicted: bool = False
+    
+    # ULTRATHINK: Recovery Structures
+    recovery_pathway: Optional[RecoveryPathway] = None
+    surrogate_filter: Optional[SurrogateFilter] = None
 
 
 class ContextBuilder:
@@ -165,6 +175,7 @@ class ContextBuilder:
         self,
         environment: EnvironmentSnapshot,
         goal_assessment: GoalAssessment,
+        agent_id: str = "dionysus_core"
     ) -> HeartbeatContext:
         """
         Build full context for heartbeat decision.
@@ -172,6 +183,7 @@ class ContextBuilder:
         Args:
             environment: Current environment snapshot
             goal_assessment: Goal review results
+            agent_id: ID of the agent (for Hexis lookup)
 
         Returns:
             HeartbeatContext with all necessary information
@@ -185,6 +197,11 @@ class ContextBuilder:
             blocked=[g.id for g in goal_assessment.blocked_goals],
             stale=[g.id for g in goal_assessment.stale_goals],
         )
+
+        # ULTRATHINK: Subconscious Fetch
+        from api.services.hexis_service import get_hexis_service
+        hexis = get_hexis_service()
+        subconscious = await hexis.get_subconscious_state(agent_id)
 
         # Get recent memories and trajectories
         async with driver.session() as session:
@@ -243,7 +260,7 @@ class ContextBuilder:
         # For heartbeat, we use a default user_id or system identifier
         boardroom_aspects = await aspect_service.get_all_aspects(user_id="dionysus_system")
 
-        return HeartbeatContext(
+        context = HeartbeatContext(
             environment=environment,
             goals=goals,
             goal_assessment=goal_assessment,
@@ -251,8 +268,23 @@ class ContextBuilder:
             recent_trajectories=recent_trajectories,
             identity_context=identity_context,
             boardroom_aspects=boardroom_aspects,
-            last_heartbeat_summary=last_summary,
+            modality=subconscious.modality,
+            active_loops=[loop.model_dump() if hasattr(loop, 'model_dump') else loop for loop in subconscious.active_loops],
+            is_finality_predicted=getattr(subconscious, 'is_finality_predicted', False)
         )
+        
+        # ULTRATHINK: Fetch Recovery Scaffolding if needed
+        from api.models.hexis_ontology import ExoskeletonMode
+        if subconscious.exoskeleton_mode == ExoskeletonMode.RECOVERY:
+            from api.services.exoskeleton_service import get_exoskeleton_service
+            exoskeleton = get_exoskeleton_service()
+            
+            # Use primary goal as intention for the pathway
+            top_goal = goal_assessment.active_goals[0].title if goal_assessment.active_goals else "Generic Recovery"
+            context.recovery_pathway = await exoskeleton.get_recovery_path(top_goal, subconscious.intention_execution_gap)
+            context.surrogate_filter = await exoskeleton.generate_surrogate_filter()
+            
+        return context
 
 
     def format_prompt(
@@ -334,7 +366,38 @@ class ContextBuilder:
             identity_context=context.identity_context,
             last_heartbeat=context.last_heartbeat_summary,
         )
+
+        # ULTRATHINK: Inject Psychological State
+        user_prompt += f"\n\n## Internal Cognition (ULTRATHINK)\n- Modality: {context.modality}"
+        if context.modality == "adhd_exploratory":
+            user_prompt += "\n- DRIVE: Architecture Hunger (Surface novel context if high surprisal)"
+        elif context.modality == "siege_locked":
+            user_prompt += "\n- WARNING: Triple-Bind Siege Detected (Policy Gridlock). Prioritize grounding actions."
+            
+        if context.active_loops:
+            user_prompt += "\n- Active Loops Detected:\n"
+            for loop in context.active_loops:
+                user_prompt += f"  * {loop.get('name')}: {loop.get('trigger_fact_id')}\n"
+
+        if context.is_finality_predicted:
+            user_prompt += "\n- WARNING: Prediction of Finality Active. (Retrieving Horizon Expansion fragments)."
         
+        # ULTRATHINK: Inject Recovery Scaffolding
+        if context.surrogate_filter:
+            user_prompt += f"\n\n## SURROGATE EXECUTIVE (Surrogate Filter) [MANDATORY]\n"
+            for directive in context.surrogate_filter.directives:
+                user_prompt += f"- {directive}\n"
+            user_prompt += f"FORBIDDEN ACTIONS: {', '.join(context.surrogate_filter.forbidden_actions)}\n"
+            
+        if context.recovery_pathway:
+            user_prompt += f"\n\n## VISIBLE RECOVERY PATHWAY (The Map)\n"
+            user_prompt += f"Current Strategy: {context.recovery_pathway.name}\n"
+            for step in context.recovery_pathway.steps:
+                status = "[DONE]" if step.is_completed else "[ ]"
+                anchor = f" | Somatic Anchor: {step.somatic_anchor.instruction}" if step.somatic_anchor else ""
+                user_prompt += f"- {status} {step.description}{anchor}\n"
+            user_prompt += f"NEXT ACTION: {context.recovery_pathway.current_step_id}"
+
         # Add aspects to prompt (we extend the template dynamically)
         user_prompt += f"\n\n## Boardroom State (Internal Aspects)\n{aspects_text}"
 
@@ -551,6 +614,26 @@ class HeartbeatService:
 
         logger.info(f"Actions completed: {sum(1 for r in results if r.success)}/{len(results)}")
         logger.info(f"Energy: {energy_start} → {energy_end}")
+
+        # ULTRATHINK: Calculate Intention-Execution Gap
+        gap_magnitude = 0.0
+        if results:
+            success_count = sum(1 for r in results if r.status == "completed")
+            gap_magnitude = 1.0 - (success_count / len(results))
+        
+        # Grounding: Record gap in Hexis
+        from api.services.hexis_service import get_hexis_service
+        hexis = get_hexis_service()
+        subconscious = await hexis.get_subconscious_state("dionysus_core")
+        subconscious.intention_execution_gap = gap_magnitude
+        
+        # If gap is high, shift towards RECOVERY proactivity for next turn
+        if gap_magnitude > 0.5:
+            from api.models.hexis_ontology import ExoskeletonMode
+            subconscious.exoskeleton_mode = ExoskeletonMode.RECOVERY
+            logger.warning(f"Intention-Execution Gap detected ({gap_magnitude}). Shifting to RECOVERY mode.")
+        
+        await hexis.update_subconscious_state("dionysus_core", subconscious)
 
         # =====================================================================
         # Phase 6: Record

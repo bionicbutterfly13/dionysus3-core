@@ -16,6 +16,7 @@ import logging
 import os
 import hashlib
 import time
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 from dataclasses import dataclass, field
@@ -38,8 +39,9 @@ class ReconstructionConfig:
     
     # Resonance weights (must sum to 1.0)
     CUE_RESONANCE_WEIGHT = 0.5
-    CONTEXT_RESONANCE_WEIGHT = 0.3
-    NETWORK_RESONANCE_WEIGHT = 0.2
+    CONTEXT_RESONANCE_WEIGHT = 0.2
+    NETWORK_RESONANCE_WEIGHT = 0.1
+    SUBGONSCIOUS_BIAS_WEIGHT = 0.2
     
     # Thresholds
     RESONANCE_ACTIVATION_THRESHOLD = 0.3
@@ -109,6 +111,9 @@ class ReconstructionContext:
     
     # Explicit cues (what user is asking about)
     cues: list[str] = field(default_factory=list)
+    
+    # Subconscious guidance from DreamService
+    subconscious_guidance: str = ""
     
     # Derived context
     project_id: Optional[str] = None
@@ -272,6 +277,7 @@ class ReconstructionService:
         self,
         context: ReconstructionContext,
         prefetched_tasks: Optional[list[dict]] = None,
+        modality: str = "neurotypical"
     ) -> ReconstructedMemory:
         """
         Execute the full reconstruction pipeline.
@@ -279,6 +285,7 @@ class ReconstructionService:
         Args:
             context: Reconstruction context with project info and cues
             prefetched_tasks: Optional task list provided by the caller
+            modality: The current CognitiveModality (ULTRATHINK)
 
         Returns:
             ReconstructedMemory with coherent context for injection
@@ -287,8 +294,21 @@ class ReconstructionService:
 
         warnings = []
 
+        # Phase 3: Subconscious Hydration
+        if not context.subconscious_guidance:
+            try:
+                from api.services.dream_service import get_dream_service
+                dream_svc = await get_dream_service()
+                # Use a generic summary if none available
+                context.subconscious_guidance = await dream_svc.generate_guidance(
+                    context_summary=f"Reconstructing context for {context.project_name}"
+                )
+                logger.debug("Automatic subconscious hydration successful")
+            except Exception as e:
+                logger.warning(f"Failed to hydrate subconscious guidance: {e}")
+
         # Step 1: SCAN - Gather fragments from all sources
-        logger.info(f"Reconstructing context for project: {context.project_name}")
+        logger.info(f"Reconstructing context (Modality={modality}) for project: {context.project_name}")
         await self._scan_fragments(context, prefetched_tasks=prefetched_tasks)
         
         if not self._fragments:
@@ -298,12 +318,13 @@ class ReconstructionService:
         logger.info(f"Scanned {len(self._fragments)} fragments")
         
         # Step 2: ACTIVATE - Calculate resonance scores
-        self._activate_resonance(context)
+        self._activate_resonance(context, modality=modality)
         
         # Step 3: EXCITE - Amplify high-resonance fragments
         self._excite_fragments()
         
-        # Step 4: EVOLVE - Field dynamics (simplified: sort by activation)
+        # Step 4: EVOLVE - Field dynamics (Reference Librarian filtering)
+        self._apply_reference_librarian_filter(modality)
         self._evolve_field()
         
         # Step 5: EXTRACT - Get top patterns by type
@@ -333,6 +354,28 @@ class ReconstructionService:
             gap_fills=gap_fills,
             warnings=warnings,
         )
+
+    def _apply_reference_librarian_filter(self, modality: str) -> None:
+        """
+        ULTRATHINK: The 'Reference Librarian' prevents workspace flooding.
+        During SIEGE_LOCKED or ADHD_EXPLORATORY states, we suppress meta-patterns 
+        (long sessions/strategies) and boost discrete steps (tasks/decisions).
+        """
+        if modality == "neurotypical":
+            return
+
+        logger.info(f"Reference Librarian active for modality: {modality}")
+        for fragment in self._fragments:
+            # Penalize the 'History' layer during siege to reduce cognitive load
+            if fragment.fragment_type in {FragmentType.SESSION, FragmentType.EPISODIC}:
+                if modality == "siege_locked":
+                    fragment.activation *= 0.4  # Hard suppression
+                elif modality == "adhd_exploratory":
+                    fragment.activation *= 0.7  # Soft suppression
+
+            # Boost the 'Action' layer (managing discrete steps)
+            if fragment.fragment_type in {FragmentType.TASK, FragmentType.DECISION, FragmentType.COMMITMENT}:
+                fragment.activation = min(fragment.activation * 1.5, 1.0)
     
     # =========================================================================
     # Step 1: Fragment Scanning
@@ -360,6 +403,9 @@ class ReconstructionService:
         # Scan entities from Graphiti (if enabled)
         if self.graphiti_enabled:
             await self._scan_entities(context)
+            
+        # Phase 3: Scan for subconscious activations (Forced Retrieval)
+        await self._scan_subconscious_activations(context)
 
     async def _scan_episodic_memories(self, context: ReconstructionContext) -> None:
         """
@@ -455,24 +501,96 @@ class ReconstructionService:
                 self._fragments.append(fragment)
         except Exception as e:
             logger.error(f"Failed to scan key entities from Graphiti: {e}")
+
+    async def _scan_subconscious_activations(self, context: ReconstructionContext) -> None:
+        """
+        Scan for nodes specifically mentioned or resonant with subconscious guidance.
+        This forces retrieval of potentially 'forgotten' but resonant items.
+        """
+        if not context.subconscious_guidance or context.subconscious_guidance == "(No active guidance)":
+            return
+            
+        try:
+            # Extract potential keywords from guidance (e.g. from spontaneous recall)
+            keywords = re.findall(r"['\"]([^'\"]+)['\"]", context.subconscious_guidance)
+            
+            if not keywords:
+                # Find drive status keywords (e.g. CURIOSITY, REST)
+                keywords = [kw for kw in re.findall(r'\b[A-Z]{4,}\b', context.subconscious_guidance) if kw not in {'NOTE', 'TIP', 'GUIDANCE'}]
+            
+            if not keywords:
+                return
+
+            logger.info(f"Subconscious bias scanning for keywords: {keywords}")
+
+            cypher = """
+            MATCH (e:Entity)
+            WHERE ANY(kw IN $keywords WHERE toLower(e.name) CONTAINS toLower(kw))
+            RETURN e.id as id, e.name as name, e.summary as summary, e.created_at as created_at
+            LIMIT 5
+            """
+            graphiti = await get_graphiti_service()
+            results = await graphiti.execute_cypher(cypher, {"keywords": keywords})
+            
+            for row in results:
+                # Avoid duplicates
+                if any(f.fragment_id == row["id"] for f in self._fragments):
+                    continue
+                    
+                fragment = Fragment(
+                    fragment_id=row["id"],
+                    fragment_type=FragmentType.ENTITY,
+                    content=row["name"],
+                    summary=row["summary"],
+                    strength=0.9,
+                    source="subconscious_forced",
+                    metadata=row
+                )
+                self._fragments.append(fragment)
+                logger.info(f"Subconscious forced retrieval: {row['name']}")
+                
+        except Exception as e:
+            logger.error(f"Failed to scan subconscious activations: {e}")
     
     # =========================================================================
     # Step 2: Resonance Activation
     # =========================================================================
     
-    def _activate_resonance(self, context: ReconstructionContext) -> None:
+    def _activate_resonance(self, context: ReconstructionContext, modality: str = "neurotypical") -> None:
         for fragment in self._fragments:
             cue_resonance = self._calculate_cue_resonance(fragment, context.cues)
             context_resonance = self._calculate_context_resonance(fragment, context)
             network_resonance = self._calculate_network_resonance(fragment)
             
+            subconscious_bias = self._calculate_subconscious_bias(fragment, context.subconscious_guidance)
+            modality_bias = self._calculate_modality_bias(fragment, modality)
+            
             fragment.resonance_score = (
                 cue_resonance * self.config.CUE_RESONANCE_WEIGHT +
                 context_resonance * self.config.CONTEXT_RESONANCE_WEIGHT +
-                network_resonance * self.config.NETWORK_RESONANCE_WEIGHT
+                network_resonance * self.config.NETWORK_RESONANCE_WEIGHT +
+                subconscious_bias * self.config.SUBGONSCIOUS_BIAS_WEIGHT +
+                modality_bias * 0.1  # Small additional bias from modality
             )
+            # Normalize to 1.0
+            fragment.resonance_score = min(fragment.resonance_score, 1.0)
+
             if fragment.resonance_score >= self.config.RESONANCE_ACTIVATION_THRESHOLD:
                 fragment.activation = fragment.resonance_score
+
+    def _calculate_modality_bias(self, fragment: Fragment, modality: str) -> float:
+        """
+        ULTRATHINK: ADHD favors wide-ranging discovery, whereas siege favors survival.
+        """
+        if modality == "adhd_exploratory":
+            # Boost anything novel or divergent (heuristic: recently created or diverse tags)
+            if fragment.created_at and (datetime.now(timezone.utc) - fragment.created_at).total_seconds() < 3600:
+                return 0.8
+        elif modality == "siege_locked":
+            # Boost anything related to 'Stability' or 'Next Steps'
+            if fragment.fragment_type in {FragmentType.TASK, FragmentType.DECISION}:
+                return 0.9
+        return 0.5
     
     def _calculate_cue_resonance(self, fragment: Fragment, cues: list[str]) -> float:
         if not cues: return 0.5
@@ -492,6 +610,30 @@ class ReconstructionService:
     
     def _calculate_network_resonance(self, fragment: Fragment) -> float:
         return 0.3
+        
+    def _calculate_subconscious_bias(self, fragment: Fragment, guidance: str) -> float:
+        """
+        Calculate how much a fragment aligns with the current subconscious guidance.
+        This enables 'Attractor Basins' where the system prioritizes memories or 
+        tasks that the DreamService flagged as relevant (e.g. restoration of a drive).
+        """
+        if not guidance or guidance == "(No active guidance)":
+            return 0.5 # Neutral bias
+            
+        content = (fragment.content + " " + (fragment.summary or "")).lower()
+        guidance_lower = guidance.lower()
+        
+        # Simple keyword overlap (future: vector similarity)
+        # Extract keywords from fragment content (primitive)
+        keywords = set(re.findall(r'\w+', content))
+        # Find overlaps with guidance
+        overlap_count = sum(1 for kw in keywords if len(kw) > 3 and kw in guidance_lower)
+        
+        # Log heavy hits
+        if overlap_count > 3:
+            logger.debug(f"Subconscious resonance detected for fragment {fragment.fragment_id}: {overlap_count} matches")
+            
+        return min(0.5 + (overlap_count * 0.1), 1.0)
     
     def _excite_fragments(self, amplification: float = 1.3) -> None:
         for fragment in self._fragments:

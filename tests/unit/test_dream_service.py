@@ -45,11 +45,13 @@ async def test_drive_decay(dream_service):
     state.drives[target_drive].last_updated = datetime.utcnow() - timedelta(hours=10)
     # Default decay is 0.01 per hour -> 0.1 total decay
     
-    # Run maintenance
+    # Run maintenance with high arousal (1.0)
+    state.arousal = 1.0
     await dream_service.run_maintenance_cycle()
     
     # Check new level
-    # 1.0 - (0.01 * 10) = 0.9
+    # 1.0 - (Rate * Time) * MetabolicScaler
+    # 1.0 - (0.01 * 10) * 1.0 = 1.0 - 0.1 = 0.9
     new_level = state.drives[target_drive].level
     assert new_level == pytest.approx(0.9, abs=0.01)
     
@@ -90,9 +92,13 @@ async def test_guidance_generation(dream_service):
     assert "**REST** is low" in guidance # The block value
     assert "Subconscious needs maintenance" in guidance # The tip inside guidance block
     
-    # Check Spontaneous Recall (Stub Logic)
-    # The default sentiment is 0.0, so no spontaneous recall by default
-    assert "Spontaneous Recall" not in guidance
+    # The default mock returns a result, so spontaneous recall WILL be present
+    assert "Spontaneous Recall" in guidance
+    
+    # Verify mock was called with the serendipity query
+    dream_service.graphiti.execute_cypher.assert_called()
+    call_args = dream_service.graphiti.execute_cypher.call_args[0][0]
+    assert "MATCH (e:Entity)" in call_args
 
 @pytest.mark.asyncio
 async def test_rich_ontology(dream_service):

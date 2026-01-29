@@ -80,7 +80,8 @@ class EFEEngine:
         prediction_probs: List[float],
         thought_vector: np.ndarray,
         goal_vector: np.ndarray,
-        precision: float = 1.0
+        precision: float = 1.0,
+        modality: str = "neurotypical"
     ) -> float:
         """
         Calculates the cumulative Expected Free Energy for a candidate thought.
@@ -89,21 +90,47 @@ class EFEEngine:
         FEATURE 048: Precision Weighting.
         EFE = (1/Precision) * Uncertainty + Precision * Divergence
         
-        Random Walk alignment (Anderson 2014, Ch 15):
-        The EFE serves as a 'potential' guiding the cognitive random walk toward 
-        the goal. Minimizing EFE is equivalent to selecting paths that reduce 
-        diffusion (uncertainty) and maximize drift (goal directedness).
+        SYNTHESIS (ULTRATHINK): ADHD as Precision Policy.
+        In EXPLORATORY_ADHD, we boost the weight of surprisal (uncertainty) 
+        to favor discovery over exploitation.
         """
         uncertainty = self.calculate_entropy(prediction_probs)
         divergence = self.calculate_goal_divergence(thought_vector, goal_vector)
 
-        # Apply precision weighting
-        # Precision clamps to [0.1, 5.0] elsewhere, but we safe-guard here
-        safe_precision = max(0.01, precision)
-        efe = (1.0 / safe_precision) * uncertainty + safe_precision * divergence
+        # Modality logic: Apply behavioral bias
+        if modality == "adhd_exploratory":
+            # Montgomery (2024): ADHD has higher precision on prediction error.
+            # Effectively, this means uncertainty is more 'attractive' or more processed.
+            # We scale down the 'penalty' of uncertainty to encourage exploration.
+            uncertainty_weight = 0.5 / max(0.01, precision)
+            divergence_weight = precision * 1.5
+        elif modality == "siege_locked":
+            # The Triple-Bind: Everything feels high error.
+            uncertainty_weight = 2.0 / max(0.01, precision)
+            divergence_weight = precision * 2.0
+        else:
+            uncertainty_weight = 1.0 / max(0.01, precision)
+            divergence_weight = precision
 
-        logger.debug(f"EFE Calculation (Prec={safe_precision:.2f}): Uncertainty={uncertainty:.4f}, Divergence={divergence:.4f}, Total={efe:.4f}")
+        efe = (uncertainty_weight * uncertainty) + (divergence_weight * divergence)
+
+        logger.debug(f"EFE Calculation (Modality={modality}, Prec={precision:.2f}): U={uncertainty:.4f}, D={divergence:.4f}, Total={efe:.4f}")
         return efe
+
+    def detect_triple_bind(self, efe_scores: List[float], threshold: float = 1.5) -> bool:
+        """
+        Detects 'The Triple-Bind Siege'.
+        Triggered when all available policies lead to high EFE (Gridlock).
+        """
+        if not efe_scores:
+            return False
+        
+        # If the BEST case is still worse than the threshold, we are in a bind.
+        min_efe = min(efe_scores)
+        if min_efe > threshold:
+            logger.warning(f"Triple-Bind detected: Min EFE {min_efe:.4f} exceeds threshold {threshold:.4f}")
+            return True
+        return False
 
     def calculate_precision_weighted_efe(
         self,

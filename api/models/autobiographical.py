@@ -355,9 +355,11 @@ class ActiveInferenceState(BaseModel):
     resonance_frequency: float = Field(0.0, description="SOHM resonance frequency in Hz (metaphoric)")
     harmonic_mode_id: Optional[str] = Field(None, description="Active Self-Organizing Harmonic Mode ID")
     
-    # Identity Anchoring
+    # Identity Anchoring & Decoupling
     device_id: Optional[str] = Field(None, description="Anchored device identifier")
     journey_id: Optional[str] = Field(None, description="Anchored journey identifier")
+    identity_anchor_strength: float = Field(default=1.0, description="Strength of connection to the core identity prior")
+    intention_execution_gap: float = Field(default=0.0, description="Divergence between ActionPlan and observed MOSAEIC result")
     
     # Richmond/Zacks EST (Event Segmentation Theory)
     surprisal: float = Field(0.0, description="Magnitude of prediction error (Point estimate)")

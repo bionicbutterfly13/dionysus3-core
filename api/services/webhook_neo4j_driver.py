@@ -48,7 +48,6 @@ class WebhookNeo4jSession:
         records = await adapter.execute_cypher(statement, combined_params)
         return WebhookNeo4jResult(records)
 
-
 class WebhookNeo4jDriver:
     """
     Compatibility shim that enforces Graphiti-only access.
@@ -59,6 +58,7 @@ class WebhookNeo4jDriver:
     async def execute_query(self, statement: str, parameters: Optional[dict[str, Any]] = None, **kwargs):
         """
         Execute a Cypher query via Graphiti and return results.
+        Returns a WebhookNeo4jResult for compatibility.
         """
         from api.services.memevolve_adapter import get_memevolve_adapter
         adapter = get_memevolve_adapter()
@@ -67,7 +67,8 @@ class WebhookNeo4jDriver:
         combined_params = (parameters or {}).copy()
         combined_params.update(kwargs)
         
-        return await adapter.execute_cypher(statement, combined_params)
+        records = await adapter.execute_cypher(statement, combined_params)
+        return WebhookNeo4jResult(records)
 
     async def close(self) -> None:
         return None

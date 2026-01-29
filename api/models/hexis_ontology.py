@@ -82,6 +82,47 @@ class MemoryType(str, Enum):
     WORLDVIEW = "worldview"
     GOAL = "goal"
 
+class CognitiveModality(str, Enum):
+    """
+    Divergent neurodevelopmental and cognitive modes.
+    Based on Montgomery (2024) - ADHD as Precision Policy.
+    """
+    NEUROTYPICAL = "neurotypical"       # Balanced precision policies
+    ADHD_EXPLORATORY = "adhd_exploratory" # High precision on bottom-up error (Montgomery 2024)
+    SIEGE_LOCKED = "siege_locked"       # The "Triple-Bind Siege" - Policy Gridlock
+    HYPER_FOCUS = "hyper_focus"         # Narrow, deep precision on a single stream
+
+class PathologyType(str, Enum):
+    """Types of cognitive traps or pathological attractor basins."""
+    TRIPLE_BIND = "triple_bind"         # Policy gridlock where all actions have high EFE
+    FINALITY_TRAP = "finality_trap"     # False prediction that error cannot be minimized in the future
+    ACC_ATROPHY = "acc_atrophy"  # ULTRATHINK: Willpower center atrophy
+    VAGAL_FREEZE = "vagal_freeze"  # ULTRATHINK: Shutdown under load
+    IDENTITY_BETRAYAL = "identity_betrayal"  # ULTRATHINK: Self-betrayal energy
+    DECOUPLING = "decoupling"           # Intention-Execution divergence
+    MORAL_INJURY = "moral_injury"       # Predictive violation of self-identity priors
+
+class SubconsciousLoop(BaseModel):
+    """
+    A persistent, often pathological, recurrence in the subconscious.
+    Corresponds to 'The Siege' or 'Replay Loops'.
+    """
+    id: str
+    pathology_type: PathologyType
+    description: str
+    precision_weight: float = Field(default=1.0, description="How much this loop biases current perception")
+    trigger_cues: List[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class TemporalPrior(BaseModel):
+    """
+    Predictive model of the time horizon.
+    Used to detect and bypass 'False Prediction of Finality'.
+    """
+    horizon_ms: int = Field(default=86400000, description="Predicted availability of future states (24h default)")
+    continuity_score: float = Field(default=1.0, description="Predicted probability of state persistence/change (0-1)")
+    is_finality_predicted: bool = Field(default=False, description="Whether the system currently predicts 'The End'")
+
 class GoalPriority(str, Enum):
     ACTIVE = "active"
     QUEUED = "queued"
@@ -119,11 +160,23 @@ class Worldview(BaseModel):
         if not self.id and self.statement:
             self.id = generate_deterministic_id(f"worldview:{self.statement}")
 
+class ExoskeletonMode(str, Enum):
+    BASAL = "basal"  # Minimal support
+    PROACTIVE = "proactive"  # Pre-emptive cues
+    RECOVERY = "recovery"  # Emergency grounding (Point of Performance)
+
 class SubconsciousState(BaseModel):
     """
     Aggregate state of the subconscious system.
     """
     drives: Dict[DriveType, DriveState] = Field(default_factory=dict)
+    modality: CognitiveModality = CognitiveModality.NEUROTYPICAL
+    exoskeleton_mode: ExoskeletonMode = ExoskeletonMode.BASAL
+    active_loops: List[SubconsciousLoop] = Field(default_factory=list)
+    temporal_priors: Dict[str, Any] = Field(default_factory=dict)
+    is_finality_predicted: bool = False
+    intention_execution_gap: float = 0.0
+    
     blocks: Dict[str, MemoryBlock] = Field(default_factory=dict, description="Letta-style persistent memory blocks")
     active_neighborhoods: List[str] = Field(default_factory=list, description="Currently active/resonant neighborhoods")
     active_goals: List[Goal] = Field(default_factory=list, description="Current active goals")

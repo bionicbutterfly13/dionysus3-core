@@ -529,6 +529,34 @@ class GraphDiscoveryMaintenanceTask:
         return len(orphans)
 
 
+class SubconsciousMaintenanceTask:
+    """
+    Handles Hexis-style subconscious maintenance.
+    - Decays drives based on metabolic activity (arousal).
+    - Persists state to Neo4j.
+    - Triggers neighborhood clustering tasks.
+    """
+
+    def __init__(self, driver=None, config: WorkerConfig | None = None):
+        self._driver = driver
+        self._config = config or WorkerConfig()
+
+    async def run(self) -> dict:
+        from api.services.dream_service import get_dream_service
+        dream_svc = await get_dream_service()
+        
+        # 1. Load latest state from DB (in case other workers updated it)
+        await dream_svc.load_state()
+        
+        # 2. Run maintenance cycle (Drives, Clustering, Pruning)
+        result = await dream_svc.run_maintenance_cycle()
+        
+        # 3. Save state back to DB
+        await dream_svc.save_state()
+        
+        return result
+
+
 class DiscoveryTaskExecutor:
     """
     Internal worker that pulls DISCOVERY tasks from the CoordinationService
@@ -620,6 +648,7 @@ class BackgroundWorker:
         self._health_task = HealthMonitorTask(driver, self._config)
         self._discovery_task = GraphDiscoveryMaintenanceTask(driver, self._config)
         self._discovery_executor = DiscoveryTaskExecutor(driver, self._config)
+        self._subconscious_task = SubconsciousMaintenanceTask(driver, self._config)
 
     @property
     def state(self) -> WorkerState:
@@ -777,6 +806,20 @@ class BackgroundWorker:
                     # Periodic health check
                     if cycle_count % self._config.health_check_interval_cycles == 0:
                         await self._health_task.run()
+
+                    # FEATURE 069: Subconscious Maintenance (The Dream)
+                    # Run every 5 cycles (~2.5 minutes)
+                    if cycle_count % 5 == 0:
+                        try:
+                            maintenance_stats = await self._subconscious_task.run()
+                            await bus.emit_system_event(
+                                source="background_worker",
+                                event_type="subconscious_maintenance",
+                                summary="Executed subconscious maintenance cycle.",
+                                metadata=maintenance_stats
+                            )
+                        except Exception as e:
+                            logger.error(f"Subconscious maintenance failed: {e}")
 
                     self._health.cycles_completed += 1
                     self._health.last_cycle_at = datetime.utcnow()

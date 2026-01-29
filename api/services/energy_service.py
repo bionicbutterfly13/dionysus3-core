@@ -58,6 +58,11 @@ class ActionType(str, Enum):
     REVISE_BELIEF = "revise_belief"      # Update/replace a belief
     PRUNE_EPISODIC = "prune_episodic"    # Apply episodic decay
     ARCHIVE_SEMANTIC = "archive_semantic"  # Archive low-confidence beliefs
+    
+    # ULTRATHINK: Psychological Actions
+    EXOSKELETON_RECOVERY = "exoskeleton_recovery"  # Point of Performance grounding
+    SURFACE_CONTEXT = "surface_context"  # Proactive Architecture Hunger
+    VITAL_PAUSE = "vital_pause"  # Structured observation (Five Windows)
 
 
 # Default action costs (can be overridden from Neo4j config)
@@ -89,6 +94,10 @@ DEFAULT_ACTION_COSTS: dict[ActionType, float] = {
     ActionType.REVISE_BELIEF: 3.0,
     ActionType.PRUNE_EPISODIC: 2.0,
     ActionType.ARCHIVE_SEMANTIC: 1.0,
+    # Psychological
+    ActionType.EXOSKELETON_RECOVERY: 2.0,
+    ActionType.SURFACE_CONTEXT: 1.0,
+    ActionType.VITAL_PAUSE: 0.0,
 }
 
 

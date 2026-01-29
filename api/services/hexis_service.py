@@ -15,6 +15,8 @@ from api.models.priors import (
 )
 from api.services.prior_constraint_service import PriorConstraintService
 
+from api.models.hexis_ontology import SubconsciousState, CognitiveModality, SubconsciousLoop, TemporalPrior
+
 logger = logging.getLogger(__name__)
 
 class HexisService:
@@ -22,6 +24,7 @@ class HexisService:
     Service for managing Hexis 'Soul' architecture:
     - Consent (Handshake)
     - Boundaries (Hard Constraints)
+    - Subconscious State (Modality, Loops, Priors)
     
     Persistence via Graphiti Facts (Neo4j).
     """
@@ -29,9 +32,59 @@ class HexisService:
     # Basin constants
     BASIN_CONSENT = "hexis_consent"
     BASIN_BOUNDARY = "hexis_boundary"
+    BASIN_SUBCONSCIOUS = "hexis_subconscious"
     
     def __init__(self):
         pass
+
+    async def get_subconscious_state(self, agent_id: str) -> SubconsciousState:
+        """
+        Retrieve the current subconscious state for the agent.
+        """
+        graphiti = await self._get_graphiti()
+        
+        # Search for the latest state fact
+        results = await graphiti.execute_cypher(
+            """
+            MATCH (f:Fact {basin_id: $basin_id, group_id: $group_id})
+            RETURN f.text as text
+            ORDER BY f.created_at DESC
+            LIMIT 1
+            """,
+            {"basin_id": self.BASIN_SUBCONSCIOUS, "group_id": agent_id}
+        )
+        
+        if results:
+            try:
+                state_data = json.loads(results[0]["text"])
+                return SubconsciousState(**state_data)
+            except Exception as e:
+                logger.error(f"Failed to parse SubconsciousState for {agent_id}: {e}")
+        
+        # Default state
+        return SubconsciousState()
+
+    async def update_subconscious_state(self, agent_id: str, state: SubconsciousState) -> None:
+        """
+        Persist the subconscious state.
+        """
+        graphiti = await self._get_graphiti()
+        
+        await graphiti.persist_fact(
+            fact_text=state.model_dump_json(),
+            source_episode_id=f"hexis_subconscious_{uuid4().hex[:8]}",
+            valid_at=datetime.now(timezone.utc),
+            basin_id=self.BASIN_SUBCONSCIOUS,
+            confidence=1.0,
+            group_id=agent_id
+        )
+        logger.info(f"Subconscious state updated for {agent_id}")
+
+    async def set_modality(self, agent_id: str, modality: CognitiveModality) -> None:
+        """Helper to quickly update modality."""
+        state = await self.get_subconscious_state(agent_id)
+        state.modality = modality
+        await self.update_subconscious_state(agent_id, state)
 
     async def _get_graphiti(self):
         return await get_graphiti_service()
