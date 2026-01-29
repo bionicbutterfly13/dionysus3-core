@@ -144,6 +144,7 @@ class ReconstructedMemory:
     episodic_memories: list[dict] = field(default_factory=list)
     gap_fills: list[dict] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    identity_context: str = ""  # Hexis identity (worldview/goals/directives)
 
     
     def to_compact_context(self) -> str:
@@ -156,7 +157,12 @@ class ReconstructedMemory:
         # Project
         lines.append(f"## Project: {self.project_summary}")
         lines.append("")
-        
+
+        # Identity Context (Hexis - worldview/goals/directives)
+        if self.identity_context:
+            lines.append(self.identity_context)
+            lines.append("")
+
         # Recent sessions
         if self.recent_sessions:
             lines.append("## Recent Sessions")
@@ -307,6 +313,18 @@ class ReconstructionService:
             except Exception as e:
                 logger.warning(f"Failed to hydrate subconscious guidance: {e}")
 
+        # Phase 4: Identity Hydration (Hexis - worldview/goals/directives)
+        identity_context = ""
+        try:
+            from api.services.hexis_identity import get_hexis_identity_service
+            identity_svc = get_hexis_identity_service()
+            agent_id = context.project_id or "dionysus_core"
+            identity_context = await identity_svc.get_prompt_context(agent_id=agent_id)
+            if identity_context:
+                logger.debug(f"Identity hydration successful for {agent_id}")
+        except Exception as e:
+            logger.warning(f"Failed to hydrate identity context: {e}")
+
         # Step 1: SCAN - Gather fragments from all sources
         logger.info(f"Reconstructing context (Modality={modality}) for project: {context.project_name}")
         await self._scan_fragments(context, prefetched_tasks=prefetched_tasks)
@@ -353,6 +371,7 @@ class ReconstructionService:
             reconstruction_time_ms=elapsed_ms,
             gap_fills=gap_fills,
             warnings=warnings,
+            identity_context=identity_context,
         )
 
     def _apply_reference_librarian_filter(self, modality: str) -> None:

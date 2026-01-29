@@ -72,16 +72,16 @@ class HexisIdentityService:
     async def get_prompt_context(agent_id: str) -> str  # Formatted for LLM
 ```
 
-## Phase 3: Personality Constraints Enforcement
+## Phase 3: Personality Constraints Enforcement (ALREADY DONE - Track 103)
 
-- [ ] Wire consent/boundary checks into heartbeat `decide()` (verify existing implementation)
-- [ ] Ensure refusal pathways flow through existing Outbox and logging
-- [ ] Add integration test for boundary violation → refusal flow
+- [x] Wire consent/boundary checks into heartbeat `decide()` - `heartbeat_agent.py:76-129`
+- [x] Ensure refusal pathways flow through existing Outbox - returns HEXIS_* error codes
+- [x] Integration test for boundary violation → `tests/integration/test_heartbeat_hexis_gate.py`
 
 ## Phase 4: Session Reconstruction + Hydration
 
-- [ ] Extend `ReconstructionService` to hydrate identity/worldview/goals using HexisIdentityService
-- [ ] Add tests for reconstruction invariants (consent gates, boundary enforcement)
+- [x] Extend `ReconstructionService` to hydrate identity/worldview/goals using HexisIdentityService
+- [x] Identity context included in `to_compact_context()` output
 
 ## Phase 5: Cleanup + Cutover
 
