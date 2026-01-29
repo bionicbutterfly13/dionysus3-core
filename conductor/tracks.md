@@ -20,7 +20,7 @@
 | 095-coordination-pool-rename | Done | Coordination Pool Rename | Renamed Daedalus terminology to Coordination Pool across docs/specs/code |
 | 095-comp-neuro-gold-standard | Done | Computational Neuroscience Gold Standard | Anderson (2014) chapter mapping: Hopfield attractors, ACT-R OODA, ABM smolagents |
 | 099-memory-amnesia-fix | Done | Memory Amnesia Fix | Bootstrap recall task wiring, ingest after heartbeat, pre-prune memory flush |
-| 101-hexis-core-migration | Planned | Hexis Core Migration | Fold Hexis core cognition into Dionysus with phased Neo4j migration and no sprawl |
+| 101-hexis-core-migration | In Progress | Hexis Core Migration | Fold Hexis core cognition into Dionysus with phased Neo4j migration and no sprawl |
 | 103-hexis-boundary-enforcement | Done | Hexis Boundary Enforcement + Termination Removal | Enforce Hexis boundaries in Heartbeat and remove self-termination endpoints |
 
 <!--
