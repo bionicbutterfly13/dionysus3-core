@@ -82,3 +82,32 @@ marker-env/
 # Raw data files
 scripts/rmbc_raw.txt
 .mypy_cache/
+
+# Virtual environments (additional)
+cursor_env/
+*_env/
+
+# Analysis temp directories
+analysis_temp/
+
+# Gemini context (auto-generated)
+.gemini/active_context.md
+
+# IAS Marketing Content (belongs in separate repo)
+BE MEMBERSHIP*
+IAS-*.md
+MASTER-INDEX.md
+Propaganda Machine Workbook.md
+stop replaying*.md
+hbd/
+
+# Ground truth data files
+data/ground-truth/*.pdf
+data/ground-truth/*.zip
+data/ground-truth/*.txt
+data/ground-truth/conversations_extracted/
+data/ground-truth/deliverables*/
+
+# Binary assets (large files)
+assets/*.pdf
+*.pdf

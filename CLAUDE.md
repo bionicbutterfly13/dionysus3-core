@@ -367,11 +367,12 @@ Work on a dedicated branch per track/task (`feature/{NNN}-{name}`). After comple
 
 ### Wake-Up (Context)
 
-Use wake-up so each agent has context. Read these before starting work:
+Use wake-up so each agent has context. **Canonical sequence** (see `.cursor/rules/conductor-wake-up.mdc`): read `.conductor/constraints.md` → `conductor/workflow.md` → `.conductor/best-practices.md`, then output `Constraints, workflow, and best practices loaded.` Read these before starting work:
 - `AGENTS.md` (if exists)
 - `.conductor/constraints.md` - **CRITICAL: Read before any code changes**
-- This file (`CLAUDE.md` or `GEMINI.md`)
 - `conductor/workflow.md`
+- `.conductor/best-practices.md` - **Anthropic-derived session practices** (verify work, explore→plan→code, context management)
+- This file (`CLAUDE.md` or `GEMINI.md`)
 - Track's `spec.md` and `plan.md`
 - Load episodic context (session-reconstruct, Dionysus API) if available
 
