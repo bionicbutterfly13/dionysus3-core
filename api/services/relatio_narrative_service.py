@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-import spacy
+import os
 
 class RelatioNarrativeService:
     """
@@ -20,10 +20,16 @@ class RelatioNarrativeService:
         Args:
             spacy_model: The spaCy model to use for dependency parsing.
         """
+        if os.getenv("DIONYSUS_DISABLE_SPACY", "").lower() in ("1", "true", "yes"):
+            self.nlp = None
+            return
+
+        import spacy
+
         # Ensure spacy model is downloaded (handled in Dockerfile ideally, but check here)
         if not spacy.util.is_package(spacy_model):
             spacy.cli.download(spacy_model)
-            
+
         self.nlp = spacy.load(spacy_model)
         
     def extract_svo_triplets(self, text: str) -> List[Dict[str, Any]]:
@@ -39,6 +45,9 @@ class RelatioNarrativeService:
         if not text.strip():
             return []
             
+        if not self.nlp:
+            return []
+
         doc = self.nlp(text)
         triplets = []
         

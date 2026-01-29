@@ -108,6 +108,11 @@ data/ground-truth/*.txt
 data/ground-truth/conversations_extracted/
 data/ground-truth/deliverables*/
 
-# Binary assets (large files)
+# Binary assets and IAS content
 assets/*.pdf
+assets/IAS*.md
+assets/Replay*.md
 *.pdf
+
+# Ground truth markdown content
+data/ground-truth/IAS*.md

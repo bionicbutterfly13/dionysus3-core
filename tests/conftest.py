@@ -8,6 +8,8 @@ import asyncio
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
+os.environ.setdefault("DIONYSUS_DISABLE_SPACY", "1")
+
 
 # =============================================================================
 # Mock Neo4j Driver (prevents real webhook connections)
