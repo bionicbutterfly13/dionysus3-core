@@ -52,35 +52,19 @@ async def test_boundary_lifecycle(hexis_service, mock_graphiti):
     assert call_args.get("basin_id") == "hexis_boundary"
     
     # 2. Retrieve
-    # Mock return value for search
-    # Mock return value for search (dict structure)
-    mock_graphiti.search.return_value = {
-        "edges": [{"fact": boundary_text}]
-    }
+    mock_graphiti.execute_cypher.return_value = [{"text": boundary_text}]
     
     boundaries = await hexis_service.get_boundaries(agent_id)
     assert boundary_text in boundaries[0]
 
 @pytest.mark.asyncio
-async def test_termination_requires_verification(hexis_service, mock_graphiti):
-    """Should strictly validate termination token."""
-    agent_id = "agent-123"
-    
-    # 1. Request Termination (Generate Token)
-    token = await hexis_service.request_termination(agent_id)
-    assert token is not None
-    
-    # 2. Confirm check logic is accessible (white-box for service method?)
-    # Ideally termination destroys data. Mock delete/archive call.
-    
-    await hexis_service.confirm_termination(agent_id, token, "Last Will: Goodbye")
-    
-    # Verify destructive action called on Graphiti/Memory
-    # Verify destructive action called on Graphiti/Memory via execute_cypher
-    mock_graphiti.execute_cypher.assert_called()
-    # Or strict check:
-    # mock_graphiti.execute_cypher.assert_any_call(
-    #     "MATCH (t:Tombstone ...", ...
-    # ) 
-    # Or however we define "Wipe" in Graphiti abstraction
+async def test_boundary_check_blocks_action(hexis_service):
+    """Boundary regex should hard-block matching actions."""
+    boundaries = ["regex:delete\\s+.*data"]
+    result = await hexis_service.check_action_against_boundaries(
+        action_text="Delete all data for this agent.",
+        boundaries=boundaries,
+    )
+    assert result.permitted is False
+    assert "BOUNDARY" in (result.reason or "").upper()
     

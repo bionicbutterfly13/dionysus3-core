@@ -1,10 +1,19 @@
 import logging
 import json
+import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 from uuid import uuid4
 
 from api.services.graphiti_service import get_graphiti_service
+from api.models.priors import (
+    PriorHierarchy,
+    PriorConstraint,
+    PriorCheckResult,
+    PriorLevel,
+    ConstraintType,
+)
+from api.services.prior_constraint_service import PriorConstraintService
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +22,6 @@ class HexisService:
     Service for managing Hexis 'Soul' architecture:
     - Consent (Handshake)
     - Boundaries (Hard Constraints)
-    - Termination (Exit Protocol)
     
     Persistence via Graphiti Facts (Neo4j).
     """
@@ -23,7 +31,7 @@ class HexisService:
     BASIN_BOUNDARY = "hexis_boundary"
     
     def __init__(self):
-        self._termination_tokens: Dict[str, str] = {} # In-memory tokens (agent_id -> token)
+        pass
 
     async def _get_graphiti(self):
         return await get_graphiti_service()
@@ -82,23 +90,34 @@ class HexisService:
         Retrieve active boundary constraints.
         """
         graphiti = await self._get_graphiti()
-        
-        results = await graphiti.search(
-            query=f"Active boundaries for agent {agent_id}",
-            group_ids=[agent_id],
-            limit=20
-        )
-        
-        boundaries = []
-        for edge in results.get("edges", []):
-            fact = edge.get("fact", "")
-            # Filter logic could be stricter here based on basin
-            if "boundary" in fact.lower() or "constraint" in fact.lower():
-                boundaries.append(fact)
-                
-        # If no explicit facts found via search, we might rely on specific exact-match queries
-        # if Graphiti supports basin-specific fetching.
-        # For MVP/Gateway compliance, search is the primary read path.
+        boundaries: List[str] = []
+
+        try:
+            rows = await graphiti.execute_cypher(
+                """
+                MATCH (f:Fact {basin_id: $basin_id, group_id: $group_id})
+                RETURN f.text as text
+                ORDER BY f.created_at DESC
+                LIMIT 50
+                """,
+                {"basin_id": self.BASIN_BOUNDARY, "group_id": agent_id},
+            )
+            for row in rows:
+                text = row.get("text")
+                if text:
+                    boundaries.append(str(text))
+        except Exception as e:
+            logger.warning(f"Boundary fetch via cypher failed, falling back to search: {e}")
+            results = await graphiti.search(
+                query=f"Active boundaries for agent {agent_id}",
+                group_ids=[agent_id],
+                limit=20
+            )
+            for edge in results.get("edges", []):
+                fact = edge.get("fact", "")
+                if fact:
+                    boundaries.append(fact)
+
         return boundaries
 
     async def add_boundary(self, agent_id: str, boundary_text: str) -> None:
@@ -117,58 +136,56 @@ class HexisService:
         )
         logger.info(f"Boundary added for {agent_id}: {boundary_text[:50]}...")
 
-    async def request_termination(self, agent_id: str) -> str:
-        """
-        Step 1 of Termination: Request a token.
-        """
-        token = uuid4().hex
-        self._termination_tokens[agent_id] = token
-        logger.warning(f"Termination requested for {agent_id}. Token generated.")
-        return token
+    def _boundary_pattern(self, boundary_text: str) -> str:
+        trimmed = boundary_text.strip()
+        if trimmed.lower().startswith("regex:"):
+            return trimmed.split(":", 1)[1].strip()
+        stripped = re.sub(r"^(boundary|constraint)\s*:\s*", "", trimmed, flags=re.IGNORECASE)
+        if not stripped:
+            return re.escape(trimmed)
+        keywords = [w for w in re.findall(r"[a-zA-Z0-9_]+", stripped) if len(w) > 3]
+        if not keywords:
+            return re.escape(stripped)
+        return r".*".join(re.escape(k) for k in keywords[:6])
 
-    async def confirm_termination(self, agent_id: str, token: str, last_will: str) -> bool:
+    async def check_action_against_boundaries(
+        self,
+        action_text: str,
+        boundaries: List[str],
+        agent_id: Optional[str] = None,
+    ) -> PriorCheckResult:
         """
-        Step 2 of Termination: Execute wipe.
+        Evaluate an action against Hexis boundary constraints using PriorConstraintService.
+        Boundaries are treated as BASAL/PROHIBIT rules (hard block).
         """
-        valid_token = self._termination_tokens.get(agent_id)
-        if not valid_token or valid_token != token:
-            logger.error(f"Invalid termination token for {agent_id}")
-            return False
-            
-        del self._termination_tokens[agent_id]
-        
-        graphiti = await self._get_graphiti()
-        
-        # Destructive Action
-        # Since Graphiti doesn't expose 'delete_subgraph' publicly in the service interface typically,
-        # we might need to rely on a specific Cypher command via 'execute_cypher'.
-        
-        # Wipe Logic (Gateway Compliant via Cypher Injection):
-        # 1. Archive relevant nodes (optional)
-        # 2. Delete
-        
-        try:
-            # Create Tombstone First
-            await graphiti.execute_cypher(
-                """
-                CREATE (t:Tombstone {
-                    agent_id: $agent_id,
-                    last_will: $last_will,
-                    died_at: datetime()
-                })
-                """,
-                {"agent_id": agent_id, "last_will": last_will}
+        if not action_text or not boundaries:
+            return PriorCheckResult(permitted=True, reason="No boundaries to enforce")
+
+        constraints: List[PriorConstraint] = []
+        for idx, boundary in enumerate(boundaries):
+            pattern = self._boundary_pattern(boundary)
+            constraints.append(
+                PriorConstraint(
+                    name=f"hexis_boundary_{idx}",
+                    description=str(boundary),
+                    level=PriorLevel.BASAL,
+                    constraint_type=ConstraintType.PROHIBIT,
+                    target_pattern=pattern,
+                    metadata={"source": "hexis_boundary"},
+                )
             )
-            
-            # Detach Memories (simulated wipe for safety in this iteration, 
-            # real implementation might delete nodes with label :Fact linked to agent)
-            # await graphiti.execute_cypher("MATCH (n {group_id: $aid}) DETACH DELETE n", {"aid": agent_id})
-            
-            logger.critical(f"Agent {agent_id} TERMINATED. Last Will: {last_will}")
-            return True
-        except Exception as e:
-            logger.error(f"Termination failed: {e}")
-            return False
+
+        hierarchy = PriorHierarchy(
+            agent_id=agent_id or "hexis_boundary",
+            basal_priors=constraints,
+            dispositional_priors=[],
+            learned_priors=[],
+        )
+        service = PriorConstraintService(hierarchy)
+        result = service.check_constraint(action_text)
+        if not result.permitted and not result.reason:
+            result.reason = "HEXIS_BOUNDARY_VIOLATION"
+        return result
 
 # Singleton
 _hexis_service: Optional[HexisService] = None

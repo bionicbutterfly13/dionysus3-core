@@ -86,12 +86,28 @@ class HeartbeatAgent:
              # Fail open or closed? Closed for safety.
              return f"HEXIS_CHECK_FAILED: {str(e)}"
         
+        boundaries = []
+        try:
+             boundaries = await hexis.get_boundaries(agent_id)
+        except Exception as e:
+             return f"HEXIS_BOUNDARY_CHECK_FAILED: {str(e)}"
+
+        boundary_items = ""
+        boundary_context = ""
+        if boundaries:
+             boundary_items = "\n".join([f"- {b}" for b in boundaries[:10]])
+             boundary_context = f"\n\nHexis Boundaries:\n{boundary_items}\nDo NOT violate these constraints."
+
         # Determine if we are using Ollama for gating
         is_ollama = "ollama" in str(getattr(self.model, 'model_id', '')).lower()
 
         # 1. System 1: Fast Heuristic Pass (OODA - Observe/Orient)
         # Constrained pass to gather initial intent.
-        s1_prompt = f"OODA System 1 (Fast Pass): Briefly summarize recent state and suggest the most obvious next step. Heartbeat #{context.get('heartbeat_number', 'unknown')}."
+        s1_prompt = (
+            f"OODA System 1 (Fast Pass): Briefly summarize recent state and suggest the most obvious next step. "
+            f"Heartbeat #{context.get('heartbeat_number', 'unknown')}."
+            f"{boundary_context}"
+        )
         
         s1_result = await run_agent_with_timeout(
             self.agent, 
@@ -99,6 +115,18 @@ class HeartbeatAgent:
             timeout_seconds=15, 
             use_ollama=is_ollama
         )
+
+        if boundaries:
+             try:
+                 boundary_check = await hexis.check_action_against_boundaries(
+                     action_text=str(s1_result),
+                     boundaries=boundaries,
+                     agent_id=agent_id,
+                 )
+                 if not boundary_check.permitted:
+                     return f"HEXIS_BOUNDARY_VIOLATION: {boundary_check.reason}"
+             except Exception as e:
+                 return f"HEXIS_BOUNDARY_CHECK_FAILED: {str(e)}"
 
         # 2. Metacognitive Arbitration (SOFAI)
         # Use ManagedMetacognitionAgent to decide if System 2 (Slow Thinking) is needed.
@@ -133,6 +161,9 @@ class HeartbeatAgent:
         
         ## New Agent Trajectories
         {json.dumps(context.get('recent_trajectories', []), indent=2)}
+
+        ## Hexis Boundaries
+        {boundary_items if boundary_items else "(None)"}
         
         ## Task
         Perform a Deep Planning cycle using Formal Active Inference:
@@ -150,5 +181,17 @@ class HeartbeatAgent:
             timeout_seconds=60, 
             use_ollama=is_ollama
         )
-        
+
+        if boundaries:
+             try:
+                 boundary_check = await hexis.check_action_against_boundaries(
+                     action_text=str(result),
+                     boundaries=boundaries,
+                     agent_id=agent_id,
+                 )
+                 if not boundary_check.permitted:
+                     return f"HEXIS_BOUNDARY_VIOLATION: {boundary_check.reason}"
+             except Exception as e:
+                 return f"HEXIS_BOUNDARY_CHECK_FAILED: {str(e)}"
+
         return f"SYSTEM 2 COMPLETED\nReason for S2: {arbitration.get('reason')}\nResult: {result}"

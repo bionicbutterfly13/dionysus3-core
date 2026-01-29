@@ -22,12 +22,6 @@ class _FakeHexisService:
     async def add_boundary(self, agent_id: str, boundary_text: str) -> None:
         return None
 
-    async def request_termination(self, agent_id: str) -> str:
-        return "token-123"
-
-    async def confirm_termination(self, agent_id: str, token: str, last_will: str) -> bool:
-        return token == "token-123"
-
 
 @pytest.fixture
 def app():
@@ -107,56 +101,19 @@ def test_add_boundary_returns_success(client):
     assert data["status"] == "success"
 
 
-def test_terminate_request_returns_token(client):
-    """POST /hexis/terminate returns pending confirmation + token."""
-    import api.routers.hexis as hexis_router
-
-    client.app.dependency_overrides[hexis_router.get_hexis_service] = lambda: _FakeHexisService()
-    try:
-        response = client.post("/hexis/terminate", json={"agent_id": "agent-ok"})
-    finally:
-        client.app.dependency_overrides.clear()
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "pending_confirmation"
-    assert "token" in data
+def test_terminate_request_removed_returns_404(client):
+    """POST /hexis/terminate is removed and should return 404."""
+    response = client.post("/hexis/terminate", json={"agent_id": "agent-ok"})
+    assert response.status_code == 404
 
 
-def test_terminate_confirm_returns_terminated(client):
-    """POST /hexis/terminate/confirm returns terminated status."""
-    import api.routers.hexis as hexis_router
-
-    client.app.dependency_overrides[hexis_router.get_hexis_service] = lambda: _FakeHexisService()
-    try:
-        response = client.post(
-            "/hexis/terminate/confirm",
-            json={"agent_id": "agent-ok", "token": "token-123", "last_will": "farewell"},
-        )
-    finally:
-        client.app.dependency_overrides.clear()
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "terminated"
-
-
-# --- Error Response Tests ---
-
-
-def test_terminate_confirm_invalid_token_returns_403(client):
-    """POST /hexis/terminate/confirm with invalid token returns 403."""
-    import api.routers.hexis as hexis_router
-
-    client.app.dependency_overrides[hexis_router.get_hexis_service] = lambda: _FakeHexisService()
-    try:
-        response = client.post(
-            "/hexis/terminate/confirm",
-            json={"agent_id": "agent-ok", "token": "wrong-token", "last_will": "farewell"},
-        )
-    finally:
-        client.app.dependency_overrides.clear()
-    assert response.status_code == 403
-    data = response.json()
-    assert "detail" in data
+def test_terminate_confirm_removed_returns_404(client):
+    """POST /hexis/terminate/confirm is removed and should return 404."""
+    response = client.post(
+        "/hexis/terminate/confirm",
+        json={"agent_id": "agent-ok", "token": "token-123", "last_will": "farewell"},
+    )
+    assert response.status_code == 404
 
 
 def test_consent_grant_missing_fields_returns_422(client):
@@ -168,16 +125,4 @@ def test_consent_grant_missing_fields_returns_422(client):
 def test_add_boundary_missing_fields_returns_422(client):
     """POST /hexis/boundaries with missing fields returns 422."""
     response = client.post("/hexis/boundaries", json={})
-    assert response.status_code == 422
-
-
-def test_terminate_missing_agent_id_returns_422(client):
-    """POST /hexis/terminate with missing agent_id returns 422."""
-    response = client.post("/hexis/terminate", json={})
-    assert response.status_code == 422
-
-
-def test_terminate_confirm_missing_fields_returns_422(client):
-    """POST /hexis/terminate/confirm with missing fields returns 422."""
-    response = client.post("/hexis/terminate/confirm", json={"agent_id": "test"})
     assert response.status_code == 422
