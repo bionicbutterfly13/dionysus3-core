@@ -85,9 +85,19 @@ class HexisIdentityService:
 
 ## Phase 5: Cleanup + Cutover
 
-- [ ] Remove any legacy pathways (if found)
-- [ ] Update docs and operational runbooks
-- [ ] Journal entry
+- [x] Remove any legacy pathways - None found (Graphiti-only architecture)
+- [x] Update docs - spec.md and plan.md complete
+- [x] Journal entry - `docs/journal/2026-01-29-101-hexis-core-migration.md`
+
+## Summary
+
+Feature 101 complete. All Hexis core cognition is now integrated into Dionysus:
+- **HexisMemoryService**: recall/store facade over Graphiti
+- **HexisIdentityService**: worldview/goals/directives aggregation
+- **ReconstructionService**: identity hydration for session continuity
+- **Heartbeat**: consent/boundary enforcement (Track 103)
+
+27 tests passing. No sprawl. Gateway compliant.
 
 ## Branch
 `feature/101-hexis-core-migration`
