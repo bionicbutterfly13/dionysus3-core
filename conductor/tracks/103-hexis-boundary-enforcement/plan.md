@@ -19,10 +19,10 @@
   - `GraphitiService.search()` (boundary retrieval)
 
 ## Tasks
-- [~] Add boundary enforcement in Heartbeat (prompt injection + hard post-check) (CLAIMED: Codex-1)
-- [ ] Remove termination endpoints + service methods (self-end feature)
-- [ ] Add/adjust tests for boundary enforcement and termination removal
-- [ ] Update docs if required (journal entry after completion)
+- [x] Add boundary enforcement in Heartbeat (prompt injection + hard post-check) [358768d]
+- [x] Remove termination endpoints + service methods (self-end feature) [358768d]
+- [x] Add/adjust tests for boundary enforcement and termination removal [358768d]
+- [x] Update docs if required (journal entry after completion) [358768d]
 
 ## Branch
 `feature/103-hexis-boundary-enforcement`
